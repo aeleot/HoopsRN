@@ -1,0 +1,72 @@
+[
+  {
+    "id": "35.79150,-78.78110",
+    "name": "Downtown Cary Basketball Court",
+    "latitude": 35.79150,
+    "longitude": -78.78110,
+    "address": "Cary, NC"
+  },
+  {
+    "id": "35.80500,-78.75000",
+    "name": "White Deer Park Courts",
+    "latitude": 35.80500,
+    "longitude": -78.75000,
+    "address": "1400 White Deer Park Dr, Cary, NC"
+  },
+  {
+    "id": "35.76500,-78.76000",
+    "name": "Bond Park Basketball",
+    "latitude": 35.76500,
+    "longitude": -78.76000,
+    "address": "403 Maynard Rd, Cary, NC"
+  },
+  {
+    "id": "35.82000,-78.74500",
+    "name": "Hemlock Bluffs Courts",
+    "latitude": 35.82000,
+    "longitude": -78.74500,
+    "address": "3701 Trailwood Dr, Cary, NC"
+  },
+  {
+    "id": "35.74500,-78.75500",
+    "name": "Walnut Creek Park",
+    "latitude": 35.74500,
+    "longitude": -78.75500,
+    "address": "1000 High School Rd, Cary, NC"
+  },
+  {
+    "id": "35.77500,-78.73000",
+    "name": "Highcroft Ridge Park",
+    "latitude": 35.77500,
+    "longitude": -78.73000,
+    "address": "405 High Meadow Ln, Cary, NC"
+  },
+  {
+    "id": "35.79000,-78.80000",
+    "name": "Carpenter Park",
+    "latitude": 35.79000,
+    "longitude": -78.80000,
+    "address": "Carpenter Park, Cary, NC"
+  },
+  {
+    "id": "35.81000,-78.76500",
+    "name": "Ridgecrest Elementary Courts",
+    "latitude": 35.81000,
+    "longitude": -78.76500,
+    "address": "Cary, NC"
+  },
+  {
+    "id": "35.75000,-78.78500",
+    "name": "Preston Park Basketball",
+    "latitude": 35.75000,
+    "longitude": -78.78500,
+    "address": "Preston Park, Cary, NC"
+  },
+  {
+    "id": "35.78500,-78.71500",
+    "name": "Cary Tennis Center Courts",
+    "latitude": 35.78500,
+    "longitude": -78.71500,
+    "address": "Cary, NC"
+  }
+]

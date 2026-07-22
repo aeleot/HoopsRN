@@ -1,0 +1,298 @@
+# HoopRN iOS App — Phase 0 POC: Tab Navigation & Google Maps Integration
+
+## Objective
+Build a functional proof of concept for the HoopRN iOS app that establishes the core three-tab navigation structure and successfully embeds an interactive Google Maps view with basketball court markers. This POC focuses on **presentation layer** and **map rendering** — no backend or real data integration yet.
+
+---
+
+## Technical Requirements
+
+### 1. Project Setup & Dependencies
+- **Target:** iOS 17.0+
+- **Build System:** SPM (Swift Package Manager) for Google Maps SDK integration
+  - Add GoogleMaps framework via CocoaPods (since SPM doesn't support Google Maps; use CocoaPods integrated with Xcode)
+  - Alternative: Use GoogleMapsSDK-iOS if available via SPM
+- **State Management:** MVVM architecture with @ObservedObject, @StateObject, and @EnvironmentObject
+- **Data Persistence:** Keep SwiftData for now, but create a separate MVVM layer (do NOT mix SwiftData with view logic)
+- **Location Services:** Enable NSLocationWhenInUseUsageDescription and NSLocationAlwaysAndWhenInUseUsageDescription in Info.plist
+
+---
+
+### 2. Design System & Color Palette
+
+**Brand Colors:**
+- **Primary Background:** White (#FFFFFF)
+- **Primary Accent:** Orange (#FF7E00) — CTAs, active states, highlights
+- **Secondary Accent:** Red (#B90E0A) — warnings, deletions, status indicators
+- **Tertiary:** Black (#000000) — text, icons, shadows
+- **Supporting:** Light gray (#F5F5F5) for dividers and subtle backgrounds
+
+**Design Principles:**
+- Clean, minimal aesthetic with high contrast for readability
+- Orange for all primary calls-to-action (buttons, highlights, active tabs)
+- Red used sparingly for important alerts or destructive actions
+- Black text on white background for maximum clarity
+- Ample whitespace and generous padding
+- Rounded corners (12-16pt radius) for modern feel
+- Subtle shadows (opacity 0.1-0.15) for depth
+- No gradients; solid colors only for sleek appearance
+
+**Typography:**
+- System font stack (.system) throughout
+- Tab titles: `.system(size: 13, weight: .semibold)` with orange tint when active
+- Headings: `.system(size: 18, weight: .bold)` in black
+- Body text: `.system(size: 16, weight: .regular)` in black
+- Secondary text: `.system(size: 14, weight: .regular)` in dark gray (#666666)
+
+---
+
+### 3. Core App Structure
+
+**Create a new `MainTabView.swift`** that replaces `ContentView.swift` as the root view:
+- Use TabView with three tabs, each selectable via .tabItem:
+  - **Tab 1: "Find a Match"** (map icon: 🗺️ or map)
+    - Will host the Google Maps view
+  - **Tab 2: "Local Games"** (feed icon: 🏀 or list.bullet)
+    - Placeholder: white background with subtle gray dividers, "Local Games" centered text in black
+  - **Tab 3: "Profile"** (profile icon: 👤 or person.circle)
+    - Placeholder: white background, "Profile" centered text in black
+
+- **Tab Styling:**
+  - Active tab icon: Orange (#FF7E00)
+  - Active tab label: Orange (#FF7E00) text, font weight .semibold
+  - Inactive tab icon: black with 60% opacity
+  - Inactive tab label: black with 60% opacity
+  - Tab bar background: white (#FFFFFF) with subtle top border (light gray #E8E8E8)
+  - Tab bar should remain persistent at the bottom during navigation
+
+---
+
+### 4. Google Maps Integration (Tab 1: Find a Match)
+
+**Create `MapView.swift`** — A SwiftUI wrapper around GMSMapView:
+- **Use UIViewRepresentable** to embed the native Google Maps SDK into SwiftUI
+- **Initial Map Configuration:**
+  - Center: San Francisco, CA (40.7128, -74.0060) — hardcoded for POC (will be user location in Phase 1)
+  - Zoom Level: 13 (city-level view, shows multiple courts)
+  - Gesture Recognition: enabled (pinch to zoom, pan, rotate)
+  - Compass: visible (top-right corner)
+  - "My Location" button: visible if location permission is granted (bottom-right)
+
+**Custom Court Markers:**
+- Create **5 hardcoded court markers** for demo purposes (lat/lng pairs across SF):
+  - **Court 1:** "Rucker Park" (40.8116, -73.9465)
+  - **Court 2:** "Pier 39 Courts" (37.8087, -122.4090)
+  - **Court 3:** "Ocean Beach Hoops" (37.7596, -122.5107)
+  - **Court 4:** "Golden Gate Park" (37.7694, -122.4862)
+  - **Court 5:** "Mission Courts" (37.7599, -122.4148)
+- Marker icon: **Custom basketball hoop SVG in orange (#FF7E00)** or image (solid fill, clean design)
+- On marker tap: print to console (or show a debug toast) with court name — no bottom sheet yet
+- Marker styling: slight shadow (0.12 opacity), tintable color (orange)
+
+**Map Controls:**
+- **"Recenter on Me" FAB (Floating Action Button):**
+  - Position: bottom-right, 16pt from edges, above the "My Location" button
+  - Background: Orange (#FF7E00) with rounded corners (12pt)
+  - Icon: crosshair or location.circle in white
+  - Icon size: 20pt
+  - Button size: 48x48pt
+  - Shadow: subtle shadow with 0.15 opacity
+  - Tap: recenter map to user's last known location (or hardcoded SF if no permission)
+  - Hover/Pressed state: darker orange (#E66F00) for visual feedback
+
+---
+
+### 5. Location Services Setup
+
+**Create `LocationManager.swift`** — Singleton MVVM manager:
+- Conform to NSObject, CLLocationManagerDelegate
+- Properties:
+  - @Published var userLocation: CLLocationCoordinate2D?
+  - @Published var authorizationStatus: CLAuthorizationStatus
+  - private let locationManager = CLLocationManager()
+- Methods:
+  - requestLocationPermission() — Trigger "When In Use" permission dialog
+  - startUpdatingLocation() — Begin location tracking
+  - stopUpdatingLocation() — Stop tracking
+- **Behavior:**
+  - On first launch, do NOT auto-prompt for permission (wait for explicit action)
+  - Store initial location when granted; update @Published properties
+  - Gracefully handle .denied / .restricted states
+
+---
+
+### 6. View Hierarchy & Navigation
+
+**File Structure:**
+```
+hoopr/
+├── ContentView.swift (replaced or archived)
+├── MainTabView.swift (new root)
+├── Tabs/
+│   ├── FindAMatchTab.swift (contains MapView)
+│   ├── LocalGamesTab.swift (placeholder)
+│   └── ProfileTab.swift (placeholder)
+├── Views/
+│   └── MapView.swift (Google Maps wrapper)
+├── Managers/
+│   └── LocationManager.swift
+└── Models/
+    └── CourtModel.swift (struct for demo courts)
+```
+
+**`MainTabView.swift` Structure:**
+```swift
+struct MainTabView: View {
+    @StateObject private var locationManager = LocationManager()
+
+    var body: some View {
+        TabView {
+            FindAMatchTab()
+                .tabItem {
+                    Label("Find a Match", systemImage: "map")
+                }
+
+            LocalGamesTab()
+                .tabItem {
+                    Label("Local Games", systemImage: "list.bullet")
+                }
+
+            ProfileTab()
+                .tabItem {
+                    Label("Profile", systemImage: "person.circle")
+                }
+        }
+        .environmentObject(locationManager)
+    }
+}
+```
+
+---
+
+### 7. Data Models (Minimal for POC)
+
+**`CourtModel.swift`:**
+```swift
+struct Court: Identifiable {
+    let id: String
+    let name: String
+    let latitude: Double
+    let longitude: Double
+    let address: String
+    let occupancyCount: Int? // nil for POC (no live data)
+
+    var coordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+}
+```
+
+---
+
+### 8. Key Features to Implement
+
+- ✅ **Tab Navigation:** Switch between three tabs without losing state
+- ✅ **Google Maps Display:** Render map with custom markers
+- ✅ **Marker Interaction:** Tap marker, print debug output
+- ✅ **Hardcoded Courts:** 5 demo courts with realistic SF coordinates
+- ✅ **Location Permission:** Request & handle location permission gracefully
+- ✅ **Recenter Button:** FAB to re-center map on user location
+- ✅ **MVVM Structure:** Separate logic from UI (LocationManager, CourtModel)
+- ✅ **Clean & Sleek UI:** White background with orange/red/black color scheme
+
+---
+
+### 9. UI/UX Specifications
+
+**Tab Bar:**
+- Background: White (#FFFFFF)
+- Top border: 1pt line in light gray (#E8E8E8)
+- Height: standard iOS (49pt)
+- Active tab: orange (#FF7E00) icon and label
+- Inactive tab: black icon/label at 60% opacity
+- Typography: .system(size: 13, weight: .semibold)
+
+**Map View (Tab 1):**
+- Full-screen map with safe area respect
+- Status bar: light content over map
+- Court markers: orange (#FF7E00) with subtle shadow
+- Recenter FAB: orange background, white icon, 48x48pt, 12pt corner radius
+
+**Placeholder Tabs (2 & 3):**
+- Full white background
+- Centered black text (.system, size: 18, weight: .bold)
+- Subtle gray (#F5F5F5) divider lines if needed for content hierarchy
+
+**Safe Areas:**
+- Respect safe area on all sides
+- No content should overlap notch or home indicator area
+
+---
+
+### 10. Testing & Validation Checklist
+
+- [ ] App launches with three visible tabs
+- [ ] Switching between tabs is smooth and state persists
+- [ ] Map loads with 5 markers visible on initial launch
+- [ ] Marker icons are visible (orange color) and tappable
+- [ ] Tap marker → console logs court name
+- [ ] "Recenter on Me" FAB is visible and tappable with orange background
+- [ ] "Recenter on Me" button centers map on hardcoded location
+- [ ] Location permission prompt appears on first recenter tap (if not already granted)
+- [ ] App handles denied location permission gracefully (map still functional, uses hardcoded center)
+- [ ] Tab bar shows correct orange color for active tab and black for inactive
+- [ ] UI is clean with white background, no clutter
+- [ ] No crashes on rotation or background/foreground transitions
+- [ ] Google Maps API key is correctly configured (verify in build settings or Info.plist)
+- [ ] All text is readable (black on white with good contrast)
+
+---
+
+### 11. Error Handling & Edge Cases
+
+- **Google Maps API Key Missing:** Show error alert with black text on white background ("Maps API key not configured")
+- **Location Permission Denied:** Use hardcoded center point (SF), disable "My Location" button
+- **No Network:** Map should still render (Google Maps has offline caching)
+- **Marker Tap Outside Safe Area:** Handle gracefully (no crash)
+- **Low Memory:** Handle gracefully, no performance degradation
+
+---
+
+### 12. Dependencies to Install
+
+1. **CocoaPods Setup:**
+   ```bash
+   pod install
+   # Podfile should include:
+   # pod 'GoogleMaps'
+   ```
+
+2. **Google Maps API Key:**
+   - Obtain from Google Cloud Console
+   - Add to Info.plist under key GMSAPIKey or configure in code during UIApplicationDelegate setup
+
+---
+
+### 13. Post-POC (Phase 1 Prep)
+
+- Once this POC is validated, Phase 1 will:
+  - Replace hardcoded courts with real Firestore data
+  - Add real-time occupancy counts from checkIns collection
+  - Implement court detail bottom sheet on marker tap
+  - Add queue for games UI flow
+  - Enhance animations and interactions
+
+---
+
+## Deliverable
+
+A running iOS app (on simulator or device) that:
+1. **Displays three functional tabs** with orange active state
+2. **Renders a Google Maps view** in Tab 1 with **5 demo basketball court markers** in orange
+3. **Responds to marker taps** (debug output)
+4. **Handles location permissions** gracefully
+5. **Includes a functional orange "Recenter" FAB button** to center the map
+6. **Has clean placeholder UI** for Tabs 2 and 3 (white background, black text)
+7. **Follows MVVM architecture** with clean separation of concerns
+8. **Features a sleek, modern design** with white background, orange highlights, red accents, and black text
+9. **Maintains high contrast and readability** throughout the interface

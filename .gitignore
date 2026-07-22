@@ -1,0 +1,7 @@
+*.pbxuser
+*.xcworkspace
+xcuserdata/
+DerivedData/
+.DS_Store
+*.xcarchive
+Build/

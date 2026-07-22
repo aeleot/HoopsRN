@@ -66,7 +66,7 @@ fileprivate struct NavigationViewWrapper<Content: View>: View {
         NavigationSplitView {
             content()
         } detail: {
-            Text("Select an item")
+            Text("Aeleot Big Boss")
         }
 #else
         content()
