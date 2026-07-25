@@ -44,18 +44,24 @@ class CourtSearchService: ObservableObject {
     func ensureCoverage(for visibleRegion: MKCoordinateRegion) {
         // 1. In-memory hit
         if let box = loadedBox, box.contains(visibleRegion) {
+            print("[Hoopr] ✓ Cache HIT: Region covered by in-memory box")
             logger.debug("Region covered by in-memory box")
             return
         }
 
+        print("[Hoopr] Checking disk cache for region...")
         // 2. Disk cache hit — load instantly, then refresh in background
         if let cached = cache.find(covering: visibleRegion) {
+            print("[Hoopr] ✓ Cache HIT: Loaded \(cached.courts.count) courts from disk")
             logger.debug("Region covered by disk cache (\(cached.courts.count) courts)")
             self.loadedBox = cached.box
             self.courts = cached.courts.sorted { $0.name < $1.name }
             // Optionally refresh in background if cache is stale (>7 days)
             let age = Date().timeIntervalSince(cached.timestamp)
+            let ageInDays = age / (24 * 60 * 60)
+            print("[Hoopr] Cache age: \(String(format: "%.1f", ageInDays)) days")
             if age > 7 * 24 * 60 * 60 {
+                print("[Hoopr] Cache is stale (>7 days), refreshing in background...")
                 logger.debug("Cache is stale, refreshing in background")
                 prefetch(centeredAt: visibleRegion.center, showSpinner: false)
             }
@@ -63,6 +69,7 @@ class CourtSearchService: ObservableObject {
         }
 
         // 3. Network fetch
+        print("[Hoopr] ✗ Cache MISS: No coverage found, fetching from network...")
         logger.debug("No coverage found, fetching from network")
         prefetch(centeredAt: visibleRegion.center, showSpinner: true)
     }
@@ -84,6 +91,7 @@ class CourtSearchService: ObservableObject {
             east: center.longitude + lonDelta
         )
 
+        print("[Hoopr] Network request started: Prefetching ~15-mile radius around (\(center.latitude), \(center.longitude))")
         logger.debug("Prefetching ~15-mile radius around \(center.latitude), \(center.longitude)")
 
         prefetchTask = Task {
@@ -95,6 +103,7 @@ class CourtSearchService: ObservableObject {
             }
 
             let fetched = await fetchCourtsInParallel(bbox: bbox)
+            print("[Hoopr] Network request completed: Fetched \(fetched.count) courts")
             logger.debug("Fetched \(fetched.count) courts")
 
             if Task.isCancelled { return }
@@ -103,6 +112,7 @@ class CourtSearchService: ObservableObject {
 
             // Save to disk cache (only if we got real data, not just fallback bundle)
             if !sorted.isEmpty {
+                print("[Hoopr] Saving \(sorted.count) courts to disk cache...")
                 cache.save(box: bbox, courts: sorted)
             }
 
@@ -112,7 +122,9 @@ class CourtSearchService: ObservableObject {
                 self.isSearching = false
                 if sorted.isEmpty {
                     self.lastError = "No courts found in this area"
+                    print("[Hoopr] ✗ No courts found in this area")
                 } else {
+                    print("[Hoopr] ✓ Displaying \(sorted.count) courts on map")
                     self.writeDebugCourtsFile(sorted)
                 }
             }
