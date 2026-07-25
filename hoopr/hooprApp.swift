@@ -7,9 +7,32 @@
 
 import SwiftUI
 import SwiftData
+import FirebaseCore
+
+#if os(iOS) || os(visionOS)
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        FirebaseApp.configure()
+
+        return true
+    }
+}
+#endif
 
 @main
 struct hooprApp: App {
+    #if os(iOS) || os(visionOS)
+    // register app delegate for Firebase setup
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    #else
+    init() {
+        FirebaseApp.configure()
+    }
+    #endif
+
+    @StateObject private var authManager = AuthManager()
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
@@ -25,7 +48,8 @@ struct hooprApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainTabView()
+            RootView()
+                .environmentObject(authManager)
         }
         .modelContainer(sharedModelContainer)
     }
