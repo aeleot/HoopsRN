@@ -8,7 +8,7 @@ final class LocationManager: NSObject, ObservableObject {
 
     private let manager = CLLocationManager()
 
-    static let defaultLocation = CLLocationCoordinate2D(latitude: 35.7915, longitude: -78.7811)
+    static let defaultLocation = CLLocationCoordinate2D(latitude: 35.9940, longitude: -78.8986)
 
     override init() {
         super.init()

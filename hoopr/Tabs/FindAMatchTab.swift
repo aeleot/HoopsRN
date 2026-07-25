@@ -8,7 +8,7 @@ struct FindAMatchTab: View {
     @State private var zoomTrigger: ZoomTrigger?
 
     private static let initialRegion = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 35.7915, longitude: -78.7811),
+        center: LocationManager.defaultLocation,
         span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
     )
 

@@ -60,6 +60,14 @@ final class CourtCache {
         load()
     }
 
+    func loadMostRecent() -> CachedRegion? {
+        let now = Date()
+        let maxAge = cacheExpirationDays * 24 * 60 * 60
+        return regions
+            .filter { now.timeIntervalSince($0.timestamp) < maxAge }
+            .max(by: { $0.timestamp < $1.timestamp })
+    }
+
     /// Returns the most recent non-expired cached region that fully contains the given map region.
     func find(covering region: MKCoordinateRegion) -> CachedRegion? {
         let now = Date()

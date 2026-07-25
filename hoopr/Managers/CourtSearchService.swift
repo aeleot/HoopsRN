@@ -11,8 +11,19 @@ class CourtSearchService: ObservableObject {
     @Published var lastError: String?
 
     private var prefetchTask: Task<Void, Never>?
-    private var loadedBox: BoundingBox?
+    private var loadedBox: BoundingBox? // Tracks the geographic region already loaded in memory
     private let cache = CourtCache()
+
+    init() {
+        // On startup, immediately load the most recent cached courts so markers appear without delay.
+        // This avoids a blank map on app launch and prevents redundant API calls on subsequent opens.
+        if let cached = cache.loadMostRecent() {
+            logger.debug("Startup: loaded \(cached.courts.count) courts from cache")
+            self.courts = cached.courts.sorted { $0.name < $1.name }
+            self.loadedBox = cached.box
+            writeDebugCourtsFile(self.courts)
+        }
+    }
 
     // Multiple Overpass API mirrors — try each in order if one rate-limits.
     private let overpassEndpoints: [URL] = [
@@ -22,7 +33,7 @@ class CourtSearchService: ObservableObject {
     ]
 
     // Prefetch this many miles around the visible region.
-    private static let prefetchRadiusMiles: Double = 20.0
+    private static let prefetchRadiusMiles: Double = 15.0
     private static let milesPerLatDegree: Double = 69.0
 
     // Grid dimension for parallel fetching. 2x2 = 4 parallel requests.
@@ -57,9 +68,12 @@ class CourtSearchService: ObservableObject {
     }
 
     private func prefetch(centeredAt center: CLLocationCoordinate2D, showSpinner: Bool) {
+        // Cancel any in-flight fetch so rapid map pans don't pile up requests.
         prefetchTask?.cancel()
 
         let latDelta = Self.prefetchRadiusMiles / Self.milesPerLatDegree
+        // Longitude degrees vary by latitude (cosine effect). At the equator, 1° lon ≈ 69 miles.
+        // At higher latitudes, 1° lon becomes shorter. This scales the fetch box to maintain ~15 miles width.
         let cosLat = cos(center.latitude * .pi / 180)
         let lonDelta = Self.prefetchRadiusMiles / (Self.milesPerLatDegree * max(cosLat, 0.01))
 
@@ -70,7 +84,7 @@ class CourtSearchService: ObservableObject {
             east: center.longitude + lonDelta
         )
 
-        logger.debug("Prefetching ~20-mile radius around \(center.latitude), \(center.longitude)")
+        logger.debug("Prefetching ~15-mile radius around \(center.latitude), \(center.longitude)")
 
         prefetchTask = Task {
             if showSpinner {
@@ -98,6 +112,8 @@ class CourtSearchService: ObservableObject {
                 self.isSearching = false
                 if sorted.isEmpty {
                     self.lastError = "No courts found in this area"
+                } else {
+                    self.writeDebugCourtsFile(sorted)
                 }
             }
         }
@@ -131,7 +147,8 @@ class CourtSearchService: ObservableObject {
             return results
         }
 
-        // Merge and dedupe by rounded coordinate
+        // Merge and dedupe by rounded coordinate (court.id is "%.5f,%.5f" of lat,lon).
+        // This handles duplicate courts returned by different grid cells or API mirrors.
         var seen = Set<String>()
         var merged: [Court] = []
         for batch in allResults {
@@ -141,7 +158,8 @@ class CourtSearchService: ObservableObject {
         }
         logger.debug("Merged to \(merged.count) unique courts")
 
-        // If no results and all API calls failed, use bundled fallback data
+        // If all API calls failed, use bundled fallback data as a graceful degradation.
+        // Ensures app remains functional even when Overpass API is rate-limited or down.
         if merged.isEmpty {
             logger.debug("API failed, loading bundled fallback data")
             let fallback = loadBundledCourts()
@@ -152,6 +170,25 @@ class CourtSearchService: ObservableObject {
         }
 
         return merged
+    }
+
+    // MARK: - Debug Helper
+
+    /// Writes the current courts array to a JSON file in Documents for inspection.
+    /// This is a temporary development aid to visualize cached/fetched court data.
+    /// File location: ~/Documents/courts_debug.json (accessible via Xcode Device Organizer).
+    /// Called on startup (from cached data) and after API fetches (fresh data).
+    private func writeDebugCourtsFile(_ courts: [Court]) {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let debugFileURL = docs.appendingPathComponent("courts_debug.json")
+
+        do {
+            let data = try JSONEncoder().encode(courts)
+            try data.write(to: debugFileURL, options: .atomic)
+            logger.debug("Wrote \(courts.count) courts to debug file: \(debugFileURL.path)")
+        } catch {
+            logger.error("Failed to write debug courts file: \(error.localizedDescription)")
+        }
     }
 
     private func loadBundledCourts() -> [Court] {
@@ -225,6 +262,7 @@ class CourtSearchService: ObservableObject {
             throw err
         }
 
+        // Decode on a background task so JSON parsing doesn't block the network call.
         return try await Task.detached(priority: .userInitiated) {
             let decoded = try JSONDecoder().decode(OverpassResponse.self, from: data)
             var courts: [Court] = []
@@ -244,6 +282,8 @@ class CourtSearchService: ObservableObject {
                     continue
                 }
 
+                // Coordinates rounded to 5 decimals (~1 meter precision) as a stable court ID.
+                // This handles cases where the same court is represented twice in OSM with tiny coordinate variations.
                 let id = String(format: "%.5f,%.5f", lat, lon)
                 guard !seen.contains(id) else { continue }
                 seen.insert(id)
