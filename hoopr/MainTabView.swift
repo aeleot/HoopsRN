@@ -24,14 +24,7 @@ struct MainTabView: View {
     @State private var selectedTab = 0
 
     var body: some View {
-        TabView(selection: Binding(
-            get: { selectedTab },
-            set: { newValue in
-                withAnimation(nil) {
-                    selectedTab = newValue
-                }
-            }
-        )) {
+        TabView(selection: $selectedTab) {
             FindAMatchTab()
                 .tag(0)
                 .tabItem {
@@ -53,4 +46,8 @@ struct MainTabView: View {
         .tint(Color.hooprOrange)
         .environmentObject(locationManager)
     }
+}
+
+#Preview {
+    MainTabView()
 }
