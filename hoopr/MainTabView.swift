@@ -20,7 +20,7 @@ struct MainTabView: View {
                     Spacer()
 
                     HStack {
-                        Text("Let's go hoop \(userName).")
+                        (Text("Let's go hoop ") + Text(userName).fontWeight(.bold) + Text("."))
                             .font(.system(size: 28))
                             .foregroundStyle(.black)
                         Spacer()
