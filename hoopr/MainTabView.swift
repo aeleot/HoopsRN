@@ -1,16 +1,11 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @EnvironmentObject var authManager: AuthManager
     @StateObject private var locationManager = LocationManager()
     @State private var selectedTab = 0
     @State private var showProfile = false
 
-    /// Accounts predating the sign-up name field have no display name, so the
-    /// greeting still needs a neutral fallback.
-    private var userName: String {
-        authManager.userDisplayName ?? "stranger"
-    }
+    private let userName = "User1"
 
     private let tabs: [(String, String)] = [
         ("Court Map", "map"),
@@ -25,15 +20,9 @@ struct MainTabView: View {
                     Spacer()
 
                     HStack {
-                        if showProfile {
-                            Text("HoopRN")
-                                .font(.system(size: 28, weight: .bold))
-                                .foregroundStyle(Color.hooprOrange)
-                        } else {
-                            Text("Let's hoop \(userName).")
-                                .font(.system(size: 28))
-                                .foregroundStyle(.black)
-                        }
+                        Text("Let's go hoop \(userName).")
+                            .font(.system(size: 28))
+                            .foregroundStyle(.black)
                         Spacer()
                         Button {
                             withAnimation(.easeInOut(duration: 0.2)) {

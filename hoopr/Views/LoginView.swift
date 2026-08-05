@@ -4,7 +4,6 @@ struct LoginView: View {
     @EnvironmentObject var authManager: AuthManager
 
     @State private var mode: Mode = .signIn
-    @State private var displayName = ""
     @State private var email = ""
     @State private var password = ""
     @FocusState private var focusedField: Field?
@@ -50,21 +49,14 @@ struct LoginView: View {
     }
 
     private enum Field {
-        case name
         case email
         case password
     }
 
-    private var trimmedDisplayName: String {
-        displayName.trimmingCharacters(in: .whitespaces)
-    }
-
     private var canSubmit: Bool {
-        guard !authManager.isBusy else { return false }
-        guard mode == .signIn || !trimmedDisplayName.isEmpty else { return false }
-
-        return !email.trimmingCharacters(in: .whitespaces).isEmpty
+        !email.trimmingCharacters(in: .whitespaces).isEmpty
             && !password.isEmpty
+            && !authManager.isBusy
     }
 
     var body: some View {
@@ -87,14 +79,19 @@ struct LoginView: View {
             .padding(.bottom, 32)
 
             VStack(spacing: 12) {
-                if mode == .signUp {
-                    field(placeholder: "Name", text: $displayName, field: .name)
-                        .transition(.opacity)
-                }
+                field(
+                    placeholder: "Email",
+                    text: $email,
+                    field: .email,
+                    isSecure: false
+                )
 
-                field(placeholder: "Email", text: $email, field: .email)
-
-                field(placeholder: "Password", text: $password, field: .password)
+                field(
+                    placeholder: "Password",
+                    text: $password,
+                    field: .password,
+                    isSecure: true
+                )
             }
 
             if let errorMessage = authManager.errorMessage {
@@ -158,19 +155,17 @@ struct LoginView: View {
     private func field(
         placeholder: String,
         text: Binding<String>,
-        field: Field
+        field: Field,
+        isSecure: Bool
     ) -> some View {
         Group {
-            switch field {
-            case .name:
-                TextField(placeholder, text: text)
-                    .submitLabel(.next)
+            if isSecure {
+                SecureField(placeholder, text: text)
+                    .submitLabel(.go)
                     #if os(iOS) || os(visionOS)
-                    .textContentType(.name)
-                    .textInputAutocapitalization(.words)
+                    .textContentType(mode == .signUp ? .newPassword : .password)
                     #endif
-
-            case .email:
+            } else {
                 TextField(placeholder, text: text)
                     .autocorrectionDisabled()
                     .submitLabel(.next)
@@ -178,13 +173,6 @@ struct LoginView: View {
                     .textContentType(.emailAddress)
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
-                    #endif
-
-            case .password:
-                SecureField(placeholder, text: text)
-                    .submitLabel(.go)
-                    #if os(iOS) || os(visionOS)
-                    .textContentType(mode == .signUp ? .newPassword : .password)
                     #endif
             }
         }
@@ -204,8 +192,6 @@ struct LoginView: View {
         )
         .onSubmit {
             switch field {
-            case .name:
-                focusedField = .email
             case .email:
                 focusedField = .password
             case .password:
@@ -219,7 +205,6 @@ struct LoginView: View {
         focusedField = nil
 
         let trimmedEmail = email.trimmingCharacters(in: .whitespaces)
-        let name = trimmedDisplayName
         let currentMode = mode
 
         Task {
@@ -227,11 +212,7 @@ struct LoginView: View {
             case .signIn:
                 await authManager.signIn(email: trimmedEmail, password: password)
             case .signUp:
-                await authManager.signUp(
-                    email: trimmedEmail,
-                    password: password,
-                    displayName: name
-                )
+                await authManager.signUp(email: trimmedEmail, password: password)
             }
         }
     }
