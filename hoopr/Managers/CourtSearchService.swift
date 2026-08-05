@@ -14,6 +14,21 @@ class CourtSearchService: ObservableObject {
     private var loadedBox: BoundingBox? // Tracks the geographic region already loaded in memory
     private let cache = CourtCache()
 
+    // MARK: - API Call Optimization
+
+    /// Bounding box of the network fetch currently in flight, if any. Lets coverage
+    /// requests that fall within it wait for the in-progress fetch instead of firing a duplicate.
+    private var inFlightBox: BoundingBox?
+
+    /// Debounces rapid successive network-required coverage checks (e.g. continuous panning
+    /// across uncached areas) into a single request once the map settles.
+    private var networkFetchDebounce: Task<Void, Never>?
+    private static let networkDebounceInterval: TimeInterval = 0.4
+
+    /// Prevents redundant background refreshes of the same stale region firing back-to-back.
+    private var lastBackgroundRefreshTime: Date?
+    private static let backgroundRefreshCooldown: TimeInterval = 5 * 60
+
     init() {
         // On startup, immediately load the most recent cached courts so markers appear without delay.
         // This avoids a blank map on app launch and prevents redundant API calls on subsequent opens.
@@ -49,6 +64,14 @@ class CourtSearchService: ObservableObject {
             return
         }
 
+        // Already fetching a box that will cover this region — let it finish instead of
+        // firing a duplicate concurrent network call (e.g. rapid pans hitting the same gap).
+        if let inFlight = inFlightBox, inFlight.contains(visibleRegion) {
+            print("[Hoopr] ⏳ Fetch already in flight for this region, waiting for it to finish")
+            logger.debug("Region covered by in-flight fetch, skipping duplicate request")
+            return
+        }
+
         print("[Hoopr] Checking disk cache for region...")
         // 2. Disk cache hit — load instantly, then refresh in background
         if let cached = cache.find(covering: visibleRegion) {
@@ -61,17 +84,46 @@ class CourtSearchService: ObservableObject {
             let ageInDays = age / (24 * 60 * 60)
             print("[Hoopr] Cache age: \(String(format: "%.1f", ageInDays)) days")
             if age > 7 * 24 * 60 * 60 {
-                print("[Hoopr] Cache is stale (>7 days), refreshing in background...")
-                logger.debug("Cache is stale, refreshing in background")
-                prefetch(centeredAt: visibleRegion.center, showSpinner: false)
+                if let lastRefresh = lastBackgroundRefreshTime,
+                   Date().timeIntervalSince(lastRefresh) < Self.backgroundRefreshCooldown {
+                    print("[Hoopr] Skipping background refresh — one already ran recently")
+                    logger.debug("Skipping background refresh, cooldown active")
+                } else {
+                    print("[Hoopr] Cache is stale (>7 days), refreshing in background...")
+                    logger.debug("Cache is stale, refreshing in background")
+                    lastBackgroundRefreshTime = Date()
+                    prefetch(centeredAt: visibleRegion.center, showSpinner: false)
+                }
             }
             return
         }
 
-        // 3. Network fetch
-        print("[Hoopr] ✗ Cache MISS: No coverage found, fetching from network...")
-        logger.debug("No coverage found, fetching from network")
-        prefetch(centeredAt: visibleRegion.center, showSpinner: true)
+        // 3. Network fetch — debounced so rapid panning across uncached areas coalesces
+        // into a single request once the map settles, instead of one call per pan tick.
+        print("[Hoopr] ✗ Cache MISS: Scheduling network fetch...")
+        logger.debug("No coverage found, scheduling debounced network fetch")
+        scheduleNetworkFetch(centeredAt: visibleRegion.center, forRegion: visibleRegion)
+    }
+
+    /// Delays a network-required fetch briefly so continuous panning doesn't fire one
+    /// request per intermediate region. Re-checks coverage once the delay elapses in case
+    /// it arrived another way (e.g. a background refresh) while waiting.
+    private func scheduleNetworkFetch(centeredAt center: CLLocationCoordinate2D, forRegion region: MKCoordinateRegion) {
+        networkFetchDebounce?.cancel()
+        networkFetchDebounce = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Self.networkDebounceInterval * 1_000_000_000))
+            guard !Task.isCancelled, let self else { return }
+
+            if let box = self.loadedBox, box.contains(region) {
+                print("[Hoopr] Debounced fetch skipped — coverage arrived while waiting")
+                logger.debug("Debounced fetch skipped, coverage arrived while waiting")
+                return
+            }
+
+            print("[Hoopr] ✗ Cache MISS: No coverage found, fetching from network...")
+            logger.debug("No coverage found, fetching from network")
+            self.prefetch(centeredAt: center, showSpinner: true)
+        }
     }
 
     private func prefetch(centeredAt center: CLLocationCoordinate2D, showSpinner: Bool) {
@@ -90,6 +142,8 @@ class CourtSearchService: ObservableObject {
             west: center.longitude - lonDelta,
             east: center.longitude + lonDelta
         )
+
+        inFlightBox = bbox
 
         print("[Hoopr] Network request started: Prefetching ~15-mile radius around (\(center.latitude), \(center.longitude))")
         logger.debug("Prefetching ~15-mile radius around \(center.latitude), \(center.longitude)")
@@ -120,6 +174,7 @@ class CourtSearchService: ObservableObject {
                 self.loadedBox = bbox
                 self.courts = sorted
                 self.isSearching = false
+                self.inFlightBox = nil
                 if sorted.isEmpty {
                     self.lastError = "No courts found in this area"
                     print("[Hoopr] ✗ No courts found in this area")

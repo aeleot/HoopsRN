@@ -15,6 +15,16 @@ final class AuthManager: ObservableObject {
     var userID: String? { user?.uid }
     var userEmail: String? { user?.email }
 
+    /// Accounts created before display names were collected have no name at all, and
+    /// Firebase reports a name that was cleared as an empty string rather than nil —
+    /// both are treated as "no name" so callers can fall back with `??`.
+    var userDisplayName: String? {
+        guard let name = user?.displayName?.trimmingCharacters(in: .whitespaces),
+              !name.isEmpty
+        else { return nil }
+        return name
+    }
+
     init() {
         stateListener = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             Task { @MainActor in
@@ -30,9 +40,18 @@ final class AuthManager: ObservableObject {
         }
     }
 
-    func signUp(email: String, password: String) async {
+    func signUp(email: String, password: String, displayName: String) async {
         await authenticate {
-            try await Auth.auth().createUser(withEmail: email, password: password)
+            let result = try await Auth.auth().createUser(withEmail: email, password: password)
+
+            // The account exists the moment createUser returns, so the state listener
+            // has already published a nameless user. Attaching the name here and
+            // republishing below is what keeps the greeting from reading "Let's hoop User."
+            let request = result.user.createProfileChangeRequest()
+            request.displayName = displayName
+            try await request.commitChanges()
+
+            return result
         }
     }
 
@@ -53,7 +72,10 @@ final class AuthManager: ObservableObject {
         isBusy = true
         errorMessage = nil
         do {
-            _ = try await action()
+            // Republish the result's user: `User` is a reference type, so a profile
+            // change mutates the instance the listener already handed us without
+            // emitting anything. Reassigning is what drives the SwiftUI update.
+            user = try await action().user
         } catch {
             errorMessage = Self.message(for: error)
         }
