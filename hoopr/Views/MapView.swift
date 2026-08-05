@@ -51,7 +51,6 @@ struct MapView: UIViewRepresentable {
     let initialRegion: MKCoordinateRegion
     @Binding var recenterTrigger: RecenterTrigger?
     @Binding var zoomTrigger: ZoomTrigger?
-    var onRegionChange: ((MKCoordinateRegion) -> Void)?
     var onMarkerTap: ((Court) -> Void)?
 
     func makeUIView(context: Context) -> MKMapView {
@@ -117,7 +116,6 @@ struct MapView: UIViewRepresentable {
         var parent: MapView
         var lastRecenterId: UUID?
         var lastZoomId: UUID?
-        private var debounceWorkItem: DispatchWorkItem?
 
         init(parent: MapView) {
             self.parent = parent
@@ -144,17 +142,6 @@ struct MapView: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
             guard let ann = view.annotation as? CourtAnnotation else { return }
             parent.onMarkerTap?(ann.court)
-        }
-
-        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
-            debounceWorkItem?.cancel()
-            let region = mapView.region
-            let callback = parent.onRegionChange
-            let work = DispatchWorkItem {
-                callback?(region)
-            }
-            debounceWorkItem = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
         }
     }
 }

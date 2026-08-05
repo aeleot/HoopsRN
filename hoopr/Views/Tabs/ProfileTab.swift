@@ -1,7 +1,11 @@
 import SwiftUI
 
 struct ProfileTab: View {
-    @EnvironmentObject var authManager: AuthManager
+    @StateObject private var viewModel: ProfileViewModel
+
+    init(authService: AuthService) {
+        _viewModel = StateObject(wrappedValue: ProfileViewModel(authService: authService))
+    }
 
     var body: some View {
         VStack(spacing: 24) {
@@ -11,7 +15,7 @@ struct ProfileTab: View {
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(.black)
 
-            if let email = authManager.userEmail {
+            if let email = viewModel.email {
                 Text(email)
                     .font(.system(size: 15))
                     .foregroundStyle(Color.hooprSecondaryText)
@@ -19,8 +23,14 @@ struct ProfileTab: View {
 
             Spacer()
 
+            if let errorMessage = viewModel.errorMessage {
+                Text(errorMessage)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.hooprRed)
+            }
+
             Button {
-                authManager.signOut()
+                viewModel.signOut()
             } label: {
                 Text("Sign Out")
                     .font(.system(size: 17, weight: .semibold))
@@ -39,6 +49,5 @@ struct ProfileTab: View {
 }
 
 #Preview {
-    ProfileTab()
-        .environmentObject(AuthManager())
+    ProfileTab(authService: AuthService())
 }

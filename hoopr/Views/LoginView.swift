@@ -1,62 +1,16 @@
 import SwiftUI
 
 struct LoginView: View {
-    @EnvironmentObject var authManager: AuthManager
-
-    @State private var mode: Mode = .signIn
-    @State private var email = ""
-    @State private var password = ""
+    @StateObject private var viewModel: LoginViewModel
     @FocusState private var focusedField: Field?
 
-    private enum Mode {
-        case signIn
-        case signUp
-
-        var title: String {
-            switch self {
-            case .signIn: "Welcome back"
-            case .signUp: "Create your account"
-            }
-        }
-
-        var actionLabel: String {
-            switch self {
-            case .signIn: "Sign In"
-            case .signUp: "Sign Up"
-            }
-        }
-
-        var switchPrompt: String {
-            switch self {
-            case .signIn: "Don't have an account?"
-            case .signUp: "Already have an account?"
-            }
-        }
-
-        var switchAction: String {
-            switch self {
-            case .signIn: "Sign up"
-            case .signUp: "Sign in"
-            }
-        }
-
-        var toggled: Mode {
-            switch self {
-            case .signIn: .signUp
-            case .signUp: .signIn
-            }
-        }
+    init(authService: AuthService) {
+        _viewModel = StateObject(wrappedValue: LoginViewModel(authService: authService))
     }
 
     private enum Field {
         case email
         case password
-    }
-
-    private var canSubmit: Bool {
-        !email.trimmingCharacters(in: .whitespaces).isEmpty
-            && !password.isEmpty
-            && !authManager.isBusy
     }
 
     var body: some View {
@@ -72,29 +26,18 @@ struct LoginView: View {
                     .font(.system(size: 34, weight: .bold))
                     .foregroundStyle(.black)
 
-                Text(mode.title)
+                Text(viewModel.mode.title)
                     .font(.system(size: 15))
                     .foregroundStyle(Color.hooprSecondaryText)
             }
             .padding(.bottom, 32)
 
             VStack(spacing: 12) {
-                field(
-                    placeholder: "Email",
-                    text: $email,
-                    field: .email,
-                    isSecure: false
-                )
-
-                field(
-                    placeholder: "Password",
-                    text: $password,
-                    field: .password,
-                    isSecure: true
-                )
+                field(placeholder: "Email", text: $viewModel.email, field: .email, isSecure: false)
+                field(placeholder: "Password", text: $viewModel.password, field: .password, isSecure: true)
             }
 
-            if let errorMessage = authManager.errorMessage {
+            if let errorMessage = viewModel.errorMessage {
                 Text(errorMessage)
                     .font(.system(size: 13))
                     .foregroundStyle(Color.hooprRed)
@@ -106,33 +49,32 @@ struct LoginView: View {
                 submit()
             } label: {
                 ZStack {
-                    if authManager.isBusy {
+                    if viewModel.isBusy {
                         ProgressView()
                             .tint(.white)
                     } else {
-                        Text(mode.actionLabel)
+                        Text(viewModel.mode.actionLabel)
                             .font(.system(size: 17, weight: .semibold))
                     }
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
-                .background(canSubmit ? Color.hooprOrange : Color.hooprOrange.opacity(0.4))
+                .background(viewModel.canSubmit ? Color.hooprOrange : Color.hooprOrange.opacity(0.4))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .disabled(!canSubmit)
+            .disabled(!viewModel.canSubmit)
             .padding(.top, 24)
 
             Button {
                 withAnimation(.easeInOut(duration: 0.15)) {
-                    mode = mode.toggled
+                    viewModel.toggleMode()
                 }
-                authManager.clearError()
             } label: {
                 HStack(spacing: 4) {
-                    Text(mode.switchPrompt)
+                    Text(viewModel.mode.switchPrompt)
                         .foregroundStyle(Color.hooprSecondaryText)
-                    Text(mode.switchAction)
+                    Text(viewModel.mode.switchAction)
                         .foregroundStyle(Color.hooprOrange)
                         .fontWeight(.semibold)
                 }
@@ -163,7 +105,7 @@ struct LoginView: View {
                 SecureField(placeholder, text: text)
                     .submitLabel(.go)
                     #if os(iOS) || os(visionOS)
-                    .textContentType(mode == .signUp ? .newPassword : .password)
+                    .textContentType(viewModel.mode == .signUp ? .newPassword : .password)
                     #endif
             } else {
                 TextField(placeholder, text: text)
@@ -201,24 +143,12 @@ struct LoginView: View {
     }
 
     private func submit() {
-        guard canSubmit else { return }
+        guard viewModel.canSubmit else { return }
         focusedField = nil
-
-        let trimmedEmail = email.trimmingCharacters(in: .whitespaces)
-        let currentMode = mode
-
-        Task {
-            switch currentMode {
-            case .signIn:
-                await authManager.signIn(email: trimmedEmail, password: password)
-            case .signUp:
-                await authManager.signUp(email: trimmedEmail, password: password)
-            }
-        }
+        Task { await viewModel.submit() }
     }
 }
 
 #Preview {
-    LoginView()
-        .environmentObject(AuthManager())
+    LoginView(authService: AuthService())
 }

@@ -1,9 +1,21 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @StateObject private var locationManager = LocationManager()
+    @State private var selectedTab = 0
 
-    init() {
+    private let authService: AuthService
+    private let courtService: CourtService
+    private let locationService: LocationService
+
+    init(
+        authService: AuthService,
+        courtService: CourtService,
+        locationService: LocationService
+    ) {
+        self.authService = authService
+        self.courtService = courtService
+        self.locationService = locationService
+
         #if os(iOS)
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
@@ -21,11 +33,9 @@ struct MainTabView: View {
         #endif
     }
 
-    @State private var selectedTab = 0
-
     var body: some View {
         TabView(selection: $selectedTab) {
-            FindAMatchTab()
+            FindAMatchTab(courtService: courtService, locationService: locationService)
                 .tag(0)
                 .tabItem {
                     Label("Find a Match", systemImage: "map")
@@ -37,18 +47,20 @@ struct MainTabView: View {
                     Label("Local Games", systemImage: "list.bullet")
                 }
 
-            ProfileTab()
+            ProfileTab(authService: authService)
                 .tag(2)
                 .tabItem {
                     Label("Profile", systemImage: "person.circle")
                 }
         }
         .tint(Color.hooprOrange)
-        .environmentObject(locationManager)
     }
 }
 
 #Preview {
-    MainTabView()
-        .environmentObject(AuthManager())
+    MainTabView(
+        authService: AuthService(),
+        courtService: CourtService(),
+        locationService: LocationService()
+    )
 }

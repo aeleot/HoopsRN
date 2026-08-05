@@ -2,41 +2,29 @@ import SwiftUI
 import MapKit
 
 struct FindAMatchTab: View {
-    @EnvironmentObject var locationManager: LocationManager
-    @StateObject private var courtSearch = CourtSearchService()
+    @StateObject private var viewModel: FindAMatchViewModel
     @State private var recenterTrigger: RecenterTrigger?
     @State private var zoomTrigger: ZoomTrigger?
 
-    private static let initialRegion = MKCoordinateRegion(
-        center: LocationManager.defaultLocation,
-        span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
-    )
+    init(courtService: CourtService, locationService: LocationService) {
+        _viewModel = StateObject(wrappedValue: FindAMatchViewModel(
+            courtService: courtService,
+            locationService: locationService
+        ))
+    }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             MapView(
-                courts: courtSearch.courts,
-                initialRegion: Self.initialRegion,
+                courts: viewModel.courts,
+                initialRegion: viewModel.initialRegion,
                 recenterTrigger: $recenterTrigger,
                 zoomTrigger: $zoomTrigger,
-                onRegionChange: { region in
-                    courtSearch.ensureCoverage(for: region)
-                },
-                onMarkerTap: { court in
-                    print("Tapped court: \(court.name) — \(court.address)")
-                }
+                onMarkerTap: viewModel.select
             )
             .ignoresSafeArea(edges: .top)
 
             VStack(spacing: 12) {
-                if courtSearch.isSearching {
-                    ProgressView()
-                        .frame(width: 48, height: 48)
-                        .background(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
-                }
-
                 VStack(spacing: 0) {
                     Button {
                         zoomTrigger = ZoomTrigger(direction: .zoomIn)
@@ -64,7 +52,9 @@ struct FindAMatchTab: View {
                 .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
 
                 Button {
-                    recenterMap()
+                    if let center = viewModel.recenterTarget() {
+                        recenterTrigger = RecenterTrigger(center: center)
+                    }
                 } label: {
                     Image(systemName: "location.circle.fill")
                         .font(.system(size: 20))
@@ -78,17 +68,9 @@ struct FindAMatchTab: View {
             .padding(.trailing, 16)
             .padding(.bottom, 16)
         }
-        .onAppear {
-            courtSearch.ensureCoverage(for: Self.initialRegion)
-        }
     }
+}
 
-    private func recenterMap() {
-        if locationManager.authorizationStatus == .notDetermined {
-            locationManager.requestLocationPermission()
-            return
-        }
-        let center = locationManager.userLocation ?? LocationManager.defaultLocation
-        recenterTrigger = RecenterTrigger(center: center)
-    }
+#Preview {
+    FindAMatchTab(courtService: CourtService(), locationService: LocationService())
 }
