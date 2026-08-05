@@ -66,7 +66,6 @@ struct MapView: UIViewRepresentable {
     @Binding var recenterTrigger: RecenterTrigger?
     @Binding var zoomTrigger: ZoomTrigger?
     @Binding var absoluteZoomTrigger: AbsoluteZoomTrigger?
-    var onRegionChange: ((MKCoordinateRegion) -> Void)?
     var onMarkerTap: ((Court) -> Void)?
     var onMarkerDeselect: (() -> Void)?
     var onZoomLevelChange: ((Double) -> Void)?
@@ -201,12 +200,9 @@ struct MapView: UIViewRepresentable {
 
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
             debounceWorkItem?.cancel()
-            let region = mapView.region
-            let regionCallback = parent.onRegionChange
             let zoomCallback = parent.onZoomLevelChange
-            let zoomLevel = MapView.zoomLevelFromSpan(region.span)
+            let zoomLevel = MapView.zoomLevelFromSpan(mapView.region.span)
             let work = DispatchWorkItem {
-                regionCallback?(region)
                 zoomCallback?(zoomLevel)
             }
             debounceWorkItem = work

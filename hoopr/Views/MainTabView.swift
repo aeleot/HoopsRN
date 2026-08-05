@@ -1,17 +1,28 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @StateObject private var locationManager = LocationManager()
     @State private var selectedTab = 0
     @State private var showProfile = false
 
-    private let userName = "User1"
+    @ObservedObject private var authService: AuthService
+    private let courtService: CourtService
+    private let locationService: LocationService
 
     private let tabs: [(String, String)] = [
         ("Court Map", "map"),
         ("Local Games", "list.bullet"),
         ("Find Match", "figure.run"),
     ]
+
+    init(
+        authService: AuthService,
+        courtService: CourtService,
+        locationService: LocationService
+    ) {
+        self.authService = authService
+        self.courtService = courtService
+        self.locationService = locationService
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -82,9 +93,9 @@ struct MainTabView: View {
 
                 ZStack {
                     if showProfile {
-                        ProfileTab()
+                        ProfileTab(authService: authService)
                     } else {
-                        FindAMatchTab()
+                        FindAMatchTab(courtService: courtService, locationService: locationService)
                             .opacity(selectedTab == 0 ? 1 : 0)
                             .allowsHitTesting(selectedTab == 0)
 
@@ -101,10 +112,22 @@ struct MainTabView: View {
             }
         }
         .ignoresSafeArea(edges: .bottom)
-        .environmentObject(locationManager)
+    }
+
+    /// Firebase only gives us an email, so the part before the @ stands in as a display name.
+    private var userName: String {
+        guard let email = authService.currentUser?.email,
+              let localPart = email.split(separator: "@").first else {
+            return "there"
+        }
+        return String(localPart)
     }
 }
 
 #Preview {
-    MainTabView()
+    MainTabView(
+        authService: AuthService(),
+        courtService: CourtService(),
+        locationService: LocationService()
+    )
 }

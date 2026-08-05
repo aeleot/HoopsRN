@@ -2,9 +2,9 @@ import Combine
 import Foundation
 import CoreLocation
 
-final class LocationManager: NSObject, ObservableObject {
-    @Published var userLocation: CLLocationCoordinate2D?
-    @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
+final class LocationService: NSObject, ObservableObject {
+    @Published private(set) var userLocation: CLLocationCoordinate2D?
+    @Published private(set) var authorizationStatus: CLAuthorizationStatus = .notDetermined
 
     private let manager = CLLocationManager()
 
@@ -30,7 +30,7 @@ final class LocationManager: NSObject, ObservableObject {
     }
 }
 
-extension LocationManager: CLLocationManagerDelegate {
+extension LocationService: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         let coord = locations.last?.coordinate
         Task { @MainActor in

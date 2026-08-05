@@ -2,8 +2,7 @@ import SwiftUI
 import MapKit
 
 struct FindAMatchTab: View {
-    @EnvironmentObject var locationManager: LocationManager
-    @StateObject private var courtSearch = CourtSearchService()
+    @StateObject private var viewModel: FindAMatchViewModel
     @State private var recenterTrigger: RecenterTrigger?
     @State private var zoomTrigger: ZoomTrigger?
     @State private var absoluteZoomTrigger: AbsoluteZoomTrigger?
@@ -11,10 +10,12 @@ struct FindAMatchTab: View {
     @State private var isDraggingSlider = false
     @State private var selectedCourt: Court?
 
-    private static let initialRegion = MKCoordinateRegion(
-        center: LocationManager.defaultLocation,
-        span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
-    )
+    init(courtService: CourtService, locationService: LocationService) {
+        _viewModel = StateObject(wrappedValue: FindAMatchViewModel(
+            courtService: courtService,
+            locationService: locationService
+        ))
+    }
 
     private var cardHeight: CGFloat {
         UIScreen.main.bounds.height / 3
@@ -23,15 +24,13 @@ struct FindAMatchTab: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             MapView(
-                courts: courtSearch.courts,
-                initialRegion: Self.initialRegion,
+                courts: viewModel.courts,
+                initialRegion: viewModel.initialRegion,
                 recenterTrigger: $recenterTrigger,
                 zoomTrigger: $zoomTrigger,
                 absoluteZoomTrigger: $absoluteZoomTrigger,
-                onRegionChange: { region in
-                    courtSearch.ensureCoverage(for: region)
-                },
                 onMarkerTap: { court in
+                    viewModel.select(court)
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                         selectedCourt = court
                     }
@@ -52,14 +51,6 @@ struct FindAMatchTab: View {
                 HStack {
                     Spacer()
                     VStack(spacing: 10) {
-                        if courtSearch.isSearching {
-                            ProgressView()
-                                .frame(width: 44, height: 44)
-                                .background(.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
-                        }
-
                         VStack(spacing: 0) {
                             Button {
                                 zoomTrigger = ZoomTrigger(direction: .zoomIn)
@@ -125,8 +116,7 @@ struct FindAMatchTab: View {
             }
         }
         .onAppear {
-            zoomLevel = MapView.zoomLevelFromSpan(Self.initialRegion.span)
-            courtSearch.ensureCoverage(for: Self.initialRegion)
+            zoomLevel = MapView.zoomLevelFromSpan(viewModel.initialRegion.span)
         }
         .onChange(of: zoomLevel) { _, newValue in
             if isDraggingSlider {
@@ -189,6 +179,12 @@ struct FindAMatchTab: View {
     }
 
     private func recenterMap() {
-        recenterTrigger = RecenterTrigger(center: LocationManager.defaultLocation)
+        if let center = viewModel.recenterTarget() {
+            recenterTrigger = RecenterTrigger(center: center)
+        }
     }
+}
+
+#Preview {
+    FindAMatchTab(courtService: CourtService(), locationService: LocationService())
 }
