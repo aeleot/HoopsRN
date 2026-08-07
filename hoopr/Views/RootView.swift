@@ -8,15 +8,18 @@ struct RootView: View {
     private let authService: AuthService
     private let courtService: CourtService
     private let locationService: LocationService
+    private let userProfileService: UserProfileService
 
     init(
         authService: AuthService,
         courtService: CourtService,
-        locationService: LocationService
+        locationService: LocationService,
+        userProfileService: UserProfileService
     ) {
         self.authService = authService
         self.courtService = courtService
         self.locationService = locationService
+        self.userProfileService = userProfileService
         _viewModel = StateObject(wrappedValue: RootViewModel(authService: authService))
     }
 
@@ -32,7 +35,8 @@ struct RootView: View {
                 MainTabView(
                     authService: authService,
                     courtService: courtService,
-                    locationService: locationService
+                    locationService: locationService,
+                    userProfileService: userProfileService
                 )
                 .transition(.opacity)
             }
@@ -57,9 +61,11 @@ private struct LaunchScreen: View {
 }
 
 #Preview {
+    let authService = AuthService()
     RootView(
-        authService: AuthService(),
+        authService: authService,
         courtService: CourtService(),
-        locationService: LocationService()
+        locationService: LocationService(),
+        userProfileService: UserProfileService(authService: authService)
     )
 }

@@ -8,6 +8,8 @@ final class LocationService: NSObject, ObservableObject {
 
     private let manager = CLLocationManager()
 
+    /// Downtown Durham, NC — the fallback centre used whenever we have no fix,
+    /// and for now the app's hardcoded home location.
     static let defaultLocation = CLLocationCoordinate2D(latitude: 35.9940, longitude: -78.8986)
 
     override init() {

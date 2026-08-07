@@ -1,0 +1,50 @@
+rules_version = '2';
+
+// Hoopr Firestore security rules.
+//
+// Phase 1: the `users` profile collection only. Match/queue collections land
+// in a later phase — see "hoopr project info/DATABASE_SCHEMA.md".
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // One profile per account, document ID == Firebase Auth uid.
+    //
+    // Readable by any signed-in user, because player names have to be
+    // resolvable in shared contexts (match rosters, court check-ins) later.
+    // Writable only by the account that owns it.
+    match /users/{uid} {
+      function isOwner() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+
+      allow read: if request.auth != null;
+
+      allow create: if isOwner()
+        && request.resource.data.id == uid
+        && request.resource.data.userName is string
+        && request.resource.data.userName.size() > 0
+        && request.resource.data.userName.size() <= 50;
+
+      // Enforces the mutability contract: `id`, `email` and `createdAt` are
+      // write-once, and a client may only ever touch the user-editable fields
+      // (plus the `updatedAt` bookkeeping). Anything else is rejected
+      // server-side, including a hand-crafted request.
+      //
+      // `homeCourtId` may also be removed entirely (clearing a home court),
+      // which is why its type check tolerates the field being absent.
+      allow update: if isOwner()
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['userName', 'homeCourtId', 'updatedAt'])
+        && request.resource.data.userName is string
+        && request.resource.data.userName.size() > 0
+        && request.resource.data.userName.size() <= 50
+        && (!('homeCourtId' in request.resource.data)
+            || request.resource.data.homeCourtId is string);
+
+      // Account deletion isn't a supported flow yet.
+      allow delete: if false;
+    }
+  }
+}

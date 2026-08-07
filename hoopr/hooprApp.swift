@@ -2,11 +2,12 @@ import SwiftUI
 import FirebaseCore
 
 #if os(iOS) || os(visionOS)
+/// Retained as the hook for future UIKit-level callbacks (APNs registration
+/// for push notifications). Firebase itself is configured in `hooprApp.init()`
+/// — see the note there — so this must not configure it a second time.
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        FirebaseApp.configure()
-
         return true
     }
 }
@@ -15,26 +16,38 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct hooprApp: App {
     #if os(iOS) || os(visionOS)
-    // register app delegate for Firebase setup
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
-    #else
-    init() {
-        FirebaseApp.configure()
-    }
     #endif
 
     // Services are owned here for the app's lifetime and injected downward, so
     // every view model can be constructed with a stub in tests.
-    @StateObject private var authService = AuthService()
+    @StateObject private var authService: AuthService
     @StateObject private var courtService = CourtService()
     @StateObject private var locationService = LocationService()
+    /// Depends on `authService`, so both are built in `init()` — a property
+    /// initializer can't reference another property.
+    @StateObject private var userProfileService: UserProfileService
+
+    init() {
+        // Must run before any service is constructed: `AuthService.init()`
+        // calls `Auth.auth()`, which traps if Firebase isn't configured yet.
+        // Building the services here (rather than in property initializers,
+        // which `StateObject` defers via @autoclosure) makes them eager, so
+        // configuration can't be left to the app delegate's later callback.
+        FirebaseApp.configure()
+
+        let authService = AuthService()
+        _authService = StateObject(wrappedValue: authService)
+        _userProfileService = StateObject(wrappedValue: UserProfileService(authService: authService))
+    }
 
     var body: some Scene {
         WindowGroup {
             RootView(
                 authService: authService,
                 courtService: courtService,
-                locationService: locationService
+                locationService: locationService,
+                userProfileService: userProfileService
             )
         }
     }

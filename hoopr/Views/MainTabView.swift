@@ -5,6 +5,7 @@ struct MainTabView: View {
     @State private var showProfile = false
 
     @ObservedObject private var authService: AuthService
+    @ObservedObject private var userProfileService: UserProfileService
     private let courtService: CourtService
     private let locationService: LocationService
 
@@ -17,21 +18,43 @@ struct MainTabView: View {
     init(
         authService: AuthService,
         courtService: CourtService,
-        locationService: LocationService
+        locationService: LocationService,
+        userProfileService: UserProfileService
     ) {
         self.authService = authService
         self.courtService = courtService
         self.locationService = locationService
+        self.userProfileService = userProfileService
     }
 
     var body: some View {
+        // The profile takes over the whole screen — it has its own header and
+        // back button — so it replaces this interface rather than rendering
+        // inside it.
+        if showProfile {
+            ProfileView(
+                authService: authService,
+                userProfileService: userProfileService,
+                courtService: courtService
+            ) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showProfile = false
+                }
+            }
+            .transition(.opacity)
+        } else {
+            mainInterface
+        }
+    }
+
+    private var mainInterface: some View {
         GeometryReader { geo in
             VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 0) {
                     Spacer()
 
                     HStack {
-                        (Text("Let's go hoop ") + Text(userName).fontWeight(.bold) + Text("."))
+                        Text("Let's go hoop \(Text(userName).fontWeight(.bold)).")
                             .font(.system(size: 28))
                             .foregroundStyle(.black)
                         Spacer()
@@ -42,8 +65,9 @@ struct MainTabView: View {
                         } label: {
                             Image(systemName: "person.crop.circle.fill")
                                 .font(.system(size: 32))
-                                .foregroundStyle(showProfile ? Color.hooprOrange : Color.hooprSecondaryText)
+                                .foregroundStyle(Color.hooprSecondaryText)
                         }
+                        .accessibilityLabel("Profile")
                     }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 12)
@@ -53,7 +77,6 @@ struct MainTabView: View {
                             Button {
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     selectedTab = index
-                                    showProfile = false
                                 }
                             } label: {
                                 HStack(spacing: 5) {
@@ -66,14 +89,10 @@ struct MainTabView: View {
                                 .padding(.vertical, 9)
                                 .frame(maxWidth: .infinity)
                                 .background(
-                                    !showProfile && selectedTab == index
-                                        ? Color.hooprOrange
-                                        : Color.hooprLightGray
+                                    selectedTab == index ? Color.hooprOrange : Color.hooprLightGray
                                 )
                                 .foregroundStyle(
-                                    !showProfile && selectedTab == index
-                                        ? .white
-                                        : Color.hooprSecondaryText
+                                    selectedTab == index ? .white : Color.hooprSecondaryText
                                 )
                                 .clipShape(RoundedRectangle(cornerRadius: 10))
                             }
@@ -92,20 +111,16 @@ struct MainTabView: View {
                 .zIndex(1)
 
                 ZStack {
-                    if showProfile {
-                        ProfileTab(authService: authService)
-                    } else {
-                        FindAMatchTab(courtService: courtService, locationService: locationService)
-                            .opacity(selectedTab == 0 ? 1 : 0)
-                            .allowsHitTesting(selectedTab == 0)
+                    FindAMatchTab(courtService: courtService, locationService: locationService)
+                        .opacity(selectedTab == 0 ? 1 : 0)
+                        .allowsHitTesting(selectedTab == 0)
 
-                        if selectedTab == 1 {
-                            LocalGamesTab()
-                        }
+                    if selectedTab == 1 {
+                        LocalGamesTab()
+                    }
 
-                        if selectedTab == 2 {
-                            FindMatchTab()
-                        }
+                    if selectedTab == 2 {
+                        FindMatchTab()
                     }
                 }
                 .clipped()
@@ -114,20 +129,19 @@ struct MainTabView: View {
         .ignoresSafeArea(edges: .bottom)
     }
 
-    /// Firebase only gives us an email, so the part before the @ stands in as a display name.
+    /// Reads the stored profile name. Falls back to a neutral greeting while
+    /// the first snapshot is in flight or before provisioning finishes.
     private var userName: String {
-        guard let email = authService.currentUser?.email,
-              let localPart = email.split(separator: "@").first else {
-            return "there"
-        }
-        return String(localPart)
+        userProfileService.currentProfile?.userName ?? "there"
     }
 }
 
 #Preview {
+    let authService = AuthService()
     MainTabView(
-        authService: AuthService(),
+        authService: authService,
         courtService: CourtService(),
-        locationService: LocationService()
+        locationService: LocationService(),
+        userProfileService: UserProfileService(authService: authService)
     )
 }
