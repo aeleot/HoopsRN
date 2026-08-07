@@ -15,7 +15,7 @@ struct ProfileFieldRow: View {
 
     var body: some View {
         ZStack {
-            VStack(spacing: 4) {
+            VStack(spacing: 10) {
                 Text(label.uppercased())
                     .font(.system(size: 11, weight: .semibold))
                     .kerning(0.6)
@@ -46,7 +46,7 @@ struct ProfileFieldRow: View {
                 }
             }
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, 18)
         .padding(.horizontal, 20)
     }
 }

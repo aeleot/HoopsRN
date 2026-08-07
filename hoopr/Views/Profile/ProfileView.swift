@@ -26,31 +26,43 @@ struct ProfileView: View {
     var body: some View {
         GeometryReader { geo in
             VStack(spacing: 0) {
-                header(height: geo.size.height * Self.headerHeightRatio)
+                // Floored so the identity block never gets crushed on short
+                // devices, where 3/12 of the screen is under 180pt.
+                header(height: max(geo.size.height * Self.headerHeightRatio, 180))
 
                 ScrollView {
                     fields
-                        .padding(.top, 8)
+                        .padding(.top, 12)
                 }
-
-                // Errors raised outside a sheet (profile load, sign-out) still
-                // need somewhere to surface.
-                if viewModel.editingField == nil, let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color.hooprRed)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 28)
-                        .padding(.bottom, 8)
-                }
-
-                signOutButton
             }
         }
         .background(Color.white)
+        // Pinned as a safe-area inset rather than the last item in the stack,
+        // so a growing field list can never push it off the bottom edge.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            bottomBar
+        }
         .sheet(item: $viewModel.editingField) { field in
             editSheet(for: field)
         }
+    }
+
+    private var bottomBar: some View {
+        VStack(spacing: 8) {
+            // Errors raised outside a sheet (profile load, sign-out) still
+            // need somewhere to surface.
+            if viewModel.editingField == nil, let errorMessage = viewModel.errorMessage {
+                Text(errorMessage)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.hooprRed)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 28)
+            }
+
+            signOutButton
+        }
+        .padding(.top, 12)
+        .background(Color.white)
     }
 
     // MARK: - Header
@@ -73,7 +85,11 @@ struct ProfileView: View {
             }
             .padding(.horizontal, 8)
 
+            // Capped, unlike the spacer below — the two used to split the
+            // remaining space evenly, which centered the identity block
+            // rather than pulling it up toward the back button.
             Spacer(minLength: 0)
+                .frame(maxHeight: 8)
 
             avatar(size: Self.avatarSize(forHeaderHeight: height))
 
@@ -82,7 +98,7 @@ struct ProfileView: View {
                 .foregroundStyle(.white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
-                .padding(.top, 10)
+                .padding(.top, 20)
                 .padding(.horizontal, 24)
 
             Spacer(minLength: 0)
@@ -90,6 +106,11 @@ struct ProfileView: View {
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity)
         .frame(height: height)
+        // `.frame(height:)` fixes the layout slot but doesn't clip — without
+        // this, content that needs more room than the slot (e.g. the name at
+        // a large scale factor on a short device) paints past the boundary
+        // instead of being contained inside it.
+        .clipped()
         // Bleeds the orange under the status bar while the content above
         // still lays out within the safe area.
         .background(Color.hooprOrange.ignoresSafeArea(edges: .top))
@@ -98,7 +119,7 @@ struct ProfileView: View {
     /// Scales with the header so the avatar and name still fit on short
     /// devices, where 3/12 of the screen is well under 200pt.
     private static func avatarSize(forHeaderHeight height: CGFloat) -> CGFloat {
-        min(88, max(56, height * 0.40))
+        min(104, max(64, height * 0.46))
     }
 
     private func avatar(size: CGFloat) -> some View {
