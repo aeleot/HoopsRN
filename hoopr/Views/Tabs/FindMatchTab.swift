@@ -5,11 +5,11 @@ struct FindMatchTab: View {
         VStack {
             Spacer()
             Text("Find Match")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.black)
+                .hooprFont(18, weight: .bold)
+                .foregroundStyle(Color.hooprPrimaryText)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.white)
+        .background(Color.hooprBackground)
     }
 }

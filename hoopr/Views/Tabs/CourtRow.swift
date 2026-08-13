@@ -13,28 +13,28 @@ struct CourtRow: View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(court.name)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.black)
+                    .hooprFont(16, weight: .semibold)
+                    .foregroundStyle(Color.hooprPrimaryText)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
                 Text(court.city)
-                    .font(.system(size: 13))
+                    .hooprFont(13)
                     .foregroundStyle(Color.hooprSecondaryText)
 
                 Text("\(nearbyCourt.distanceText) away")
-                    .font(.system(size: 13))
+                    .hooprFont(13)
                     .foregroundStyle(Color.hooprSecondaryText)
 
                 if !badges.isEmpty {
                     HStack(spacing: 6) {
                         ForEach(badges, id: \.self) { badge in
                             Text(badge)
-                                .font(.system(size: 11, weight: .medium))
+                                .hooprFont(11, weight: .medium)
                                 .foregroundStyle(Color.hooprSecondaryText)
                                 .padding(.horizontal, 7)
                                 .padding(.vertical, 3)
-                                .background(Color.hooprLightGray)
+                                .background(Color.hooprFill)
                                 .clipShape(RoundedRectangle(cornerRadius: 5))
                         }
                     }
@@ -46,7 +46,7 @@ struct CourtRow: View {
 
             Button(action: onToggleFavorite) {
                 Image(systemName: isFavorite ? "star.fill" : "star")
-                    .font(.system(size: 17))
+                    .hooprFont(17, maximumSize: 22)
                     .foregroundStyle(isFavorite ? Color.hooprOrange : Color.hooprSecondaryText)
                     // Widen the tap target without widening the icon, so the
                     // star doesn't swallow taps meant for the row.

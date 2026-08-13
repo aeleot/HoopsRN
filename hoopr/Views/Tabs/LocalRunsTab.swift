@@ -42,7 +42,7 @@ struct LocalRunsTab: View {
                 )
 
                 Rectangle()
-                    .fill(Color.hooprBorderGray)
+                    .fill(Color.hooprBorder)
                     .frame(height: 1)
 
                 section(
@@ -55,7 +55,7 @@ struct LocalRunsTab: View {
             }
             .padding(.bottom, 32)
         }
-        .background(Color.white)
+        .background(Color.hooprBackground)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -74,7 +74,7 @@ struct LocalRunsTab: View {
         if isExpanded.wrappedValue {
             if listings.isEmpty {
                 Text(emptyText)
-                    .font(.system(size: 14))
+                    .hooprFont(14)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .multilineTextAlignment(.leading)
                     .padding(.horizontal, 16)
@@ -121,20 +121,20 @@ struct LocalRunsTab: View {
         } label: {
             HStack(spacing: 10) {
                 Text(title)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.black)
+                    .hooprFont(18, weight: .bold)
+                    .foregroundStyle(Color.hooprPrimaryText)
 
                 Text(countText)
-                    .font(.system(size: 12, weight: .semibold))
+                    .hooprFont(12, weight: .semibold)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.hooprLightGray))
+                    .background(Capsule().fill(Color.hooprFill))
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
+                    .hooprFont(14, weight: .semibold)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
             }
@@ -151,17 +151,17 @@ struct LocalRunsTab: View {
     private func errorBanner(_ message: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 13))
+                .hooprFont(13)
 
             Text(message)
-                .font(.system(size: 13))
+                .hooprFont(13)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
                 viewModel.dismissError()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .semibold))
+                    .hooprFont(12, weight: .semibold)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Dismiss")

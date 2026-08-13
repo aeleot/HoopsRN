@@ -30,6 +30,12 @@ struct hooprApp: App {
     @StateObject private var userProfileService: UserProfileService
     @StateObject private var gameService: GameService
 
+    /// Applied at the window root so it reaches every screen *and* every sheet
+    /// presented from one — a `preferredColorScheme` set further down would
+    /// leave modals resolving against the device appearance instead.
+    @AppStorage(AppearancePreference.storageKey)
+    private var appearance: AppearancePreference = .system
+
     init() {
         // Must run before any service is constructed: `AuthService.init()`
         // calls `Auth.auth()`, which traps if Firebase isn't configured yet.
@@ -54,6 +60,7 @@ struct hooprApp: App {
                 gameService: gameService,
                 recentCourtsStore: recentCourtsStore
             )
+            .preferredColorScheme(appearance.colorScheme)
         }
     }
 }

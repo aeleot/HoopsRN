@@ -182,14 +182,14 @@ struct FindAMatchTab: View {
                     }
                 } label: {
                     Text("Search here")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.black)
+                        .hooprFont(14, weight: .semibold)
+                        .foregroundStyle(Color.hooprPrimaryText)
                         .padding(.horizontal, 18)
                         .padding(.vertical, 10)
                         .background(
                             Capsule()
-                                .fill(.white)
-                                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
+                                .fill(Color.hooprSurface)
+                                .shadow(color: Color.hooprShadow(opacity: 0.15), radius: 8, x: 0, y: 2)
                         )
                 }
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -215,17 +215,20 @@ struct FindAMatchTab: View {
                     } label: {
                         HStack(spacing: 5) {
                             Image(systemName: filter.symbolName)
-                                .font(.system(size: 11, weight: .semibold))
+                                .hooprFont(11, weight: .semibold)
                             Text(filter.label)
-                                .font(.system(size: 13, weight: .semibold))
+                                .hooprFont(13, weight: .semibold)
                         }
-                        .foregroundStyle(isActive ? .white : .black)
+                        .foregroundStyle(isActive ? Color.hooprOnBrand : Color.hooprPrimaryText)
                         .padding(.horizontal, 13)
                         .padding(.vertical, 8)
                         .background(
                             Capsule()
-                                .fill(isActive ? Color.hooprOrange : .white)
-                                .shadow(color: .black.opacity(0.12), radius: 5, x: 0, y: 2)
+                                // A surface floating over the map, not content
+                                // on the brand colour — so it inverts with the
+                                // appearance, unlike the active orange fill.
+                                .fill(isActive ? Color.hooprOrange : Color.hooprSurface)
+                                .shadow(color: Color.hooprShadow(opacity: 0.12), radius: 5, x: 0, y: 2)
                         )
                     }
                     .buttonStyle(.plain)
@@ -243,8 +246,8 @@ struct FindAMatchTab: View {
                     zoomTrigger = ZoomTrigger(direction: .zoomIn)
                 } label: {
                     Image(systemName: "plus")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.black)
+                        .hooprFont(16, weight: .semibold, maximumSize: 20)
+                        .foregroundStyle(Color.hooprPrimaryText)
                         .frame(width: 44, height: 38)
                 }
 
@@ -269,25 +272,25 @@ struct FindAMatchTab: View {
                     zoomTrigger = ZoomTrigger(direction: .zoomOut)
                 } label: {
                     Image(systemName: "minus")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.black)
+                        .hooprFont(16, weight: .semibold, maximumSize: 20)
+                        .foregroundStyle(Color.hooprPrimaryText)
                         .frame(width: 44, height: 38)
                 }
             }
-            .background(.white)
+            .background(Color.hooprSurface)
             .clipShape(RoundedRectangle(cornerRadius: 10))
-            .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
+            .shadow(color: Color.hooprShadow(opacity: 0.1), radius: 6, x: 0, y: 2)
 
             Button {
                 recenterMap()
             } label: {
                 Image(systemName: "location.circle.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(.white)
+                    .hooprFont(20, maximumSize: 24)
+                    .foregroundStyle(Color.hooprOnBrand)
                     .frame(width: 44, height: 44)
                     .background(Color.hooprOrange)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
+                    .shadow(color: Color.hooprShadow(opacity: 0.1), radius: 6, x: 0, y: 2)
             }
         }
     }
@@ -310,8 +313,8 @@ struct FindAMatchTab: View {
         .frame(maxWidth: .infinity)
         .background(
             UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20)
-                .fill(.white)
-                .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: -4)
+                .fill(Color.hooprSurface)
+                .shadow(color: Color.hooprShadow(opacity: 0.08), radius: 12, x: 0, y: -4)
         )
         .offset(y: sheetOffset)
     }
@@ -321,18 +324,18 @@ struct FindAMatchTab: View {
     private var collapsedPeek: some View {
         HStack(spacing: 6) {
             Image(systemName: "chevron.up")
-                .font(.system(size: 11, weight: .semibold))
+                .hooprFont(11, weight: .semibold)
 
             Text(viewModel.listCountLabel)
-                .font(.system(size: 13, weight: .semibold))
+                .hooprFont(13, weight: .semibold)
         }
         .foregroundStyle(Color.hooprSecondaryText)
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .background(
             Capsule()
-                .fill(.white)
-                .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 2)
+                .fill(Color.hooprSurface)
+                .shadow(color: Color.hooprShadow(opacity: 0.12), radius: 8, x: 0, y: 2)
         )
         .contentShape(Capsule())
         .gesture(sheetDragGesture(fromHandle: true))
@@ -376,7 +379,7 @@ struct FindAMatchTab: View {
                             .buttonStyle(.plain)
 
                             Divider()
-                                .overlay(Color.hooprBorderGray)
+                                .overlay(Color.hooprBorder)
                                 .padding(.leading, 20)
                         }
                     }
@@ -406,12 +409,17 @@ struct FindAMatchTab: View {
                     }
                 } label: {
                     VStack(spacing: 7) {
+                        // Three tabs divide one row evenly, so the labels
+                        // shrink to fit rather than wrapping into each other
+                        // at the accessibility sizes.
                         Text(tab.title)
-                            .font(.system(size: 13, weight: isSelected ? .bold : .medium))
-                            .foregroundStyle(isSelected ? .black : Color.hooprSecondaryText)
+                            .hooprFont(13, weight: isSelected ? .bold : .medium, maximumSize: 17)
+                            .foregroundStyle(isSelected ? Color.hooprPrimaryText : Color.hooprSecondaryText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
 
                         Rectangle()
-                            .fill(isSelected ? Color.hooprOrange : Color.hooprBorderGray)
+                            .fill(isSelected ? Color.hooprOrange : Color.hooprBorder)
                             .frame(height: isSelected ? 2 : 1)
                     }
                     .frame(maxWidth: .infinity)
@@ -427,12 +435,12 @@ struct FindAMatchTab: View {
             Spacer()
 
             Text(viewModel.emptyStateTitle)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.black)
+                .hooprFont(15, weight: .semibold)
+                .foregroundStyle(Color.hooprPrimaryText)
 
             if let detail = viewModel.emptyStateDetail {
                 Text(detail)
-                    .font(.system(size: 13))
+                    .hooprFont(13)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .multilineTextAlignment(.center)
             }
@@ -447,11 +455,11 @@ struct FindAMatchTab: View {
     private var sheetHeader: some View {
         VStack(spacing: 8) {
             RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color.hooprBorderGray)
+                .fill(Color.hooprBorder)
                 .frame(width: 36, height: 5)
 
             Text(viewModel.listCountLabel)
-                .font(.system(size: 13, weight: .medium))
+                .hooprFont(13, weight: .medium)
                 .foregroundStyle(Color.hooprSecondaryText)
         }
         .padding(.top, 10)
@@ -464,7 +472,7 @@ struct FindAMatchTab: View {
     private func courtCard(court: Court) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color.hooprBorderGray)
+                .fill(Color.hooprBorder)
                 .frame(width: 36, height: 5)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 10)
@@ -473,11 +481,11 @@ struct FindAMatchTab: View {
             HStack(alignment: .center) {
                 Image(systemName: "basketball.fill")
                     .foregroundStyle(Color.hooprOrange)
-                    .font(.system(size: 20))
+                    .hooprFont(20)
 
                 Text(court.name)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.black)
+                    .hooprFont(17, weight: .semibold)
+                    .foregroundStyle(Color.hooprPrimaryText)
                     .lineLimit(2)
 
                 Spacer(minLength: 8)
@@ -486,7 +494,7 @@ struct FindAMatchTab: View {
                     viewModel.toggleFavorite(court)
                 } label: {
                     Image(systemName: viewModel.isFavorite(court) ? "star.fill" : "star")
-                        .font(.system(size: 19))
+                        .hooprFont(19)
                         .foregroundStyle(
                             viewModel.isFavorite(court) ? Color.hooprOrange : Color.hooprSecondaryText
                         )
@@ -497,7 +505,7 @@ struct FindAMatchTab: View {
                     dismissDetail()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 24))
+                        .hooprFont(24)
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(.secondary)
                 }
@@ -507,7 +515,7 @@ struct FindAMatchTab: View {
 
             if !court.address.isEmpty {
                 Text(court.address)
-                    .font(.system(size: 14))
+                    .hooprFont(14)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .padding(.horizontal, 20)
                     .padding(.top, 6)
@@ -518,11 +526,11 @@ struct FindAMatchTab: View {
             } label: {
                 HStack(spacing: 7) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 15, weight: .semibold))
+                        .hooprFont(15, weight: .semibold, maximumSize: 22)
                     Text("Start Run")
-                        .font(.system(size: 15, weight: .semibold))
+                        .hooprFont(15, weight: .semibold, maximumSize: 22)
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.hooprOnBrand)
                 .frame(maxWidth: .infinity)
                 .frame(height: 46)
                 .background(Color.hooprOrange)

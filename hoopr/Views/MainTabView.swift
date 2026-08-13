@@ -60,9 +60,14 @@ struct MainTabView: View {
                     Spacer()
 
                     HStack {
+                        // The whole header is pinned to 14% of the screen
+                        // below, so the type in it is capped and allowed to
+                        // shrink rather than being clipped by its own bar.
                         Text("Let's go hoop \(Text(userName).fontWeight(.bold)).")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.black)
+                            .hooprFont(28, maximumSize: 34)
+                            .foregroundStyle(Color.hooprPrimaryText)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.7)
                         Spacer()
                         Button {
                             withAnimation(.easeInOut(duration: 0.2)) {
@@ -70,7 +75,7 @@ struct MainTabView: View {
                             }
                         } label: {
                             Image(systemName: "person.crop.circle.fill")
-                                .font(.system(size: 32))
+                                .hooprFont(32, maximumSize: 38)
                                 .foregroundStyle(Color.hooprSecondaryText)
                         }
                         .accessibilityLabel("Profile")
@@ -85,20 +90,24 @@ struct MainTabView: View {
                                     selectedTab = index
                                 }
                             } label: {
+                                // Three tabs share one row inside the pinned
+                                // header, so these are capped tightly and
+                                // scale down before they'd truncate.
                                 HStack(spacing: 5) {
                                     Image(systemName: tabs[index].1)
-                                        .font(.system(size: 12, weight: .medium))
+                                        .hooprFont(12, weight: .medium, maximumSize: 15)
                                     Text(tabs[index].0)
-                                        .font(.system(size: 12, weight: .semibold))
+                                        .hooprFont(12, weight: .semibold, maximumSize: 15)
                                         .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
                                 }
                                 .padding(.vertical, 9)
                                 .frame(maxWidth: .infinity)
                                 .background(
-                                    selectedTab == index ? Color.hooprOrange : Color.hooprLightGray
+                                    selectedTab == index ? Color.hooprOrange : Color.hooprFill
                                 )
                                 .foregroundStyle(
-                                    selectedTab == index ? .white : Color.hooprSecondaryText
+                                    selectedTab == index ? Color.hooprOnBrand : Color.hooprSecondaryText
                                 )
                                 .clipShape(RoundedRectangle(cornerRadius: 10))
                             }
@@ -108,10 +117,10 @@ struct MainTabView: View {
                     .padding(.bottom, 12)
                 }
                 .frame(height: geo.size.height * 0.14)
-                .background(Color.white)
+                .background(Color.hooprBackground)
                 .overlay(alignment: .bottom) {
                     Rectangle()
-                        .fill(Color.hooprBorderGray)
+                        .fill(Color.hooprBorder)
                         .frame(height: 1)
                 }
                 .zIndex(1)

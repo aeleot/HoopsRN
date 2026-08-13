@@ -6,6 +6,15 @@ struct ProfileView: View {
     @StateObject private var viewModel: ProfileViewModel
     private let onBack: () -> Void
 
+    /// Presented separately from `viewModel.editingField`, which is strictly
+    /// the profile *document*'s editable fields — appearance is stored on the
+    /// device and saves without a network round trip, so it shares none of
+    /// that sheet's in-flight and failure handling.
+    @State private var isEditingAppearance = false
+
+    @AppStorage(AppearancePreference.storageKey)
+    private var appearance: AppearancePreference = .system
+
     /// Proportion of the screen given to the orange identity header.
     private static let headerHeightRatio: CGFloat = 3.0 / 12.0
 
@@ -36,7 +45,7 @@ struct ProfileView: View {
                 }
             }
         }
-        .background(Color.white)
+        .background(Color.hooprBackground)
         // Pinned as a safe-area inset rather than the last item in the stack,
         // so a growing field list can never push it off the bottom edge.
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -44,6 +53,11 @@ struct ProfileView: View {
         }
         .sheet(item: $viewModel.editingField) { field in
             editSheet(for: field)
+        }
+        .sheet(isPresented: $isEditingAppearance) {
+            AppearanceSheet(preference: $appearance) {
+                isEditingAppearance = false
+            }
         }
     }
 
@@ -53,7 +67,7 @@ struct ProfileView: View {
             // need somewhere to surface.
             if viewModel.editingField == nil, let errorMessage = viewModel.errorMessage {
                 Text(errorMessage)
-                    .font(.system(size: 13))
+                    .hooprFont(13)
                     .foregroundStyle(Color.hooprRed)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 28)
@@ -62,7 +76,7 @@ struct ProfileView: View {
             signOutButton
         }
         .padding(.top, 12)
-        .background(Color.white)
+        .background(Color.hooprBackground)
     }
 
     // MARK: - Header
@@ -75,8 +89,8 @@ struct ProfileView: View {
             HStack {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 19, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .hooprFont(19, weight: .semibold)
+                        .foregroundStyle(Color.hooprOnBrand)
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
@@ -94,8 +108,8 @@ struct ProfileView: View {
             avatar(size: Self.avatarSize(forHeaderHeight: height))
 
             Text(viewModel.userName ?? " ")
-                .font(.system(size: 34, weight: .bold))
-                .foregroundStyle(.white)
+                .hooprFont(34, weight: .bold)
+                .foregroundStyle(Color.hooprOnBrand)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
                 .padding(.top, 20)
@@ -125,9 +139,14 @@ struct ProfileView: View {
     private func avatar(size: CGFloat) -> some View {
         ZStack {
             Circle()
-                .fill(.white)
+                // Sits on the brand orange, which doesn't invert, so this is
+                // the on-brand white in both appearances rather than a surface.
+                .fill(Color.hooprOnBrand)
                 .frame(width: size, height: size)
             Image(systemName: "person.fill")
+                // Deliberately *not* Dynamic Type: the glyph is sized as a
+                // fraction of a circle whose diameter is fixed by the header
+                // height, so scaling it would push it past its own container.
                 .font(.system(size: size * 0.5))
                 .foregroundStyle(Color.hooprOrange)
         }
@@ -175,6 +194,19 @@ struct ProfileView: View {
 
             divider
 
+            // Device-local, not part of the profile document — see
+            // `AppearancePreference`. It sits among the stored fields because
+            // this is where a user looks for a setting, not because it shares
+            // their storage.
+            ProfileFieldRow(
+                label: "Appearance",
+                value: appearance.title,
+                placeholder: AppearancePreference.system.title,
+                onEdit: { isEditingAppearance = true }
+            )
+
+            divider
+
             // Immutable by design — `createdAt` is write-once server-side.
             ProfileFieldRow(
                 label: "Date Joined",
@@ -186,7 +218,7 @@ struct ProfileView: View {
 
     private var divider: some View {
         Rectangle()
-            .fill(Color.hooprBorderGray)
+            .fill(Color.hooprBorder)
             .frame(height: 1)
             .padding(.horizontal, 20)
     }
@@ -198,11 +230,11 @@ struct ProfileView: View {
             viewModel.signOut()
         } label: {
             Text("Sign Out")
-                .font(.system(size: 17, weight: .semibold))
+                .hooprFont(17, weight: .semibold, maximumSize: 24)
                 .foregroundStyle(Color.hooprRed)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
-                .background(Color.hooprLightGray)
+                .background(Color.hooprFill)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .padding(.horizontal, 28)

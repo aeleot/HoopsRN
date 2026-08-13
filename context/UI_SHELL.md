@@ -2,11 +2,13 @@
 
 **Scope:** `hoopr/Views/RootView.swift`, `hoopr/Views/MainTabView.swift`,
 `hoopr/Views/LoginView.swift`, `hoopr/Views/Profile/`, `hoopr/Views/Games/`,
-`hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Support/Theme.swift`
+`hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Support/Theme.swift`,
+`hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`
 **Verified:** 2026-08-13 @ map-tab
 
 Navigation structure and the visual conventions every screen follows. Read this
-before adding a screen, changing how one is presented, or picking a colour.
+before adding a screen, changing how one is presented, or picking a colour or a
+font size.
 
 ---
 
@@ -42,12 +44,13 @@ Edit flows *within* the profile are `.sheet(item:)` bound to
 
 - Header is a fixed `geo.size.height * 0.14` slab: greeting on the left, profile
   button on the right, then a row of three pill tabs, with a 1pt
-  `hooprBorderGray` rule along the bottom and `zIndex(1)` so it stays above the
-  map.
+  `hooprBorder` rule along the bottom and `zIndex(1)` so it stays above the
+  map. Because the slab's height is pinned, its type is capped — see
+  "Visual conventions".
 - Greeting reads `userProfileService.currentProfile?.userName`, falling back to
   `"there"` while the first snapshot is in flight.
 - Tabs: Court Map / Local Runs / Find Match. Selected pill is `hooprOrange` on
-  white text; unselected is `hooprLightGray` on `hooprSecondaryText`.
+  `hooprOnBrand`; unselected is `hooprFill` on `hooprSecondaryText`.
 
 **`FindAMatchTab` stays mounted** — it's always in the content `ZStack`, hidden
 with `.opacity` + `.allowsHitTesting`, while the other two tabs mount
@@ -113,24 +116,39 @@ Name matches rank above city-only matches, capped at 25 suggestions.
 
 ## Visual conventions
 
-Six colours in `Support/Theme.swift`, all literal RGB:
+Colours are named by **role** in `Support/Theme.swift`, and every one resolves
+per appearance through a `UIColor` dynamic provider. There are no literal
+colours in `Views/` — no `.black`, no `Color.white`, no RGB — which is what
+keeps a light-only value from creeping back in.
 
-| Colour | RGB | Used for |
-|---|---|---|
-| `hooprOrange` | 255, 126, 0 | Brand. Selected tab, primary buttons, focused field borders, map pins, profile header, slider tint. |
-| `hooprDarkOrange` | 230, 111, 0 | Declared but **unused**. |
-| `hooprRed` | 185, 14, 10 | Errors, Sign Out, "Remove home court". |
-| `hooprLightGray` | 245, 245, 245 | Field and button fills. |
-| `hooprBorderGray` | 232, 232, 232 | Rules, dividers, unfocused borders, the sheet's drag handle. |
-| `hooprSecondaryText` | 102, 102, 102 | Labels, captions, unselected tab text. |
+| Role | Used for |
+|---|---|
+| `hooprOrange` | Brand. Selected tab, primary buttons, focused field borders, map pins, profile header, slider tint. Lifted in dark mode, where the light-mode orange reads muddy. |
+| `hooprDarkOrange` | The map's marker tint, via `UIColor(Color.hooprDarkOrange)`. |
+| `hooprRed` | Errors, Sign Out, "Remove home court". Lightened in dark mode to hold contrast. |
+| `hooprOnBrand` | Content *on top of* the orange — button labels, the profile avatar. Fixed white: the brand colour it sits on doesn't invert. |
+| `hooprBackground` | The page behind everything. |
+| `hooprSurface` | Cards and sheets. Equal to the background in light mode (separation there comes from border + shadow); lifted in dark mode, where a shadow on black conveys nothing. |
+| `hooprFill` | Field and button fills, unselected chips, the empty half of a capacity bar. |
+| `hooprBorder` | Rules, dividers, unfocused borders, the sheet's drag handle. |
+| `hooprPrimaryText` | Titles, values, primary labels. |
+| `hooprSecondaryText` | Labels, captions, unselected tab text. |
+| `hooprShadow(opacity:)` | Card and sheet shadows. Takes the *light-mode* opacity and deepens it in dark mode. |
 
-Beyond the palette: fonts are always `.system(size:weight:)` with literal point
-sizes — no Dynamic Type text styles. Backgrounds are `Color.white` and primary
-text is `.black`, written directly rather than as semantic colours.
+Type goes through `.hooprFont(_:weight:maximumSize:)` in
+`Support/Typography.swift`, never `.font(.system(size:))`. The design's literal
+point sizes are kept and scaled with `UIFontMetrics` against whichever text
+style's default size is nearest, so Dynamic Type works while the default text
+size still renders exactly what was drawn. `maximumSize` caps the scaling where
+a frame can't grow (the pinned header, fixed-height buttons, 44pt hit targets);
+omit it wherever the layout can reflow.
 
-**The app is light-mode only.** There is no `@Environment(\.colorScheme)`
-anywhere, no `prefers-color-scheme` handling, and the literal colours won't
-adapt. Adding dark mode is a palette-wide change, not a per-screen one.
+**Appearance follows the device by default, and can be pinned.**
+`AppearancePreference` (System / Light / Dark) is stored in `UserDefaults` — a
+device preference, not an account one — read by `hooprApp` and applied with
+`.preferredColorScheme` at the window root so it reaches sheets too. It's edited
+from the Appearance row on the profile screen, which is why that row sits
+outside `ProfileViewModel.EditableField`: nothing about it touches Firestore.
 
 ---
 
@@ -145,8 +163,12 @@ adapt. Adding dark mode is a palette-wide change, not a per-screen one.
   there (section expansion) belongs in `@AppStorage`, not `@State`.
 - A card's action is resolved once and reused by its button and its
   confirmation dialog. Don't recompute it at tap time.
-- Colours come from `Theme.swift`. The map's `UIColor` marker tint is the one
-  duplicate and should be reconciled, not copied.
+- Colours come from `Theme.swift`, including the map's `UIColor` marker tint,
+  which bridges from `Color.hooprDarkOrange` rather than restating its RGB. A
+  literal colour in a view is a bug — it won't invert.
+- Font sizes go through `.hooprFont(...)`. The one deliberate exception is the
+  profile avatar's glyph, sized as a fraction of a fixed-diameter circle and
+  commented as such.
 - Read-only profile fields are expressed by omitting `onEdit`, not by a
   disabled-state flag.
 

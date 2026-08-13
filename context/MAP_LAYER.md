@@ -56,8 +56,8 @@ wholesale: a full reset drops the current selection and re-animates every pin.
 `canShowCallout = false` on the marker view is deliberate — the bottom sheet
 owns detail display, so MapKit's callout would be a competing surface.
 
-The marker tint is a hardcoded `UIColor(red: 1.0, green: 0.494, blue: 0)`
-duplicating `Color.hooprOrange` rather than deriving from it (see `GAPS.md`).
+The marker tint derives from the palette — `UIColor(Color.hooprDarkOrange)` —
+rather than restating the RGB values, which is what an earlier revision did.
 
 ## Zoom conversion
 

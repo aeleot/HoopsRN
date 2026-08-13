@@ -35,14 +35,14 @@ struct CreateGameSheet: View {
 
                     if let errorMessage = viewModel.errorMessage {
                         Text(errorMessage)
-                            .font(.system(size: 13))
+                            .hooprFont(13)
                             .foregroundStyle(Color.hooprRed)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
                 .padding(20)
             }
-            .background(Color.white)
+            .background(Color.hooprBackground)
             // The whole cycle is gated on `isSaving`, matching the profile
             // sheets: nothing can move out from under an in-flight write.
             .disabled(viewModel.isSaving)
@@ -81,19 +81,19 @@ struct CreateGameSheet: View {
     private var courtSummary: some View {
         HStack(spacing: 12) {
             Image(systemName: "basketball.fill")
-                .font(.system(size: 22))
+                .hooprFont(22)
                 .foregroundStyle(Color.hooprOrange)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(viewModel.court.name)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.black)
+                    .hooprFont(16, weight: .semibold)
+                    .foregroundStyle(Color.hooprPrimaryText)
                     .multilineTextAlignment(.leading)
 
                 Text(viewModel.court.address.isEmpty
                      ? viewModel.court.city
                      : viewModel.court.address)
-                    .font(.system(size: 13))
+                    .hooprFont(13)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .multilineTextAlignment(.leading)
             }
@@ -102,7 +102,7 @@ struct CreateGameSheet: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.hooprLightGray)
+        .background(Color.hooprFill)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -124,7 +124,7 @@ struct CreateGameSheet: View {
                 // would otherwise leave Create disabled with no explanation.
                 if let hint = viewModel.validationHint, !viewModel.isSaving {
                     Text(hint)
-                        .font(.system(size: 12))
+                        .hooprFont(12)
                         .foregroundStyle(Color.hooprRed)
                 }
             }
@@ -140,7 +140,7 @@ struct CreateGameSheet: View {
                 }
 
                 Text(viewModel.visibilityCaption)
-                    .font(.system(size: 12))
+                    .hooprFont(12)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .multilineTextAlignment(.leading)
             }
@@ -157,18 +157,20 @@ struct CreateGameSheet: View {
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: symbol)
-                    .font(.system(size: 12, weight: .semibold))
+                    .hooprFont(12, weight: .semibold, maximumSize: 16)
                 Text(title)
-                    .font(.system(size: 14, weight: .semibold))
+                    // Capped: the pill's height is fixed below, and two of
+                    // these sit side by side across the sheet's width.
+                    .hooprFont(14, weight: .semibold, maximumSize: 18)
             }
-            .foregroundStyle(isSelected ? .white : Color.hooprSecondaryText)
+            .foregroundStyle(isSelected ? Color.hooprOnBrand : Color.hooprSecondaryText)
             .frame(maxWidth: .infinity)
             .frame(height: 40)
-            .background(isSelected ? Color.hooprOrange : Color.white)
+            .background(isSelected ? Color.hooprOrange : Color.hooprSurface)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(isSelected ? Color.clear : Color.hooprBorderGray, lineWidth: 1)
+                    .stroke(isSelected ? Color.clear : Color.hooprBorder, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -182,14 +184,14 @@ struct CreateGameSheet: View {
 
                 VStack(spacing: 2) {
                     Text("\(viewModel.maxPlayers)")
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundStyle(.black)
+                        .hooprFont(28, weight: .bold)
+                        .foregroundStyle(Color.hooprPrimaryText)
                         // Fixed-width digits so the row doesn't shift as the
                         // number changes width.
                         .monospacedDigit()
 
                     Text(viewModel.formatText ?? "max")
-                        .font(.system(size: 12))
+                        .hooprFont(12)
                         .foregroundStyle(Color.hooprSecondaryText)
                 }
                 .frame(maxWidth: .infinity)
@@ -209,12 +211,13 @@ struct CreateGameSheet: View {
             }
         } label: {
             Image(systemName: symbol)
-                .font(.system(size: 16, weight: .bold))
+                // Capped to the fixed 44pt hit target it's centred in.
+                .hooprFont(16, weight: .bold, maximumSize: 22)
                 .foregroundStyle(enabled ? Color.hooprOrange : Color.hooprSecondaryText.opacity(0.4))
                 .frame(width: 44, height: 44)
-                .background(Color.white)
+                .background(Color.hooprSurface)
                 .clipShape(Circle())
-                .overlay(Circle().stroke(Color.hooprBorderGray, lineWidth: 1))
+                .overlay(Circle().stroke(Color.hooprBorder, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
@@ -227,7 +230,7 @@ struct CreateGameSheet: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
+                .hooprFont(13, weight: .semibold)
                 .foregroundStyle(Color.hooprSecondaryText)
                 .textCase(.uppercase)
 
@@ -235,7 +238,7 @@ struct CreateGameSheet: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.hooprLightGray)
+        .background(Color.hooprFill)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }

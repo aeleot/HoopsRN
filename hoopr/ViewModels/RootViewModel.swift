@@ -25,7 +25,13 @@ final class RootViewModel: ObservableObject {
             }
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
-            .assign(to: \.destination, on: self)
+            // `sink` with a weak capture rather than `assign(to:on: self)`,
+            // which would retain self through self's own cancellable set —
+            // the same reason `ProfileViewModel` and `LocalRunsViewModel`
+            // avoid it.
+            .sink { [weak self] destination in
+                self?.destination = destination
+            }
             .store(in: &cancellables)
     }
 }

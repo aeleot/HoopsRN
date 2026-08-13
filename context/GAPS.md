@@ -72,14 +72,6 @@ being reproduced in the entry that owns the code.
 
 **Code quality**
 
-- `RootViewModel` uses `assign(to:\.destination, on: self)` stored in `self`'s
-  own cancellable set — a retain cycle. `ProfileViewModel` and
-  `LocalRunsViewModel` both carry a comment explaining why they use
-  `sink { [weak self] }` instead; `RootViewModel` is now the only holdout.
-  Invisible today because it lives as long as the screen that owns it.
-- Light mode only. No `colorScheme` handling anywhere; every colour is a literal
-  RGB value and text is written as `.black` / `Color.white` directly.
-- Fonts are all `.system(size:)` literals — no Dynamic Type.
 - `Game.status` is duplicated by necessity: once in Swift
   (`Game.status(playerCount:maxPlayers:)`) and once as an expression in
   `firestore.rules`. There is no mechanism keeping them in step, and a
@@ -139,20 +131,11 @@ here, not left to be rediscovered.
 Roughly in order of value per unit of effort. Each names the files it touches so
 it can be picked up cold.
 
-### 1. Deploy the pending rules change — one command
+> **Deployed as of 2026-08-13:** rules and both `games` indexes are live,
+> including the `favoriteCourtIds` fix and the duplicate-roster guards. Nothing
+> below is blocked on a deploy.
 
-`firestore.rules` in the repo is **ahead of the deployed ruleset**:
-`favoriteCourtIds` was added to the `users` update rule, and duplicate-roster
-guards were added to `games`.
-
-```bash
-firebase deploy --only firestore:rules
-```
-
-Until this lands, every star tap fails server-side and reverts silently. This is
-the two-step rule biting for the second time — see `database/DATABASE_SCHEMA.md`.
-
-### 2. Decide how long a finished run stays listed
+### 1. Decide how long a finished run stays listed
 
 Currently `Game.visibilityGrace` is **3 hours** after `scheduledTime`, applied in
 two places that must agree: the Firestore query's cutoff, and
@@ -169,9 +152,9 @@ Options, cheapest first: recompute on foreground via `scenePhase` and re-attach;
 or drop the range clause from the query and filter entirely client-side (removes
 one composite index, costs more reads); or move retirement server-side with a
 scheduled Cloud Function writing `status: "completed"` — which is also what
-unblocks step 4.
+unblocks step 1.
 
-### 3. Make listeners recover from terminal errors
+### 2. Make listeners recover from terminal errors
 
 See *Reliability* above. A `failedPrecondition` or `permissionDenied` currently
 means "relaunch the app," and the user is told nothing beyond a banner. Add a
@@ -179,7 +162,7 @@ bounded retry with backoff in `GameService.handle(_:error:describing:assign:)`
 that re-invokes `startObserving` on those two codes. `UserProfileService` has the
 same exposure and should get the same treatment.
 
-### 4. Waitlist promotion — needs a Cloud Function
+### 3. Waitlist promotion — needs a Cloud Function
 
 The update rule deliberately forbids writing another user's uid, so promotion
 cannot be done by the leaving client. A scheduled or triggered Function running
@@ -188,14 +171,14 @@ natural home for `in_progress` / `completed` transitions. **This is the first
 thing in the project that requires the Blaze plan** — worth confirming before
 designing around it.
 
-### 5. Invites, to complete invite-only
+### 4. Invites, to complete invite-only
 
 `isPublic: false` is half a feature today. Minimum viable: a share link carrying
 the `gameId`, plus a rule allowing a read by anyone holding it. That's a real
 security decision — an unguessable ID is not an authorization model — so it
 deserves its own design rather than an afternoon.
 
-### 6. Confirm the tip-off default across time zones
+### 5. Confirm the tip-off default across time zones
 
 `CreateGameViewModel.defaultTipOff` computes now + 1h rounded up to the quarter
 hour. On the simulator at 00:54 local it produced a picker showing **5:00 AM**,
@@ -204,14 +187,14 @@ a three-hour gap that suggests a mismatch between the simulator clock and the
 before changing anything — `Date(timeIntervalSinceReferenceDate:)` rounding is
 zone-independent, so the arithmetic is probably innocent.
 
-### 7. Rules testing
+### 6. Rules testing
 
 The rules now carry the project's most consequential logic — the membership
 diff, pinned server timestamps, derived status, duplicate rosters — and none of
 it is covered. `firebase emulators:exec` with a rules test suite is the standard
 answer and would pay for itself the first time someone edits `hasOnly`.
 
-### 8. Smaller, self-contained
+### 7. Smaller, self-contained
 
 - Fix `RootViewModel`'s retain cycle to match the other two view models.
 - Consume `LocationService.userLocation` so distances follow the device;
@@ -226,5 +209,6 @@ answer and would pay for itself the first time someone edits `hasOnly`.
 
 - `INDEX.md` — where each subject actually lives.
 - `BUILD_AND_CONFIG.md` — the identity values behind the configuration notes.
-- `database/DATABASE_SCHEMA.md` — the two-step rule that step 1 exists to close.
+- `database/DATABASE_SCHEMA.md` — the two-step rule, and how `favoriteCourtIds`
+  fell through it.
 - `plans/LIVE_HEADCOUNT.md` — the check-in feature, still unbuilt.

@@ -33,12 +33,12 @@ struct GameCard: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(.white)
-                .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+                .fill(Color.hooprSurface)
+                .shadow(color: Color.hooprShadow(opacity: 0.06), radius: 8, x: 0, y: 2)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.hooprBorderGray, lineWidth: 1)
+                .stroke(Color.hooprBorder, lineWidth: 1)
         )
         .confirmationDialog(
             "Cancel this run?",
@@ -57,18 +57,18 @@ struct GameCard: View {
     private var header: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "basketball.fill")
-                .font(.system(size: 18))
+                .hooprFont(18)
                 .foregroundStyle(Color.hooprOrange)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(listing.courtName)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.black)
+                    .hooprFont(16, weight: .semibold)
+                    .foregroundStyle(Color.hooprPrimaryText)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
                 Text(game.scheduledText())
-                    .font(.system(size: 14, weight: .medium))
+                    .hooprFont(14, weight: .medium)
                     .foregroundStyle(Color.hooprSecondaryText)
             }
 
@@ -76,7 +76,7 @@ struct GameCard: View {
 
             if let badge = badge {
                 Text(badge.text)
-                    .font(.system(size: 11, weight: .bold))
+                    .hooprFont(11, weight: .bold)
                     .foregroundStyle(badge.tint)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -104,9 +104,9 @@ struct GameCard: View {
     private func detail(symbol: String, text: String) -> some View {
         HStack(spacing: 4) {
             Image(systemName: symbol)
-                .font(.system(size: 11))
+                .hooprFont(11)
             Text(text)
-                .font(.system(size: 13))
+                .hooprFont(13)
         }
         .foregroundStyle(Color.hooprSecondaryText)
     }
@@ -118,7 +118,7 @@ struct GameCard: View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.hooprLightGray)
+                    .fill(Color.hooprFill)
 
                 Capsule()
                     .fill(game.isFull ? Color.hooprSecondaryText : Color.hooprOrange)
@@ -146,16 +146,16 @@ struct GameCard: View {
             Group {
                 if isPending {
                     ProgressView()
-                        .tint(action.isDestructive ? Color.hooprRed : .white)
+                        .tint(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
                 } else {
                     Text(action.title)
-                        .font(.system(size: 15, weight: .semibold))
+                        .hooprFont(15, weight: .semibold)
                 }
             }
             .frame(maxWidth: .infinity)
             .frame(height: 42)
-            .foregroundStyle(action.isDestructive ? Color.hooprRed : .white)
-            .background(action.isDestructive ? Color.hooprLightGray : Color.hooprOrange)
+            .foregroundStyle(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
+            .background(action.isDestructive ? Color.hooprFill : Color.hooprOrange)
             .clipShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)

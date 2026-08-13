@@ -19,15 +19,15 @@ struct LoginView: View {
 
             VStack(spacing: 8) {
                 Image(systemName: "basketball.fill")
-                    .font(.system(size: 44))
+                    .hooprFont(44)
                     .foregroundStyle(Color.hooprOrange)
 
                 Text("HoopRN")
-                    .font(.system(size: 34, weight: .bold))
-                    .foregroundStyle(.black)
+                    .hooprFont(34, weight: .bold)
+                    .foregroundStyle(Color.hooprPrimaryText)
 
                 Text(viewModel.mode.title)
-                    .font(.system(size: 15))
+                    .hooprFont(15)
                     .foregroundStyle(Color.hooprSecondaryText)
             }
             .padding(.bottom, 32)
@@ -39,7 +39,7 @@ struct LoginView: View {
 
             if let errorMessage = viewModel.errorMessage {
                 Text(errorMessage)
-                    .font(.system(size: 13))
+                    .hooprFont(13)
                     .foregroundStyle(Color.hooprRed)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 12)
@@ -51,13 +51,14 @@ struct LoginView: View {
                 ZStack {
                     if viewModel.isBusy {
                         ProgressView()
-                            .tint(.white)
+                            .tint(Color.hooprOnBrand)
                     } else {
                         Text(viewModel.mode.actionLabel)
-                            .font(.system(size: 17, weight: .semibold))
+                            // Capped to the button's fixed 52pt height.
+                            .hooprFont(17, weight: .semibold, maximumSize: 24)
                     }
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.hooprOnBrand)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
                 .background(viewModel.canSubmit ? Color.hooprOrange : Color.hooprOrange.opacity(0.4))
@@ -78,7 +79,7 @@ struct LoginView: View {
                         .foregroundStyle(Color.hooprOrange)
                         .fontWeight(.semibold)
                 }
-                .font(.system(size: 14))
+                .hooprFont(14)
             }
             .padding(.top, 20)
 
@@ -87,7 +88,7 @@ struct LoginView: View {
         }
         .padding(.horizontal, 28)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.white)
+        .background(Color.hooprBackground)
         .onTapGesture {
             focusedField = nil
         }
@@ -118,17 +119,17 @@ struct LoginView: View {
                     #endif
             }
         }
-        .font(.system(size: 16))
-        .foregroundStyle(.black)
+        .hooprFont(16, maximumSize: 24)
+        .foregroundStyle(Color.hooprPrimaryText)
         .focused($focusedField, equals: field)
         .padding(.horizontal, 16)
         .frame(height: 52)
-        .background(Color.hooprLightGray)
+        .background(Color.hooprFill)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(
-                    focusedField == field ? Color.hooprOrange : Color.hooprBorderGray,
+                    focusedField == field ? Color.hooprOrange : Color.hooprBorder,
                     lineWidth: 1
                 )
         )

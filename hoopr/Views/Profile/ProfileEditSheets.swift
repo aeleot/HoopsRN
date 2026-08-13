@@ -16,8 +16,8 @@ struct EditUserNameSheet: View {
         NavigationStack {
             VStack(spacing: 16) {
                 TextField("Your name", text: $draft)
-                    .font(.system(size: 17))
-                    .foregroundStyle(.black)
+                    .hooprFont(17, maximumSize: 24)
+                    .foregroundStyle(Color.hooprPrimaryText)
                     .focused($isFieldFocused)
                     .submitLabel(.done)
                     #if os(iOS) || os(visionOS)
@@ -26,7 +26,7 @@ struct EditUserNameSheet: View {
                     #endif
                     .padding(.horizontal, 16)
                     .frame(height: 52)
-                    .background(Color.hooprLightGray)
+                    .background(Color.hooprFill)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
@@ -36,7 +36,7 @@ struct EditUserNameSheet: View {
 
                 if let errorMessage {
                     Text(errorMessage)
-                        .font(.system(size: 13))
+                        .hooprFont(13)
                         .foregroundStyle(Color.hooprRed)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -44,7 +44,7 @@ struct EditUserNameSheet: View {
                 Spacer()
             }
             .padding(20)
-            .background(Color.white)
+            .background(Color.hooprBackground)
             .navigationTitle("Username")
             #if os(iOS) || os(visionOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -118,7 +118,7 @@ struct HomeCourtPickerSheet: View {
 
                 if let errorMessage {
                     Text(errorMessage)
-                        .font(.system(size: 13))
+                        .hooprFont(13)
                         .foregroundStyle(Color.hooprRed)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 20)
@@ -133,7 +133,7 @@ struct HomeCourtPickerSheet: View {
                     suggestionList
                 }
             }
-            .background(Color.white)
+            .background(Color.hooprBackground)
             .disabled(isSaving)
             .navigationTitle("Home Court")
             #if os(iOS) || os(visionOS)
@@ -156,12 +156,12 @@ struct HomeCourtPickerSheet: View {
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 15, weight: .medium))
+                .hooprFont(15, weight: .medium, maximumSize: 20)
                 .foregroundStyle(Color.hooprSecondaryText)
 
             TextField("Search for your court", text: $query)
-                .font(.system(size: 16))
-                .foregroundStyle(.black)
+                .hooprFont(16, maximumSize: 22)
+                .foregroundStyle(Color.hooprPrimaryText)
                 .focused($isSearchFocused)
                 .autocorrectionDisabled()
                 .submitLabel(.search)
@@ -175,7 +175,7 @@ struct HomeCourtPickerSheet: View {
                     isSearchFocused = true
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 15))
+                        .hooprFont(15, maximumSize: 20)
                         .foregroundStyle(Color.hooprSecondaryText)
                 }
                 .accessibilityLabel("Clear search")
@@ -183,11 +183,11 @@ struct HomeCourtPickerSheet: View {
         }
         .padding(.horizontal, 14)
         .frame(height: 48)
-        .background(Color.hooprLightGray)
+        .background(Color.hooprFill)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isSearchFocused ? Color.hooprOrange : Color.hooprBorderGray, lineWidth: 1)
+                .stroke(isSearchFocused ? Color.hooprOrange : Color.hooprBorder, lineWidth: 1)
         )
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
@@ -203,17 +203,17 @@ struct HomeCourtPickerSheet: View {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(court.name)
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(.black)
+                                    .hooprFont(16, weight: .medium)
+                                    .foregroundStyle(Color.hooprPrimaryText)
                                     .multilineTextAlignment(.leading)
                                 Text(court.city)
-                                    .font(.system(size: 13))
+                                    .hooprFont(13)
                                     .foregroundStyle(Color.hooprSecondaryText)
                             }
                             Spacer()
                             if court.id == selectedCourtId {
                                 Image(systemName: "checkmark")
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .hooprFont(15, weight: .semibold)
                                     .foregroundStyle(Color.hooprOrange)
                             }
                         }
@@ -223,7 +223,7 @@ struct HomeCourtPickerSheet: View {
                     }
 
                     Rectangle()
-                        .fill(Color.hooprBorderGray)
+                        .fill(Color.hooprBorder)
                         .frame(height: 1)
                         .padding(.horizontal, 20)
                 }
@@ -242,7 +242,7 @@ struct HomeCourtPickerSheet: View {
                     onSelect(nil)
                 } label: {
                     Text("Remove home court")
-                        .font(.system(size: 15, weight: .medium))
+                        .hooprFont(15, weight: .medium)
                         .foregroundStyle(Color.hooprRed)
                 }
             }
@@ -253,7 +253,7 @@ struct HomeCourtPickerSheet: View {
 
     private func message(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 14))
+            .hooprFont(14)
             .foregroundStyle(Color.hooprSecondaryText)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 32)
@@ -279,13 +279,13 @@ struct EditRadiusSheet: View {
             VStack(spacing: 24) {
                 VStack(spacing: 16) {
                     Text("Search radius for nearby courts")
-                        .font(.system(size: 15))
+                        .hooprFont(15)
                         .foregroundStyle(Color.hooprSecondaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     Text(UserProfile.radiusText(radius))
-                        .font(.system(size: 34, weight: .bold))
-                        .foregroundStyle(.black)
+                        .hooprFont(34, weight: .bold)
+                        .foregroundStyle(Color.hooprPrimaryText)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         // Fixed width digits, so the slider below doesn't
                         // shift as the number changes width mid-drag.
@@ -293,7 +293,7 @@ struct EditRadiusSheet: View {
 
                     HStack(spacing: 12) {
                         Text(UserProfile.radiusText(range.lowerBound))
-                            .font(.system(size: 13))
+                            .hooprFont(13)
                             .foregroundStyle(Color.hooprSecondaryText)
 
                         // Steps by whole miles so the stored value always
@@ -303,17 +303,17 @@ struct EditRadiusSheet: View {
                             .accessibilityLabel("Search radius in miles")
 
                         Text(UserProfile.radiusText(range.upperBound))
-                            .font(.system(size: 13))
+                            .hooprFont(13)
                             .foregroundStyle(Color.hooprSecondaryText)
                     }
                 }
                 .padding(16)
-                .background(Color.hooprLightGray)
+                .background(Color.hooprFill)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 if let errorMessage {
                     Text(errorMessage)
-                        .font(.system(size: 13))
+                        .hooprFont(13)
                         .foregroundStyle(Color.hooprRed)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -321,7 +321,7 @@ struct EditRadiusSheet: View {
                 Spacer()
             }
             .padding(20)
-            .background(Color.white)
+            .background(Color.hooprBackground)
             // Matches the court picker: the whole cycle is gated on `isSaving`,
             // so the value can't move out from under an in-flight write.
             .disabled(isSaving)
@@ -347,4 +347,92 @@ struct EditRadiusSheet: View {
             }
         }
     }
+}
+
+/// Picks the app's appearance. Unlike its siblings here, nothing is written to
+/// Firestore — the choice lands in `UserDefaults` and takes effect immediately,
+/// so the sheet itself repaints as you tap. That's why there's a Done button
+/// and no Save: there is no in-flight state to guard and nothing to roll back.
+struct AppearanceSheet: View {
+    @Binding var preference: AppearancePreference
+    let onDone: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                ForEach(AppearancePreference.allCases) { option in
+                    Button {
+                        // Animated because the whole app recolours behind the
+                        // sheet — an instant swap reads as a glitch.
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            preference = option
+                        }
+                    } label: {
+                        row(for: option)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(option == preference ? .isSelected : [])
+
+                    if option != AppearancePreference.allCases.last {
+                        Rectangle()
+                            .fill(Color.hooprBorder)
+                            .frame(height: 1)
+                            .padding(.horizontal, 20)
+                    }
+                }
+
+                Spacer()
+            }
+            .padding(.top, 8)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.hooprBackground)
+            .navigationTitle("Appearance")
+            #if os(iOS) || os(visionOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done", action: onDone)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.hooprOrange)
+                }
+            }
+        }
+    }
+
+    private func row(for option: AppearancePreference) -> some View {
+        let isSelected = option == preference
+
+        return HStack(spacing: 14) {
+            Image(systemName: option.symbolName)
+                .hooprFont(17, maximumSize: 22)
+                .foregroundStyle(isSelected ? Color.hooprOrange : Color.hooprSecondaryText)
+                .frame(width: 28)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(option.title)
+                    .hooprFont(16, weight: .medium)
+                    .foregroundStyle(Color.hooprPrimaryText)
+                Text(option.subtitle)
+                    .hooprFont(13)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .multilineTextAlignment(.leading)
+            }
+
+            Spacer(minLength: 8)
+
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .hooprFont(15, weight: .semibold)
+                    .foregroundStyle(Color.hooprOrange)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .contentShape(Rectangle())
+    }
+}
+
+#Preview {
+    AppearanceSheet(preference: .constant(.system), onDone: {})
 }

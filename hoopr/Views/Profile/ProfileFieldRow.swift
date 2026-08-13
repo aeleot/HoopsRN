@@ -17,13 +17,13 @@ struct ProfileFieldRow: View {
         ZStack {
             VStack(spacing: 10) {
                 Text(label.uppercased())
-                    .font(.system(size: 11, weight: .semibold))
+                    .hooprFont(11, weight: .semibold)
                     .kerning(0.6)
                     .foregroundStyle(Color.hooprSecondaryText)
 
                 Text(value ?? placeholder)
-                    .font(.system(size: 19, weight: .semibold))
-                    .foregroundStyle(value == nil ? Color.hooprSecondaryText : .black)
+                    .hooprFont(19, weight: .semibold)
+                    .foregroundStyle(value == nil ? Color.hooprSecondaryText : Color.hooprPrimaryText)
                     .multilineTextAlignment(.center)
             }
             // Keep the centred text clear of the trailing edit button.
@@ -35,7 +35,7 @@ struct ProfileFieldRow: View {
                     Spacer()
                     Button(action: onEdit) {
                         Image(systemName: "square.and.pencil")
-                            .font(.system(size: 16, weight: .medium))
+                            .hooprFont(16, weight: .medium, maximumSize: 20)
                             .foregroundStyle(Color.hooprOrange)
                             // 44pt keeps the tap target accessible even though
                             // the glyph is small.

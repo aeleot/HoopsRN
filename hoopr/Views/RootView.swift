@@ -57,14 +57,14 @@ private struct LaunchScreen: View {
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "basketball.fill")
-                .font(.system(size: 44))
+                .hooprFont(44)
                 .foregroundStyle(Color.hooprOrange)
 
             ProgressView()
                 .tint(Color.hooprSecondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.white)
+        .background(Color.hooprBackground)
     }
 }
 
