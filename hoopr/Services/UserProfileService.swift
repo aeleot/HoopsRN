@@ -46,6 +46,7 @@ final class UserProfileService: ObservableObject {
         static let userName = "userName"
         static let email = "email"
         static let homeCourtId = "homeCourtId"
+        static let favoriteCourtIds = "favoriteCourtIds"
         static let createdAt = "createdAt"
         static let updatedAt = "updatedAt"
     }
@@ -203,6 +204,29 @@ final class UserProfileService: ObservableObject {
         } catch {
             let profileError = Self.mapped(error)
             report(profileError, whileDoing: "saving your home court")
+            throw profileError
+        }
+    }
+
+    /// Stars or unstars a court.
+    ///
+    /// Uses `arrayUnion`/`arrayRemove` rather than reading the array and
+    /// writing it back: the server merges the change, so two devices toggling
+    /// different courts at once can't clobber each other.
+    func setFavorite(courtId: String, isFavorite: Bool) async throws {
+        guard let uid = observedUID else { throw UserProfileError.notSignedIn }
+
+        do {
+            try await database.collection(Collection.users).document(uid).updateData([
+                Field.favoriteCourtIds: isFavorite
+                    ? FieldValue.arrayUnion([courtId])
+                    : FieldValue.arrayRemove([courtId]),
+                Field.updatedAt: FieldValue.serverTimestamp(),
+            ])
+            errorMessage = nil
+        } catch {
+            let profileError = Self.mapped(error)
+            report(profileError, whileDoing: "saving your favorites")
             throw profileError
         }
     }

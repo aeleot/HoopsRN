@@ -8,6 +8,7 @@ struct MainTabView: View {
     @ObservedObject private var userProfileService: UserProfileService
     private let courtService: CourtService
     private let locationService: LocationService
+    private let recentCourtsStore: RecentCourtsStore
 
     private let tabs: [(String, String)] = [
         ("Court Map", "map"),
@@ -19,12 +20,14 @@ struct MainTabView: View {
         authService: AuthService,
         courtService: CourtService,
         locationService: LocationService,
-        userProfileService: UserProfileService
+        userProfileService: UserProfileService,
+        recentCourtsStore: RecentCourtsStore
     ) {
         self.authService = authService
         self.courtService = courtService
         self.locationService = locationService
         self.userProfileService = userProfileService
+        self.recentCourtsStore = recentCourtsStore
     }
 
     var body: some View {
@@ -111,7 +114,12 @@ struct MainTabView: View {
                 .zIndex(1)
 
                 ZStack {
-                    FindAMatchTab(courtService: courtService, locationService: locationService)
+                    FindAMatchTab(
+                        courtService: courtService,
+                        locationService: locationService,
+                        userProfileService: userProfileService,
+                        recentCourtsStore: recentCourtsStore
+                    )
                         .opacity(selectedTab == 0 ? 1 : 0)
                         .allowsHitTesting(selectedTab == 0)
 
@@ -142,6 +150,7 @@ struct MainTabView: View {
         authService: authService,
         courtService: CourtService(),
         locationService: LocationService(),
-        userProfileService: UserProfileService(authService: authService)
+        userProfileService: UserProfileService(authService: authService),
+        recentCourtsStore: RecentCourtsStore()
     )
 }

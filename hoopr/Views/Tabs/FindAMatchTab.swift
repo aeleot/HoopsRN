@@ -2,32 +2,25 @@ import SwiftUI
 import MapKit
 
 struct FindAMatchTab: View {
-    /// The bottom sheet is always in exactly one of these. `.detail` carries the
-    /// state to fall back to, so dismissing a court restores whatever the sheet
-    /// was showing beforehand.
-    private enum SheetState: Equatable {
-        case list
+    /// How far up the sheet is resting. `medium` is the default: enough list to
+    /// be useful, enough map to stay oriented.
+    private enum Detent {
         case collapsed
-        case detail(court: Court, returningTo: RestState)
+        case medium
+        case expanded
+    }
 
-        /// The two states the sheet rests in when no court is selected.
-        enum RestState {
-            case list
-            case collapsed
+    /// The sheet is always in exactly one of these. `.detail` carries the
+    /// detent to fall back to, so dismissing a court restores whatever the
+    /// sheet was showing beforehand.
+    private enum SheetState: Equatable {
+        case rest(Detent)
+        case detail(court: Court, returningTo: Detent)
 
-            var sheetState: SheetState {
-                self == .list ? .list : .collapsed
-            }
-        }
-
-        var restState: RestState {
+        var detent: Detent {
             switch self {
-            case .list:
-                return .list
-            case .collapsed:
-                return .collapsed
-            case .detail(_, let returningTo):
-                return returningTo
+            case .rest(let detent):          return detent
+            case .detail(_, let returningTo): return returningTo
             }
         }
 
@@ -43,7 +36,7 @@ struct FindAMatchTab: View {
     @State private var absoluteZoomTrigger: AbsoluteZoomTrigger?
     @State private var zoomLevel: Double = 0.5
     @State private var isDraggingSlider = false
-    @State private var sheetState: SheetState = .list
+    @State private var sheetState: SheetState = .rest(.medium)
 
     /// Live finger travel for the sheet drag; zero whenever the sheet is settled.
     @State private var sheetDrag: CGFloat = 0
@@ -51,30 +44,56 @@ struct FindAMatchTab: View {
     /// that starts at the top.
     @State private var listScrollOffset: CGFloat = 0
 
-    /// Height of the handle + count label that stays on screen when collapsed.
-    private let headerHeight: CGFloat = 52
     /// Gap kept below the sheet's own content, and under the collapsed pill, so
     /// neither sits beneath the home indicator.
     private let peekBottomInset: CGFloat = 28
-    private let collapseThreshold: CGFloat = 60
+    private let detentThreshold: CGFloat = 60
     /// Finger travel below which a handle drag counts as a tap instead.
     private let tapSlop: CGFloat = 6
 
-    init(courtService: CourtService, locationService: LocationService) {
+    init(
+        courtService: CourtService,
+        locationService: LocationService,
+        userProfileService: UserProfileService,
+        recentCourtsStore: RecentCourtsStore
+    ) {
         _viewModel = StateObject(wrappedValue: FindAMatchViewModel(
             courtService: courtService,
-            locationService: locationService
+            locationService: locationService,
+            userProfileService: userProfileService,
+            recentCourtsStore: recentCourtsStore
         ))
     }
 
-    private var sheetHeight: CGFloat {
-        UIScreen.main.bounds.height / 3
+    // MARK: - Detent geometry
+
+    private var screenHeight: CGFloat { UIScreen.main.bounds.height }
+    private var mediumHeight: CGFloat { screenHeight / 3 }
+    private var expandedHeight: CGFloat { screenHeight * 0.78 }
+
+    private func baseHeight(for detent: Detent) -> CGFloat {
+        switch detent {
+        case .collapsed, .medium: return mediumHeight
+        case .expanded:           return expandedHeight
+        }
     }
 
-    /// Collapsing drops the sheet clear off the bottom — the floating pill, not
-    /// a sliver of the sheet, is what stays behind.
-    private var collapsedOffset: CGFloat {
-        sheetHeight
+    /// The sheet grows and shrinks between medium and expanded as you drag, so
+    /// its top edge tracks your finger instead of the whole panel sliding.
+    private var sheetHeight: CGFloat {
+        let base = baseHeight(for: sheetState.detent)
+        return min(max(base - sheetDrag, mediumHeight), expandedHeight)
+    }
+
+    /// Only non-zero heading to or from `.collapsed`, where the sheet leaves
+    /// the screen entirely rather than shrinking below its medium height.
+    private var sheetOffset: CGFloat {
+        let detent = sheetState.detent
+        let base: CGFloat = detent == .collapsed ? mediumHeight : 0
+        let travel: CGFloat = detent == .collapsed
+            ? sheetDrag
+            : max(0, sheetDrag - (baseHeight(for: detent) - mediumHeight))
+        return rubberBanded(base + travel)
     }
 
     var body: some View {
@@ -85,6 +104,7 @@ struct FindAMatchTab: View {
                 recenterTrigger: $recenterTrigger,
                 zoomTrigger: $zoomTrigger,
                 absoluteZoomTrigger: $absoluteZoomTrigger,
+                selectedCourtID: sheetState.selectedCourt?.id,
                 onMarkerTap: { court in
                     select(court)
                 },
@@ -95,70 +115,13 @@ struct FindAMatchTab: View {
                     if !isDraggingSlider {
                         zoomLevel = level
                     }
+                },
+                onRegionChange: { center in
+                    viewModel.mapRegionChanged(to: center)
                 }
             )
 
-            VStack {
-                HStack {
-                    Spacer()
-                    VStack(spacing: 10) {
-                        VStack(spacing: 0) {
-                            Button {
-                                zoomTrigger = ZoomTrigger(direction: .zoomIn)
-                            } label: {
-                                Image(systemName: "plus")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(.black)
-                                    .frame(width: 44, height: 38)
-                            }
-
-                            Divider().frame(width: 28)
-
-                            Slider(
-                                value: $zoomLevel,
-                                in: 0...1,
-                                onEditingChanged: { editing in
-                                    isDraggingSlider = editing
-                                }
-                            )
-                            .tint(Color.hooprOrange)
-                            .frame(width: 90)
-                            .rotationEffect(.degrees(-90))
-                            .frame(width: 44, height: 90)
-                            .clipped()
-
-                            Divider().frame(width: 28)
-
-                            Button {
-                                zoomTrigger = ZoomTrigger(direction: .zoomOut)
-                            } label: {
-                                Image(systemName: "minus")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(.black)
-                                    .frame(width: 44, height: 38)
-                            }
-                        }
-                        .background(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
-
-                        Button {
-                            recenterMap()
-                        } label: {
-                            Image(systemName: "location.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundStyle(.white)
-                                .frame(width: 44, height: 44)
-                                .background(Color.hooprOrange)
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
-                        }
-                    }
-                    .padding(.trailing, 14)
-                    .padding(.top, 14)
-                }
-                Spacer()
-            }
+            mapOverlay
 
             sheet
 
@@ -174,9 +137,143 @@ struct FindAMatchTab: View {
         }
     }
 
+    // MARK: - Map chrome
+
+    /// Filter chips at the top, zoom controls on the right, and the re-search
+    /// pill that appears once the map has wandered from the list.
+    private var mapOverlay: some View {
+        VStack(spacing: 0) {
+            filterChips
+
+            HStack {
+                Spacer()
+                zoomControls
+                    .padding(.trailing, 14)
+            }
+            .padding(.top, 10)
+
+            Spacer()
+
+            if viewModel.canSearchHere {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.searchHere()
+                    }
+                } label: {
+                    Text("Search here")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule()
+                                .fill(.white)
+                                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
+                        )
+                }
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .padding(.bottom, 12)
+            }
+        }
+        .padding(.top, 12)
+        // Keep the chrome clear of the sheet, whatever height it's at.
+        .padding(.bottom, max(0, sheetHeight - sheetOffset))
+        .animation(.easeInOut(duration: 0.2), value: viewModel.canSearchHere)
+    }
+
+    private var filterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(CourtFilter.allCases) { filter in
+                    let isActive = viewModel.isActive(filter)
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            viewModel.toggle(filter)
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: filter.symbolName)
+                                .font(.system(size: 11, weight: .semibold))
+                            Text(filter.label)
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundStyle(isActive ? .white : .black)
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(isActive ? Color.hooprOrange : .white)
+                                .shadow(color: .black.opacity(0.12), radius: 5, x: 0, y: 2)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 4)
+        }
+    }
+
+    private var zoomControls: some View {
+        VStack(spacing: 10) {
+            VStack(spacing: 0) {
+                Button {
+                    zoomTrigger = ZoomTrigger(direction: .zoomIn)
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.black)
+                        .frame(width: 44, height: 38)
+                }
+
+                Divider().frame(width: 28)
+
+                Slider(
+                    value: $zoomLevel,
+                    in: 0...1,
+                    onEditingChanged: { editing in
+                        isDraggingSlider = editing
+                    }
+                )
+                .tint(Color.hooprOrange)
+                .frame(width: 90)
+                .rotationEffect(.degrees(-90))
+                .frame(width: 44, height: 90)
+                .clipped()
+
+                Divider().frame(width: 28)
+
+                Button {
+                    zoomTrigger = ZoomTrigger(direction: .zoomOut)
+                } label: {
+                    Image(systemName: "minus")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.black)
+                        .frame(width: 44, height: 38)
+                }
+            }
+            .background(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
+
+            Button {
+                recenterMap()
+            } label: {
+                Image(systemName: "location.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.hooprOrange)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .shadow(color: .black.opacity(0.1), radius: 6, x: 0, y: 2)
+            }
+        }
+    }
+
     // MARK: - Sheet
 
-    /// One continuous white surface whose contents swap between the nearby list
+    /// One continuous white surface whose contents swap between the court list
     /// and a selected court's detail card.
     private var sheet: some View {
         Group {
@@ -205,7 +302,7 @@ struct FindAMatchTab: View {
             Image(systemName: "chevron.up")
                 .font(.system(size: 11, weight: .semibold))
 
-            Text(nearbyCountLabel)
+            Text(viewModel.listCountLabel)
                 .font(.system(size: 13, weight: .semibold))
         }
         .foregroundStyle(Color.hooprSecondaryText)
@@ -226,8 +323,8 @@ struct FindAMatchTab: View {
     /// Held at zero until the sheet is most of the way gone, so the pill never
     /// competes with the sheet it replaces.
     private var peekOpacity: Double {
-        guard sheetState.selectedCourt == nil, collapsedOffset > 0 else { return 0 }
-        let progress = min(max(sheetOffset / collapsedOffset, 0), 1)
+        guard sheetState.selectedCourt == nil, mediumHeight > 0 else { return 0 }
+        let progress = min(max(sheetOffset / mediumHeight, 0), 1)
         return Double(min(max((progress - 0.6) / 0.4, 0), 1))
     }
 
@@ -236,23 +333,24 @@ struct FindAMatchTab: View {
             sheetHeader
                 .gesture(sheetDragGesture(fromHandle: true))
 
-            Divider().overlay(Color.hooprBorderGray)
+            listTabs
 
-            if viewModel.nearbyCourts.isEmpty {
-                Spacer()
-                Text("No courts within \(Int(FindAMatchViewModel.nearbyRadiusMiles)) miles")
-                    .font(.system(size: 15))
-                    .foregroundStyle(Color.hooprSecondaryText)
-                    .frame(maxWidth: .infinity)
-                Spacer()
+            if viewModel.listedCourts.isEmpty {
+                emptyState
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(viewModel.nearbyCourts) { nearby in
+                        ForEach(viewModel.listedCourts) { nearby in
                             Button {
                                 select(nearby.court, recenter: true)
                             } label: {
-                                CourtRow(nearbyCourt: nearby)
+                                CourtRow(
+                                    nearbyCourt: nearby,
+                                    isFavorite: viewModel.isFavorite(nearby.court),
+                                    onToggleFavorite: {
+                                        viewModel.toggleFavorite(nearby.court)
+                                    }
+                                )
                             }
                             .buttonStyle(.plain)
 
@@ -274,6 +372,56 @@ struct FindAMatchTab: View {
         }
     }
 
+    /// Nearby / Favorites / Recent. Switching only changes which courts the
+    /// sheet lists — the map and its filters are unaffected.
+    private var listTabs: some View {
+        HStack(spacing: 0) {
+            ForEach(FindAMatchViewModel.ListTab.allCases) { tab in
+                let isSelected = viewModel.selectedTab == tab
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        viewModel.selectedTab = tab
+                    }
+                } label: {
+                    VStack(spacing: 7) {
+                        Text(tab.title)
+                            .font(.system(size: 13, weight: isSelected ? .bold : .medium))
+                            .foregroundStyle(isSelected ? .black : Color.hooprSecondaryText)
+
+                        Rectangle()
+                            .fill(isSelected ? Color.hooprOrange : Color.hooprBorderGray)
+                            .frame(height: isSelected ? 2 : 1)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 6) {
+            Spacer()
+
+            Text(viewModel.emptyStateTitle)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.black)
+
+            if let detail = viewModel.emptyStateDetail {
+                Text(detail)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .multilineTextAlignment(.center)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity)
+    }
+
     /// Drag handle plus court count — the only part left visible when collapsed.
     private var sheetHeader: some View {
         VStack(spacing: 8) {
@@ -281,19 +429,14 @@ struct FindAMatchTab: View {
                 .fill(Color.hooprBorderGray)
                 .frame(width: 36, height: 5)
 
-            Text(nearbyCountLabel)
+            Text(viewModel.listCountLabel)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Color.hooprSecondaryText)
         }
         .padding(.top, 10)
+        .padding(.bottom, 10)
         .frame(maxWidth: .infinity)
-        .frame(height: headerHeight, alignment: .top)
         .contentShape(Rectangle())
-    }
-
-    private var nearbyCountLabel: String {
-        let count = viewModel.nearbyCourts.count
-        return count == 1 ? "1 court nearby" : "\(count) courts nearby"
     }
 
     @ViewBuilder
@@ -319,6 +462,17 @@ struct FindAMatchTab: View {
                 Spacer(minLength: 8)
 
                 Button {
+                    viewModel.toggleFavorite(court)
+                } label: {
+                    Image(systemName: viewModel.isFavorite(court) ? "star.fill" : "star")
+                        .font(.system(size: 19))
+                        .foregroundStyle(
+                            viewModel.isFavorite(court) ? Color.hooprOrange : Color.hooprSecondaryText
+                        )
+                }
+                .buttonStyle(.plain)
+
+                Button {
                     dismissDetail()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -326,6 +480,7 @@ struct FindAMatchTab: View {
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(.secondary)
                 }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 20)
 
@@ -344,19 +499,14 @@ struct FindAMatchTab: View {
 
     // MARK: - Sheet position
 
-    private var sheetOffset: CGFloat {
-        let base: CGFloat = sheetState == .collapsed ? collapsedOffset : 0
-        return rubberBanded(base + sheetDrag)
-    }
-
     /// Keeps the sheet inside its travel range while still following the finger,
     /// so it can be neither flung off-screen nor dragged above its full height.
     private func rubberBanded(_ offset: CGFloat) -> CGFloat {
         if offset < 0 {
             return -resistance(-offset)
         }
-        if offset > collapsedOffset {
-            return collapsedOffset + resistance(offset - collapsedOffset)
+        if offset > mediumHeight {
+            return mediumHeight + resistance(offset - mediumHeight)
         }
         return offset
     }
@@ -378,22 +528,19 @@ struct FindAMatchTab: View {
                 sheetDrag = value.translation.height
             }
             .onEnded { value in
-                let target: SheetState.RestState
+                let target: Detent
 
                 if fromHandle, abs(value.translation.height) < tapSlop {
-                    // Barely moved, so treat it as a tap on the handle: toggle,
-                    // putting the sheet one touch from minimised either way.
-                    target = sheetState.restState == .collapsed ? .list : .collapsed
+                    // Barely moved, so treat it as a tap on the handle: step
+                    // between medium and collapsed.
+                    target = sheetState.detent == .collapsed ? .medium : .collapsed
                 } else {
                     // Project the fling so a quick flick settles the same way a
                     // long drag does.
-                    let projected = value.predictedEndTranslation.height
-                    switch sheetState.restState {
-                    case .list:
-                        target = projected > collapseThreshold ? .collapsed : .list
-                    case .collapsed:
-                        target = projected < -collapseThreshold ? .list : .collapsed
-                    }
+                    target = nextDetent(
+                        from: sheetState.detent,
+                        projecting: value.predictedEndTranslation.height
+                    )
                 }
 
                 sheetDrag = 0
@@ -401,9 +548,29 @@ struct FindAMatchTab: View {
             }
     }
 
-    private func settle(to rest: SheetState.RestState) {
+    /// One detent per gesture, so a hard fling can't skip from expanded
+    /// straight off the bottom of the screen.
+    private func nextDetent(from detent: Detent, projecting travel: CGFloat) -> Detent {
+        switch detent {
+        case .expanded:
+            return travel > detentThreshold ? .medium : .expanded
+        case .medium:
+            if travel > detentThreshold { return .collapsed }
+            if travel < -detentThreshold { return .expanded }
+            return .medium
+        case .collapsed:
+            return travel < -detentThreshold ? .medium : .collapsed
+        }
+    }
+
+    private func settle(to detent: Detent) {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-            sheetState = rest.sheetState
+            switch sheetState {
+            case .rest:
+                sheetState = .rest(detent)
+            case .detail(let court, _):
+                sheetState = .detail(court: court, returningTo: detent)
+            }
         }
     }
 
@@ -415,14 +582,17 @@ struct FindAMatchTab: View {
             recenterTrigger = RecenterTrigger(center: court.coordinate)
         }
         withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-            sheetState = .detail(court: court, returningTo: sheetState.restState)
+            // Detail reads best at the medium detent — expanded leaves a card
+            // stranded in whitespace.
+            let fallback: Detent = sheetState.detent == .collapsed ? .collapsed : .medium
+            sheetState = .detail(court: court, returningTo: fallback)
         }
     }
 
     private func dismissDetail() {
         guard sheetState.selectedCourt != nil else { return }
         withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-            sheetState = sheetState.restState.sheetState
+            sheetState = .rest(sheetState.detent)
         }
     }
 
@@ -432,5 +602,11 @@ struct FindAMatchTab: View {
 }
 
 #Preview {
-    FindAMatchTab(courtService: CourtService(), locationService: LocationService())
+    let authService = AuthService()
+    return FindAMatchTab(
+        courtService: CourtService(),
+        locationService: LocationService(),
+        userProfileService: UserProfileService(authService: authService),
+        recentCourtsStore: RecentCourtsStore()
+    )
 }

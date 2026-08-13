@@ -26,6 +26,15 @@ struct UserProfile: Identifiable, Sendable, Codable, Hashable {
     /// yet — no UI sets it.
     var homeCourtId: String?
 
+    /// Courts the player has starred. Stored inline rather than as a
+    /// subcollection so favourites ride along with the profile listener that's
+    /// already open — no second listener, no extra document reads. Optional
+    /// because profiles provisioned before favourites existed omit the field.
+    ///
+    /// Arrays stop being the right shape in the thousands; favourites won't
+    /// get there.
+    var favoriteCourtIds: [String]?
+
     /// Server-assigned at creation, immutable afterwards.
     let createdAt: Date?
 
