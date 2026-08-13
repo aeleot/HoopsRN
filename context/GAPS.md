@@ -34,12 +34,15 @@ being reproduced in the entry that owns the code.
 - Game cards show court, time, roster, distance and capacity only. Player
   names, avatars, and any per-run detail screen are unbuilt. Names would need a
   read across `users` and a privacy decision, not just a UI.
-- Auth has sign-in, sign-up, and sign-out only. No password reset, no social
-  login, no account deletion — and `firestore.rules` denies profile deletes
-  outright, so account deletion needs a rules change too. **The profile's
-  `Password` card is a placeholder for the reset flow**: it renders a
-  `••••••••` stand-in and is read-only, so it has no tap action until the flow
-  exists.
+- Auth has sign-in, sign-up, sign-out, and a password reset (the profile's
+  `Password` card mails a link via `AuthService.sendPasswordResetEmail(to:)`).
+  No social login and no account deletion — and `firestore.rules` denies
+  profile deletes outright, so account deletion needs a rules change too.
+- The reset uses Firebase's **default hosted reset page**. No
+  `ActionCodeSettings`, so the link doesn't come back into the app, and the
+  email is Firebase's default template with the project's name on it. Both are
+  console/config work rather than code. The app is also never told when the
+  link is used, so nothing in it reflects "password last changed".
 - Distances and the recenter target are anchored to a hardcoded Durham point
   (`LocationService.homeLocation`), not the device's location. Device location
   is requested on the first recenter tap only, so MapKit can draw the blue dot.

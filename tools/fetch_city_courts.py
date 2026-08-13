@@ -22,18 +22,27 @@ import argparse
 import collections
 import datetime
 import json
-import math
 import re
 import sys
 import time
 import urllib.error
 import urllib.request
-import uuid
 from pathlib import Path
 
-# Same namespace as build_courts.py — IDs stay stable for the same real-world
-# court across scripts and re-fetches.
-NAMESPACE = uuid.UUID("6f2a1c4e-9b3d-4f70-8a21-5c0d7e8b1234")
+# Identity, geography and classification rules are shared with build_courts.py
+# so the two scripts can't mint different IDs — or make different public/school/
+# restricted calls — for the same court. See courts_common.py.
+from courts_common import (
+    CITIES,
+    EXCLUDE_ACCESS,
+    EXCLUDE_LEISURE,
+    access_kind,
+    court_id,
+    haversine,
+    is_generic,
+    label,
+    truthy,
+)
 
 # Same mirrors CourtSearchService.swift used to try, so one rate-limited
 # mirror doesn't block a fetch.
@@ -43,53 +52,7 @@ OVERPASS_ENDPOINTS = [
     "https://overpass.private.coffee/api/interpreter",
 ]
 
-# Same Triangle city centers as build_courts.py's CITIES dict.
-CITIES = {
-    "Durham":        (35.9940, -78.8986),
-    "Raleigh":       (35.7796, -78.6382),
-    "Chapel Hill":   (35.9132, -79.0558),
-    "Carrboro":      (35.9101, -79.0753),
-    "Cary":          (35.7915, -78.7811),
-    "Apex":          (35.7327, -78.8503),
-    "Morrisville":   (35.8235, -78.8256),
-    "Wake Forest":   (35.9799, -78.5097),
-    "Garner":        (35.7113, -78.6142),
-    "Hillsborough":  (36.0754, -79.0997),
-    "Knightdale":    (35.7877, -78.4805),
-    "Holly Springs": (35.6513, -78.8336),
-    "Rolesville":    (35.9232, -78.4675),
-}
-
-GENERIC_NAMES = {
-    "basketball court", "basketball courts", "private basketball court",
-    "outdoor basketball court", "court", "basketball",
-}
-# Division-I arenas and gyms — real basketball, but you cannot run pickup there.
-EXCLUDE_LEISURE = {"stadium", "sports_centre"}
-# Access values that mean the public can't play.
-EXCLUDE_ACCESS = {"private", "customers", "permit", "no"}
-
-RESTRICTED_WORDS = (
-    "apartment", "apartments", "hotel", "extended stay", "swim & tennis",
-    "swim and tennis", "country club", "campus crossings", "greek village",
-    "olde towne", "the wilde", "meadow ridge", "village green", "greencastle",
-    "condo", "townhome", "residences", "lodge", "inn ",
-)
-SCHOOL_WORDS = (
-    "school", "elementary", "middle", "high school", "academy",
-    "university", "college", "montessori",
-)
-
 DEFAULT_COURTS_JSON = Path(__file__).parent.parent / "hoopr" / "Resources" / "courts.json"
-
-
-def haversine(lat1, lon1, lat2, lon2):
-    R = 6371000.0
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dp = math.radians(lat2 - lat1)
-    dl = math.radians(lon2 - lon1)
-    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-    return 2 * R * math.asin(math.sqrt(a))
 
 
 def centroid(el):
@@ -98,31 +61,6 @@ def centroid(el):
     if el.get("center"):
         return el["center"]["lat"], el["center"]["lon"]
     return None
-
-
-def is_generic(name):
-    return not name or name.strip().lower() in GENERIC_NAMES
-
-
-def access_kind(name):
-    n = name.lower()
-    if any(w in n for w in RESTRICTED_WORDS):
-        return "restricted"
-    if any(w in n for w in SCHOOL_WORDS):
-        return "school"
-    return "public"
-
-
-def truthy(v):
-    return v not in (None, "no", "false", "0")
-
-
-def label(site_name, city):
-    if not site_name:
-        return "Basketball Court"
-    if "basketball" in site_name.lower():
-        return site_name
-    return f"{site_name} Basketball Court"
 
 
 def build_query(lat, lon, radius_m):
@@ -238,7 +176,7 @@ def process(elements, city):
         ])).strip()
 
         staged.append({
-            "id": str(uuid.uuid5(NAMESPACE, f"{el['type']}/{el['id']}")),
+            "id": court_id(el["type"], el["id"]),
             "name": name,
             "latitude": round(lat, 6),
             "longitude": round(lon, 6),

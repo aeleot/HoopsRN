@@ -30,7 +30,16 @@ struct LocalRunsTab: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 if let errorMessage = viewModel.errorMessage {
-                    errorBanner(errorMessage)
+                    ErrorBanner(
+                        message: errorMessage,
+                        // Only when a listener is down. An action that failed —
+                        // a join that lost a race — has nothing here to retry;
+                        // the user taps the card's button again.
+                        onRetry: viewModel.isRecovering ? { viewModel.retry() } : nil,
+                        onDismiss: { viewModel.dismissError() }
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
                 }
 
                 section(
@@ -146,50 +155,6 @@ struct LocalRunsTab: View {
         .accessibilityLabel(title)
         .accessibilityValue(isExpanded.wrappedValue ? "Expanded" : "Collapsed")
         .accessibilityHint("Double tap to \(isExpanded.wrappedValue ? "collapse" : "expand")")
-    }
-
-    private func errorBanner(_ message: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .hooprFont(13)
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text(message)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                // Only when a listener is down. An action that failed — a join
-                // that lost a race — has nothing here to retry; the user taps
-                // the card's button again.
-                if viewModel.isRecovering {
-                    HStack(spacing: 8) {
-                        Text("Reconnecting…")
-                            .foregroundStyle(Color.hooprSecondaryText)
-
-                        Button("Try again") {
-                            viewModel.retry()
-                        }
-                        .buttonStyle(.plain)
-                        .fontWeight(.semibold)
-                    }
-                }
-            }
-            .hooprFont(13)
-
-            Button {
-                viewModel.dismissError()
-            } label: {
-                Image(systemName: "xmark")
-                    .hooprFont(12, weight: .semibold)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Dismiss")
-        }
-        .foregroundStyle(Color.hooprRed)
-        .padding(12)
-        .background(Color.hooprRed.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .padding(.horizontal, 16)
-        .padding(.top, 12)
     }
 }
 

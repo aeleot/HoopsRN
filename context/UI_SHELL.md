@@ -40,6 +40,15 @@ Edit flows *within* the profile are `.sheet(item:)` bound to
 `ProfileViewModel.editingField`, so adding an editable field means adding an
 `EditableField` case and a branch in `editSheet(for:)` — not a new screen.
 
+Two edits sit **outside** that enum, each with its own `@State` + `.sheet(isPresented:)`:
+appearance (device-local, never touches Firestore) and the password reset (a
+Firebase Auth action, not a document write). Neither shares `editingField`'s
+in-flight or failure handling, and the password reset carries its own
+`isSendingPasswordReset` / `didSendPasswordReset` / `passwordResetError` for
+that reason — routing its error through `errorMessage` would also print it in
+the screen's bottom bar, which only hides itself while an `editingField` sheet
+is up.
+
 ## `MainTabView`
 
 - Header is a fixed `geo.size.height * 0.14` slab: greeting on the left, profile
@@ -135,13 +144,19 @@ how tall any card's text will be.
 
 Passing `onEdit: nil` renders a card read-only — used for `Email` (owned by
 Firebase Auth; changing it needs a re-authentication flow this screen doesn't
-have), `Joined` (`createdAt` is write-once server-side), `Favorites` (starred
-from the map, so the profile only counts them), and `Password` (a `••••••••`
-stand-in — Auth stores a hash and this app never sees a password; the card is
-here ahead of the reset flow, which is unbuilt). A read-only card isn't a
-`Button` at all, so there's no disabled state to style. On an editable card
+have), `Joined` (`createdAt` is write-once server-side), and `Favorites`
+(starred from the map, so the profile only counts them). A read-only card isn't
+a `Button` at all, so there's no disabled state to style. On an editable card
 **the whole card is the tap target**; the pencil is the affordance saying so,
 not a control in its own right.
+
+`Password` is the one card whose value is a fiction: `••••••••` is a stand-in,
+because Auth stores a hash and this app has never held the password. Editing it
+opens `ChangePasswordSheet`, which **collects no password either** — it sends a
+one-time reset link to the account's address, and the new password is chosen on
+that link's page. Being signed in is the authorisation, so no current password
+is asked for. The card falls back to read-only when there's no address to send
+to, via the same `onEdit: nil` mechanism.
 
 The Sign Out bar is a `safeAreaInset` with a 1pt `hooprBorder` rule along its
 top — the grid scrolls underneath it, and without the rule a card is simply cut

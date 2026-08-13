@@ -1,13 +1,15 @@
+import FirebaseFirestore
 import XCTest
 @testable import hoopr
 
-/// Covers the two pieces of shared failure handling both Firestore services
-/// use: the re-attach schedule in `ListenerSupervisor`, and the read/write
-/// split in the error messages.
+/// Covers the three pieces of shared failure handling both Firestore services
+/// use: the re-attach schedule in `ListenerSupervisor`, the read/write split in
+/// the error messages, and the `NSError` classification in `FirestoreFailure`.
 ///
-/// Neither needs Firestore. The backoff is a pure function of the attempt
-/// count, and the messages are a pure function of the error and its context —
-/// which is exactly why both were written that way.
+/// None of them needs a live Firestore. The backoff is a pure function of the
+/// attempt count, the messages are a pure function of the error and its
+/// context, and the classification is a pure function of an `NSError` — which
+/// is exactly why all three were written that way.
 final class ServiceFailureTests: XCTestCase {
 
     // MARK: - Backoff
@@ -199,5 +201,67 @@ final class ServiceFailureTests: XCTestCase {
             message,
             GameService.message(for: .unknown(""), whileDoing: "loading nearby runs", context: .load)
         )
+    }
+
+    // MARK: - Firestore error classification
+
+    /// Both services used to carry their own copy of this mapping, so each
+    /// could start disagreeing with the other about the same `NSError`. Now
+    /// there's one classifier — which makes it worth pinning, because a wrong
+    /// answer here is what decides whether the user is told to check their
+    /// connection or to deploy the rules.
+
+    private func firestoreError(_ code: Int) -> NSError {
+        NSError(domain: FirestoreErrorDomain, code: code)
+    }
+
+    func testClassifiesTheCodesTheServicesActOn() {
+        XCTAssertEqual(
+            FirestoreFailure.classify(firestoreError(FirestoreErrorCode.permissionDenied.rawValue)),
+            .permissionDenied
+        )
+        XCTAssertEqual(
+            FirestoreFailure.classify(firestoreError(FirestoreErrorCode.notFound.rawValue)),
+            .notFound
+        )
+        XCTAssertEqual(
+            FirestoreFailure.classify(firestoreError(FirestoreErrorCode.failedPrecondition.rawValue)),
+            .indexRequired,
+            "failed-precondition is what a missing or still-building composite index looks like"
+        )
+        XCTAssertEqual(
+            FirestoreFailure.classify(firestoreError(FirestoreErrorCode.unavailable.rawValue)),
+            .network
+        )
+        XCTAssertEqual(
+            FirestoreFailure.classify(firestoreError(FirestoreErrorCode.deadlineExceeded.rawValue)),
+            .network
+        )
+    }
+
+    /// An unrecognised Firestore code must not be silently folded into one of
+    /// the cases above — it falls through carrying its own description.
+    func testUnrecognisedFirestoreCodeFallsThroughToUnknown() {
+        let error = firestoreError(FirestoreErrorCode.dataLoss.rawValue)
+
+        guard case .unknown = FirestoreFailure.classify(error) else {
+            return XCTFail("An unhandled Firestore code should classify as .unknown")
+        }
+    }
+
+    /// Errors from outside Firestore reach these services too — a decode
+    /// failure, say. They must not be read as Firestore codes: the numbering
+    /// spaces are unrelated, so matching on the code alone would classify an
+    /// arbitrary error as whatever Firestore uses that number for.
+    func testNonFirestoreErrorIsNeverReadAsAFirestoreCode() {
+        // Code 7 is `permissionDenied` in Firestore's domain.
+        let impostor = NSError(
+            domain: "com.hoopr.something.else",
+            code: FirestoreErrorCode.permissionDenied.rawValue
+        )
+
+        guard case .unknown = FirestoreFailure.classify(impostor) else {
+            return XCTFail("A foreign domain must not be classified by Firestore's code numbering")
+        }
     }
 }

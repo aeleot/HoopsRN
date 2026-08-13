@@ -50,6 +50,7 @@ ships, fold what's true into the entries above and strike it from the plan.
 | Plan | Status |
 |---|---|
 | [`plans/LIVE_HEADCOUNT.md`](plans/LIVE_HEADCOUNT.md) | Proposed — live court occupancy via a `checkins` collection. |
+| [`plans/FRIENDS.md`](plans/FRIENDS.md) | Proposed — a Friends tab (request/accept/unfriend) via a `friendships` collection, repurposing the dead "Find Match" tab slot. |
 
 ---
 

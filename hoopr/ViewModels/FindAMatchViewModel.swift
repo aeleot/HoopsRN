@@ -116,9 +116,7 @@ final class FindAMatchViewModel: ObservableObject {
         // Distances are still measured from the hardcoded home location; swap
         // `homeLocation` for a profile-owned one and this pipeline follows.
         userProfileService.$currentProfile
-            .map { $0?.effectivePreferredRadius ?? UserProfile.defaultPreferredRadius }
-            .removeDuplicates()
-            .receive(on: DispatchQueue.main)
+            .preferredRadiusMiles
             .sink { [weak self] radius in
                 self?.radiusMiles = radius
                 self?.rebuild()
@@ -160,12 +158,6 @@ final class FindAMatchViewModel: ObservableObject {
 
     func isActive(_ filter: CourtFilter) -> Bool {
         activeFilters.contains(filter)
-    }
-
-    func clearFilters() {
-        guard !activeFilters.isEmpty else { return }
-        activeFilters.removeAll()
-        rebuild()
     }
 
     // MARK: - Favourites and recents

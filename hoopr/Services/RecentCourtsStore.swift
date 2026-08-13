@@ -32,9 +32,4 @@ final class RecentCourtsStore: ObservableObject {
         recentCourtIds = Array(ids.prefix(Self.maxEntries))
         defaults.set(recentCourtIds, forKey: storageKey)
     }
-
-    func clear() {
-        recentCourtIds = []
-        defaults.removeObject(forKey: storageKey)
-    }
 }

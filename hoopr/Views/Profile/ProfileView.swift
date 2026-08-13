@@ -12,6 +12,12 @@ struct ProfileView: View {
     /// that sheet's in-flight and failure handling.
     @State private var isEditingAppearance = false
 
+    /// Presented outside `viewModel.editingField` for the same reason as the
+    /// appearance sheet: a password reset is a Firebase Auth action, not a
+    /// write to the profile document, so it shares none of that sheet's
+    /// in-flight or failure handling.
+    @State private var isChangingPassword = false
+
     @AppStorage(AppearancePreference.storageKey)
     private var appearance: AppearancePreference = .system
 
@@ -74,6 +80,22 @@ struct ProfileView: View {
                 isEditingAppearance = false
             }
         }
+        .sheet(isPresented: $isChangingPassword) {
+            // Only reachable when `canChangePassword`, which is exactly when
+            // there's an email to send to.
+            ChangePasswordSheet(
+                email: viewModel.email ?? "",
+                isSending: viewModel.isSendingPasswordReset,
+                didSend: viewModel.didSendPasswordReset,
+                errorMessage: viewModel.passwordResetError,
+                onSend: { Task { await viewModel.sendPasswordReset() } },
+                onCancel: {
+                    isChangingPassword = false
+                    viewModel.cancelChangingPassword()
+                },
+                onDone: { isChangingPassword = false }
+            )
+        }
     }
 
     private var bottomBar: some View {
@@ -88,7 +110,8 @@ struct ProfileView: View {
                 // Errors raised outside a sheet (profile load, sign-out) still
                 // need somewhere to surface.
                 if viewModel.editingField == nil, let errorMessage = viewModel.errorMessage {
-                    errorBanner(errorMessage)
+                    ErrorBanner(message: errorMessage)
+                        .padding(.horizontal, 28)
                 }
 
                 signOutButton
@@ -96,24 +119,6 @@ struct ProfileView: View {
             .padding(.top, 16)
         }
         .background(Color.hooprBackground)
-    }
-
-    /// The same soft red panel the Local Runs tab uses, rather than loose red
-    /// text — an error should look the same wherever it surfaces.
-    private func errorBanner(_ message: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .hooprFont(13)
-
-            Text(message)
-                .hooprFont(13)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .foregroundStyle(Color.hooprRed)
-        .padding(12)
-        .background(Color.hooprRed.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .padding(.horizontal, 28)
     }
 
     // MARK: - Header
@@ -300,15 +305,20 @@ struct ProfileView: View {
                     )
                     .frame(minHeight: tileHeight, maxHeight: .infinity)
 
-                    // Read-only until the reset flow lands: the value is a
-                    // stand-in — Firebase Auth stores a hash and this app never
-                    // sees a password — so there's nothing here to display and,
-                    // for now, nothing to tap.
+                    // The value is a stand-in, not the password: Firebase Auth
+                    // stores a hash and this app never sees one, so there is
+                    // nothing real to render. Editing it sends a reset link
+                    // rather than opening a field — and goes read-only when
+                    // there's no address to send to.
                     ProfileCard(
                         symbol: "lock.fill",
                         label: "Password",
                         value: "••••••••",
-                        placeholder: "••••••••"
+                        placeholder: "••••••••",
+                        onEdit: viewModel.canChangePassword ? {
+                            viewModel.beginChangingPassword()
+                            isChangingPassword = true
+                        } : nil
                     )
                     .frame(minHeight: tileHeight, maxHeight: .infinity)
                 }

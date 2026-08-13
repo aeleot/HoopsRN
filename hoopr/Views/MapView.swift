@@ -262,7 +262,6 @@ struct MapView: UIViewRepresentable {
             return view
         }
 
-
         func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
             // Tapping a group zooms in rather than leaving the user to pinch.
             if let cluster = view.annotation as? MKClusterAnnotation {

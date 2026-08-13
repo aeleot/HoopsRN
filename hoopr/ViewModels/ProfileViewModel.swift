@@ -47,6 +47,15 @@ final class ProfileViewModel: ObservableObject {
     @Published var radiusDraft = UserProfile.defaultPreferredRadius
     @Published private(set) var isSaving = false
 
+    /// The password reset's state, kept apart from `isSaving`/`errorMessage`
+    /// for the same reason appearance is kept out of `EditableField`: this is
+    /// an Auth action, not a write to the profile document. Sharing the
+    /// document flow's error would also surface it in the screen's bottom bar,
+    /// which only hides itself while an `editingField` sheet is up.
+    @Published private(set) var isSendingPasswordReset = false
+    @Published private(set) var didSendPasswordReset = false
+    @Published private(set) var passwordResetError: String?
+
     private let authService: AuthService
     private let userProfileService: UserProfileService
     private var cancellables = Set<AnyCancellable>()
@@ -240,6 +249,67 @@ final class ProfileViewModel: ObservableObject {
             errorMessage = Self.message(for: error)
         }
         isSaving = false
+    }
+
+    // MARK: - Password
+
+    /// A reset is only offerable when there's an address to send it to. The
+    /// profile screen expresses "can't" by rendering the card read-only, so
+    /// this is what gates the card's `onEdit`.
+    var canChangePassword: Bool {
+        email?.isEmpty == false
+    }
+
+    func beginChangingPassword() {
+        didSendPasswordReset = false
+        passwordResetError = nil
+    }
+
+    func cancelChangingPassword() {
+        didSendPasswordReset = false
+        passwordResetError = nil
+    }
+
+    /// Sends the reset link and reports only whether it went out. There's no
+    /// success to wait for beyond that — the password itself is changed later,
+    /// on the link's page, and this app is never told when.
+    func sendPasswordReset() async {
+        guard let email, !isSendingPasswordReset else { return }
+
+        isSendingPasswordReset = true
+        passwordResetError = nil
+        do {
+            try await authService.sendPasswordResetEmail(to: email)
+            didSendPasswordReset = true
+        } catch {
+            passwordResetError = Self.passwordResetMessage(for: error)
+        }
+        isSendingPasswordReset = false
+    }
+
+    /// Worded for this flow rather than shared with `LoginViewModel`'s mapping:
+    /// the same `AuthError` means something different when you're signed in and
+    /// asking for a link than it does at the sign-in form.
+    ///
+    /// `userNotFound` is listed for completeness only — the address comes from
+    /// the session, and newer Firebase projects mask it behind a silent success
+    /// anyway, to keep the endpoint from confirming who has an account.
+    private static func passwordResetMessage(for error: Error) -> String {
+        guard let authError = error as? AuthError else {
+            return error.localizedDescription
+        }
+
+        switch authError {
+        case .invalidEmail:     return "This account's email address isn't valid, so we can't send a link."
+        case .userNotFound:     return "We couldn't find this account. Try signing out and back in."
+        case .userDisabled:     return FailureText.accountDisabled
+        case .network:          return FailureText.network
+        case .tooManyRequests:  return "Too many attempts. Try again in a few minutes."
+        case .notConfigured:    return FailureText.authNotConfigured
+        case .providerDisabled: return FailureText.providerDisabled
+        case .unknown(let description): return description
+        default:                return "Couldn't send the reset link. Try again."
+        }
     }
 
     func signOut() {

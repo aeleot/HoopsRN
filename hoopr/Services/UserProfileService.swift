@@ -353,36 +353,37 @@ final class UserProfileService: ObservableObject {
         context: FailureContext
     ) -> String {
         switch error {
-        case .notSignedIn:        return "You're signed out."
+        case .notSignedIn:        return FailureText.signedOut
         case .emptyUserName:      return "Your name can't be blank."
         case .userNameTooLong:
             return "Your name can't be longer than \(UserProfile.maxUserNameLength) characters."
         case .permissionDenied:
             switch context {
             case .load:
-                return "Can't load your profile — the server refused the request. The Firestore security rules are probably not deployed."
+                return FailureText.rulesNotDeployed(loading: "your profile")
             case .write:
                 return "The server wouldn't accept that change."
             }
-        case .network:            return "Can't reach the network. Check your connection."
+        case .network:            return FailureText.network
         case .decodingFailed:     return "Your profile is stored in an unexpected format."
         case .unknown:            return "Something went wrong while \(action)."
         }
     }
 
+    /// Names what `FirestoreFailure` classified, in this collection's terms.
+    ///
+    /// `notFound` and `indexRequired` have no profile-specific meaning: the
+    /// document is addressed by uid rather than queried, so there's no
+    /// composite index to be missing, and an absent document is handled by
+    /// provisioning rather than treated as an error. Both stay `.unknown`,
+    /// as they did before this classification was shared.
     private static func mapped(_ error: Error) -> UserProfileError {
-        let nsError = error as NSError
-        guard nsError.domain == FirestoreErrorDomain else {
-            return .unknown(error.localizedDescription)
-        }
-
-        switch nsError.code {
-        case FirestoreErrorCode.permissionDenied.rawValue:
+        switch FirestoreFailure.classify(error) {
+        case .permissionDenied:
             return .permissionDenied
-        case FirestoreErrorCode.unavailable.rawValue,
-             FirestoreErrorCode.deadlineExceeded.rawValue:
+        case .network:
             return .network
-        default:
+        case .notFound, .indexRequired, .unknown:
             return .unknown(error.localizedDescription)
         }
     }

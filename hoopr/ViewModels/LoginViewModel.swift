@@ -99,11 +99,11 @@ final class LoginViewModel: ObservableObject {
         case .weakPassword:      return "Passwords need to be at least 6 characters."
         case .wrongCredentials:  return "Incorrect email or password."
         case .userNotFound:      return "No account found for that email."
-        case .userDisabled:      return "That account has been disabled."
-        case .network:           return "Can't reach the network. Check your connection."
+        case .userDisabled:      return FailureText.accountDisabled
+        case .network:           return FailureText.network
         case .tooManyRequests:   return "Too many attempts. Try again in a moment."
-        case .notConfigured:     return "Sign-in isn't set up for this app yet."
-        case .providerDisabled:  return "Email and password sign-in isn't enabled for this app."
+        case .notConfigured:     return FailureText.authNotConfigured
+        case .providerDisabled:  return FailureText.providerDisabled
         case .unknown(let description): return description
         }
     }

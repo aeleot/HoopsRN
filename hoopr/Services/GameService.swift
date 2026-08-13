@@ -492,7 +492,7 @@ final class GameService: ObservableObject {
         context: FailureContext
     ) -> String {
         switch error {
-        case .notSignedIn:      return "You're signed out."
+        case .notSignedIn:      return FailureText.signedOut
         case .invalidCourt:     return "Pick a court for this run."
         case .invalidRoster:
             let range = Game.maxPlayersRange
@@ -504,40 +504,32 @@ final class GameService: ObservableObject {
         case .permissionDenied:
             switch context {
             case .load:
-                return "Can't load runs — the server refused the request. The Firestore security rules are probably not deployed."
+                return FailureText.rulesNotDeployed(loading: "runs")
             case .write:
                 return "The server wouldn't accept that change. This run may have changed since it loaded."
             }
         case .indexRequired:
             return "This list needs a database index that's still being built."
-        case .network:          return "Can't reach the network. Check your connection."
+        case .network:          return FailureText.network
         case .unknown:          return "Something went wrong while \(action)."
         }
     }
 
+    /// Names what `FirestoreFailure` classified, in this collection's terms.
+    ///
+    /// Both list queries are composite (an equality or array-contains, plus a
+    /// range and an order), so each needs an index — which is why
+    /// `.indexRequired` is a case a run can actually hit, unlike on the profile
+    /// document.
     private static func mapped(_ error: Error) -> GameError {
         if let gameError = error as? GameError { return gameError }
 
-        let nsError = error as NSError
-        guard nsError.domain == FirestoreErrorDomain else {
-            return .unknown(error.localizedDescription)
-        }
-
-        switch nsError.code {
-        case FirestoreErrorCode.permissionDenied.rawValue:
-            return .permissionDenied
-        case FirestoreErrorCode.notFound.rawValue:
-            return .gameNotFound
-        // Both list queries are composite (an equality or array-contains, plus
-        // a range and an order), so each needs an index. This is what a missing
-        // or still-building one looks like.
-        case FirestoreErrorCode.failedPrecondition.rawValue:
-            return .indexRequired
-        case FirestoreErrorCode.unavailable.rawValue,
-             FirestoreErrorCode.deadlineExceeded.rawValue:
-            return .network
-        default:
-            return .unknown(error.localizedDescription)
+        switch FirestoreFailure.classify(error) {
+        case .permissionDenied:         return .permissionDenied
+        case .notFound:                 return .gameNotFound
+        case .indexRequired:            return .indexRequired
+        case .network:                  return .network
+        case .unknown(let description): return .unknown(description)
         }
     }
 }

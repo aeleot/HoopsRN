@@ -41,6 +41,25 @@ final class AuthService: ObservableObject {
         }
     }
 
+    /// Asks Firebase to email a one-time reset link to `email`.
+    ///
+    /// This is the app's entire contribution to a password change. Firebase
+    /// mints an expiring out-of-band code, emails it, and swaps the stored hash
+    /// when the link's page is submitted — the new password is typed *there*,
+    /// never here, so nothing about it passes through this process or gets
+    /// stored in Firestore. The account's own address is the proof of
+    /// ownership, which is why no current password is asked for.
+    ///
+    /// Completing the reset also revokes the account's refresh tokens, so other
+    /// signed-in devices drop back to the login screen.
+    func sendPasswordResetEmail(to email: String) async throws {
+        do {
+            try await Auth.auth().sendPasswordReset(withEmail: email)
+        } catch {
+            throw Self.mapped(error)
+        }
+    }
+
     func signOut() throws {
         do {
             try Auth.auth().signOut()

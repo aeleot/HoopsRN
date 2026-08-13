@@ -1,4 +1,4 @@
-	import Combine
+import Combine
 import Foundation
 import os
 
@@ -9,12 +9,11 @@ fileprivate let logger = Logger(subsystem: "com.hoopr", category: "CourtService"
 /// longer depends on a volunteer-run API that intermittently times out.
 ///
 /// Live game state will layer on top of this, joined by court ID.
+///
+/// A load failure is logged and leaves `courts` empty; nothing surfaces it in
+/// the UI yet, so the map simply renders with no pins.
 final class CourtService: ObservableObject {
     @Published private(set) var courts: [Court] = []
-    @Published private(set) var loadError: String?
-
-    private(set) var version = 0
-    private(set) var attribution = ""
 
     init() {
         load()
@@ -23,7 +22,6 @@ final class CourtService: ObservableObject {
     private func load() {
         guard let url = Bundle.main.url(forResource: "courts", withExtension: "json") else {
             logger.error("courts.json missing from bundle")
-            loadError = "Court data unavailable"
             return
         }
 
@@ -31,12 +29,9 @@ final class CourtService: ObservableObject {
             let data = try Data(contentsOf: url)
             let dataset = try JSONDecoder().decode(CourtDataset.self, from: data)
             courts = dataset.courts.sorted { $0.name < $1.name }
-            version = dataset.version
-            attribution = dataset.attribution
             logger.debug("Loaded \(self.courts.count) courts (dataset v\(dataset.version))")
         } catch {
             logger.error("Failed to decode courts.json: \(error.localizedDescription)")
-            loadError = "Court data unavailable"
         }
     }
 }

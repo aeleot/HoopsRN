@@ -124,9 +124,7 @@ final class LocalRunsViewModel: ObservableObject {
             .store(in: &cancellables)
 
         userProfileService.$currentProfile
-            .map { $0?.effectivePreferredRadius ?? UserProfile.defaultPreferredRadius }
-            .removeDuplicates()
-            .receive(on: DispatchQueue.main)
+            .preferredRadiusMiles
             .sink { [weak self] radius in
                 self?.radiusMiles = radius
                 self?.rebuild()

@@ -349,6 +349,144 @@ struct EditRadiusSheet: View {
     }
 }
 
+/// Starts a password change.
+///
+/// **Deliberately collects no password.** Firebase Auth owns the credential —
+/// this app has never held it and doesn't store it anywhere, so there is no
+/// field here to type a new one into. What the sheet does is send the account's
+/// address a one-time link; the new password is chosen on that link's page.
+/// Being signed in *is* the authorisation, which is why no current password is
+/// asked for either.
+///
+/// Two states, not three: explain-and-send, then sent. There's no "changed"
+/// state to show because nothing tells this app when the link is used.
+struct ChangePasswordSheet: View {
+    let email: String
+    let isSending: Bool
+    let didSend: Bool
+    let errorMessage: String?
+    let onSend: () -> Void
+    let onCancel: () -> Void
+    let onDone: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                if didSend {
+                    sent
+                } else {
+                    explanation
+
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .hooprFont(13)
+                            .foregroundStyle(Color.hooprRed)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    sendButton
+                }
+
+                Spacer()
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.hooprBackground)
+            .navigationTitle("Password")
+            #if os(iOS) || os(visionOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    // Gone once the mail is out: there's nothing left to back
+                    // out of, and the link is valid whatever this sheet does.
+                    if !didSend {
+                        Button("Cancel", action: onCancel)
+                            .foregroundStyle(Color.hooprSecondaryText)
+                            .disabled(isSending)
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if didSend {
+                        Button("Done", action: onDone)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.hooprOrange)
+                    }
+                }
+            }
+        }
+    }
+
+    private var explanation: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Image(systemName: "envelope.badge")
+                .hooprFont(22, maximumSize: 28)
+                .foregroundStyle(Color.hooprOrange)
+
+            Text("We'll email a reset link to")
+                .hooprFont(15)
+                .foregroundStyle(Color.hooprSecondaryText)
+
+            Text(email)
+                .hooprFont(17, weight: .semibold)
+                .foregroundStyle(Color.hooprPrimaryText)
+                .lineLimit(2)
+                .minimumScaleFactor(0.7)
+
+            Text("Hoopr never stores your password, so you'll choose the new one on the link's page. Opening it signs you out on your other devices.")
+                .hooprFont(13)
+                .foregroundStyle(Color.hooprSecondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.hooprFill)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var sendButton: some View {
+        Button(action: onSend) {
+            Group {
+                if isSending {
+                    ProgressView()
+                        .tint(Color.hooprOnBrand)
+                } else {
+                    Text("Send reset link")
+                        .hooprFont(17, weight: .semibold, maximumSize: 24)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .foregroundStyle(Color.hooprOnBrand)
+            .background(Color.hooprOrange)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .disabled(isSending)
+    }
+
+    private var sent: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .hooprFont(40, maximumSize: 52)
+                .foregroundStyle(Color.hooprOrange)
+
+            Text("Check your inbox")
+                .hooprFont(22, weight: .bold)
+                .foregroundStyle(Color.hooprPrimaryText)
+
+            Text("We sent a link to \(email). It expires in an hour — start again from here if it does.")
+                .hooprFont(14)
+                .foregroundStyle(Color.hooprSecondaryText)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 24)
+        .padding(.horizontal, 8)
+    }
+}
+
 /// Picks the app's appearance. Unlike its siblings here, nothing is written to
 /// Firestore — the choice lands in `UserDefaults` and takes effect immediately,
 /// so the sheet itself repaints as you tap. That's why there's a Done button

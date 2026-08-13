@@ -8,46 +8,27 @@ Output: courts.json  — cleaned, deduped, stably-identified courts for Durham +
 Re-runnable: court IDs are uuid5 over the OSM type/id, so re-extracting later
 produces the same IDs for the same real-world courts.
 """
-import json, math, uuid, datetime, collections
+import json, datetime, collections
 
-NAMESPACE = uuid.UUID("6f2a1c4e-9b3d-4f70-8a21-5c0d7e8b1234")  # HoopRN court namespace
+# Identity, geography and classification rules are shared with
+# fetch_city_courts.py so the two scripts can't mint different IDs — or make
+# different public/school/restricted calls — for the same court. See
+# courts_common.py.
+from courts_common import (
+    CITIES,
+    EXCLUDE_ACCESS,
+    EXCLUDE_LEISURE,
+    access_kind,
+    court_id,
+    haversine,
+    is_generic,
+    label,
+    truthy,
+)
 
-# Nearest-centroid city assignment across the Triangle. Courts are labeled with
-# whichever city they're closest to; we then keep only the ones we're launching in.
-CITIES = {
-    "Durham":        (35.9940, -78.8986),
-    "Raleigh":       (35.7796, -78.6382),
-    "Chapel Hill":   (35.9132, -79.0558),
-    "Carrboro":      (35.9101, -79.0753),
-    "Cary":          (35.7915, -78.7811),
-    "Apex":          (35.7327, -78.8503),
-    "Morrisville":   (35.8235, -78.8256),
-    "Wake Forest":   (35.9799, -78.5097),
-    "Garner":        (35.7113, -78.6142),
-    "Hillsborough":  (36.0754, -79.0997),
-    "Knightdale":    (35.7877, -78.4805),
-    "Holly Springs": (35.6513, -78.8336),
-    "Rolesville":    (35.9232, -78.4675),
-}
+# Which of the Triangle cities this build actually ships. Local to this script:
+# the per-city fetcher scopes by radius instead.
 LAUNCH_CITIES = {"Durham", "Raleigh"}
-
-GENERIC_NAMES = {
-    "basketball court", "basketball courts", "private basketball court",
-    "outdoor basketball court", "court", "basketball",
-}
-# Division-I arenas and gyms — real basketball, but you cannot run pickup there.
-EXCLUDE_LEISURE = {"stadium", "sports_centre"}
-# Access values that mean the public can't play.
-EXCLUDE_ACCESS = {"private", "customers", "permit", "no"}
-
-
-def haversine(lat1, lon1, lat2, lon2):
-    R = 6371000.0
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dp = math.radians(lat2 - lat1)
-    dl = math.radians(lon2 - lon1)
-    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-    return 2 * R * math.asin(math.sqrt(a))
 
 
 def centroid(el):
@@ -92,37 +73,6 @@ def bbox_of(ring):
     lats = [p[0] for p in ring]
     lons = [p[1] for p in ring]
     return min(lats), max(lats), min(lons), max(lons)
-
-
-def is_generic(name):
-    return not name or name.strip().lower() in GENERIC_NAMES
-
-
-# Courts that exist but that a stranger can't simply walk onto. OSM rarely tags
-# these access=private, so classify from the place they belong to.
-RESTRICTED_WORDS = (
-    "apartment", "apartments", "hotel", "extended stay", "swim & tennis",
-    "swim and tennis", "country club", "campus crossings", "greek village",
-    "olde towne", "the wilde", "meadow ridge", "village green", "greencastle",
-    "condo", "townhome", "residences", "lodge", "inn ",
-)
-SCHOOL_WORDS = (
-    "school", "elementary", "middle", "high school", "academy",
-    "university", "college", "montessori",
-)
-
-
-def access_kind(name):
-    n = name.lower()
-    if any(w in n for w in RESTRICTED_WORDS):
-        return "restricted"
-    if any(w in n for w in SCHOOL_WORDS):
-        return "school"
-    return "public"
-
-
-def truthy(v):
-    return v not in (None, "no", "false", "0")
 
 
 # ---------------------------------------------------------------- load sites
@@ -205,14 +155,6 @@ def site_for(lat, lon):
     return best["name"] if best else None
 
 
-def label(site_name, city):
-    if not site_name:
-        return "Basketball Court"
-    if "basketball" in site_name.lower():
-        return site_name
-    return f"{site_name} Basketball Court"
-
-
 # --------------------------------------------------------------- load courts
 raw = json.load(open("raw_triangle.json"))["elements"]
 dropped = collections.Counter()
@@ -261,7 +203,7 @@ for el in raw:
     ])).strip()
 
     staged.append({
-        "id": str(uuid.uuid5(NAMESPACE, f"{el['type']}/{el['id']}")),
+        "id": court_id(el["type"], el["id"]),
         "name": name,
         "latitude": round(lat, 6),
         "longitude": round(lon, 6),
