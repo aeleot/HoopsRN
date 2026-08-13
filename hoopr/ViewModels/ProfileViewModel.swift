@@ -34,6 +34,11 @@ final class ProfileViewModel: ObservableObject {
     @Published private(set) var homeCourtId: String?
     @Published private(set) var preferredRadius: Double?
     @Published private(set) var dateJoined: Date?
+
+    /// Starred from the map, never from this screen — the profile only counts
+    /// them. Absent on profiles provisioned before favourites existed, which
+    /// reads the same as none.
+    @Published private(set) var favoriteCourtCount = 0
     @Published private(set) var courts: [Court] = []
     @Published private(set) var errorMessage: String?
 
@@ -70,6 +75,7 @@ final class ProfileViewModel: ObservableObject {
                 self?.homeCourtId = profile?.homeCourtId
                 self?.preferredRadius = profile?.preferredRadius
                 self?.dateJoined = profile?.createdAt
+                self?.favoriteCourtCount = profile?.favoriteCourtIds?.count ?? 0
             }
             .store(in: &cancellables)
 
@@ -92,12 +98,35 @@ final class ProfileViewModel: ObservableObject {
 
     // MARK: - Display values
 
-    /// Resolved against the bundled court dataset. Falls back to a placeholder
-    /// if the stored ID no longer matches a court — e.g. after a dataset
-    /// rebuild drops one.
-    var homeCourtName: String? {
+    /// Resolved against the bundled court dataset. `nil` when nothing is
+    /// stored, and also when the stored ID no longer matches a court — e.g.
+    /// after a dataset rebuild drops one, which `homeCourtName` reports.
+    private var homeCourt: Court? {
         guard let homeCourtId else { return nil }
-        return courts.first { $0.id == homeCourtId }?.name ?? "Unknown court"
+        return courts.first { $0.id == homeCourtId }
+    }
+
+    /// Falls back to a placeholder when a court is stored but unresolvable, so
+    /// the card doesn't read as "not set" when it is.
+    var homeCourtName: String? {
+        guard homeCourtId != nil else { return nil }
+        return homeCourt?.name ?? "Unknown court"
+    }
+
+    /// The card's second line. `nil` for an unresolvable court, where there's
+    /// no city to name.
+    var homeCourtCity: String? {
+        homeCourt?.city
+    }
+
+    /// `nil` at zero so the card renders it in placeholder styling — nothing
+    /// starred yet isn't a value worth reading as one.
+    var favoriteCourtCountText: String? {
+        favoriteCourtCount == 0 ? nil : "\(favoriteCourtCount)"
+    }
+
+    var favoriteCourtUnitText: String {
+        favoriteCourtCount == 1 ? "court" : "courts"
     }
 
     var dateJoinedText: String? {
@@ -122,9 +151,11 @@ final class ProfileViewModel: ObservableObject {
         UserProfile.radiusText(UserProfile.defaultPreferredRadius)
     }
 
+    /// `.medium` ("Aug 7, 2026") rather than `.long`: this renders in a
+    /// half-width tile, where the spelled-out month wraps.
     private static let joinedDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateStyle = .long
+        formatter.dateStyle = .medium
         formatter.timeStyle = .none
         return formatter
     }()

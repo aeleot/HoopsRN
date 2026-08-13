@@ -36,7 +36,10 @@ being reproduced in the entry that owns the code.
   read across `users` and a privacy decision, not just a UI.
 - Auth has sign-in, sign-up, and sign-out only. No password reset, no social
   login, no account deletion — and `firestore.rules` denies profile deletes
-  outright, so account deletion needs a rules change too.
+  outright, so account deletion needs a rules change too. **The profile's
+  `Password` card is a placeholder for the reset flow**: it renders a
+  `••••••••` stand-in and is read-only, so it has no tap action until the flow
+  exists.
 - Distances and the recenter target are anchored to a hardcoded Durham point
   (`LocationService.homeLocation`), not the device's location. Device location
   is requested on the first recenter tap only, so MapKit can draw the blue dot.

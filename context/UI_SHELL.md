@@ -99,17 +99,53 @@ appears in the UI.
 
 ## `ProfileView`
 
-Orange identity header at **3/12 of the screen height**, with the back button
-flowing above the avatar rather than overlaid — at this height an overlay
-collides with the avatar on shorter devices. Avatar size is
-`min(88, max(56, height * 0.40))` so it still fits when 3/12 is under 200pt.
-The header background uses `.ignoresSafeArea(edges: .top)` so orange bleeds under
-the status bar while content still lays out inside the safe area.
+Orange identity header at **`geo.size.height * 0.14`** — the same fraction
+`MainTabView` pins its own header to, so the two screens share a skyline and
+the profile doesn't open on a quarter-screen of orange. One row: back button,
+avatar, then the `@handle`. At this height there's no room to stack the back
+button above the avatar and no need to, since nothing collides in a single
+line. Avatar size is `min(56, max(38, height * 0.44))`; it carries the user's
+initials, falling back to a person glyph while the first snapshot is in flight
+or for a name with no letters in it. The header background is an
+`hooprOrange → hooprDarkOrange` gradient under `.ignoresSafeArea(edges: .top)`,
+so it bleeds beneath the status bar while content still lays out inside the
+safe area.
 
-Below it, four `ProfileFieldRow`s. Passing `onEdit: nil` renders a row read-only
-— used for `email` (owned by Firebase Auth; changing it needs a re-authentication
-flow this screen doesn't have) and `Date Joined` (`createdAt` is write-once
-server-side). Editable rows get a 44pt tap target around a 16pt glyph.
+The handle is **rendered, not stored** — `userName` is a display name (see
+`UserProfile`), so the header strips its whitespace and prefixes an `@`.
+
+Below it, the profile is a **card mosaic, not a list** — `ProfileCard`s in two
+titled sections, "Your Game" and "Account". The cards interlock: `Home Court`
+is a `.feature` card spanning the `Favorites` and `Radius` tiles beside it, and
+`Email` runs full width between two pairs of tiles. Card chrome matches
+`GameCard` — 16pt radius, `hooprSurface`, 1pt `hooprBorder`, a 6% shadow — so a
+card reads the same here as on the Local Runs tab.
+
+**Cards state a floor, never a fixed height.** `ProfileView` owns one
+`@ScaledMetric` unit (`tileHeight`, 80pt at the default text size) and derives
+`featureHeight = tileHeight * 2 + 12` from it, then hands both to
+`.frame(minHeight:maxHeight: .infinity)`. A fixed height was the first attempt
+and was wrong: `.frame(height:)` doesn't clip, so a card whose content needed
+more room painted *outside* its own frame and over its neighbour — visibly, in
+the right-hand column. A floor plus a stretch fixes it from both ends: a card
+can't be shorter than its grid unit, it grows when its content needs to, and
+because it's stretchable the tallest card in a row pulls the rest up to match.
+The seams stay aligned at every Dynamic Type size without this view predicting
+how tall any card's text will be.
+
+Passing `onEdit: nil` renders a card read-only — used for `Email` (owned by
+Firebase Auth; changing it needs a re-authentication flow this screen doesn't
+have), `Joined` (`createdAt` is write-once server-side), `Favorites` (starred
+from the map, so the profile only counts them), and `Password` (a `••••••••`
+stand-in — Auth stores a hash and this app never sees a password; the card is
+here ahead of the reset flow, which is unbuilt). A read-only card isn't a
+`Button` at all, so there's no disabled state to style. On an editable card
+**the whole card is the tap target**; the pencil is the affordance saying so,
+not a control in its own right.
+
+The Sign Out bar is a `safeAreaInset` with a 1pt `hooprBorder` rule along its
+top — the grid scrolls underneath it, and without the rule a card is simply cut
+off mid-height.
 
 The home-court picker is search-only: with 213 courts an up-front list is noise.
 Name matches rank above city-only matches, capped at 25 suggestions.
@@ -167,10 +203,13 @@ outside `ProfileViewModel.EditableField`: nothing about it touches Firestore.
   which bridges from `Color.hooprDarkOrange` rather than restating its RGB. A
   literal colour in a view is a bug — it won't invert.
 - Font sizes go through `.hooprFont(...)`. The one deliberate exception is the
-  profile avatar's glyph, sized as a fraction of a fixed-diameter circle and
-  commented as such.
+  profile avatar's initials and glyph, sized as a fraction of a fixed-diameter
+  circle and commented as such.
 - Read-only profile fields are expressed by omitting `onEdit`, not by a
   disabled-state flag.
+- Profile cards take a **floor** (`minHeight` + `maxHeight: .infinity`) from
+  `tileHeight`/`featureHeight`. A `.frame(height:)` there doesn't clip — it
+  overflows onto the neighbouring card.
 
 ## See also
 

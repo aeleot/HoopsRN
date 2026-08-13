@@ -15,8 +15,21 @@ struct ProfileView: View {
     @AppStorage(AppearancePreference.storageKey)
     private var appearance: AppearancePreference = .system
 
-    /// Proportion of the screen given to the orange identity header.
-    private static let headerHeightRatio: CGFloat = 3.0 / 12.0
+    /// Proportion of the screen given to the orange identity header. The same
+    /// fraction `MainTabView` pins its header slab to, so the two screens share
+    /// a skyline and the profile doesn't open on a quarter-screen of orange.
+    private static let headerHeightRatio: CGFloat = 0.14
+
+    /// The gap between cards, and — because the mosaic interlocks — the amount
+    /// a feature card is taller than the two tiles beside it combined.
+    private static let gridSpacing: CGFloat = 12
+
+    /// One grid unit: a short tile's *floor*, not its height. Scaled so the
+    /// floor tracks the reader's text size along with everything else.
+    @ScaledMetric(relativeTo: .body) private var tileHeight: CGFloat = 80
+
+    /// A feature card's floor: it spans the two tiles beside it, gap included.
+    private var featureHeight: CGFloat { tileHeight * 2 + Self.gridSpacing }
 
     init(
         authService: AuthService,
@@ -35,19 +48,21 @@ struct ProfileView: View {
     var body: some View {
         GeometryReader { geo in
             VStack(spacing: 0) {
-                // Floored so the identity block never gets crushed on short
-                // devices, where 3/12 of the screen is under 180pt.
-                header(height: max(geo.size.height * Self.headerHeightRatio, 180))
+                // Floored so the identity row never gets crushed on short
+                // devices, where 14% of the screen is under 96pt.
+                header(height: max(geo.size.height * Self.headerHeightRatio, 96))
 
                 ScrollView {
-                    fields
-                        .padding(.top, 12)
+                    grid
+                        .padding(.horizontal, 16)
+                        .padding(.top, 16)
+                        .padding(.bottom, 8)
                 }
             }
         }
         .background(Color.hooprBackground)
         // Pinned as a safe-area inset rather than the last item in the stack,
-        // so a growing field list can never push it off the bottom edge.
+        // so a growing card grid can never push it off the bottom edge.
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomBar
         }
@@ -62,62 +77,75 @@ struct ProfileView: View {
     }
 
     private var bottomBar: some View {
-        VStack(spacing: 8) {
-            // Errors raised outside a sheet (profile load, sign-out) still
-            // need somewhere to surface.
-            if viewModel.editingField == nil, let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-                    .hooprFont(13)
-                    .foregroundStyle(Color.hooprRed)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 28)
-            }
+        VStack(spacing: 0) {
+            // The grid scrolls under this bar, so it needs an edge of its own —
+            // without the rule a card is simply cut off mid-height.
+            Rectangle()
+                .fill(Color.hooprBorder)
+                .frame(height: 1)
 
-            signOutButton
+            VStack(spacing: 8) {
+                // Errors raised outside a sheet (profile load, sign-out) still
+                // need somewhere to surface.
+                if viewModel.editingField == nil, let errorMessage = viewModel.errorMessage {
+                    errorBanner(errorMessage)
+                }
+
+                signOutButton
+            }
+            .padding(.top, 16)
         }
-        .padding(.top, 12)
         .background(Color.hooprBackground)
+    }
+
+    /// The same soft red panel the Local Runs tab uses, rather than loose red
+    /// text — an error should look the same wherever it surfaces.
+    private func errorBanner(_ message: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .hooprFont(13)
+
+            Text(message)
+                .hooprFont(13)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .foregroundStyle(Color.hooprRed)
+        .padding(12)
+        .background(Color.hooprRed.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal, 28)
     }
 
     // MARK: - Header
 
     private func header(height: CGFloat) -> some View {
-        // The back button flows above the identity block rather than being
-        // overlaid on it — at this header height an overlay would collide
-        // with the avatar on shorter devices.
-        VStack(spacing: 0) {
-            HStack {
-                Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .hooprFont(19, weight: .semibold)
-                        .foregroundStyle(Color.hooprOnBrand)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .accessibilityLabel("Back to home")
-                Spacer()
+        // One row, laid out the way the identity reads: back out, then who you
+        // are. At this height there's no room to stack the back button above
+        // the avatar, and no need to — nothing collides in a single line.
+        HStack(spacing: 10) {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .hooprFont(19, weight: .semibold, maximumSize: 24)
+                    .foregroundStyle(Color.hooprOnBrand)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
-            .padding(.horizontal, 8)
-
-            // Capped, unlike the spacer below — the two used to split the
-            // remaining space evenly, which centered the identity block
-            // rather than pulling it up toward the back button.
-            Spacer(minLength: 0)
-                .frame(maxHeight: 8)
+            .accessibilityLabel("Back to home")
 
             avatar(size: Self.avatarSize(forHeaderHeight: height))
 
-            Text(viewModel.userName ?? " ")
-                .hooprFont(34, weight: .bold)
+            Text(handle)
+                // Capped like the rest of the pinned header: the bar's height
+                // is a fraction of the screen, so its type can't grow freely.
+                .hooprFont(22, weight: .bold, maximumSize: 28)
                 .foregroundStyle(Color.hooprOnBrand)
                 .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .padding(.top, 20)
-                .padding(.horizontal, 24)
+                .minimumScaleFactor(0.6)
 
             Spacer(minLength: 0)
         }
-        .padding(.bottom, 16)
+        .padding(.leading, 8)
+        .padding(.trailing, 16)
         .frame(maxWidth: .infinity)
         .frame(height: height)
         // `.frame(height:)` fixes the layout slot but doesn't clip — without
@@ -126,14 +154,35 @@ struct ProfileView: View {
         // instead of being contained inside it.
         .clipped()
         // Bleeds the orange under the status bar while the content above
-        // still lays out within the safe area.
-        .background(Color.hooprOrange.ignoresSafeArea(edges: .top))
+        // still lays out within the safe area. The gradient runs into
+        // `hooprDarkOrange` at the bottom so the header settles into the card
+        // grid instead of ending on a flat band.
+        .background(
+            LinearGradient(
+                colors: [Color.hooprOrange, Color.hooprDarkOrange],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea(edges: .top)
+        )
     }
 
-    /// Scales with the header so the avatar and name still fit on short
-    /// devices, where 3/12 of the screen is well under 200pt.
+    /// The identity line. `userName` is a *display* name, not a stored handle
+    /// (see `UserProfile`), so the `@` form is a rendering of it — whitespace
+    /// removed, because "@Elliot Aeleot" doesn't read as one thing.
+    ///
+    /// A single space while the first snapshot is in flight, so the row holds
+    /// its height instead of jumping when the name lands.
+    private var handle: String {
+        guard let userName = viewModel.userName else { return " " }
+        return "@" + userName.filter { !$0.isWhitespace }
+    }
+
+    /// Scales with the header, which is now a fraction of the screen rather
+    /// than a quarter of it — the avatar has to fit inside a bar, not fill a
+    /// slab.
     private static func avatarSize(forHeaderHeight height: CGFloat) -> CGFloat {
-        min(104, max(64, height * 0.46))
+        min(56, max(38, height * 0.44))
     }
 
     private func avatar(size: CGFloat) -> some View {
@@ -143,84 +192,180 @@ struct ProfileView: View {
                 // the on-brand white in both appearances rather than a surface.
                 .fill(Color.hooprOnBrand)
                 .frame(width: size, height: size)
-            Image(systemName: "person.fill")
-                // Deliberately *not* Dynamic Type: the glyph is sized as a
-                // fraction of a circle whose diameter is fixed by the header
-                // height, so scaling it would push it past its own container.
-                .font(.system(size: size * 0.5))
-                .foregroundStyle(Color.hooprOrange)
+
+            Group {
+                if let initials = Self.initials(for: viewModel.userName) {
+                    Text(initials)
+                        // Deliberately *not* Dynamic Type, as with the glyph
+                        // below: both are sized as a fraction of a circle whose
+                        // diameter is fixed by the header height, so scaling
+                        // them would push them past their own container.
+                        .font(.system(size: size * 0.38, weight: .bold))
+                } else {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: size * 0.5))
+                }
+            }
+            .foregroundStyle(Color.hooprOrange)
         }
+        // A hairline ring, so the white circle still separates from the header
+        // rather than dissolving into it at the top of the gradient.
+        .overlay(
+            Circle()
+                .stroke(Color.hooprOnBrand.opacity(0.35), lineWidth: 2)
+                .frame(width: size + 6, height: size + 6)
+        )
         .accessibilityHidden(true)
     }
 
-    // MARK: - Fields
+    /// Up to two initials from the display name, or `nil` while the first
+    /// snapshot is in flight — or for a name that's all punctuation, where the
+    /// person glyph says more than an empty circle would.
+    private static func initials(for name: String?) -> String? {
+        guard let name else { return nil }
 
-    private var fields: some View {
-        VStack(spacing: 0) {
-            ProfileFieldRow(
-                label: "Username",
-                value: viewModel.userName,
-                placeholder: "Not set",
-                onEdit: { viewModel.beginEditing(.userName) }
-            )
+        let letters = name
+            .split(whereSeparator: \.isWhitespace)
+            .compactMap { $0.first(where: \.isLetter) }
+            .prefix(2)
 
-            divider
+        return letters.isEmpty ? nil : String(letters).uppercased()
+    }
 
-            // Read-only: email belongs to Firebase Auth, and changing it needs
-            // a re-authentication flow this screen doesn't have yet.
-            ProfileFieldRow(
-                label: "Email",
-                value: viewModel.email,
-                placeholder: "Not set"
-            )
+    // MARK: - Card grid
 
-            divider
+    /// The profile as a mosaic rather than a list: each attribute gets a card
+    /// sized to what it holds, and the cards interlock — a tall one beside a
+    /// stacked pair, a full-width one under both — so the page reads as a whole
+    /// instead of as six rows separated by rules.
+    ///
+    /// **Cards state a floor, never a fixed height.** A fixed height doesn't
+    /// clip — a card whose content needs more room paints outside its own
+    /// frame and over its neighbour — so every card takes
+    /// `minHeight: … , maxHeight: .infinity` instead: it can't be shorter than
+    /// its grid unit, it grows if its content needs to, and being stretchable
+    /// means the tallest card in a row pulls the rest up to match it. That's
+    /// what keeps the seams aligned at every Dynamic Type size, without this
+    /// view having to predict how tall any card's text will be.
+    private var grid: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            section("Your Game") {
+                HStack(alignment: .top, spacing: Self.gridSpacing) {
+                    // The one card that leads the page: it's the setting the
+                    // rest of the app is organised around.
+                    ProfileCard(
+                        symbol: "basketball.fill",
+                        label: "Home Court",
+                        value: viewModel.homeCourtName,
+                        placeholder: "Not set",
+                        detail: viewModel.homeCourtCity,
+                        prominence: .feature,
+                        onEdit: { viewModel.beginEditing(.homeCourt) }
+                    )
+                    .frame(minHeight: featureHeight, maxHeight: .infinity)
 
-            ProfileFieldRow(
-                label: "Home Court",
-                value: viewModel.homeCourtName,
-                placeholder: "Not set",
-                onEdit: { viewModel.beginEditing(.homeCourt) }
-            )
+                    VStack(spacing: Self.gridSpacing) {
+                        // Read-only here by design: courts are starred from the
+                        // map, so this counts them rather than editing them.
+                        ProfileCard(
+                            symbol: "star.fill",
+                            label: "Favorites",
+                            value: viewModel.favoriteCourtCountText,
+                            placeholder: "0",
+                            detail: viewModel.favoriteCourtUnitText
+                        )
+                        .frame(minHeight: tileHeight, maxHeight: .infinity)
 
-            divider
+                        ProfileCard(
+                            symbol: "location.circle.fill",
+                            label: "Radius",
+                            value: viewModel.preferredRadiusText,
+                            placeholder: viewModel.defaultRadiusText,
+                            detail: "around you",
+                            onEdit: { viewModel.beginEditing(.preferredRadius) }
+                        )
+                        .frame(minHeight: tileHeight, maxHeight: .infinity)
+                    }
+                }
+            }
 
-            ProfileFieldRow(
-                label: "Preferred Radius",
-                value: viewModel.preferredRadiusText,
-                placeholder: viewModel.defaultRadiusText,
-                onEdit: { viewModel.beginEditing(.preferredRadius) }
-            )
+            section("Account") {
+                HStack(alignment: .top, spacing: Self.gridSpacing) {
+                    ProfileCard(
+                        symbol: "person.fill",
+                        label: "Username",
+                        value: viewModel.userName,
+                        placeholder: "Not set",
+                        onEdit: { viewModel.beginEditing(.userName) }
+                    )
+                    .frame(minHeight: tileHeight, maxHeight: .infinity)
 
-            divider
+                    // Read-only until the reset flow lands: the value is a
+                    // stand-in — Firebase Auth stores a hash and this app never
+                    // sees a password — so there's nothing here to display and,
+                    // for now, nothing to tap.
+                    ProfileCard(
+                        symbol: "lock.fill",
+                        label: "Password",
+                        value: "••••••••",
+                        placeholder: "••••••••"
+                    )
+                    .frame(minHeight: tileHeight, maxHeight: .infinity)
+                }
 
-            // Device-local, not part of the profile document — see
-            // `AppearancePreference`. It sits among the stored fields because
-            // this is where a user looks for a setting, not because it shares
-            // their storage.
-            ProfileFieldRow(
-                label: "Appearance",
-                value: appearance.title,
-                placeholder: AppearancePreference.system.title,
-                onEdit: { isEditingAppearance = true }
-            )
+                // Full width because it's the longest value on the page — an
+                // address at half width would shrink to fit rather than read.
+                // Read-only: email belongs to Firebase Auth, and changing it
+                // needs a re-authentication flow this screen doesn't have yet.
+                ProfileCard(
+                    symbol: "envelope.fill",
+                    label: "Email",
+                    value: viewModel.email,
+                    placeholder: "Not set"
+                )
+                .frame(minHeight: tileHeight)
 
-            divider
+                HStack(alignment: .top, spacing: Self.gridSpacing) {
+                    // Device-local, not part of the profile document — see
+                    // `AppearancePreference`. It sits among the stored fields
+                    // because this is where a user looks for a setting, not
+                    // because it shares their storage.
+                    ProfileCard(
+                        symbol: appearance.symbolName,
+                        label: "Appearance",
+                        value: appearance.title,
+                        placeholder: AppearancePreference.system.title,
+                        onEdit: { isEditingAppearance = true }
+                    )
+                    .frame(minHeight: tileHeight, maxHeight: .infinity)
 
-            // Immutable by design — `createdAt` is write-once server-side.
-            ProfileFieldRow(
-                label: "Date Joined",
-                value: viewModel.dateJoinedText,
-                placeholder: "—"
-            )
+                    // Immutable by design — `createdAt` is write-once
+                    // server-side.
+                    ProfileCard(
+                        symbol: "calendar",
+                        label: "Joined",
+                        value: viewModel.dateJoinedText,
+                        placeholder: "—"
+                    )
+                    .frame(minHeight: tileHeight, maxHeight: .infinity)
+                }
+            }
         }
     }
 
-    private var divider: some View {
-        Rectangle()
-            .fill(Color.hooprBorder)
-            .frame(height: 1)
-            .padding(.horizontal, 20)
+    /// A titled group of cards, using the same section heading as the Local
+    /// Runs tab so the two screens read as one app.
+    private func section<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Self.gridSpacing) {
+            Text(title)
+                .hooprFont(18, weight: .bold)
+                .foregroundStyle(Color.hooprPrimaryText)
+
+            content()
+        }
     }
 
     // MARK: - Sign out
@@ -229,13 +374,17 @@ struct ProfileView: View {
         Button {
             viewModel.signOut()
         } label: {
-            Text("Sign Out")
-                .hooprFont(17, weight: .semibold, maximumSize: 24)
-                .foregroundStyle(Color.hooprRed)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(Color.hooprFill)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+            HStack(spacing: 8) {
+                Image(systemName: "rectangle.portrait.and.arrow.right")
+                    .hooprFont(15, weight: .semibold, maximumSize: 20)
+                Text("Sign Out")
+                    .hooprFont(17, weight: .semibold, maximumSize: 24)
+            }
+            .foregroundStyle(Color.hooprRed)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .background(Color.hooprFill)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .padding(.horizontal, 28)
         .padding(.bottom, 24)
