@@ -120,9 +120,10 @@ tap and toggles the sheet; `collapseThreshold` 60pt, applied to
 ## Distances and location
 
 `NearbyCourt` pairs a court with its distance, computed **once when the list is
-built** (in a Combine `map` off `courtService.$courts`), never during scroll.
-Radius is 5 miles (`FindAMatchViewModel.nearbyRadiusMiles`); the list is sorted
-nearest-first and the empty-state string reads the same constant.
+built** (in a Combine `CombineLatest` over both `courtService.$courts` and
+`userProfileService.$currentProfile`), never during scroll. Radius comes from
+`userProfile.preferredRadius` (defaults to 5 miles if unset); the list is sorted
+nearest-first.
 
 **Distances and the recenter button both use the hardcoded Durham location, not
 the device's.** `FindAMatchViewModel.homeLocation` returns
@@ -145,8 +146,8 @@ game creation; the sheet's own `select(_:recenter:)` does the visible work.
   payload.
 - Annotations are diffed by `court.id`. Never `removeAnnotations(mapView.annotations)`.
 - `zoomLevelFromSpan` and `spanFromZoomLevel` must remain exact inverses.
-- Distances are computed at list-build time only. Nothing geo-related belongs in
-  a row body.
+- Distances are computed once when the nearby list is built (in `CombineLatest`),
+  not during scroll. The radius comes from the profile's `preferredRadius`.
 - All three of the initial region, list distances, and the recenter target read
   `FindAMatchViewModel.homeLocation`. Keep it that way.
 

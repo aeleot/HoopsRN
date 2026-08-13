@@ -11,13 +11,15 @@ final class ProfileViewModel: ObservableObject {
     enum EditableField: String, Identifiable {
         case userName
         case homeCourt
+        case preferredRadius
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
-            case .userName:  "Username"
-            case .homeCourt: "Home Court"
+            case .userName:       "Username"
+            case .homeCourt:      "Home Court"
+            case .preferredRadius: "Preferred Radius"
             }
         }
     }
@@ -30,12 +32,14 @@ final class ProfileViewModel: ObservableObject {
     @Published private(set) var email: String?
 
     @Published private(set) var homeCourtId: String?
+    @Published private(set) var preferredRadius: Double?
     @Published private(set) var dateJoined: Date?
     @Published private(set) var courts: [Court] = []
     @Published private(set) var errorMessage: String?
 
     @Published var editingField: EditableField?
     @Published var nameDraft = ""
+    @Published var radiusDraft = UserProfile.defaultPreferredRadius
     @Published private(set) var isSaving = false
 
     private let authService: AuthService
@@ -64,6 +68,7 @@ final class ProfileViewModel: ObservableObject {
             .sink { [weak self] profile in
                 self?.userName = profile?.userName
                 self?.homeCourtId = profile?.homeCourtId
+                self?.preferredRadius = profile?.preferredRadius
                 self?.dateJoined = profile?.createdAt
             }
             .store(in: &cancellables)
@@ -99,6 +104,24 @@ final class ProfileViewModel: ObservableObject {
         dateJoined.map { Self.joinedDateFormatter.string(from: $0) }
     }
 
+    /// `nil` until a *usable* radius is stored, so the row renders the default
+    /// in placeholder styling. That reads honestly: 5 miles is what the map is
+    /// searching with, but it isn't a choice the user has made.
+    ///
+    /// An out-of-range stored value (a `0` seeded in the console) counts as
+    /// unset here for the same reason — showing "0 mi" would contradict the
+    /// list, which is searching 5.
+    var preferredRadiusText: String? {
+        guard let preferredRadius,
+              UserProfile.preferredRadiusRange.contains(preferredRadius) else { return nil }
+        return UserProfile.radiusText(preferredRadius)
+    }
+
+    /// Shown in place of `preferredRadiusText` when nothing is stored.
+    var defaultRadiusText: String {
+        UserProfile.radiusText(UserProfile.defaultPreferredRadius)
+    }
+
     private static let joinedDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .long
@@ -114,8 +137,16 @@ final class ProfileViewModel: ObservableObject {
 
     func beginEditing(_ field: EditableField) {
         errorMessage = nil
-        if field == .userName {
+        switch field {
+        case .userName:
             nameDraft = userName ?? ""
+        case .preferredRadius:
+            // Via `validRadius` so an out-of-range stored value doesn't seed
+            // the slider below its own minimum, which would leave the thumb
+            // pinned at 1 mi while the binding still read 0.
+            radiusDraft = UserProfile.validRadius(preferredRadius)
+        case .homeCourt:
+            break
         }
         editingField = field
     }
@@ -123,6 +154,7 @@ final class ProfileViewModel: ObservableObject {
     func cancelEditing() {
         editingField = nil
         nameDraft = ""
+        radiusDraft = UserProfile.defaultPreferredRadius
         errorMessage = nil
     }
 
@@ -148,6 +180,20 @@ final class ProfileViewModel: ObservableObject {
         isSaving = true
         do {
             try await userProfileService.updateHomeCourt(courtId: courtId)
+            editingField = nil
+            errorMessage = nil
+        } catch {
+            errorMessage = Self.message(for: error)
+        }
+        isSaving = false
+    }
+
+    func saveRadius() async {
+        guard !isSaving else { return }
+
+        isSaving = true
+        do {
+            try await userProfileService.updatePreferredRadius(radiusDraft)
             editingField = nil
             errorMessage = nil
         } catch {

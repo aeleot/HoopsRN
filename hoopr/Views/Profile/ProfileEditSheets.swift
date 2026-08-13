@@ -261,3 +261,90 @@ struct HomeCourtPickerSheet: View {
             .frame(maxWidth: .infinity)
     }
 }
+
+/// Edits how far out the nearby-courts list reaches. A slider rather than a
+/// text field: the value is a coarse preference with hard bounds, so there's
+/// nothing to validate and no keyboard to dismiss.
+struct EditRadiusSheet: View {
+    @Binding var radius: Double
+    let isSaving: Bool
+    let errorMessage: String?
+    let onSave: () -> Void
+    let onCancel: () -> Void
+
+    private var range: ClosedRange<Double> { UserProfile.preferredRadiusRange }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                VStack(spacing: 16) {
+                    Text("Search radius for nearby courts")
+                        .font(.system(size: 15))
+                        .foregroundStyle(Color.hooprSecondaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(UserProfile.radiusText(radius))
+                        .font(.system(size: 34, weight: .bold))
+                        .foregroundStyle(.black)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        // Fixed width digits, so the slider below doesn't
+                        // shift as the number changes width mid-drag.
+                        .monospacedDigit()
+
+                    HStack(spacing: 12) {
+                        Text(UserProfile.radiusText(range.lowerBound))
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.hooprSecondaryText)
+
+                        // Steps by whole miles so the stored value always
+                        // matches what the profile row renders.
+                        Slider(value: $radius, in: range, step: 1)
+                            .tint(Color.hooprOrange)
+                            .accessibilityLabel("Search radius in miles")
+
+                        Text(UserProfile.radiusText(range.upperBound))
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.hooprSecondaryText)
+                    }
+                }
+                .padding(16)
+                .background(Color.hooprLightGray)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.hooprRed)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                Spacer()
+            }
+            .padding(20)
+            .background(Color.white)
+            // Matches the court picker: the whole cycle is gated on `isSaving`,
+            // so the value can't move out from under an in-flight write.
+            .disabled(isSaving)
+            .navigationTitle("Preferred Radius")
+            #if os(iOS) || os(visionOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onCancel)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                        .disabled(isSaving)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Button("Save", action: onSave)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.hooprOrange)
+                    }
+                }
+            }
+        }
+    }
+}

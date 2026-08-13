@@ -40,6 +40,18 @@ stamp (date + commit sha). Scopes don't overlap; together they cover the repo.
 
 ---
 
+## Plans
+
+`plans/` holds designs for work that hasn't been built yet — the dictionary
+describes code that exists, a plan describes code that doesn't. When a plan
+ships, fold what's true into the entries above and strike it from the plan.
+
+| Plan | Status |
+|---|---|
+| [`plans/LIVE_HEADCOUNT.md`](plans/LIVE_HEADCOUNT.md) | Proposed — live court occupancy via a `checkins` collection. |
+
+---
+
 ## Refreshing this dictionary
 
 Run `context/prompts/refresh-context-dictionary.md` for routine upkeep — it maps
@@ -47,5 +59,5 @@ changed files onto the `Scope` lines to find stale entries. Run
 `context/prompts/rebuild-context-dictionary.md` to rebuild from scratch when
 drift has outrun repair.
 
-`context/prompts/` is not a dictionary entry and carries no `Scope`/`Verified`
-stamp.
+`context/prompts/` and `context/plans/` are not dictionary entries and carry no
+`Scope`/`Verified` stamp.

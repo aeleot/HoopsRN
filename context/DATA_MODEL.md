@@ -62,12 +62,23 @@ particular is a licence obligation currently unmet in the UI.
 
 ## `UserProfile` and `UserProfileError`
 
-`UserProfile` is Firebase-free by design, like `Court`. Two contracts:
+`UserProfile` is Firebase-free by design, like `Court`. Three contracts:
 
 - **`userName` is a display name, not a unique handle.** Nothing — client or
   rules — enforces uniqueness. The rules only bound it to 1–50 characters.
 - **`id` duplicates the Firestore document ID** so the model decodes without
   optionals for the one field everything keys on.
+- **`preferredRadius` controls the nearby courts search range** (1–50 miles,
+  default 5). The map tab filters its court list to this radius.
+
+**Never read `preferredRadius` directly — go through `effectivePreferredRadius`
+or `validRadius(_:)`.** The field is optional *and* unvalidated for rows that
+already exist: `firestore.rules` bounds what a client may write, but nothing
+sweeps documents that were seeded by hand in the console. A `0` there is a
+perfectly good `Double`, so a plain `?? 5` accepts it and the nearby list
+silently empties — every court is further than zero miles away. `validRadius`
+treats out-of-range exactly like absent. This is the same class of bug as a
+stale `homeCourtId`, and it fails far more quietly.
 
 **Never hand this struct to `setData(from:)`.** `UserProfileService` writes
 explicit `[String: Any]` field maps so that server timestamps stay
@@ -101,6 +112,8 @@ covered by `testDecodesPendingServerTimestamps`.
   the write path. Writes are explicit field maps in `UserProfileService`.
 - Models import no Firebase module. Adding one moves the vendor boundary.
 - `createdAt` is write-once. Nothing may include it in an update payload.
+- `preferredRadius` is read through `effectivePreferredRadius` / `validRadius`,
+  never directly. Stored rows are not guaranteed to be in range.
 
 ## See also
 

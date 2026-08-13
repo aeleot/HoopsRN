@@ -26,9 +26,50 @@ struct UserProfile: Identifiable, Sendable, Codable, Hashable {
     /// yet — no UI sets it.
     var homeCourtId: String?
 
+    /// How far out the nearby-courts list reaches, in miles. Absent until the
+    /// user sets one — read `effectivePreferredRadius` rather than this, so the
+    /// unset case resolves to the default in one place.
+    var preferredRadius: Double?
+
     /// Server-assigned at creation, immutable afterwards.
     let createdAt: Date?
 
     /// Server-assigned, refreshed on every write.
     let updatedAt: Date?
+}
+
+extension UserProfile {
+    /// Applied when no preference is stored — provisioning doesn't write one,
+    /// matching how `homeCourtId` stays absent until it's set.
+    static let defaultPreferredRadius: Double = 5
+
+    /// The bounds the profile slider offers. `firestore.rules` enforces the
+    /// same range server-side; changing one without the other turns an
+    /// out-of-range save into a `permission-denied`.
+    static let preferredRadiusRange: ClosedRange<Double> = 1...50
+
+    /// The radius to actually search with.
+    ///
+    /// Falls back to the default for anything outside `preferredRadiusRange`,
+    /// not just for an absent value — a stored `0` is the dangerous case,
+    /// because it's a perfectly good `Double` that silently empties the nearby
+    /// list. Nothing in Firestore validates existing rows, so a field added by
+    /// hand in the console arrives here as whatever it was seeded with.
+    var effectivePreferredRadius: Double {
+        Self.validRadius(preferredRadius)
+    }
+
+    /// Coerces a stored value into a usable radius. Shared with the profile
+    /// editor so the slider never opens on a value it can't represent.
+    static func validRadius(_ stored: Double?) -> Double {
+        guard let stored, preferredRadiusRange.contains(stored) else {
+            return defaultPreferredRadius
+        }
+        return stored
+    }
+
+    /// Whole miles — the slider steps by 1, so there's never a fraction to show.
+    static func radiusText(_ miles: Double) -> String {
+        String(format: "%.0f mi", miles)
+    }
 }

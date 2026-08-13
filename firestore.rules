@@ -36,12 +36,16 @@ service cloud.firestore {
         && request.resource.data.id == resource.data.id
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['userName', 'homeCourtId', 'updatedAt'])
+             .hasOnly(['userName', 'homeCourtId', 'preferredRadius', 'updatedAt'])
         && request.resource.data.userName is string
         && request.resource.data.userName.size() > 0
         && request.resource.data.userName.size() <= 50
         && (!('homeCourtId' in request.resource.data)
-            || request.resource.data.homeCourtId is string);
+            || request.resource.data.homeCourtId is string)
+        && (!('preferredRadius' in request.resource.data)
+            || (request.resource.data.preferredRadius is number
+                && request.resource.data.preferredRadius >= 1
+                && request.resource.data.preferredRadius <= 50));
 
       // Account deletion isn't a supported flow yet.
       allow delete: if false;

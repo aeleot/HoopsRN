@@ -23,11 +23,15 @@ struct NearbyCourt: Identifiable, Equatable {
 final class FindAMatchViewModel: ObservableObject {
     @Published private(set) var courts: [Court] = []
 
-    /// Courts within `nearbyRadiusMiles` of the user, nearest first.
+    /// Courts within `radiusMiles` of the user, nearest first.
     @Published private(set) var nearbyCourts: [NearbyCourt] = []
 
-    /// How far out the nearby list reaches. Tune here — nothing else hardcodes it.
-    static let nearbyRadiusMiles: Double = 5
+    /// The radius the list was actually built with — the profile's preference,
+    /// or the default while signed out or before the first snapshot lands.
+    /// Published so the empty state can name the real number rather than
+    /// restating a constant that may not be the one in force.
+    @Published private(set) var radiusMiles: Double = UserProfile.defaultPreferredRadius
+
     static let metersPerMile: Double = 1609.344
 
     /// The user's default location, hardcoded to Durham, NC until the profile
@@ -44,7 +48,11 @@ final class FindAMatchViewModel: ObservableObject {
     private let locationService: LocationService
     private var cancellables = Set<AnyCancellable>()
 
-    init(courtService: CourtService, locationService: LocationService) {
+    init(
+        courtService: CourtService,
+        locationService: LocationService,
+        userProfileService: UserProfileService
+    ) {
         self.courtService = courtService
         self.locationService = locationService
 
@@ -53,11 +61,26 @@ final class FindAMatchViewModel: ObservableObject {
             .assign(to: \.courts, on: self)
             .store(in: &cancellables)
 
-        // Distances are measured from the hardcoded home location, not the
-        // device's. Swap `homeLocation` for the profile's saved location and
-        // this pipeline starts tracking it without further changes.
+        // The list depends on two independent inputs — the dataset and the
+        // saved radius — so it rebuilds when either moves. Editing the radius
+        // in the profile reflows this list without a reload.
+        //
+        // Distances are still measured from the hardcoded home location; swap
+        // `homeLocation` for a profile-owned one and this pipeline follows.
+        let radius = userProfileService.$currentProfile
+            .map { $0?.effectivePreferredRadius ?? UserProfile.defaultPreferredRadius }
+            .removeDuplicates()
+
+        radius
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.radiusMiles, on: self)
+            .store(in: &cancellables)
+
         courtService.$courts
-            .map { Self.nearby(courts: $0, to: Self.homeLocation) }
+            .combineLatest(radius)
+            .map { courts, radiusMiles in
+                Self.nearby(courts: courts, to: Self.homeLocation, radiusMiles: radiusMiles)
+            }
             .receive(on: DispatchQueue.main)
             .assign(to: \.nearbyCourts, on: self)
             .store(in: &cancellables)
@@ -65,10 +88,11 @@ final class FindAMatchViewModel: ObservableObject {
 
     private static func nearby(
         courts: [Court],
-        to origin: CLLocationCoordinate2D
+        to origin: CLLocationCoordinate2D,
+        radiusMiles: Double
     ) -> [NearbyCourt] {
         let from = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
-        let radiusMeters = nearbyRadiusMiles * metersPerMile
+        let radiusMeters = radiusMiles * metersPerMile
 
         return courts
             .map { court in

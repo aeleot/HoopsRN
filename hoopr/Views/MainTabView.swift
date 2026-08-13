@@ -111,7 +111,11 @@ struct MainTabView: View {
                 .zIndex(1)
 
                 ZStack {
-                    FindAMatchTab(courtService: courtService, locationService: locationService)
+                    FindAMatchTab(
+                        courtService: courtService,
+                        locationService: locationService,
+                        userProfileService: userProfileService
+                    )
                         .opacity(selectedTab == 0 ? 1 : 0)
                         .allowsHitTesting(selectedTab == 0)
 

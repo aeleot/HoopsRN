@@ -60,10 +60,15 @@ struct FindAMatchTab: View {
     /// Finger travel below which a handle drag counts as a tap instead.
     private let tapSlop: CGFloat = 6
 
-    init(courtService: CourtService, locationService: LocationService) {
+    init(
+        courtService: CourtService,
+        locationService: LocationService,
+        userProfileService: UserProfileService
+    ) {
         _viewModel = StateObject(wrappedValue: FindAMatchViewModel(
             courtService: courtService,
-            locationService: locationService
+            locationService: locationService,
+            userProfileService: userProfileService
         ))
     }
 
@@ -240,7 +245,7 @@ struct FindAMatchTab: View {
 
             if viewModel.nearbyCourts.isEmpty {
                 Spacer()
-                Text("No courts within \(Int(FindAMatchViewModel.nearbyRadiusMiles)) miles")
+                Text("No courts within \(Int(viewModel.radiusMiles)) miles")
                     .font(.system(size: 15))
                     .foregroundStyle(Color.hooprSecondaryText)
                     .frame(maxWidth: .infinity)
@@ -432,5 +437,10 @@ struct FindAMatchTab: View {
 }
 
 #Preview {
-    FindAMatchTab(courtService: CourtService(), locationService: LocationService())
+    let authService = AuthService()
+    FindAMatchTab(
+        courtService: CourtService(),
+        locationService: LocationService(),
+        userProfileService: UserProfileService(authService: authService)
+    )
 }

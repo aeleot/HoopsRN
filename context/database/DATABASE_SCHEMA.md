@@ -27,14 +27,15 @@ directly against the document path.
 | `userName` | string | yes | yes | Display name, 1–50 chars. **Editable and not unique** — despite the name, this is not a handle, and nothing enforces uniqueness. |
 | `email` | string? | no | no | Denormalized from Auth for display only. Never a lookup key. Omitted entirely (not written as null) when Auth has none. Editing it would require a Firebase Auth re-authentication flow, so the profile screen renders it read-only. |
 | `homeCourtId` | string? | no | yes | A `Court.id` from the bundled dataset. Set from the profile screen's court picker. Clearing it **deletes the field** rather than storing null. Courts don't live in Firestore, so there's no server-side reference to validate against — a stale ID resolves to "Unknown court" in the UI. |
+| `preferredRadius` | number? | no | yes | Search radius in miles for the nearby courts list. Set from the profile screen's slider. Rules bound **writes** to 1–50, but say nothing about rows already stored — the client coerces anything out of range back to the 5-mile default (see `../DATA_MODEL.md`). A `0` seeded by hand in the console reads as "unset", not as a zero-mile search. |
 | `createdAt` | timestamp | yes | no | Server-assigned at creation. |
 | `updatedAt` | timestamp | yes | yes | Server-assigned, refreshed on every write. |
 
 ### Mutability contract
 
 `id`, `email` and `createdAt` are **write-once**. A client may only ever change
-`userName` and `homeCourtId` (plus the `updatedAt` bookkeeping that goes with
-them). This is enforced **server-side** in `firestore.rules` via
+`userName`, `homeCourtId`, and `preferredRadius` (plus the `updatedAt` bookkeeping
+that goes with them). This is enforced **server-side** in `firestore.rules` via
 `diff().affectedKeys().hasOnly([...])`, not merely by client-side discipline —
 a hand-crafted request that tries to rewrite `createdAt` is rejected by
 Firestore.
@@ -44,7 +45,7 @@ allow update: if isOwner()
   && request.resource.data.id == resource.data.id
   && request.resource.data.createdAt == resource.data.createdAt
   && request.resource.data.diff(resource.data).affectedKeys()
-       .hasOnly(['userName', 'homeCourtId', 'updatedAt'])
+       .hasOnly(['userName', 'homeCourtId', 'preferredRadius', 'updatedAt'])
 ```
 
 Firestore has no field-level ACLs, so field immutability is hand-built by

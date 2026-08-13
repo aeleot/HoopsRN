@@ -61,10 +61,11 @@ optionals, matching how `Court` is modeled.
 Defined in `DATABASE_SCHEMA.md`. In short: `id` (Auth uid, immutable),
 `userName` (1–50 chars, editable, not unique), `email` (denormalized from Auth,
 display only), `homeCourtId` (a `Court.id`, editable, deleted when cleared),
-`createdAt` (write-once) and `updatedAt` (refreshed on every write).
+`preferredRadius` (1–50 miles, editable, defaults to 5), `createdAt` (write-once)
+and `updatedAt` (refreshed on every write).
 
-`userName` and `homeCourtId` are the only fields a client can ever change.
-Enforced server-side, not by convention.
+`userName`, `homeCourtId`, and `preferredRadius` are the only fields a client
+can ever change. Enforced server-side, not by convention.
 
 ---
 
@@ -148,13 +149,14 @@ no profile document. Rather than a one-off migration, every sign-in self-heals.
 
 ### The edit cycle
 
-The profile screen shows four fields. Only two are editable:
+The profile screen shows five fields. Three are editable:
 
 | Field | Source | Editable |
 |---|---|---|
 | Username | `userName` | yes — text sheet |
 | Email | Firebase Auth | no — changing it needs an Auth re-authentication flow |
 | Home Court | `homeCourtId` → resolved via `CourtService` | yes — searchable court picker |
+| Preferred Radius | `preferredRadius` | yes — slider (1–50 miles) |
 | Date Joined | `createdAt` | no — write-once by design |
 
 1. Tapping an edit icon calls `beginEditing(_:)`, which clears any error, seeds

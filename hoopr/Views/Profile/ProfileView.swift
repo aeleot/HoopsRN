@@ -166,6 +166,15 @@ struct ProfileView: View {
 
             divider
 
+            ProfileFieldRow(
+                label: "Preferred Radius",
+                value: viewModel.preferredRadiusText,
+                placeholder: viewModel.defaultRadiusText,
+                onEdit: { viewModel.beginEditing(.preferredRadius) }
+            )
+
+            divider
+
             // Immutable by design — `createdAt` is write-once server-side.
             ProfileFieldRow(
                 label: "Date Joined",
@@ -222,6 +231,15 @@ struct ProfileView: View {
                 isSaving: viewModel.isSaving,
                 errorMessage: viewModel.errorMessage,
                 onSelect: { courtId in Task { await viewModel.saveHomeCourt(courtId) } },
+                onCancel: { viewModel.cancelEditing() }
+            )
+
+        case .preferredRadius:
+            EditRadiusSheet(
+                radius: $viewModel.radiusDraft,
+                isSaving: viewModel.isSaving,
+                errorMessage: viewModel.errorMessage,
+                onSave: { Task { await viewModel.saveRadius() } },
                 onCancel: { viewModel.cancelEditing() }
             )
         }

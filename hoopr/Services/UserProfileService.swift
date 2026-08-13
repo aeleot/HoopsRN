@@ -46,6 +46,7 @@ final class UserProfileService: ObservableObject {
         static let userName = "userName"
         static let email = "email"
         static let homeCourtId = "homeCourtId"
+        static let preferredRadius = "preferredRadius"
         static let createdAt = "createdAt"
         static let updatedAt = "updatedAt"
     }
@@ -203,6 +204,31 @@ final class UserProfileService: ObservableObject {
         } catch {
             let profileError = Self.mapped(error)
             report(profileError, whileDoing: "saving your home court")
+            throw profileError
+        }
+    }
+
+    /// Sets how far out the nearby-courts list reaches, in miles.
+    ///
+    /// Clamped to `UserProfile.preferredRadiusRange` before the write: the
+    /// rules reject anything outside it, and a rules rejection surfaces as
+    /// "permission denied" — a message that would send you looking for an
+    /// undeployed ruleset rather than an out-of-range slider.
+    func updatePreferredRadius(_ radius: Double) async throws {
+        guard let uid = observedUID else { throw UserProfileError.notSignedIn }
+
+        let range = UserProfile.preferredRadiusRange
+        let clamped = min(max(radius, range.lowerBound), range.upperBound)
+
+        do {
+            try await database.collection(Collection.users).document(uid).updateData([
+                Field.preferredRadius: clamped,
+                Field.updatedAt: FieldValue.serverTimestamp(),
+            ])
+            errorMessage = nil
+        } catch {
+            let profileError = Self.mapped(error)
+            report(profileError, whileDoing: "saving your preferred radius")
             throw profileError
         }
     }
