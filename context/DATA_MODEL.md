@@ -1,9 +1,9 @@
 # Hoopr — Data Model
 
-**Scope:** `hoopr/Models/`
-**Verified:** 2026-08-07 @ 2d483bb
+**Scope:** `hoopr/Models/`, `hoopr/Support/Distance.swift`
+**Verified:** 2026-08-13 @ map-tab
 
-The four domain types and the contracts attached to them. Read this before
+The domain types and the contracts attached to them. Read this before
 changing a field, adding one, or deciding how something gets persisted. The
 field lists themselves are plain on reading the files — what's here is the
 reasoning that isn't.
@@ -103,6 +103,46 @@ covered by `testDecodesPendingServerTimestamps`.
 
 ---
 
+## `Game` and `GameError`
+
+The first type describing state more than one person writes. Firebase-free like
+the rest; `GameService` owns all encoding.
+
+- **`id` mirrors a Firestore-generated document ID**, not a natural key — a
+  person hosts many runs, so there's nothing to key on. It's a stored field
+  purely so the model decodes without `@DocumentID`, which is a Firebase
+  property wrapper and would move the vendor boundary into `Models/`.
+- **`scheduledTime` is non-optional; `createdAt`/`updatedAt` are not.** The
+  first is client-supplied and can never read back as an unresolved sentinel;
+  the other two are `serverTimestamp()` and can.
+- **`status` is derived, never chosen.** `Game.status(playerCount:maxPlayers:)`
+  is the client's copy of an expression `firestore.rules` also evaluates. They
+  must stay identical — a divergence turns every write into a
+  `permission-denied`, which reads like an undeployed ruleset rather than a
+  logic bug. `inProgress` carries the raw value `in_progress`; nothing writes
+  it yet.
+- **`queuedPlayerIds` is non-optional and always stored**, `[]` when empty. The
+  one deliberate exception to the "absent, never null" convention, because the
+  update rule diffs both rosters together.
+- **`isVisible(at:)` is what actually retires a run.** The Firestore query's
+  cutoff is fixed when its listener attaches, so a session left open for hours
+  would keep showing a run that has since aged out. Re-applying the predicate on
+  every rebuild is the fix — and keeping it a pure function on the model is what
+  makes it testable without Firestore.
+
+`GameError` mirrors `UserProfileError` case-for-case where the meanings match
+(`notSignedIn`, `permissionDenied`, `network`, `unknown`), and adds
+`invalidSchedule`, `gameNotFound`, and `gameClosed`.
+
+## `Distance`
+
+Miles conversion and the `"1.2 mi"` / `"12 mi"` format rule, in one place.
+Extracted because the nearby-courts list and the Local Runs list measure from
+the same origin and render the same string — before this each carried its own
+copy of the conversion factor.
+
+---
+
 ## Invariants
 
 - `Court.id` is never derived from coordinates. If the dataset is rebuilt, IDs
@@ -114,6 +154,9 @@ covered by `testDecodesPendingServerTimestamps`.
 - `createdAt` is write-once. Nothing may include it in an update payload.
 - `preferredRadius` is read through `effectivePreferredRadius` / `validRadius`,
   never directly. Stored rows are not guaranteed to be in range.
+- `Game.status` is derived on both sides of the wire. Changing the client
+  helper without the matching rules expression breaks every write.
+- Distances go through `Distance`. Don't reintroduce a local metres-per-mile.
 
 ## See also
 

@@ -13,15 +13,15 @@ stamp (date + commit sha). Scopes don't overlap; together they cover the repo.
 
 | Entry | What it answers | Verified |
 |---|---|---|
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the app is wired: service ownership, startup order, the Firebase vendor boundary. | 2026-08-07 @ 2d483bb |
-| [`DATA_MODEL.md`](DATA_MODEL.md) | The domain types and their contracts — stable court IDs, the profile's write rules, what each error case means. | 2026-08-07 @ 2d483bb |
-| [`database/DATABASE_SCHEMA.md`](database/DATABASE_SCHEMA.md) | What's stored in Firestore and what a client may write. | 2026-08-07 @ 2d483bb |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the app is wired: service ownership, startup order, the Firebase vendor boundary. | 2026-08-13 @ map-tab |
+| [`DATA_MODEL.md`](DATA_MODEL.md) | The domain types and their contracts — stable court IDs, the profile's write rules, derived game status, what each error case means. | 2026-08-13 @ map-tab |
+| [`database/DATABASE_SCHEMA.md`](database/DATABASE_SCHEMA.md) | What's stored in Firestore and what a client may write. | 2026-08-13 @ map-tab |
 | [`database/USER_PROFILE_WORKFLOW.md`](database/USER_PROFILE_WORKFLOW.md) | What happens between sign-in and a rendered profile. | 2026-08-07 @ 2d483bb |
-| [`MAP_LAYER.md`](MAP_LAYER.md) | The map, its UUID trigger pattern, and the bottom-sheet state machine. | 2026-08-07 @ 2d483bb |
+| [`MAP_LAYER.md`](MAP_LAYER.md) | The map, its UUID trigger pattern, and the bottom-sheet state machine. | 2026-08-13 @ map-tab |
 | [`COURT_DATASET.md`](COURT_DATASET.md) | Where courts come from and how to regenerate or extend them. | 2026-08-07 @ 2d483bb |
-| [`UI_SHELL.md`](UI_SHELL.md) | Navigation structure and the visual conventions. | 2026-08-07 @ 2d483bb |
-| [`BUILD_AND_CONFIG.md`](BUILD_AND_CONFIG.md) | Project identity, dependencies, Firebase CLI surface, real test coverage. | 2026-08-07 @ 2d483bb |
-| [`GAPS.md`](GAPS.md) | What's unfinished, and where comments and docs contradict the code. | 2026-08-07 @ 2d483bb |
+| [`UI_SHELL.md`](UI_SHELL.md) | Navigation structure, the Local Runs tab, run creation, and the visual conventions. | 2026-08-13 @ map-tab |
+| [`BUILD_AND_CONFIG.md`](BUILD_AND_CONFIG.md) | Project identity, dependencies, Firebase CLI surface, real test coverage. | 2026-08-13 @ map-tab |
+| [`GAPS.md`](GAPS.md) | What's unfinished, and where comments and docs contradict the code. | 2026-08-13 @ map-tab |
 
 ---
 
@@ -31,6 +31,7 @@ stamp (date + commit sha). Scopes don't overlap; together they cover the repo.
 |---|---|
 | anything touching Firebase | `ARCHITECTURE.md` (vendor boundary + startup order) |
 | a stored profile field | `database/DATABASE_SCHEMA.md` + `database/USER_PROFILE_WORKFLOW.md` — it takes a service method *and* a rules redeploy |
+| games, rosters, or run scheduling | `database/DATABASE_SCHEMA.md` (`games`) + `UI_SHELL.md` (Local Runs) |
 | map behaviour or the bottom sheet | `MAP_LAYER.md` |
 | court data, or adding a city | `COURT_DATASET.md` |
 | navigation, screen presentation, or styling | `UI_SHELL.md` |

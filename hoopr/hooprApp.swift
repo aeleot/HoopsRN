@@ -25,9 +25,10 @@ struct hooprApp: App {
     @StateObject private var courtService = CourtService()
     @StateObject private var locationService = LocationService()
     @StateObject private var recentCourtsStore = RecentCourtsStore()
-    /// Depends on `authService`, so both are built in `init()` — a property
+    /// Depend on `authService`, so all three are built in `init()` — a property
     /// initializer can't reference another property.
     @StateObject private var userProfileService: UserProfileService
+    @StateObject private var gameService: GameService
 
     init() {
         // Must run before any service is constructed: `AuthService.init()`
@@ -40,6 +41,7 @@ struct hooprApp: App {
         let authService = AuthService()
         _authService = StateObject(wrappedValue: authService)
         _userProfileService = StateObject(wrappedValue: UserProfileService(authService: authService))
+        _gameService = StateObject(wrappedValue: GameService(authService: authService))
     }
 
     var body: some Scene {
@@ -49,6 +51,7 @@ struct hooprApp: App {
                 courtService: courtService,
                 locationService: locationService,
                 userProfileService: userProfileService,
+                gameService: gameService,
                 recentCourtsStore: recentCourtsStore
             )
         }

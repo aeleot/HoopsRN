@@ -1,7 +1,7 @@
 # Hoopr — Architecture
 
 **Scope:** `hoopr/hooprApp.swift`, `hoopr/Services/`, `hoopr/ViewModels/`
-**Verified:** 2026-08-07 @ 2d483bb
+**Verified:** 2026-08-13 @ map-tab
 
 How the app is assembled: who owns what, what gets injected where, and the two
 orderings/boundaries that break the design if violated. Read this before
@@ -12,7 +12,7 @@ object is constructed.
 
 ## Ownership and injection
 
-`hooprApp` owns four services as `@StateObject` for the process lifetime and
+`hooprApp` owns six services as `@StateObject` for the process lifetime and
 passes them down as plain `let`s. There is no `@EnvironmentObject` anywhere —
 every view model takes its dependencies through its initializer, so any of them
 can be built with a stub.
@@ -22,7 +22,9 @@ can be built with a stub.
 | `AuthService` | `currentUser: AuthenticatedUser?`, `hasLoadedInitialState: Bool` | `hasLoadedInitialState` exists because Firebase restores a cached session asynchronously — session state is genuinely unknown until the first listener callback. |
 | `UserProfileService` | `currentProfile: UserProfile?`, `errorMessage: String?` | `@MainActor`. Subscribes to `AuthService` itself. |
 | `CourtService` | `courts: [Court]`, `loadError: String?` | Loads the bundled dataset synchronously in `init()`. |
-| `LocationService` | `userLocation: CLLocationCoordinate2D?`, `authorizationStatus` | `CLLocationManagerDelegate` wrapper. |
+| `LocationService` | `userLocation: CLLocationCoordinate2D?`, `authorizationStatus` | `CLLocationManagerDelegate` wrapper. Also owns `homeLocation`, the single anchor every distance in the app measures from. |
+| `GameService` | `queuedGames: [Game]`, `publicGames: [Game]`, `errorMessage: String?` | `@MainActor`. Subscribes to `AuthService` itself. Owns two session-scoped query listeners. |
+| `RecentCourtsStore` | `recentCourtIds: [String]` | `UserDefaults`-backed; deliberately on-device. |
 
 Four view models are built from them, each `@StateObject` inside the view it
 backs: `RootViewModel` (from `AuthService`), `LoginViewModel` (`AuthService`),
@@ -45,6 +47,7 @@ init() {
     let authService = AuthService()
     _authService = StateObject(wrappedValue: authService)
     _userProfileService = StateObject(wrappedValue: UserProfileService(authService: authService))
+    _gameService = StateObject(wrappedValue: GameService(authService: authService))
 }
 ```
 
@@ -65,19 +68,27 @@ Three things are load-bearing here:
 
 ## Vendor boundary
 
-Exactly two files import a Firebase module:
+**Firebase modules may be imported only by files in `hoopr/Services/`.** Each
+service owns exactly one collection and translates SDK errors into a domain
+enum before publishing anything upward.
 
-| File | Import | Exposes upward |
-|---|---|---|
-| `Services/AuthService.swift` | `FirebaseAuth` | `AuthenticatedUser`, `AuthError` |
-| `Services/UserProfileService.swift` | `FirebaseFirestore` | `UserProfile`, `UserProfileError` |
+*(This invariant used to name `UserProfileService` as the only permitted
+Firestore importer. `GameService` is the second, and the rule was rewritten
+rather than quietly broken — the intent was always "Firebase types never escape
+the service layer", which still holds.)*
+
+| File | Import | Owns | Exposes upward |
+|---|---|---|---|
+| `Services/AuthService.swift` | `FirebaseAuth` | identity | `AuthenticatedUser`, `AuthError` |
+| `Services/UserProfileService.swift` | `FirebaseFirestore` | `users` | `UserProfile`, `UserProfileError` |
+| `Services/GameService.swift` | `FirebaseFirestore` | `games` | `Game`, `GameError` |
 
 `hooprApp.swift` imports `FirebaseCore` for the one `configure()` call.
 `hooprTests/UserProfileTests.swift` imports `FirebaseFirestore` deliberately —
 it decodes through the real `Firestore.Decoder`.
 
-Both services translate the SDK's `NSError`s into domain enums in a private
-static `mapped(_:)`; view models then map those to user-facing strings. No
+All three services translate the SDK's `NSError`s into domain enums in a
+private static `mapped(_:)`; view models then map those to user-facing strings. No
 `DocumentSnapshot`, `User`, or `AuthErrorCode` reaches a model, view model, or
 view.
 
@@ -85,8 +96,8 @@ view.
 
 ## Session-scoped listeners
 
-`UserProfileService` subscribes to `AuthService.$currentUser` **itself**, not
-via a view model. A view model's lifetime is tied to a screen, so driving the
+`UserProfileService` and `GameService` subscribe to `AuthService.$currentUser`
+**themselves**, not via a view model. A view model's lifetime is tied to a screen, so driving the
 listener from `ProfileViewModel` would tear it down every time the profile
 closed. One listener per signed-in session means the `MainTabView` greeting and
 the profile screen read the same published `currentProfile` rather than opening
@@ -106,9 +117,13 @@ load, provisioning) surface on screen and not only in the log.
 
 - `FirebaseApp.configure()` runs first in `hooprApp.init()`. Never move it to
   the `AppDelegate`, and never call it twice.
-- Only `AuthService` may import `FirebaseAuth`; only `UserProfileService` may
-  import `FirebaseFirestore` (plus `FirebaseCore` in `hooprApp`, and the test
-  target). Adding a Firebase import elsewhere breaks the design.
+- Firebase modules are imported only under `hoopr/Services/` (plus
+  `FirebaseCore` in `hooprApp`, and the test target). Adding one to a model,
+  view model, or view breaks the design.
+- `GameService` clears `errorMessage` on a successful snapshot **only when the
+  error came from a load**. Two listeners are open and other people's joins
+  produce snapshots continuously, so clearing on any success would wipe an
+  action's failure off the screen milliseconds after it appeared.
 - Services are constructed once in `hooprApp` and injected. Never construct one
   inside a view or view model outside a `#Preview`.
 - `UserProfileService` is `@MainActor` and owns exactly one profile listener per

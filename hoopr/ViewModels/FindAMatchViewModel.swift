@@ -11,13 +11,7 @@ struct NearbyCourt: Identifiable, Equatable {
 
     var id: String { court.id }
 
-    /// Miles, US-style: one decimal under 10 mi, whole numbers above.
-    var distanceText: String {
-        let miles = distanceMeters / FindAMatchViewModel.metersPerMile
-        return miles < 10
-            ? String(format: "%.1f mi", miles)
-            : String(format: "%.0f mi", miles)
-    }
+    var distanceText: String { Distance.text(distanceMeters) }
 }
 
 final class FindAMatchViewModel: ObservableObject {
@@ -69,15 +63,13 @@ final class FindAMatchViewModel: ObservableObject {
 
     // MARK: - Tuning
 
-    static let metersPerMile: Double = 1609.344
-
     /// How far the map must move before re-searching is worth offering. Below
     /// this the list is still a fair description of what's on screen.
     private static let searchHereThresholdMeters: CLLocationDistance = 1_500
 
     /// The user's default location, hardcoded to Durham, NC until the profile
     /// owns it. Anchors the initial region and the recenter button.
-    static var homeLocation: CLLocationCoordinate2D { LocationService.defaultLocation }
+    static var homeLocation: CLLocationCoordinate2D { LocationService.homeLocation }
 
     let initialRegion = MKCoordinateRegion(
         center: FindAMatchViewModel.homeLocation,
@@ -227,7 +219,7 @@ final class FindAMatchViewModel: ObservableObject {
             canSearchHere = false
             return
         }
-        canSearchHere = Self.distance(from: searchOrigin, to: center) > Self.searchHereThresholdMeters
+        canSearchHere = Distance.between(searchOrigin, center) > Self.searchHereThresholdMeters
     }
 
     /// Re-anchors the nearby list to wherever the map is now looking.
@@ -249,7 +241,7 @@ final class FindAMatchViewModel: ObservableObject {
 
         switch selectedTab {
         case .nearby:
-            let radiusMeters = radiusMiles * Self.metersPerMile
+            let radiusMeters = Distance.meters(miles: radiusMiles)
             listedCourts = ranked.filter { $0.distanceMeters <= radiusMeters }
 
         case .favorites:
@@ -275,14 +267,6 @@ final class FindAMatchViewModel: ObservableObject {
                 return NearbyCourt(court: court, distanceMeters: from.distance(from: to))
             }
             .sorted { $0.distanceMeters < $1.distanceMeters }
-    }
-
-    private static func distance(
-        from: CLLocationCoordinate2D,
-        to: CLLocationCoordinate2D
-    ) -> CLLocationDistance {
-        CLLocation(latitude: from.latitude, longitude: from.longitude)
-            .distance(from: CLLocation(latitude: to.latitude, longitude: to.longitude))
     }
 
     // MARK: - Presentation helpers

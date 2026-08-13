@@ -38,6 +38,11 @@ struct FindAMatchTab: View {
     @State private var isDraggingSlider = false
     @State private var sheetState: SheetState = .rest(.medium)
 
+    /// The court a run is being started at, if the form is open. Both entry
+    /// points — a map pin and a nearby-list row — open the same detail card, so
+    /// one button there covers both without duplicating a control.
+    @State private var startingRunAt: Court?
+
     /// Live finger travel for the sheet drag; zero whenever the sheet is settled.
     @State private var sheetDrag: CGFloat = 0
     /// How far the court list has scrolled — the sheet only takes over a drag
@@ -51,12 +56,16 @@ struct FindAMatchTab: View {
     /// Finger travel below which a handle drag counts as a tap instead.
     private let tapSlop: CGFloat = 6
 
+    private let gameService: GameService
+
     init(
         courtService: CourtService,
         locationService: LocationService,
         userProfileService: UserProfileService,
+        gameService: GameService,
         recentCourtsStore: RecentCourtsStore
     ) {
+        self.gameService = gameService
         _viewModel = StateObject(wrappedValue: FindAMatchViewModel(
             courtService: courtService,
             locationService: locationService,
@@ -134,6 +143,18 @@ struct FindAMatchTab: View {
             if isDraggingSlider {
                 absoluteZoomTrigger = AbsoluteZoomTrigger(level: newValue)
             }
+        }
+        .sheet(item: $startingRunAt) { court in
+            CreateGameSheet(
+                court: court,
+                gameService: gameService,
+                onCreated: {
+                    startingRunAt = nil
+                    // The run lands in Local Runs on the listener that's
+                    // already open; the map has nothing to update.
+                },
+                onCancel: { startingRunAt = nil }
+            )
         }
     }
 
@@ -492,6 +513,25 @@ struct FindAMatchTab: View {
                     .padding(.top, 6)
             }
 
+            Button {
+                startingRunAt = court
+            } label: {
+                HStack(spacing: 7) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                    Text("Start Run")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 46)
+                .background(Color.hooprOrange)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -607,6 +647,7 @@ struct FindAMatchTab: View {
         courtService: CourtService(),
         locationService: LocationService(),
         userProfileService: UserProfileService(authService: authService),
+        gameService: GameService(authService: authService),
         recentCourtsStore: RecentCourtsStore()
     )
 }

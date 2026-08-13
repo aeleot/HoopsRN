@@ -8,11 +8,12 @@ struct MainTabView: View {
     @ObservedObject private var userProfileService: UserProfileService
     private let courtService: CourtService
     private let locationService: LocationService
+    private let gameService: GameService
     private let recentCourtsStore: RecentCourtsStore
 
     private let tabs: [(String, String)] = [
         ("Court Map", "map"),
-        ("Local Games", "list.bullet"),
+        ("Local Runs", "calendar"),
         ("Find Match", "figure.run"),
     ]
 
@@ -21,12 +22,14 @@ struct MainTabView: View {
         courtService: CourtService,
         locationService: LocationService,
         userProfileService: UserProfileService,
+        gameService: GameService,
         recentCourtsStore: RecentCourtsStore
     ) {
         self.authService = authService
         self.courtService = courtService
         self.locationService = locationService
         self.userProfileService = userProfileService
+        self.gameService = gameService
         self.recentCourtsStore = recentCourtsStore
     }
 
@@ -118,13 +121,18 @@ struct MainTabView: View {
                         courtService: courtService,
                         locationService: locationService,
                         userProfileService: userProfileService,
+                        gameService: gameService,
                         recentCourtsStore: recentCourtsStore
                     )
                         .opacity(selectedTab == 0 ? 1 : 0)
                         .allowsHitTesting(selectedTab == 0)
 
                     if selectedTab == 1 {
-                        LocalGamesTab()
+                        LocalRunsTab(
+                            gameService: gameService,
+                            courtService: courtService,
+                            userProfileService: userProfileService
+                        )
                     }
 
                     if selectedTab == 2 {
@@ -151,6 +159,7 @@ struct MainTabView: View {
         courtService: CourtService(),
         locationService: LocationService(),
         userProfileService: UserProfileService(authService: authService),
+        gameService: GameService(authService: authService),
         recentCourtsStore: RecentCourtsStore()
     )
 }

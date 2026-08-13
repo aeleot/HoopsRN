@@ -1,12 +1,13 @@
 # Hoopr — Map Layer
 
-**Scope:** `hoopr/Views/MapView.swift`, `hoopr/Views/Tabs/`
-**Verified:** 2026-08-07 @ 2d483bb
+**Scope:** `hoopr/Views/MapView.swift`, `hoopr/Views/Tabs/FindAMatchTab.swift`,
+`hoopr/Views/Tabs/CourtRow.swift`, `hoopr/Views/Tabs/FindMatchTab.swift`
+**Verified:** 2026-08-13 @ map-tab
 
 The map tab and its bottom sheet — the densest interaction code in the app, and
 the part most likely to break subtly when edited. Read this before touching
-`MapView.swift` or `FindAMatchTab.swift`. The other two files in scope
-(`LocalGamesTab`, `FindMatchTab`) are placeholder labels.
+`MapView.swift` or `FindAMatchTab.swift`. `FindMatchTab` is still a placeholder
+label; the Local Runs tab moved to `UI_SHELL.md`.
 
 ---
 
@@ -126,16 +127,23 @@ built** (in a Combine `CombineLatest` over both `courtService.$courts` and
 nearest-first.
 
 **Distances and the recenter button both use the hardcoded Durham location, not
-the device's.** `FindAMatchViewModel.homeLocation` returns
-`LocationService.defaultLocation` (35.9940, −78.8986). `recenterTarget()`
+the device's.** `FindAMatchViewModel.homeLocation` forwards to
+`LocationService.homeLocation` (35.9940, −78.8986) — the app-wide anchor the
+Local Runs radius filter also reads, so swapping it for a profile-owned value
+moves every distance in the app at once. `recenterTarget()`
 requests location permission on the first tap only — so MapKit can draw the blue
 user dot — but returns the hardcoded point regardless, which is why the map no
 longer blocks on a permission prompt. Swapping `homeLocation` for a profile-owned
 value is the intended future change; the initial region, every list distance, and
 the recenter target all read it, so the pipeline follows with no other edits.
 
-`FindAMatchViewModel.select(_:)` is an empty hook reserved for court detail and
-game creation; the sheet's own `select(_:recenter:)` does the visible work.
+`FindAMatchViewModel.select(_:)` records the court as recently viewed; the
+sheet's own `select(_:recenter:)` does the visible work.
+
+The court detail card carries the **"Start Run"** button, which presents
+`CreateGameSheet` for that court. Both selection paths — a map pin and a
+nearby-list row — already open this card, so one button serves both. See
+`UI_SHELL.md`.
 
 ---
 
@@ -148,8 +156,9 @@ game creation; the sheet's own `select(_:recenter:)` does the visible work.
 - `zoomLevelFromSpan` and `spanFromZoomLevel` must remain exact inverses.
 - Distances are computed once when the nearby list is built (in `CombineLatest`),
   not during scroll. The radius comes from the profile's `preferredRadius`.
-- All three of the initial region, list distances, and the recenter target read
-  `FindAMatchViewModel.homeLocation`. Keep it that way.
+- The initial region, list distances, and the recenter target all read
+  `FindAMatchViewModel.homeLocation`, which forwards to
+  `LocationService.homeLocation`. Keep the single anchor.
 
 ## See also
 

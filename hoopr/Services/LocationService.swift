@@ -8,9 +8,15 @@ final class LocationService: NSObject, ObservableObject {
 
     private let manager = CLLocationManager()
 
-    /// Downtown Durham, NC — the fallback centre used whenever we have no fix,
-    /// and for now the app's hardcoded home location.
+    /// Downtown Durham, NC — the fallback centre used whenever we have no fix.
     static let defaultLocation = CLLocationCoordinate2D(latitude: 35.9940, longitude: -78.8986)
+
+    /// Where the app measures "near you" from, for now the same hardcoded
+    /// point. Every distance in the app reads this: the map's initial region,
+    /// the nearby-courts list, the recenter target, and the Local Runs radius
+    /// filter. Swapping it for a profile-owned location is the intended future
+    /// change, and doing it here moves all four at once.
+    static var homeLocation: CLLocationCoordinate2D { defaultLocation }
 
     override init() {
         super.init()

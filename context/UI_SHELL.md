@@ -1,8 +1,9 @@
 # Hoopr — UI Shell
 
 **Scope:** `hoopr/Views/RootView.swift`, `hoopr/Views/MainTabView.swift`,
-`hoopr/Views/LoginView.swift`, `hoopr/Views/Profile/`, `hoopr/Support/Theme.swift`
-**Verified:** 2026-08-07 @ 2d483bb
+`hoopr/Views/LoginView.swift`, `hoopr/Views/Profile/`, `hoopr/Views/Games/`,
+`hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Support/Theme.swift`
+**Verified:** 2026-08-13 @ map-tab
 
 Navigation structure and the visual conventions every screen follows. Read this
 before adding a screen, changing how one is presented, or picking a colour.
@@ -45,7 +46,7 @@ Edit flows *within* the profile are `.sheet(item:)` bound to
   map.
 - Greeting reads `userProfileService.currentProfile?.userName`, falling back to
   `"there"` while the first snapshot is in flight.
-- Tabs: Court Map / Local Games / Find Match. Selected pill is `hooprOrange` on
+- Tabs: Court Map / Local Runs / Find Match. Selected pill is `hooprOrange` on
   white text; unselected is `hooprLightGray` on `hooprSecondaryText`.
 
 **`FindAMatchTab` stays mounted** — it's always in the content `ZStack`, hidden
@@ -57,6 +58,41 @@ state should follow the same pattern.
 
 `.ignoresSafeArea(edges: .bottom)` on the shell plus `.clipped()` on the content
 is what lets the bottom sheet run to the screen edge.
+
+## `LocalRunsTab`
+
+Two collapsible sections — **Queued Games** (runs you're on) and **Public
+Games** (discoverable runs inside your `preferredRadius`) — over a single
+`ScrollView`. One scroll gesture stays in charge, and the two are read together
+anyway: "am I busy, and what else is on?"
+
+Section expansion is **`@AppStorage`, not `@State`**. This tab is unmounted
+whenever another tab is selected, so view state would reopen both sections on
+every visit and silently discard the choice. `FindAMatchTab` solves the same
+problem by staying mounted; that isn't available here without paying for a
+permanently live tab.
+
+Cards are `GameCard`, shared by both sections so a run reads identically
+wherever it appears — only the primary action differs (Join / Join waitlist /
+Leave / Cancel run, resolved by `LocalRunsViewModel.action(for:)`). The action
+is resolved **once per row** and handed to both the button and its confirmation
+dialog, so a dialog saying "Cancel run" can't perform a join.
+
+Only one roster write is in flight at a time: the acting card shows a spinner
+and every other card's button goes inert, so a double tap can't race the
+transaction already running.
+
+## Starting a run
+
+`CreateGameSheet` is presented from the court detail card in `FindAMatchTab`.
+**Both entry points the feature calls for — a map pin and a nearby-list row —
+already converge on that card**, so one "Start Run" button there covers both
+without duplicating a control in the list.
+
+The form collects four fields: when, public or invite-only, and roster size.
+Everything else the `games` schema stores — host, status, both rosters, both
+timestamps — is derived by `GameService` on the write path, so none of it
+appears in the UI.
 
 ## `ProfileView`
 
@@ -105,6 +141,10 @@ adapt. Adding dark mode is a palette-wide change, not a per-screen one.
 - `ProfileView` is presented in place of `MainTabView`, never inside it.
 - `FindAMatchTab` must stay mounted across tab switches; hide it with opacity,
   don't unmount it.
+- `LocalRunsTab` *is* unmounted on tab switches, so anything the user chose
+  there (section expansion) belongs in `@AppStorage`, not `@State`.
+- A card's action is resolved once and reused by its button and its
+  confirmation dialog. Don't recompute it at tap time.
 - Colours come from `Theme.swift`. The map's `UIColor` marker tint is the one
   duplicate and should be reconciled, not copied.
 - Read-only profile fields are expressed by omitting `onEdit`, not by a

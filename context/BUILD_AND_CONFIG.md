@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr.xcodeproj/`, `Package.resolved`, `hooprTests/`, `hooprUITests/`,
 `hoopr/Assets.xcassets/`, `hoopr/GoogleService-Info.plist`, `.gitignore`
-**Verified:** 2026-08-07 @ 2d483bb
+**Verified:** 2026-08-13 @ map-tab
 
 Project identity, dependencies, the Firebase CLI surface, and what the tests
 actually cover. Read this before changing a build setting, adding a dependency,
@@ -64,24 +64,34 @@ Firebase console is not:
 .firebaserc              → default project: hoopsrn-4f1e9
 firebase.json            → points at the rules and indexes files
 firestore.rules          → security rules (source of truth)
-firestore.indexes.json   → composite indexes: empty, none needed yet
+firestore.indexes.json   → composite indexes: two, both for `games`
 ```
 
-Any rules change must be deployed:
+Any rules or index change must be deployed:
 
 ```bash
-firebase deploy --only firestore:rules
+firebase deploy --only firestore:rules,firestore:indexes
 ```
+
+`--dry-run` compiles the rules and reads the index file without changing the
+project — worth running before any deploy.
 
 Until deployed, writes fail with `permission-denied` and the app shows "Not
 allowed to save yet." A newly created database denies everything.
 
 ## Tests
 
-**`hooprTests/UserProfileTests.swift` is the only real coverage.** Four cases,
-run through `Firestore.Decoder` — the same decoder `UserProfileService` uses —
-so a field rename in the console or in the model fails a test rather than
-silently emptying the profile UI:
+**`UserProfileTests.swift` and `GameTests.swift` are the real coverage**, both
+run through `Firestore.Decoder` — the same decoder the services use — so a field
+rename in the console or in the model fails a test rather than silently emptying
+the UI.
+
+`GameTests` covers the stored `games` shape, pending server timestamps, the
+`in_progress` raw value, required-field failures, and the pure rules the client
+shares with `firestore.rules`: derived status, roster clamping, membership
+queries, and the visibility grace window.
+
+`UserProfileTests`:
 
 | Test | Guards |
 |---|---|
