@@ -1,37 +1,83 @@
 import SwiftUI
 
-/// One entry in the nearby-courts list: name and address on the left, distance
-/// pinned right.
+/// One entry in the court list: name, city and distance on the left, amenity
+/// badges beneath, and a star that toggles without leaving the list.
 struct CourtRow: View {
     let nearbyCourt: NearbyCourt
+    let isFavorite: Bool
+    let onToggleFavorite: () -> Void
+
+    private var court: Court { nearbyCourt.court }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(nearbyCourt.court.name)
+                Text(court.name)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.black)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
 
-                if !nearbyCourt.court.address.isEmpty {
-                    Text(nearbyCourt.court.address)
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color.hooprSecondaryText)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                Text(court.city)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.hooprSecondaryText)
+
+                Text("\(nearbyCourt.distanceText) away")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.hooprSecondaryText)
+
+                if !badges.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(badges, id: \.self) { badge in
+                            Text(badge)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(Color.hooprSecondaryText)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(Color.hooprLightGray)
+                                .clipShape(RoundedRectangle(cornerRadius: 5))
+                        }
+                    }
+                    .padding(.top, 3)
                 }
             }
 
             Spacer(minLength: 8)
 
-            Text(nearbyCourt.distanceText)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Color.hooprSecondaryText)
-                .multilineTextAlignment(.trailing)
+            Button(action: onToggleFavorite) {
+                Image(systemName: isFavorite ? "star.fill" : "star")
+                    .font(.system(size: 17))
+                    .foregroundStyle(isFavorite ? Color.hooprOrange : Color.hooprSecondaryText)
+                    // Widen the tap target without widening the icon, so the
+                    // star doesn't swallow taps meant for the row.
+                    .frame(width: 40, height: 40)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 13)
+        .padding(.leading, 20)
+        .padding(.trailing, 8)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
+    }
+
+    /// Only facts the dataset actually carries. Absent OSM tags mean unknown,
+    /// so nothing is inferred and no placeholder badge is shown.
+    private var badges: [String] {
+        var result: [String] = []
+        if let hoops = court.hoops {
+            result.append(hoops == 1 ? "1 hoop" : "\(hoops) hoops")
+        }
+        if court.isLit == true {
+            result.append("Lit")
+        }
+        if let surface = court.surface {
+            result.append(surface.capitalized)
+        }
+        if court.access == .restricted {
+            result.append("Restricted")
+        }
+        return result
     }
 }

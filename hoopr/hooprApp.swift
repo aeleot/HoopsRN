@@ -24,6 +24,7 @@ struct hooprApp: App {
     @StateObject private var authService: AuthService
     @StateObject private var courtService = CourtService()
     @StateObject private var locationService = LocationService()
+    @StateObject private var recentCourtsStore = RecentCourtsStore()
     /// Depends on `authService`, so both are built in `init()` — a property
     /// initializer can't reference another property.
     @StateObject private var userProfileService: UserProfileService
@@ -47,7 +48,8 @@ struct hooprApp: App {
                 authService: authService,
                 courtService: courtService,
                 locationService: locationService,
-                userProfileService: userProfileService
+                userProfileService: userProfileService,
+                recentCourtsStore: recentCourtsStore
             )
         }
     }
