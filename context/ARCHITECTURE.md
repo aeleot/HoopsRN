@@ -20,10 +20,10 @@ can be built with a stub.
 | Service | Publishes | Notes |
 |---|---|---|
 | `AuthService` | `currentUser: AuthenticatedUser?`, `hasLoadedInitialState: Bool` | `hasLoadedInitialState` exists because Firebase restores a cached session asynchronously — session state is genuinely unknown until the first listener callback. |
-| `UserProfileService` | `currentProfile: UserProfile?`, `errorMessage: String?` | `@MainActor`. Subscribes to `AuthService` itself. |
+| `UserProfileService` | `currentProfile: UserProfile?`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns a `ListenerSupervisor`. |
 | `CourtService` | `courts: [Court]`, `loadError: String?` | Loads the bundled dataset synchronously in `init()`. |
 | `LocationService` | `userLocation: CLLocationCoordinate2D?`, `authorizationStatus` | `CLLocationManagerDelegate` wrapper. Also owns `homeLocation`, the single anchor every distance in the app measures from. |
-| `GameService` | `queuedGames: [Game]`, `publicGames: [Game]`, `errorMessage: String?` | `@MainActor`. Subscribes to `AuthService` itself. Owns two session-scoped query listeners. |
+| `GameService` | `queuedGames: [Game]`, `publicGames: [Game]`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns two session-scoped query listeners and a `ListenerSupervisor` that keys their health separately. |
 | `RecentCourtsStore` | `recentCourtIds: [String]` | `UserDefaults`-backed; deliberately on-device. |
 
 Four view models are built from them, each `@StateObject` inside the view it
@@ -82,6 +82,7 @@ the service layer", which still holds.)*
 | `Services/AuthService.swift` | `FirebaseAuth` | identity | `AuthenticatedUser`, `AuthError` |
 | `Services/UserProfileService.swift` | `FirebaseFirestore` | `users` | `UserProfile`, `UserProfileError` |
 | `Services/GameService.swift` | `FirebaseFirestore` | `games` | `Game`, `GameError` |
+| `Services/ListenerSupervisor.swift` | *(none)* | listener re-attach + `FailureContext` | both, to the two Firestore services |
 
 `hooprApp.swift` imports `FirebaseCore` for the one `configure()` call.
 `hooprTests/UserProfileTests.swift` imports `FirebaseFirestore` deliberately —
@@ -111,6 +112,42 @@ uid is unchanged.
 handling its own throws, so failures the service raises on its own (profile
 load, provisioning) surface on screen and not only in the log.
 
+### Recovery
+
+**An error delivered to a snapshot listener means that listener is already
+dead.** Firestore retries transient failures internally and never surfaces them;
+anything that reaches the callback is something it gave up on. Nothing
+re-attaches automatically, which is how a still-building index once emptied both
+Local Runs lists until the app was relaunched.
+
+`ListenerSupervisor` is what re-attaches them. Both Firestore services own one,
+hand it a weakly-captured re-attach closure, and report every listener error and
+every snapshot to it. Delays escalate 2s → 5m and then repeat rather than giving
+up, since the failures it exists for (an index finishing, a ruleset being
+deployed) heal on their own. Returning to the foreground jumps the queue, and so
+does the "Try again" button on the Local Runs banner.
+
+It tracks health **per listener**, by key. `GameService` runs two, and other
+players' joins produce snapshots on the healthy one continuously — with a single
+flag, those successes would cancel the dead listener's re-attach and leave that
+list permanently empty. Recovery ends only when every listener that failed has
+reported back, and `errorMessage` survives until then for the same reason.
+
+### `permission-denied` means two different things
+
+Firestore returns the same code for "the ruleset was never deployed" and "the
+rules deliberately rejected this". The error can't distinguish them; the side it
+came from can, which is what `FailureContext` carries:
+
+- A denied **read** was one of the queries shaped to match the read rule for any
+  signed-in user, so the server isn't running the rules in this repo →
+  the message names deployment.
+- A denied **write** was already validated client-side (`Game.validate`,
+  `UserProfile.validate(userName:)`), so the server rejected something the
+  client believed was legal → the message describes the rejection and says
+  nothing about deployment, because blaming it would hide a genuine
+  authorization bug.
+
 ---
 
 ## Invariants
@@ -128,10 +165,18 @@ load, provisioning) surface on screen and not only in the log.
   inside a view or view model outside a `#Preview`.
 - `UserProfileService` is `@MainActor` and owns exactly one profile listener per
   session. Don't open a second listener on `users/{uid}` anywhere.
+- Every snapshot callback reports to its `ListenerSupervisor` — `recordFailure`
+  on an error, `recordSuccess` on a snapshot, both keyed by listener. A new
+  listener that skips this is a listener that never comes back.
+- A service's re-attach closure captures `self` **weakly**. The service owns the
+  supervisor, so a strong capture is a cycle.
+- Anything reported to the user goes through `message(for:whileDoing:context:)`
+  with the context it actually came from. Passing `.write` for a read (or the
+  reverse) is how a deployment problem starts reading as an auth bug.
 - Combine subscriptions in view models use `sink { [weak self] … }`, not
   `assign(to:on: self)`, which would retain `self` through its own cancellable
-  set. `ProfileViewModel` says so in a comment; `RootViewModel` and
-  `FindAMatchViewModel` don't follow it — see `GAPS.md`.
+  set. `ProfileViewModel`, `LocalRunsViewModel` and `RootViewModel` each say so
+  in a comment; there are no remaining holdouts.
 
 ## See also
 

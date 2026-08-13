@@ -132,7 +132,16 @@ final class ProfileViewModel: ObservableObject {
     // MARK: - Editing
 
     var canSaveName: Bool {
-        !nameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSaving
+        UserProfile.validate(userName: nameDraft) == nil && !isSaving
+    }
+
+    /// Why the draft name can't be saved, or `nil` when it can. Shown under the
+    /// field so an over-long name is caught before the write rather than coming
+    /// back as a server rejection.
+    var nameDraftHint: String? {
+        guard !nameDraft.isEmpty,
+              let error = UserProfile.validate(userName: nameDraft) else { return nil }
+        return Self.message(for: error)
     }
 
     func beginEditing(_ field: EditableField) {
@@ -216,13 +225,17 @@ final class ProfileViewModel: ObservableObject {
             return error.localizedDescription
         }
 
+        // Everything this screen raises comes from a write it just attempted,
+        // so the write reading of `permissionDenied` is the right one — see
+        // `UserProfileService.message(for:whileDoing:context:)`.
         switch profileError {
-        case .notSignedIn:      return "You're signed out."
-        case .emptyUserName:    return "Your name can't be blank."
-        case .permissionDenied: return "Not allowed to save yet. Check the Firestore security rules."
-        case .network:          return "Can't reach the network. Check your connection."
-        case .decodingFailed:   return "Your profile is stored in an unexpected format."
-        case .unknown:          return "Couldn't save your changes. Try again."
+        case .unknown: return "Couldn't save your changes. Try again."
+        default:
+            return UserProfileService.message(
+                for: profileError,
+                whileDoing: "saving your changes",
+                context: .write
+            )
         }
     }
 }

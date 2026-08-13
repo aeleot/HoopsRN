@@ -44,17 +44,10 @@ being reproduced in the entry that owns the code.
 
 **Reliability**
 
-- **A listener killed by a terminal error never recovers.** Firestore retries
-  transient failures itself, but `permissionDenied` and `failedPrecondition`
-  (a missing or still-building index) tear the listener down for good, and
-  `GameService` only re-attaches on an auth change. Observed live: both Local
-  Runs listeners died on a building index and stayed dead until the app was
-  relaunched, with the error visible only in the log. Same exposure exists in
-  `UserProfileService`.
-- Firestore's own `permission-denied` for an **undeployed ruleset** is
-  indistinguishable from a genuine authorization failure. Both services map it
-  to a message naming the rules, which is right far more often than not — but
-  it means a real authorization bug would read as a deployment problem.
+- The recovery path in `ListenerSupervisor` is covered by unit tests but has
+  **never been exercised against a live terminal error** — doing so means
+  deploying a broken ruleset or dropping an index on the real project. The
+  wiring is verified; the end-to-end heal is not.
 
 **Assets and data**
 
@@ -72,11 +65,12 @@ being reproduced in the entry that owns the code.
 
 **Code quality**
 
-- `Game.status` is duplicated by necessity: once in Swift
-  (`Game.status(playerCount:maxPlayers:)`) and once as an expression in
-  `firestore.rules`. There is no mechanism keeping them in step, and a
-  divergence surfaces as `permission-denied` on every write rather than as a
-  logic error. Tested on the Swift side only.
+- `firestore.rules` still has **no behavioural coverage**.
+  `FirestoreRulesParityTests` pins the constants and the `status` derivation
+  that Swift also owns, but nothing evaluates the rules themselves — that a
+  non-member can't read a private run, that the membership diff really does
+  reject writing someone else's uid. That needs the Firebase emulator, which
+  isn't set up.
 
 **Configuration**
 
@@ -90,18 +84,25 @@ being reproduced in the entry that owns the code.
 
 ## Untested
 
-`UserProfileTests` and `GameTests` are the real coverage (32 cases). Both decode
-through `Firestore.Decoder`, and `GameTests` additionally pins the pure rules the
-client shares with `firestore.rules`.
+Four suites, 55 cases. `UserProfileTests` and `GameTests` decode through the real
+`Firestore.Decoder` and pin the pure rules the client shares with
+`firestore.rules`; `FirestoreRulesParityTests` parses the rules file and fails if
+either copy of a shared constant moves alone; `ServiceFailureTests` covers the
+re-attach schedule, per-listener recovery, and the read/write split in the error
+messages.
 
 Untested and worth it: `MapView`'s zoom-conversion inverses, `RootViewModel`'s
 gating rule, `FindAMatchViewModel`'s nearby filtering and ordering,
-`LocalRunsViewModel.action(for:)` and its radius/dedupe filtering, all three
-`mapped(_:)` error translations, and — most valuable and hardest — the security
-rules themselves, which encode real decisions (membership diffs, duplicate
-rosters, pinned timestamps) that manual testing checks poorly. There is no
+`LocalRunsViewModel.action(for:)` and its radius/dedupe filtering, the three
+`mapped(_:)` error translations, and — most valuable and hardest — what the
+security rules actually *permit* (membership diffs, duplicate rosters, pinned
+timestamps), which the parity tests deliberately don't touch. There is no
 emulator setup in the repo. `hooprTests/hooprTests.swift` and both UI test files
 are Xcode scaffold.
+
+The UI test target currently fails to launch its runner
+(`hooprUITests.xctrunner`, `RequestDenied` from SpringBoard), so `xcodebuild
+test` has to be scoped with `-only-testing:hooprTests`.
 
 ---
 
@@ -148,19 +149,23 @@ against last night's cutoff. `isVisible(at:)` hides those rows client-side, so
 nothing wrong is displayed — but the query keeps paying for them, and the
 `limit(to:)` budget is spent on runs that will never render.
 
+`GameService.attachListeners()` now recomputes the cutoff every time it runs, so
+a re-attach picks up a fresh window — but it only runs on sign-in and on
+recovery, so a healthy long-lived session still holds its original cutoff.
+
 Options, cheapest first: recompute on foreground via `scenePhase` and re-attach;
 or drop the range clause from the query and filter entirely client-side (removes
 one composite index, costs more reads); or move retirement server-side with a
 scheduled Cloud Function writing `status: "completed"` — which is also what
 unblocks step 1.
 
-### 2. Make listeners recover from terminal errors
+### 2. Rules coverage, via the Firebase emulator
 
-See *Reliability* above. A `failedPrecondition` or `permissionDenied` currently
-means "relaunch the app," and the user is told nothing beyond a banner. Add a
-bounded retry with backoff in `GameService.handle(_:error:describing:assign:)`
-that re-invokes `startObserving` on those two codes. `UserProfileService` has the
-same exposure and should get the same treatment.
+`FirestoreRulesParityTests` keeps the *shared constants* honest, but nothing
+tests what the rules actually permit. The emulator (`firebase emulators:exec`)
+plus `@firebase/rules-unit-testing` would let the membership diff, the
+read rule, and the host-only delete be asserted directly — the checks that
+carry the real security weight. Needs a Node test target, not a Swift one.
 
 ### 3. Waitlist promotion — needs a Cloud Function
 

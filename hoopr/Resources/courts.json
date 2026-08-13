@@ -1377,6 +1377,21 @@
       "osmId": 99010329
     },
     {
+      "id": "eabddb0c-c8ce-5567-bc20-b79e6a771989",
+      "name": "Bethesda Park Basketball Court",
+      "latitude": 35.943956,
+      "longitude": -78.846438,
+      "address": "Durham, NC",
+      "access": "public",
+      "city": "Durham",
+      "hoops": 2,
+      "surface": "concrete",
+      "isLit": true,
+      "isCovered": true,
+      "osmType": "way",
+      "osmId": 132704611
+    },
+    {
       "id": "fe7755ba-b82c-533c-a2ca-e1b645c968bf",
       "name": "Birchwood Park Basketball Court",
       "latitude": 35.980751,

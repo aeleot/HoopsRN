@@ -25,8 +25,21 @@ final class GameService: ObservableObject {
 
     @Published private(set) var errorMessage: String?
 
+    /// A listener died and a re-attach is pending. Mirrors `supervisor` so the
+    /// UI can offer "Try again" instead of leaving the user to guess whether
+    /// an empty list is empty or broken.
+    @Published private(set) var isRecovering = false
+
     private enum Collection {
         static let games = "games"
+    }
+
+    /// Identifies each listener to `supervisor`, which tracks their health
+    /// separately — one of these dying must not be cancelled out by the other
+    /// one still working.
+    private enum ListenerKey {
+        static let queued = "queued"
+        static let published = "public"
     }
 
     /// Field names in one place so the write maps can't drift from `Game`'s
@@ -62,6 +75,10 @@ final class GameService: ObservableObject {
     private var observedUID: String?
     private var cancellables = Set<AnyCancellable>()
 
+    /// Brings both listeners back after one of them dies. See
+    /// `ListenerSupervisor` for why an error on a listener is always terminal.
+    private let supervisor = ListenerSupervisor(subject: "games")
+
     /// Whether `errorMessage` came from a listener rather than from something
     /// the user just did.
     ///
@@ -83,6 +100,12 @@ final class GameService: ObservableObject {
                 self?.handleAuthChange(to: user)
             }
             .store(in: &cancellables)
+
+        // Weak: this service owns the supervisor, so a strong capture here
+        // would be a cycle.
+        supervisor.onRetry = { [weak self] in
+            self?.attachListeners()
+        }
     }
 
     deinit {
@@ -108,21 +131,41 @@ final class GameService: ObservableObject {
     private func startObserving(_ user: AuthenticatedUser) {
         stopObserving()
         observedUID = user.id
+        attachListeners()
+    }
 
-        // Evaluated once, when the listeners attach. `Game.isVisible(at:)`
-        // re-applies the same cutoff on every rebuild, which is what actually
-        // retires a run during a long-lived session.
+    /// Opens both listeners, replacing any already open.
+    ///
+    /// Also the retry path, so a re-attach after one listener dies replaces
+    /// *both*. Supervising them separately would save one cheap re-attach and
+    /// cost a second set of backoff state; a healthy listener re-attaching just
+    /// re-delivers its snapshot from cache.
+    private func attachListeners() {
+        guard let uid = observedUID else { return }
+
+        queuedListener?.remove()
+        publicListener?.remove()
+
+        // Recomputed per attach rather than captured once at sign-in, so a
+        // listener re-attached hours later doesn't query yesterday's window.
+        // `Game.isVisible(at:)` re-applies the same cutoff on every rebuild,
+        // which is what actually retires a run mid-session.
         let cutoff = Timestamp(date: Game.visibilityCutoff())
 
         queuedListener = database
             .collection(Collection.games)
-            .whereField(Field.playerIds, arrayContains: user.id)
+            .whereField(Field.playerIds, arrayContains: uid)
             .whereField(Field.scheduledTime, isGreaterThan: cutoff)
             .order(by: Field.scheduledTime)
             .limit(to: Limit.queued)
             .addSnapshotListener { [weak self] snapshot, error in
                 Task { @MainActor in
-                    self?.handle(snapshot, error: error, describing: "your runs") { service, games in
+                    self?.handle(
+                        snapshot,
+                        error: error,
+                        listener: ListenerKey.queued,
+                        describing: "your runs"
+                    ) { service, games in
                         service.queuedGames = games
                     }
                 }
@@ -136,7 +179,12 @@ final class GameService: ObservableObject {
             .limit(to: Limit.published)
             .addSnapshotListener { [weak self] snapshot, error in
                 Task { @MainActor in
-                    self?.handle(snapshot, error: error, describing: "nearby runs") { service, games in
+                    self?.handle(
+                        snapshot,
+                        error: error,
+                        listener: ListenerKey.published,
+                        describing: "nearby runs"
+                    ) { service, games in
                         service.publicGames = games
                     }
                 }
@@ -144,6 +192,8 @@ final class GameService: ObservableObject {
     }
 
     private func stopObserving() {
+        supervisor.cancel()
+        isRecovering = false
         queuedListener?.remove()
         queuedListener = nil
         publicListener?.remove()
@@ -154,20 +204,37 @@ final class GameService: ObservableObject {
         clearError()
     }
 
+    /// Re-attaches now rather than waiting out the backoff. Backs the "Try
+    /// again" button on the Local Runs error banner.
+    func retry() {
+        supervisor.retryNow()
+    }
+
     private func handle(
         _ snapshot: QuerySnapshot?,
         error: Error?,
+        listener: String,
         describing subject: String,
         assign: (GameService, [Game]) -> Void
     ) {
         if let error {
-            report(Self.mapped(error), whileDoing: "loading \(subject)", fromLoad: true)
+            // The listener is already gone — see `ListenerSupervisor`.
+            supervisor.recordFailure(for: listener)
+            isRecovering = true
+            report(Self.mapped(error), whileDoing: "loading \(subject)", context: .load)
             return
         }
 
+        supervisor.recordSuccess(for: listener)
+        // Mirrors the supervisor rather than assuming this one snapshot ended
+        // the outage — the *other* listener may still be down.
+        isRecovering = supervisor.isRecovering
+
         assign(self, Self.decoded(snapshot))
 
-        if errorIsFromLoad {
+        // Only once *both* listeners are healthy. Clearing on this snapshot
+        // alone would wipe the banner explaining why the other list is empty.
+        if errorIsFromLoad, !supervisor.isRecovering {
             clearError()
         }
     }
@@ -239,7 +306,7 @@ final class GameService: ObservableObject {
             logger.debug("Created run at court \(courtId, privacy: .public)")
         } catch {
             let gameError = Self.mapped(error)
-            report(gameError, whileDoing: "starting your run")
+            report(gameError, whileDoing: "starting your run", context: .write)
             throw gameError
         }
     }
@@ -276,7 +343,7 @@ final class GameService: ObservableObject {
             clearError()
         } catch {
             let gameError = Self.mapped(error)
-            report(gameError, whileDoing: "canceling your run")
+            report(gameError, whileDoing: "canceling your run", context: .write)
             throw gameError
         }
     }
@@ -364,11 +431,11 @@ final class GameService: ObservableObject {
                 return true
             }
         } catch let gameError as GameError {
-            report(gameError, whileDoing: joining ? "joining the run" : "leaving the run")
+            report(gameError, whileDoing: joining ? "joining the run" : "leaving the run", context: .write)
             throw gameError
         } catch {
             let gameError = Self.mapped(error)
-            report(gameError, whileDoing: joining ? "joining the run" : "leaving the run")
+            report(gameError, whileDoing: joining ? "joining the run" : "leaving the run", context: .write)
             throw gameError
         }
     }
@@ -395,15 +462,35 @@ final class GameService: ObservableObject {
         errorIsFromLoad = false
     }
 
-    private func report(_ error: GameError, whileDoing action: String, fromLoad: Bool = false) {
+    private func report(_ error: GameError, whileDoing action: String, context: FailureContext) {
         logger.error(
             "Game error while \(action, privacy: .public): \(String(describing: error), privacy: .public)"
         )
-        errorMessage = Self.message(for: error, whileDoing: action)
-        errorIsFromLoad = fromLoad
+        errorMessage = Self.message(for: error, whileDoing: action, context: context)
+        errorIsFromLoad = context == .load
     }
 
-    static func message(for error: GameError, whileDoing action: String) -> String {
+    /// The user-facing sentence for a failure.
+    ///
+    /// `context` exists for exactly one case. Firestore returns the same
+    /// `permission-denied` whether the ruleset was never deployed or the rules
+    /// deliberately rejected what was asked, and the two can't be told apart
+    /// from the error — but they can be told apart by *what failed*:
+    ///
+    /// - A **read** that's denied was one of two queries shaped to match the
+    ///   read rule for any signed-in user. If that's refused, the rules the
+    ///   server is running aren't the rules in this repo — a deployment
+    ///   problem, and the listener is already being re-attached.
+    /// - A **write** that's denied was checked client-side first (see
+    ///   `Game.validate`), so the server rejected something the client thought
+    ///   was legal: a stale roster, a run cancelled underneath it, or a genuine
+    ///   authorization bug. Blaming deployment there would send you to the
+    ///   wrong file, which is the whole reason this parameter exists.
+    nonisolated static func message(
+        for error: GameError,
+        whileDoing action: String,
+        context: FailureContext
+    ) -> String {
         switch error {
         case .notSignedIn:      return "You're signed out."
         case .invalidCourt:     return "Pick a court for this run."
@@ -414,7 +501,15 @@ final class GameService: ObservableObject {
         case .scheduleTooFar:   return "Runs can only be scheduled up to 30 days out."
         case .gameNotFound:     return "That run is no longer available."
         case .gameClosed:       return "That run isn't taking players right now."
-        case .permissionDenied: return "Not allowed to access runs yet. Check the Firestore security rules."
+        case .permissionDenied:
+            switch context {
+            case .load:
+                return "Can't load runs — the server refused the request. The Firestore security rules are probably not deployed."
+            case .write:
+                return "The server wouldn't accept that change. This run may have changed since it loaded."
+            }
+        case .indexRequired:
+            return "This list needs a database index that's still being built."
         case .network:          return "Can't reach the network. Check your connection."
         case .unknown:          return "Something went wrong while \(action)."
         }
@@ -433,6 +528,11 @@ final class GameService: ObservableObject {
             return .permissionDenied
         case FirestoreErrorCode.notFound.rawValue:
             return .gameNotFound
+        // Both list queries are composite (an equality or array-contains, plus
+        // a range and an order), so each needs an index. This is what a missing
+        // or still-building one looks like.
+        case FirestoreErrorCode.failedPrecondition.rawValue:
+            return .indexRequired
         case FirestoreErrorCode.unavailable.rawValue,
              FirestoreErrorCode.deadlineExceeded.rawValue:
             return .network

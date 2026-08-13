@@ -147,6 +147,16 @@ it differently is rejected rather than quietly storing a contradiction.
 rule — **changing one without the other turns every write into a
 `permission-denied`.**
 
+That's now caught before it ships. `hooprTests/FirestoreRulesParityTests` parses
+`firestore.rules`, extracts the comparison and the two status literals out of
+`statusMatchesRoster()`, and runs the reconstructed rule against
+`Game.status(playerCount:maxPlayers:)` over every roster in
+`Game.maxPlayersRange` — plus a couple past the cap, where a `>` / `>=` swap
+hides. The same file pins the roster bounds, the scheduling window, the radius
+range and the `userName` cap. **Change a bound on one side and a test fails
+naming both sides.** It is not a rules evaluator; it only proves the shared
+constants still agree.
+
 `in_progress` and `completed` are declared by the schema but **nothing writes
 them yet**: the update rule only ever admits `open`/`full`. A run simply ages
 out of both lists once it's past its visibility grace window (3h after tip-off).

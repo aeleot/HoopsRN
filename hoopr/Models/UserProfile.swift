@@ -55,7 +55,30 @@ extension UserProfile {
     /// The bounds the profile slider offers. `firestore.rules` enforces the
     /// same range server-side; changing one without the other turns an
     /// out-of-range save into a `permission-denied`.
+    /// `FirestoreRulesParityTests` fails if they stop agreeing.
     static let preferredRadiusRange: ClosedRange<Double> = 1...50
+
+    /// Longest display name the rules accept. Mirrored in `firestore.rules`
+    /// and pinned by `FirestoreRulesParityTests`.
+    static let maxUserNameLength = 50
+
+    /// Everything about a proposed display name the client can check before
+    /// writing it, mirroring the `userName` conditions in the create and update
+    /// rules one at a time. The single source of truth for whether a name is
+    /// well-formed — the edit sheet's Save button and
+    /// `UserProfileService.updateUserName` both call this.
+    ///
+    /// Length is measured in characters, matching what the rules' `size()`
+    /// counts for the ASCII names this actually guards against.
+    ///
+    /// - Returns: the first problem found, or `nil` when the name is valid.
+    static func validate(userName raw: String) -> UserProfileError? {
+        let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !name.isEmpty else { return .emptyUserName }
+        guard name.count <= maxUserNameLength else { return .userNameTooLong }
+        return nil
+    }
 
     /// The radius to actually search with.
     ///

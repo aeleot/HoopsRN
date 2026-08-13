@@ -153,9 +153,27 @@ struct LocalRunsTab: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .hooprFont(13)
 
-            Text(message)
-                .hooprFont(13)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(message)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Only when a listener is down. An action that failed — a join
+                // that lost a race — has nothing here to retry; the user taps
+                // the card's button again.
+                if viewModel.isRecovering {
+                    HStack(spacing: 8) {
+                        Text("Reconnecting…")
+                            .foregroundStyle(Color.hooprSecondaryText)
+
+                        Button("Try again") {
+                            viewModel.retry()
+                        }
+                        .buttonStyle(.plain)
+                        .fontWeight(.semibold)
+                    }
+                }
+            }
+            .hooprFont(13)
 
             Button {
                 viewModel.dismissError()

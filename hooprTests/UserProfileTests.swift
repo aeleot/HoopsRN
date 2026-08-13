@@ -168,4 +168,42 @@ final class UserProfileTests: XCTestCase {
         XCTAssertNil(profile.createdAt)
         XCTAssertNil(profile.updatedAt)
     }
+
+    // MARK: - Name validation
+
+    /// Mirrors the `userName` conditions in the create and update rules. The
+    /// length bound is the one that used to be enforced *only* server-side,
+    /// where it surfaced as `permission-denied` — see
+    /// `FirestoreRulesParityTests`, which pins the two copies together.
+
+    func testAcceptsAnOrdinaryName() {
+        XCTAssertNil(UserProfile.validate(userName: "aeleot11"))
+    }
+
+    func testRejectsABlankName() {
+        XCTAssertEqual(UserProfile.validate(userName: ""), .emptyUserName)
+        XCTAssertEqual(UserProfile.validate(userName: "   "), .emptyUserName)
+        XCTAssertEqual(UserProfile.validate(userName: "\n\t "), .emptyUserName)
+    }
+
+    func testAcceptsANameAtTheLimit() {
+        let name = String(repeating: "a", count: UserProfile.maxUserNameLength)
+
+        XCTAssertNil(UserProfile.validate(userName: name))
+    }
+
+    func testRejectsANameOverTheLimit() {
+        let name = String(repeating: "a", count: UserProfile.maxUserNameLength + 1)
+
+        XCTAssertEqual(UserProfile.validate(userName: name), .userNameTooLong)
+    }
+
+    /// Length is measured after trimming, matching what actually gets written —
+    /// otherwise a name padded with spaces would be rejected for a length the
+    /// server never sees.
+    func testMeasuresLengthAfterTrimming() {
+        let name = "  " + String(repeating: "a", count: UserProfile.maxUserNameLength) + "  "
+
+        XCTAssertNil(UserProfile.validate(userName: name))
+    }
 }

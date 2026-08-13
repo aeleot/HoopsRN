@@ -5,6 +5,13 @@ rules_version = '2';
 // Two collections: `users` (one owner per document) and `games` (the first
 // shared, multi-user state in the app). See
 // `context/database/DATABASE_SCHEMA.md`.
+//
+// SEVERAL VALUES HERE ARE MIRRORED IN SWIFT — the roster bounds, the
+// scheduling window, the radius range, the `userName` length, and the
+// derivation of `status` from the roster. `hooprTests/FirestoreRulesParityTests`
+// parses this file and fails if either copy moves without the other. Change a
+// bound here and change it there; a mismatch doesn't show up as a logic error,
+// it shows up as `permission-denied` on every affected write.
 service cloud.firestore {
   match /databases/{database}/documents {
 

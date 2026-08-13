@@ -251,7 +251,9 @@ struct ProfileView: View {
                 draft: $viewModel.nameDraft,
                 isSaving: viewModel.isSaving,
                 canSave: viewModel.canSaveName,
-                errorMessage: viewModel.errorMessage,
+                // A failed save outranks the inline hint: the hint describes
+                // the draft, the error describes what just happened to it.
+                errorMessage: viewModel.errorMessage ?? viewModel.nameDraftHint,
                 onSave: { Task { await viewModel.saveName() } },
                 onCancel: { viewModel.cancelEditing() }
             )

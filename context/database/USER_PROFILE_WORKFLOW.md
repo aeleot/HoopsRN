@@ -67,6 +67,12 @@ and `updatedAt` (refreshed on every write).
 `userName`, `homeCourtId`, and `preferredRadius` are the only fields a client
 can ever change. Enforced server-side, not by convention.
 
+The 1–50 character bound on `userName` is enforced client-side too, by
+`UserProfile.validate(userName:)` — the sheet's Save button and
+`updateUserName` both call it. Without that, a 51-character name comes back as
+`permission-denied` and reads like a deployment problem.
+`FirestoreRulesParityTests` keeps the two copies of `50` together.
+
 ---
 
 ## 4. How the connection is set up
@@ -105,7 +111,9 @@ firebase deploy --only firestore:rules
 ```
 
 Until rules are deployed, a new database denies every read and write, and the
-app surfaces "Not allowed to access profiles yet."
+app surfaces "Can't load your profile — the server refused the request. The
+Firestore security rules are probably not deployed." Deploy them and the
+listener re-attaches on its own within a few minutes; no relaunch.
 
 ---
 
@@ -129,10 +137,19 @@ User signs in
    uid is unchanged. Firebase re-emits the same user on token refresh; without
    this the listener would be torn down and reattached on every refresh,
    flickering `currentProfile` to nil each time.
-3. On a genuinely new uid, `startObserving`:
-   - removes any previous listener, clears `currentProfile` and `errorMessage`;
+3. On a genuinely new uid, `startObserving` records the user, clears
+   `currentProfile` and `errorMessage`, and calls `attachListener`, which:
+   - removes any previous listener;
    - attaches a real-time listener to `users/{uid}`;
    - kicks off `provisionProfileIfNeeded` in parallel.
+
+   `attachListener` is **also the recovery path** — `ListenerSupervisor` calls
+   it after a terminal listener error (see `ARCHITECTURE.md`). Provisioning
+   re-runs on a retry deliberately: if the first attempt was refused because the
+   ruleset wasn't deployed, re-attaching the listener alone would leave the
+   account permanently without a profile document. That's why the service holds
+   the whole `AuthenticatedUser` rather than just the uid — the fallback name is
+   seeded from the email, which a retry still needs.
 4. **Provisioning** reads the document once. If it exists, it does nothing —
    idempotent, so it's safe on every sign-in. If missing, it writes `id`,
    `userName` (seeded from the email local part, `aeleot11@gmail.com` →
@@ -239,13 +256,15 @@ signed-in user because match rosters will need to resolve names later.
 `Firestore.Decoder` — the same decoder the service uses — so a field rename in
 the console or the model fails a test instead of silently blanking the UI. They
 cover the full stored shape, a minimal document, a missing `userName` (must fail
-loudly), and unresolved server timestamps decoding as nil.
+loudly), unresolved server timestamps decoding as nil, and the name-length and
+blank-name bounds shared with the rules.
 
 **Troubleshooting:**
 
 | Symptom | Cause |
 |---|---|
-| "Not allowed to access profiles yet" | Rules not deployed, or deployed to the wrong project |
+| "the server refused the request… rules are probably not deployed" | A **read** was denied: rules not deployed, or deployed to the wrong project. The listener is already re-attaching on a backoff |
+| "The server wouldn't accept that change" | A **write** was denied. Not a deployment message on purpose — the client already validated it, so suspect the rules' own conditions |
 | Saving a new field fails with `permission-denied` | The field isn't in `hasOnly([...])`, or the rules weren't redeployed |
 | Greeting stuck on "there" | No profile document and provisioning failed — check for a `permission-denied` in the log |
 | "stored in an unexpected format" | Document field names drifted from the model (e.g. `userName` renamed) |

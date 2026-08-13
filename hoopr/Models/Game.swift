@@ -251,8 +251,13 @@ enum GameError: Error, Equatable {
     /// The run is full *and* its waitlist already holds the player, or it's
     /// no longer accepting anyone.
     case gameClosed
-    /// Security rules rejected the operation — usually rules not yet deployed.
+    /// Security rules rejected the operation. Whether that means "the ruleset
+    /// isn't deployed" or "you genuinely may not do this" depends on which side
+    /// it came from — see `GameService.message(for:whileDoing:context:)`.
     case permissionDenied
+    /// Firestore's `failed-precondition`: a composite index the list query
+    /// needs is missing, or still building. Both list queries need one.
+    case indexRequired
     case network
     case unknown(String)
 }

@@ -11,7 +11,14 @@ fileprivate let logger = Logger(subsystem: "com.hoopr", category: "UserProfileSe
 enum UserProfileError: Error, Equatable {
     case notSignedIn
     case emptyUserName
-    /// Security rules rejected the operation — usually rules not yet deployed.
+    /// Longer than `UserProfile.maxUserNameLength`. Checked client-side because
+    /// the rules cap it too, and a rules rejection arrives as
+    /// `permission-denied` — a message that would send you looking for an
+    /// undeployed ruleset rather than a long name.
+    case userNameTooLong
+    /// Security rules rejected the operation. Whether that means "the ruleset
+    /// isn't deployed" or "you genuinely may not do this" depends on which side
+    /// it came from — see `message(for:whileDoing:context:)`.
     case permissionDenied
     case network
     case decodingFailed(String)
@@ -35,6 +42,10 @@ final class UserProfileService: ObservableObject {
     /// Human-readable description of the most recent failure, if any.
     @Published private(set) var errorMessage: String?
 
+    /// The profile listener died and a re-attach is pending. Same exposure as
+    /// `GameService.isRecovering`.
+    @Published private(set) var isRecovering = false
+
     private enum Collection {
         static let users = "users"
     }
@@ -57,8 +68,21 @@ final class UserProfileService: ObservableObject {
     private lazy var database = Firestore.firestore()
 
     private var profileListener: ListenerRegistration?
-    private var observedUID: String?
+    /// The whole user rather than just the uid, because provisioning seeds a
+    /// fallback name from the email and now runs on every re-attach, not only
+    /// on the sign-in that first supplied it.
+    private var observedUser: AuthenticatedUser?
+
+    private var observedUID: String? { observedUser?.id }
     private var cancellables = Set<AnyCancellable>()
+
+    /// Brings the profile listener back after a terminal error. Same exposure
+    /// `GameService` has, and the same reason — see `ListenerSupervisor`.
+    private let supervisor = ListenerSupervisor(subject: "profile")
+
+    /// Only one listener here, so the supervisor's per-listener tracking has a
+    /// single key.
+    private static let listenerKey = "profile"
 
     init(authService: AuthService) {
         authService.$currentUser
@@ -67,6 +91,11 @@ final class UserProfileService: ObservableObject {
                 self?.handleAuthChange(to: user)
             }
             .store(in: &cancellables)
+
+        // Weak: this service owns the supervisor.
+        supervisor.onRetry = { [weak self] in
+            self?.attachListener()
+        }
     }
 
     deinit {
@@ -89,11 +118,24 @@ final class UserProfileService: ObservableObject {
     }
 
     private func startObserving(_ user: AuthenticatedUser) {
-        profileListener?.remove()
-        observedUID = user.id
+        observedUser = user
         currentProfile = nil
         errorMessage = nil
+        attachListener()
+    }
 
+    /// Opens the profile listener, replacing one already open, and provisions
+    /// the document if it's missing.
+    ///
+    /// Also the retry path. Provisioning re-runs on a retry deliberately: if
+    /// the *first* attempt was refused because the ruleset wasn't deployed, a
+    /// re-attached listener alone would leave the account permanently without a
+    /// profile document. It's idempotent — one read, then a write only when
+    /// there's nothing there.
+    private func attachListener() {
+        guard let user = observedUser else { return }
+
+        profileListener?.remove()
         profileListener = database
             .collection(Collection.users)
             .document(user.id)
@@ -103,24 +145,35 @@ final class UserProfileService: ObservableObject {
                 }
             }
 
-        // Accounts created before profiles existed have no document, so
-        // provision one rather than leaving the user permanently nameless.
         Task { await provisionProfileIfNeeded(for: user) }
     }
 
     private func stopObserving() {
+        supervisor.cancel()
+        isRecovering = false
         profileListener?.remove()
         profileListener = nil
-        observedUID = nil
+        observedUser = nil
         currentProfile = nil
         errorMessage = nil
     }
 
+    /// Re-attaches now rather than waiting out the backoff.
+    func retry() {
+        supervisor.retryNow()
+    }
+
     private func handleSnapshot(_ snapshot: DocumentSnapshot?, error: Error?) {
         if let error {
-            report(Self.mapped(error), whileDoing: "loading your profile")
+            // The listener is already gone — see `ListenerSupervisor`.
+            supervisor.recordFailure(for: Self.listenerKey)
+            isRecovering = true
+            report(Self.mapped(error), whileDoing: "loading your profile", context: .load)
             return
         }
+
+        supervisor.recordSuccess(for: Self.listenerKey)
+        isRecovering = supervisor.isRecovering
 
         guard let snapshot, snapshot.exists else {
             // Not an error: provisioning may still be in flight.
@@ -132,7 +185,11 @@ final class UserProfileService: ObservableObject {
             currentProfile = try snapshot.data(as: UserProfile.self)
             errorMessage = nil
         } catch {
-            report(.decodingFailed(error.localizedDescription), whileDoing: "reading your profile")
+            report(
+                .decodingFailed(error.localizedDescription),
+                whileDoing: "reading your profile",
+                context: .load
+            )
         }
     }
 
@@ -161,7 +218,7 @@ final class UserProfileService: ObservableObject {
             try await reference.setData(fields)
             logger.debug("Provisioned profile document for signed-in user")
         } catch {
-            report(Self.mapped(error), whileDoing: "setting up your profile")
+            report(Self.mapped(error), whileDoing: "setting up your profile", context: .write)
         }
     }
 
@@ -169,8 +226,14 @@ final class UserProfileService: ObservableObject {
     /// untouched — the mutability contract the security rules enforce
     /// server-side.
     func updateUserName(_ rawName: String) async throws {
+        // Rejected here rather than reshaped, matching `GameService.createGame`
+        // — and checked at all because the rules cap the length too, so an
+        // over-long name would otherwise come back as `permission-denied`.
+        if let invalid = UserProfile.validate(userName: rawName) {
+            throw invalid
+        }
+
         let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { throw UserProfileError.emptyUserName }
         guard let uid = observedUID else { throw UserProfileError.notSignedIn }
 
         do {
@@ -181,7 +244,7 @@ final class UserProfileService: ObservableObject {
             errorMessage = nil
         } catch {
             let profileError = Self.mapped(error)
-            report(profileError, whileDoing: "saving your name")
+            report(profileError, whileDoing: "saving your name", context: .write)
             throw profileError
         }
     }
@@ -204,7 +267,7 @@ final class UserProfileService: ObservableObject {
             errorMessage = nil
         } catch {
             let profileError = Self.mapped(error)
-            report(profileError, whileDoing: "saving your home court")
+            report(profileError, whileDoing: "saving your home court", context: .write)
             throw profileError
         }
     }
@@ -229,7 +292,7 @@ final class UserProfileService: ObservableObject {
             errorMessage = nil
         } catch {
             let profileError = Self.mapped(error)
-            report(profileError, whileDoing: "saving your preferred radius")
+            report(profileError, whileDoing: "saving your preferred radius", context: .write)
             throw profileError
         }
     }
@@ -252,7 +315,7 @@ final class UserProfileService: ObservableObject {
             errorMessage = nil
         } catch {
             let profileError = Self.mapped(error)
-            report(profileError, whileDoing: "saving your favorites")
+            report(profileError, whileDoing: "saving your favorites", context: .write)
             throw profileError
         }
     }
@@ -270,16 +333,37 @@ final class UserProfileService: ObservableObject {
         return String(localPart)
     }
 
-    private func report(_ error: UserProfileError, whileDoing action: String) {
+    private func report(
+        _ error: UserProfileError,
+        whileDoing action: String,
+        context: FailureContext
+    ) {
         logger.error("Profile error while \(action, privacy: .public): \(String(describing: error), privacy: .public)")
-        errorMessage = Self.message(for: error, whileDoing: action)
+        errorMessage = Self.message(for: error, whileDoing: action, context: context)
     }
 
-    private static func message(for error: UserProfileError, whileDoing action: String) -> String {
+    /// Mirrors `GameService.message(for:whileDoing:context:)`, including why
+    /// `permission-denied` reads differently on a read than on a write: the
+    /// profile listener asks for the caller's own document, which the read rule
+    /// grants any signed-in user, so a refusal there points at the deployed
+    /// ruleset rather than at anything the user did.
+    nonisolated static func message(
+        for error: UserProfileError,
+        whileDoing action: String,
+        context: FailureContext
+    ) -> String {
         switch error {
         case .notSignedIn:        return "You're signed out."
         case .emptyUserName:      return "Your name can't be blank."
-        case .permissionDenied:   return "Not allowed to access profiles yet. Check the Firestore security rules."
+        case .userNameTooLong:
+            return "Your name can't be longer than \(UserProfile.maxUserNameLength) characters."
+        case .permissionDenied:
+            switch context {
+            case .load:
+                return "Can't load your profile — the server refused the request. The Firestore security rules are probably not deployed."
+            case .write:
+                return "The server wouldn't accept that change."
+            }
         case .network:            return "Can't reach the network. Check your connection."
         case .decodingFailed:     return "Your profile is stored in an unexpected format."
         case .unknown:            return "Something went wrong while \(action)."

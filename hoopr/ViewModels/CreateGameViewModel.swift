@@ -82,7 +82,7 @@ final class CreateGameViewModel: ObservableObject {
     /// for the picked time to arrive.
     var validationHint: String? {
         validationError.map {
-            GameService.message(for: $0, whileDoing: "starting your run")
+            GameService.message(for: $0, whileDoing: "starting your run", context: .write)
         }
     }
 
@@ -94,7 +94,7 @@ final class CreateGameViewModel: ObservableObject {
     func create() async -> Bool {
         guard !isSaving else { return false }
         if let invalid = validationError {
-            errorMessage = GameService.message(for: invalid, whileDoing: "starting your run")
+            errorMessage = GameService.message(for: invalid, whileDoing: "starting your run", context: .write)
             return false
         }
 
@@ -130,6 +130,6 @@ final class CreateGameViewModel: ObservableObject {
         guard let gameError = error as? GameError else {
             return error.localizedDescription
         }
-        return GameService.message(for: gameError, whileDoing: "starting your run")
+        return GameService.message(for: gameError, whileDoing: "starting your run", context: .write)
     }
 }

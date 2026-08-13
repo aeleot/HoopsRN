@@ -62,6 +62,12 @@ final class LocalRunsViewModel: ObservableObject {
     @Published private(set) var nearby: [Listing] = []
     @Published private(set) var errorMessage: String?
 
+    /// A listener died and `GameService` is re-attaching it. Distinguishes a
+    /// broken list from an empty one, and is what puts "Try again" on the
+    /// banner — without it the automatic retry is invisible and the lists just
+    /// look empty, which is how the original failure went unnoticed.
+    @Published private(set) var isRecovering = false
+
     /// The radius the public list was actually built with, so the empty state
     /// can name the real number instead of restating a constant.
     @Published private(set) var radiusMiles = UserProfile.defaultPreferredRadius
@@ -131,6 +137,14 @@ final class LocalRunsViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] message in
                 self?.errorMessage = message
+            }
+            .store(in: &cancellables)
+
+        gameService.$isRecovering
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isRecovering in
+                self?.isRecovering = isRecovering
             }
             .store(in: &cancellables)
     }
@@ -220,6 +234,11 @@ final class LocalRunsViewModel: ObservableObject {
 
     func dismissError() {
         errorMessage = nil
+    }
+
+    /// Re-attach now instead of waiting out the backoff.
+    func retry() {
+        gameService.retry()
     }
 
     // MARK: - Presentation helpers

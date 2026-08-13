@@ -24,6 +24,17 @@ struct FindAMatchTab: View {
             }
         }
 
+        /// Where the sheet actually renders right now. A detail card always
+        /// shows at medium, regardless of what it'll restore to on dismiss —
+        /// otherwise a court tapped while the list sits collapsed inherits
+        /// that offset and renders entirely off-screen.
+        var displayDetent: Detent {
+            switch self {
+            case .rest(let detent): return detent
+            case .detail:            return .medium
+            }
+        }
+
         var selectedCourt: Court? {
             if case .detail(let court, _) = self { return court }
             return nil
@@ -90,14 +101,14 @@ struct FindAMatchTab: View {
     /// The sheet grows and shrinks between medium and expanded as you drag, so
     /// its top edge tracks your finger instead of the whole panel sliding.
     private var sheetHeight: CGFloat {
-        let base = baseHeight(for: sheetState.detent)
+        let base = baseHeight(for: sheetState.displayDetent)
         return min(max(base - sheetDrag, mediumHeight), expandedHeight)
     }
 
     /// Only non-zero heading to or from `.collapsed`, where the sheet leaves
     /// the screen entirely rather than shrinking below its medium height.
     private var sheetOffset: CGFloat {
-        let detent = sheetState.detent
+        let detent = sheetState.displayDetent
         let base: CGFloat = detent == .collapsed ? mediumHeight : 0
         let travel: CGFloat = detent == .collapsed
             ? sheetDrag
