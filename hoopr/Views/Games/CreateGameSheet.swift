@@ -72,7 +72,7 @@ struct CreateGameSheet: View {
                     } else if viewModel.inviteLink != nil {
                         Button("Done", action: onCreated)
                             .fontWeight(.semibold)
-                            .foregroundStyle(Color.hooprOrange)
+                            .foregroundStyle(Color.hooprBrandText)
                     } else {
                         Button("Create") {
                             Task {
@@ -86,7 +86,7 @@ struct CreateGameSheet: View {
                         }
                         .fontWeight(.semibold)
                         .foregroundStyle(
-                            viewModel.canSave ? Color.hooprOrange : Color.hooprSecondaryText
+                            viewModel.canSave ? Color.hooprBrandText : Color.hooprSecondaryText
                         )
                         .disabled(!viewModel.canSave)
                     }
@@ -101,10 +101,10 @@ struct CreateGameSheet: View {
         HStack(spacing: 12) {
             Image(systemName: "basketball.fill")
                 .hooprFont(22)
-                .foregroundStyle(Color.hooprOrange)
+                .foregroundStyle(Color.hooprSecondary)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(viewModel.court.name)
+                Text(viewModel.court.displayName)
                     .hooprFont(16, weight: .semibold)
                     .foregroundStyle(Color.hooprPrimaryText)
                     .multilineTextAlignment(.leading)
@@ -158,7 +158,7 @@ struct CreateGameSheet: View {
                 )
                 .datePickerStyle(.compact)
                 .labelsHidden()
-                .tint(Color.hooprOrange)
+                .tint(Color.hooprSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 // A form left open long enough for its own tip-off to pass
@@ -204,10 +204,10 @@ struct CreateGameSheet: View {
                     // these sit side by side across the sheet's width.
                     .hooprFont(14, weight: .semibold, maximumSize: 18)
             }
-            .foregroundStyle(isSelected ? Color.hooprOnBrand : Color.hooprSecondaryText)
+            .foregroundStyle(isSelected ? Color.hooprOnSecondary : Color.hooprSecondaryText)
             .frame(maxWidth: .infinity)
             .frame(height: 40)
-            .background(isSelected ? Color.hooprOrange : Color.hooprSurface)
+            .background(isSelected ? Color.hooprSecondary : Color.hooprSurface)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
@@ -254,7 +254,7 @@ struct CreateGameSheet: View {
             Image(systemName: symbol)
                 // Capped to the fixed 44pt hit target it's centred in.
                 .hooprFont(16, weight: .bold, maximumSize: 22)
-                .foregroundStyle(enabled ? Color.hooprOrange : Color.hooprSecondaryText.opacity(0.4))
+                .foregroundStyle(enabled ? Color.hooprBrandText : Color.hooprSecondaryText.opacity(Color.hooprDisabledOpacity))
                 .frame(width: 44, height: 44)
                 .background(Color.hooprSurface)
                 .clipShape(Circle())

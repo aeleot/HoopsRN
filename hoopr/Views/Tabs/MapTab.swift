@@ -43,10 +43,6 @@ struct MapTab: View {
 
     @StateObject private var viewModel: FindAMatchViewModel
     @State private var recenterTrigger: RecenterTrigger?
-    @State private var zoomTrigger: ZoomTrigger?
-    @State private var absoluteZoomTrigger: AbsoluteZoomTrigger?
-    @State private var zoomLevel: Double = 0.5
-    @State private var isDraggingSlider = false
     @State private var sheetState: SheetState = .rest(.medium)
 
     /// The court a run is being started at, if the form is open. Both entry
@@ -59,6 +55,16 @@ struct MapTab: View {
     /// How far the court list has scrolled — the sheet only takes over a drag
     /// that starts at the top.
     @State private var listScrollOffset: CGFloat = 0
+
+    /// The tab's own height, fed by `onGeometryChange`. The detents are
+    /// fractions of it. Seeded with a typical phone height so the first frame
+    /// renders a sensibly sized sheet before geometry lands; this also avoids
+    /// `UIScreen.main`, which is deprecated in iOS 26.
+    @State private var containerHeight: CGFloat = 852
+
+    /// How far down the map's floating chrome has to start to clear the app's
+    /// header, which now hovers over the map rather than sitting above it.
+    @Environment(\.floatingHeaderHeight) private var floatingHeaderHeight
 
     /// Gap kept below the sheet's own content, and under the collapsed pill, so
     /// neither sits beneath the home indicator.
@@ -87,9 +93,8 @@ struct MapTab: View {
 
     // MARK: - Detent geometry
 
-    private var screenHeight: CGFloat { UIScreen.main.bounds.height }
-    private var mediumHeight: CGFloat { screenHeight / 3 }
-    private var expandedHeight: CGFloat { screenHeight * 0.78 }
+    private var mediumHeight: CGFloat { containerHeight / 3 }
+    private var expandedHeight: CGFloat { containerHeight * 0.78 }
 
     private func baseHeight(for detent: Detent) -> CGFloat {
         switch detent {
@@ -122,21 +127,17 @@ struct MapTab: View {
                 courts: viewModel.courts,
                 initialRegion: viewModel.initialRegion,
                 recenterTrigger: $recenterTrigger,
-                zoomTrigger: $zoomTrigger,
-                absoluteZoomTrigger: $absoluteZoomTrigger,
                 selectedCourtID: sheetState.selectedCourt?.id,
                 onMarkerTap: { court in
                     select(court)
                 },
                 onMarkerDeselect: {
                     dismissDetail()
-                },
-                onZoomLevelChange: { level in
-                    if !isDraggingSlider {
-                        zoomLevel = level
-                    }
                 }
             )
+            // The map is the screen, not a panel on it — it runs under the
+            // status bar, the floating header, and the home indicator.
+            .ignoresSafeArea()
 
             mapOverlay
 
@@ -144,13 +145,10 @@ struct MapTab: View {
 
             collapsedPeek
         }
-        .onAppear {
-            zoomLevel = MapView.zoomLevelFromSpan(viewModel.initialRegion.span)
-        }
-        .onChange(of: zoomLevel) { _, newValue in
-            if isDraggingSlider {
-                absoluteZoomTrigger = AbsoluteZoomTrigger(level: newValue)
-            }
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.height
+        } action: { height in
+            if height > 0 { containerHeight = height }
         }
         .sheet(item: $startingRunAt) { court in
             CreateGameSheet(
@@ -168,7 +166,8 @@ struct MapTab: View {
 
     // MARK: - Map chrome
 
-    /// Filter chips at the top and zoom controls on the right.
+    /// Filter chips at the top and the recenter button on the right, floating
+    /// over the map on glass.
     ///
     /// The trailing `Spacer` is load-bearing: it holds the stack at full
     /// height so the chips stay pinned to the top of a `ZStack` that aligns
@@ -179,14 +178,15 @@ struct MapTab: View {
 
             HStack {
                 Spacer()
-                zoomControls
+                recenterButton
                     .padding(.trailing, 14)
             }
-            .padding(.top, 10)
+            .padding(.top, 12)
 
             Spacer()
         }
-        .padding(.top, 12)
+        // Clear the header hovering above, then the usual gap beneath it.
+        .padding(.top, floatingHeaderHeight + 10)
         // Keep the chrome clear of the sheet, whatever height it's at.
         .padding(.bottom, max(0, sheetHeight - sheetOffset))
     }
@@ -209,15 +209,16 @@ struct MapTab: View {
                                 .hooprFont(13, weight: .semibold)
                         }
                         .foregroundStyle(isActive ? Color.hooprOnBrand : Color.hooprPrimaryText)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 8)
-                        .background(
-                            Capsule()
-                                // A surface floating over the map, not content
-                                // on the brand colour — so it inverts with the
-                                // appearance, unlike the active orange fill.
-                                .fill(isActive ? Color.hooprOrange : Color.hooprSurface)
-                                .shadow(color: Color.hooprShadow(opacity: 0.12), radius: 5, x: 0, y: 2)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                        // Selection is carried by tinting the glass rather than
+                        // swapping to an opaque fill, so an active chip is the
+                        // same object lit up rather than a different one.
+                        .glassEffect(
+                            isActive
+                                ? .regular.tint(Color.hooprBrand).interactive()
+                                : .regular.interactive(),
+                            in: .capsule
                         )
                     }
                     .buttonStyle(.plain)
@@ -226,68 +227,39 @@ struct MapTab: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 4)
         }
+        .scrollClipDisabled()
     }
 
-    private var zoomControls: some View {
-        VStack(spacing: 10) {
-            VStack(spacing: 0) {
-                Button {
-                    zoomTrigger = ZoomTrigger(direction: .zoomIn)
-                } label: {
-                    Image(systemName: "plus")
-                        .hooprFont(16, weight: .semibold, maximumSize: 20)
-                        .foregroundStyle(Color.hooprPrimaryText)
-                        .frame(width: 44, height: 38)
-                }
-
-                Divider().frame(width: 28)
-
-                Slider(
-                    value: $zoomLevel,
-                    in: 0...1,
-                    onEditingChanged: { editing in
-                        isDraggingSlider = editing
-                    }
-                )
-                .tint(Color.hooprOrange)
-                .frame(width: 90)
-                .rotationEffect(.degrees(-90))
-                .frame(width: 44, height: 90)
-                .clipped()
-
-                Divider().frame(width: 28)
-
-                Button {
-                    zoomTrigger = ZoomTrigger(direction: .zoomOut)
-                } label: {
-                    Image(systemName: "minus")
-                        .hooprFont(16, weight: .semibold, maximumSize: 20)
-                        .foregroundStyle(Color.hooprPrimaryText)
-                        .frame(width: 44, height: 38)
-                }
-            }
-            .background(Color.hooprSurface)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .shadow(color: Color.hooprShadow(opacity: 0.1), radius: 6, x: 0, y: 2)
-
-            Button {
-                recenterMap()
-            } label: {
-                Image(systemName: "location.circle.fill")
-                    .hooprFont(20, maximumSize: 24)
-                    .foregroundStyle(Color.hooprOnBrand)
-                    .frame(width: 44, height: 44)
-                    .background(Color.hooprOrange)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .shadow(color: Color.hooprShadow(opacity: 0.1), radius: 6, x: 0, y: 2)
-            }
+    /// The only map control left.
+    ///
+    /// There used to be a `+`/`−` pair with a vertical slider between them. It
+    /// occupied a 44×180pt column of the map to duplicate a pinch every user
+    /// already knows, and it was the single most dated thing on the screen —
+    /// so the whole stack is gone, along with the absolute/stepped zoom
+    /// triggers and the log-scale span conversion that fed it.
+    private var recenterButton: some View {
+        Button {
+            recenterMap()
+        } label: {
+            Image(systemName: "location.fill")
+                .hooprFont(17, weight: .semibold, maximumSize: 20)
+                .foregroundStyle(Color.hooprBrandText)
+                .frame(width: 46, height: 46)
+                .glassEffect(.regular.interactive(), in: .circle)
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Recenter map")
     }
 
     // MARK: - Sheet
 
-    /// One continuous white surface whose contents swap between the court list
-    /// and a selected court's detail card.
+    /// One continuous surface whose contents swap between the court list and a
+    /// selected court's detail card.
+    ///
+    /// Deliberately *not* glass: the chrome floating over the map is glass
+    /// because it's small and you look past it, but a list of courts is
+    /// something you read, and reading it against a moving map is worse in
+    /// every way than reading it against a surface.
     private var sheet: some View {
         Group {
             if let court = sheetState.selectedCourt {
@@ -301,7 +273,7 @@ struct MapTab: View {
         .frame(height: sheetHeight, alignment: .top)
         .frame(maxWidth: .infinity)
         .background(
-            UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20)
+            UnevenRoundedRectangle(topLeadingRadius: 22, topTrailingRadius: 22)
                 .fill(Color.hooprSurface)
                 .shadow(color: Color.hooprShadow(opacity: 0.08), radius: 12, x: 0, y: -4)
         )
@@ -318,14 +290,10 @@ struct MapTab: View {
             Text(viewModel.listCountLabel)
                 .hooprFont(13, weight: .semibold)
         }
-        .foregroundStyle(Color.hooprSecondaryText)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(
-            Capsule()
-                .fill(Color.hooprSurface)
-                .shadow(color: Color.hooprShadow(opacity: 0.12), radius: 8, x: 0, y: 2)
-        )
+        .foregroundStyle(Color.hooprPrimaryText)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .glassEffect(.regular.interactive(), in: .capsule)
         .contentShape(Capsule())
         .gesture(sheetDragGesture(fromHandle: true))
         .padding(.bottom, peekBottomInset)
@@ -408,7 +376,7 @@ struct MapTab: View {
                             .minimumScaleFactor(0.7)
 
                         Rectangle()
-                            .fill(isSelected ? Color.hooprOrange : Color.hooprBorder)
+                            .fill(isSelected ? Color.hooprSecondary : Color.hooprBorder)
                             .frame(height: isSelected ? 2 : 1)
                     }
                     .frame(maxWidth: .infinity)
@@ -457,6 +425,13 @@ struct MapTab: View {
         .contentShape(Rectangle())
     }
 
+    /// The selected court.
+    ///
+    /// This used to be a name, an address and one button, which left roughly
+    /// half the sheet empty — and meant tapping a court to learn more about it
+    /// showed you *less* than the row you tapped it from. It now carries the
+    /// same distance and amenity badges the list row does, plus a route out to
+    /// Maps, so the card is worth the height it was already taking.
     @ViewBuilder
     private func courtCard(court: Court) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -467,15 +442,21 @@ struct MapTab: View {
                 .padding(.top, 10)
                 .padding(.bottom, 14)
 
-            HStack(alignment: .center) {
+            HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "basketball.fill")
-                    .foregroundStyle(Color.hooprOrange)
+                    .foregroundStyle(Color.hooprSecondary)
                     .hooprFont(20)
 
-                Text(court.name)
-                    .hooprFont(17, weight: .semibold)
-                    .foregroundStyle(Color.hooprPrimaryText)
-                    .lineLimit(2)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(court.displayName)
+                        .hooprFont(17, weight: .semibold)
+                        .foregroundStyle(Color.hooprPrimaryText)
+                        .lineLimit(2)
+
+                    Text("\(court.city) · \(viewModel.distanceText(for: court)) away")
+                        .hooprFont(13)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                }
 
                 Spacer(minLength: 8)
 
@@ -485,10 +466,11 @@ struct MapTab: View {
                     Image(systemName: viewModel.isFavorite(court) ? "star.fill" : "star")
                         .hooprFont(19)
                         .foregroundStyle(
-                            viewModel.isFavorite(court) ? Color.hooprOrange : Color.hooprSecondaryText
+                            viewModel.isFavorite(court) ? Color.hooprBrand : Color.hooprSecondaryText
                         )
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(viewModel.isFavorite(court) ? "Remove favorite" : "Add favorite")
 
                 Button {
                     dismissDetail()
@@ -499,39 +481,75 @@ struct MapTab: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Close")
             }
             .padding(.horizontal, 20)
 
-            if !court.address.isEmpty {
-                Text(court.address)
-                    .hooprFont(14)
-                    .foregroundStyle(Color.hooprSecondaryText)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 6)
-            }
+            CourtBadges(court: court)
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
 
-            Button {
-                startingRunAt = court
-            } label: {
-                HStack(spacing: 7) {
-                    Image(systemName: "plus.circle.fill")
-                        .hooprFont(15, weight: .semibold, maximumSize: 22)
-                    Text("Start Run")
-                        .hooprFont(15, weight: .semibold, maximumSize: 22)
+            // No address row. In this dataset `address` is the city and state —
+            // "Durham, NC" — which the metadata line above already says. It's
+            // still handed to Maps by `openDirections(to:)`, where it does work.
+
+            HStack(spacing: 10) {
+                Button {
+                    openDirections(to: court)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
+                            .hooprFont(14, weight: .semibold, maximumSize: 20)
+                        Text("Directions")
+                            .hooprFont(15, weight: .semibold, maximumSize: 22)
+                    }
+                    .foregroundStyle(Color.hooprPrimaryText)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .background(Color.hooprFill)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
-                .foregroundStyle(Color.hooprOnBrand)
-                .frame(maxWidth: .infinity)
-                .frame(height: 46)
-                .background(Color.hooprOrange)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .buttonStyle(.plain)
+
+                Button {
+                    startingRunAt = court
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus.circle.fill")
+                            .hooprFont(14, weight: .semibold, maximumSize: 20)
+                        Text("Start Run")
+                            .hooprFont(15, weight: .semibold, maximumSize: 22)
+                    }
+                    .foregroundStyle(Color.hooprOnBrand)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .background(Color.hooprBrand)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
             .padding(.horizontal, 20)
             .padding(.top, 16)
 
             Spacer()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Hands the court to Maps for routing. The app knows where its courts are
+    /// but nothing about how to get to one, and every phone already has a
+    /// router on it.
+    private func openDirections(to court: Court) {
+        let item = MKMapItem(
+            location: CLLocation(latitude: court.latitude, longitude: court.longitude),
+            address: court.address.isEmpty
+                ? nil
+                : MKAddress(fullAddress: court.address, shortAddress: nil)
+        )
+        item.name = court.displayName
+        item.openInMaps(
+            launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving]
+        )
     }
 
     // MARK: - Sheet position

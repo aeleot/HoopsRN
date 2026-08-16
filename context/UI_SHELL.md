@@ -52,15 +52,36 @@ is up.
 
 ## `MainTabView`
 
-- Header is a fixed `geo.size.height * 0.14` slab: greeting on the left, profile
-  button on the right, then a row of three pill tabs, with a 1pt
-  `hooprBorder` rule along the bottom and `zIndex(1)` so it stays above the
-  map. Because the slab's height is pinned, its type is capped — see
-  "Visual conventions".
+- Header is a fixed `geo.size.height * 0.14` bar: greeting on the left, profile
+  button on the right, then a row of three pill tabs. Because its height is
+  pinned, its type is capped — see "Visual conventions".
+
+**The header floats over the content rather than stacking above it.** The shell
+is a `ZStack(alignment: .top)`, not a `VStack`, so the map runs to every edge of
+the screen and passes underneath the header and the status bar. The header's
+background is clear glass extended past the top safe area, so the status bar
+sits on glass rather than directly on the map.
+
+Two consequences, both easy to undo by accident:
+
+- **`.contentShape(Rectangle())` on the header is load-bearing.** A clear fill
+  does not hit-test, and the map is now the header's ZStack *sibling
+  underneath* rather than a panel below it — so without an explicit hit shape
+  every tap and drag on the header reached MapKit and panned the map, tab pills
+  included. It's applied twice: on the header itself, and on the extended
+  background that covers the status bar.
+- **The two list tabs get the header's height back as `safeAreaPadding(.top:)`**,
+  applied by `MainTabView`. That's what keeps their content clear of the bar
+  while still letting it scroll underneath. `MapTab` deliberately does *not*
+  get this — the map is supposed to run under the header — so it reads
+  `\.floatingHeaderHeight` from the environment and insets only its own
+  floating chrome.
 - Greeting reads `userProfileService.currentProfile?.userName`, falling back to
   `"there"` while the first snapshot is in flight.
-- Tabs: Court Map / Local Runs / Friends. Selected pill is `hooprOrange` on
-  `hooprOnBrand`; unselected is `hooprFill` on `hooprSecondaryText`.
+- Tabs: Court Map / Local Runs / Friends. Selected pill is glass tinted
+  `hooprOrange`; unselected is `.clear` glass. Neither is an opaque fill any
+  more — over a moving map an opaque grey pill reads as a hole punched in the
+  bar.
 
 **`MapTab` stays mounted** — it's always in the content `ZStack`, hidden
 with `.opacity` + `.allowsHitTesting`, while the other two tabs mount
@@ -283,19 +304,45 @@ per appearance through a `UIColor` dynamic provider. There are no literal
 colours in `Views/` — no `.black`, no `Color.white`, no RGB — which is what
 keeps a light-only value from creeping back in.
 
+The palette is five source colours — jet `#2D3142`, slate `#4F5D75`, silver
+`#BCC0C8`, white, and coral `#EF8354` — with everything else derived from them.
+**Light is the flagship.** Light-mode separation is a jet-tinted neutral ramp
+plus border and shadow; dark mode is jet at 0dp with white overlays standing in
+for elevation, not hand-picked greys.
+
 | Role | Used for |
 |---|---|
-| `hooprOrange` | Brand. Selected tab, primary buttons, focused field borders, map pins, profile header, slider tint. Lifted in dark mode, where the light-mode orange reads muddy. |
-| `hooprDarkOrange` | The map's marker tint, via `UIColor(Color.hooprDarkOrange)`. |
-| `hooprRed` | Errors, Sign Out, "Remove home court". Lightened in dark mode to hold contrast. |
-| `hooprOnBrand` | Content *on top of* the orange — button labels, the profile avatar. Fixed white: the brand colour it sits on doesn't invert. |
-| `hooprBackground` | The page behind everything. |
-| `hooprSurface` | Cards and sheets. Equal to the background in light mode (separation there comes from border + shadow); lifted in dark mode, where a shadow on black conveys nothing. |
-| `hooprFill` | Field and button fills, unselected chips, the empty half of a capacity bar. |
+| `hooprBrand` | Coral. **Only things you can tap that advance you** — primary buttons, the selected tab pill, map pins, the profile header, the favourite star. Identical in both appearances. |
+| `hooprBrandDeep` | The far end of the profile header's gradient and the selected map pin. Stops where it does so the header's small italic uid still clears AA at the deep end. |
+| `hooprBrandText` | Coral where it has to be *read* — text buttons ("Save", "Done"), links, the wordmark, the avatar initial. Coral itself is 2.61:1 on white; this is the same hue deepened. |
+| `hooprOnBrand` | Content on top of coral. **Jet, not white** — white on coral is 2.61:1 and fails AA. |
+| `hooprSecondary` | Slate. Everything coral shouldn't do: focus rings, selection controls, sliders, selected chips, decorative glyphs, the waitlist state. |
+| `hooprOnSecondary` | Content on a filled slate surface. White in light, jet in dark. |
+| `hooprOpen` | Roster under 70%. |
+| `hooprFilling` | Roster 70–99%. Hue 46°, deliberately off coral's 18° — at 36° it read brown. |
+| `hooprRed` | Errors, Sign Out, destructive actions, the "Restricted" court badge. |
+| `hooprBackground` | The page behind everything. Off pure white in light mode so cards can lift. |
+| `hooprSurface` | Cards and sheets. White in light; the 1dp rung in dark. |
+| `hooprFill` | Field grounds, unselected chips, the empty capacity track. In dark mode it sits *below* the surface — a field is recessed into a card, not raised off it. |
 | `hooprBorder` | Rules, dividers, unfocused borders, the sheet's drag handle. |
-| `hooprPrimaryText` | Titles, values, primary labels. |
-| `hooprSecondaryText` | Labels, captions, unselected tab text. |
-| `hooprShadow(opacity:)` | Card and sheet shadows. Takes the *light-mode* opacity and deepens it in dark mode. |
+| `hooprPrimaryText` | Titles, values, primary labels. Jet, not pure black. |
+| `hooprSecondaryText` | Labels, captions, unselected tab text. Slate on light, silver on dark. |
+| `hooprShadow(opacity:)` | Card and sheet shadows, jet-tinted. Takes the *light-mode* opacity and deepens it in dark mode. |
+| `hooprDisabledOpacity` | 0.38, from Material's guidance. One value, replacing scattered `0.4`/`0.5` literals. |
+
+**Two constraints this palette carries.** Coral cannot be darkened: between
+roughly 46% and 58% lightness neither a jet nor a white label clears AA, and the
+given coral sits just above that band. And in dark mode coral is 4.94:1 on the
+0dp ground but 2.97:1 at 24dp, so coral *text* belongs on backgrounds and low
+cards — anywhere higher it appears as a fill carrying a jet label.
+
+`hooprElevatedSurface` and `hooprOnError` were both considered and deliberately
+left out: nothing draws on them, and each would have pinned a contrast pairing
+the app never renders.
+
+**`ThemeContrastTests` pins every pairing the UI actually makes** — text at
+4.5:1, graphics and component boundaries at 3:1. It is scoped to real pairings
+on purpose; adding a role there without a call site pins a number nobody sees.
 
 Type goes through `.hooprFont(_:weight:maximumSize:)` in
 `Support/Typography.swift`, never `.font(.system(size:))`. The design's literal
@@ -339,9 +386,15 @@ outside `ProfileViewModel.EditableField`: nothing about it touches Firestore.
   display choice, not privacy — don't reach for a field just because it decodes.
 - A card's action is resolved once and reused by its button and its
   confirmation dialog. Don't recompute it at tap time.
-- Colours come from `Theme.swift`, including the map's `UIColor` marker tint,
-  which bridges from `Color.hooprDarkOrange` rather than restating its RGB. A
-  literal colour in a view is a bug — it won't invert.
+- Colours come from `Theme.swift`, including the map's `UIColor` marker tint and
+  its shadow, which bridge from `Color.hooprBrandDeep` and
+  `Color.hooprShadow(opacity:)` rather than restating an RGB or reaching for
+  `.black`. A literal colour in a view is a bug — it won't invert.
+- `hooprBrand` is for actions. Selection, focus and decoration go to
+  `hooprSecondary`. The previous palette had one hue on 52 call sites doing ten
+  different jobs, which is how it stopped meaning anything.
+- A filled surface and its content are chosen **as a pair**. Moving a fill from
+  brand to secondary without moving its label shipped jet-on-slate at 1.94:1.
 - Font sizes go through `.hooprFont(...)`. The one deliberate exception is the
   profile avatar's initials and glyph, sized as a fraction of a fixed-diameter
   circle and commented as such.

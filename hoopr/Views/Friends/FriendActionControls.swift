@@ -34,7 +34,7 @@ struct FriendActionButton: View {
     }
 
     private var background: Color {
-        action.isDestructive ? Color.hooprFill : Color.hooprOrange
+        action.isDestructive ? Color.hooprFill : Color.hooprBrand
     }
 
     var body: some View {
@@ -62,7 +62,7 @@ struct FriendActionButton: View {
         .disabled(isPending || isDisabled)
         // Only the *blocked* case dims: a button showing its own spinner is
         // already saying it's busy, and fading it too reads as broken.
-        .opacity(isDisabled && !isPending ? 0.5 : 1)
+        .opacity(isDisabled && !isPending ? Color.hooprDisabledOpacity : 1)
         .accessibilityLabel("\(action.longTitle), \(playerName)")
     }
 }

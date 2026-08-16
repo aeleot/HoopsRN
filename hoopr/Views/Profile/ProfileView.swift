@@ -177,13 +177,14 @@ struct ProfileView: View {
         // a large scale factor on a short device) paints past the boundary
         // instead of being contained inside it.
         .clipped()
-        // Bleeds the orange under the status bar while the content above
+        // Bleeds the brand colour under the status bar while the content above
         // still lays out within the safe area. The gradient runs into
-        // `hooprDarkOrange` at the bottom so the header settles into the card
-        // grid instead of ending on a flat band.
+        // `hooprBrandDeep` at the bottom so the header settles into the card
+        // grid instead of ending on a flat band. Both ends carry the small
+        // italic uid at AA, which is why the deep end stops where it does.
         .background(
             LinearGradient(
-                colors: [Color.hooprOrange, Color.hooprDarkOrange],
+                colors: [Color.hooprBrand, Color.hooprBrandDeep],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -272,7 +273,7 @@ struct ProfileView: View {
                         .font(.system(size: size * 0.5))
                 }
             }
-            .foregroundStyle(Color.hooprOrange)
+            .foregroundStyle(Color.hooprBrand)
         }
         // A hairline ring, so the white circle still separates from the header
         // rather than dissolving into it at the top of the gradient.

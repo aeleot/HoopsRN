@@ -33,6 +33,27 @@ struct Court: Identifiable, Sendable, Codable, Hashable {
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
+
+    /// `name` with the dataset's boilerplate removed.
+    ///
+    /// Every court in the OSM extract is named `<Place> Basketball Court`, so
+    /// the words carry no information in an app where *everything* is a
+    /// basketball court — they just push real names onto a second and third
+    /// line. "Long Meadow Park Basketball Court #2" reads as "Long Meadow Park
+    /// #2". Falls back to the stored name when stripping would leave nothing,
+    /// which is the case for a court named only after its type.
+    var displayName: String {
+        let stripped = name
+            .replacingOccurrences(
+                of: "basketball court",
+                with: " ",
+                options: [.caseInsensitive]
+            )
+            .split(separator: " ", omittingEmptySubsequences: true)
+            .joined(separator: " ")
+
+        return stripped.isEmpty ? name : stripped
+    }
 }
 
 /// Versioned envelope around the bundled dataset. The version lets a future

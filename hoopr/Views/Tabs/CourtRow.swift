@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One entry in the court list: name, city and distance on the left, amenity
+/// One entry in the court list: name and a metadata line on the left, amenity
 /// badges beneath, and a star that toggles without leaving the list.
 struct CourtRow: View {
     let nearbyCourt: NearbyCourt
@@ -12,34 +12,22 @@ struct CourtRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(court.name)
+                Text(court.displayName)
                     .hooprFont(16, weight: .semibold)
                     .foregroundStyle(Color.hooprPrimaryText)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
-                Text(court.city)
+                // City and distance on one line, not two. They're both "where
+                // is this", they're both secondary, and stacking them gave a
+                // row three lines of near-equal weight — which is what made a
+                // list of twelve courts need a full screen.
+                Text("\(court.city) · \(nearbyCourt.distanceText) away")
                     .hooprFont(13)
                     .foregroundStyle(Color.hooprSecondaryText)
 
-                Text("\(nearbyCourt.distanceText) away")
-                    .hooprFont(13)
-                    .foregroundStyle(Color.hooprSecondaryText)
-
-                if !badges.isEmpty {
-                    HStack(spacing: 6) {
-                        ForEach(badges, id: \.self) { badge in
-                            Text(badge)
-                                .hooprFont(11, weight: .medium)
-                                .foregroundStyle(Color.hooprSecondaryText)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 3)
-                                .background(Color.hooprFill)
-                                .clipShape(RoundedRectangle(cornerRadius: 5))
-                        }
-                    }
+                CourtBadges(court: court)
                     .padding(.top, 3)
-                }
             }
 
             Spacer(minLength: 8)
@@ -47,7 +35,7 @@ struct CourtRow: View {
             Button(action: onToggleFavorite) {
                 Image(systemName: isFavorite ? "star.fill" : "star")
                     .hooprFont(17, maximumSize: 22)
-                    .foregroundStyle(isFavorite ? Color.hooprOrange : Color.hooprSecondaryText)
+                    .foregroundStyle(isFavorite ? Color.hooprBrand : Color.hooprSecondaryText)
                     // Widen the tap target without widening the icon, so the
                     // star doesn't swallow taps meant for the row.
                     .frame(width: 40, height: 40)

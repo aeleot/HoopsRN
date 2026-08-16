@@ -30,7 +30,7 @@ struct EditUserNameSheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.hooprOrange, lineWidth: 1)
+                            .stroke(Color.hooprSecondary, lineWidth: 1)
                     )
                     .onSubmit { if canSave { onSave() } }
 
@@ -61,7 +61,7 @@ struct EditUserNameSheet: View {
                     } else {
                         Button("Save", action: onSave)
                             .fontWeight(.semibold)
-                            .foregroundStyle(canSave ? Color.hooprOrange : Color.hooprSecondaryText)
+                            .foregroundStyle(canSave ? Color.hooprBrandText : Color.hooprSecondaryText)
                             .disabled(!canSave)
                     }
                 }
@@ -187,7 +187,7 @@ struct HomeCourtPickerSheet: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isSearchFocused ? Color.hooprOrange : Color.hooprBorder, lineWidth: 1)
+                .stroke(isSearchFocused ? Color.hooprSecondary : Color.hooprBorder, lineWidth: 1)
         )
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
@@ -202,7 +202,7 @@ struct HomeCourtPickerSheet: View {
                     } label: {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(court.name)
+                                Text(court.displayName)
                                     .hooprFont(16, weight: .medium)
                                     .foregroundStyle(Color.hooprPrimaryText)
                                     .multilineTextAlignment(.leading)
@@ -214,7 +214,7 @@ struct HomeCourtPickerSheet: View {
                             if court.id == selectedCourtId {
                                 Image(systemName: "checkmark")
                                     .hooprFont(15, weight: .semibold)
-                                    .foregroundStyle(Color.hooprOrange)
+                                    .foregroundStyle(Color.hooprBrandText)
                             }
                         }
                         .padding(.horizontal, 20)
@@ -299,7 +299,7 @@ struct EditRadiusSheet: View {
                         // Steps by whole miles so the stored value always
                         // matches what the profile row renders.
                         Slider(value: $radius, in: range, step: 1)
-                            .tint(Color.hooprOrange)
+                            .tint(Color.hooprSecondary)
                             .accessibilityLabel("Search radius in miles")
 
                         Text(UserProfile.radiusText(range.upperBound))
@@ -341,7 +341,7 @@ struct EditRadiusSheet: View {
                     } else {
                         Button("Save", action: onSave)
                             .fontWeight(.semibold)
-                            .foregroundStyle(Color.hooprOrange)
+                            .foregroundStyle(Color.hooprBrandText)
                     }
                 }
             }
@@ -410,7 +410,7 @@ struct ChangePasswordSheet: View {
                     if didSend {
                         Button("Done", action: onDone)
                             .fontWeight(.semibold)
-                            .foregroundStyle(Color.hooprOrange)
+                            .foregroundStyle(Color.hooprBrandText)
                     }
                 }
             }
@@ -421,7 +421,7 @@ struct ChangePasswordSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             Image(systemName: "envelope.badge")
                 .hooprFont(22, maximumSize: 28)
-                .foregroundStyle(Color.hooprOrange)
+                .foregroundStyle(Color.hooprSecondary)
 
             Text("We'll email a reset link to")
                 .hooprFont(15)
@@ -458,7 +458,7 @@ struct ChangePasswordSheet: View {
             .frame(maxWidth: .infinity)
             .frame(height: 52)
             .foregroundStyle(Color.hooprOnBrand)
-            .background(Color.hooprOrange)
+            .background(Color.hooprBrand)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
@@ -469,7 +469,7 @@ struct ChangePasswordSheet: View {
         VStack(spacing: 12) {
             Image(systemName: "checkmark.circle.fill")
                 .hooprFont(40, maximumSize: 52)
-                .foregroundStyle(Color.hooprOrange)
+                .foregroundStyle(Color.hooprBrandText)
 
             Text("Check your inbox")
                 .hooprFont(22, weight: .bold)
@@ -532,7 +532,7 @@ struct AppearanceSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done", action: onDone)
                         .fontWeight(.semibold)
-                        .foregroundStyle(Color.hooprOrange)
+                        .foregroundStyle(Color.hooprBrandText)
                 }
             }
         }
@@ -544,7 +544,7 @@ struct AppearanceSheet: View {
         return HStack(spacing: 14) {
             Image(systemName: option.symbolName)
                 .hooprFont(17, maximumSize: 22)
-                .foregroundStyle(isSelected ? Color.hooprOrange : Color.hooprSecondaryText)
+                .foregroundStyle(isSelected ? Color.hooprBrandText : Color.hooprSecondaryText)
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -562,7 +562,7 @@ struct AppearanceSheet: View {
             if isSelected {
                 Image(systemName: "checkmark")
                     .hooprFont(15, weight: .semibold)
-                    .foregroundStyle(Color.hooprOrange)
+                    .foregroundStyle(Color.hooprBrandText)
             }
         }
         .padding(.horizontal, 20)

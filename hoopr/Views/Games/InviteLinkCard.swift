@@ -30,7 +30,7 @@ struct InviteLinkCard: View {
                 HStack(spacing: 8) {
                     Image(systemName: "link")
                         .hooprFont(12, weight: .semibold, maximumSize: 16)
-                        .foregroundStyle(Color.hooprOrange)
+                        .foregroundStyle(Color.hooprSecondary)
 
                     Text(link)
                         .hooprFont(13, maximumSize: 16)
@@ -46,7 +46,7 @@ struct InviteLinkCard: View {
                         Text(didCopy ? "Copied" : "Copy")
                             .hooprFont(12, weight: .semibold, maximumSize: 16)
                     }
-                    .foregroundStyle(Color.hooprOrange)
+                    .foregroundStyle(Color.hooprBrandText)
                 }
             }
             .padding(.horizontal, 12)

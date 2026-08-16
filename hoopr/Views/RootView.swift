@@ -62,7 +62,7 @@ private struct LaunchScreen: View {
         VStack(spacing: 16) {
             Image(systemName: "basketball.fill")
                 .hooprFont(44)
-                .foregroundStyle(Color.hooprOrange)
+                .foregroundStyle(Color.hooprBrandText)
 
             ProgressView()
                 .tint(Color.hooprSecondaryText)

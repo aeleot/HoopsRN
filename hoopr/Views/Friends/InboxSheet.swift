@@ -62,7 +62,7 @@ struct InboxSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done", action: onDismiss)
                         .fontWeight(.semibold)
-                        .foregroundStyle(Color.hooprOrange)
+                        .foregroundStyle(Color.hooprBrandText)
                 }
             }
         }

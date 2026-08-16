@@ -20,7 +20,7 @@ struct LoginView: View {
             VStack(spacing: 8) {
                 Image(systemName: "basketball.fill")
                     .hooprFont(44)
-                    .foregroundStyle(Color.hooprOrange)
+                    .foregroundStyle(Color.hooprBrandText)
 
                 Text("hoopsRN")
                     .hooprFont(34, weight: .bold)
@@ -61,7 +61,7 @@ struct LoginView: View {
                 .foregroundStyle(Color.hooprOnBrand)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
-                .background(viewModel.canSubmit ? Color.hooprOrange : Color.hooprOrange.opacity(0.4))
+                .background(viewModel.canSubmit ? Color.hooprBrand : Color.hooprBrand.opacity(Color.hooprDisabledOpacity))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
             .disabled(!viewModel.canSubmit)
@@ -76,7 +76,7 @@ struct LoginView: View {
                     Text(viewModel.mode.switchPrompt)
                         .foregroundStyle(Color.hooprSecondaryText)
                     Text(viewModel.mode.switchAction)
-                        .foregroundStyle(Color.hooprOrange)
+                        .foregroundStyle(Color.hooprBrandText)
                         .fontWeight(.semibold)
                 }
                 .hooprFont(14)
@@ -129,7 +129,7 @@ struct LoginView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(
-                    focusedField == field ? Color.hooprOrange : Color.hooprBorder,
+                    focusedField == field ? Color.hooprSecondary : Color.hooprBorder,
                     lineWidth: 1
                 )
         )

@@ -135,7 +135,7 @@ struct PlayerProfileSheet: View {
         .frame(maxWidth: .infinity)
         .background(
             LinearGradient(
-                colors: [Color.hooprOrange, Color.hooprDarkOrange],
+                colors: [Color.hooprBrand, Color.hooprBrandDeep],
                 startPoint: .top,
                 endPoint: .bottom
             )
