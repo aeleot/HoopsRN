@@ -3,7 +3,7 @@ import FirebaseFirestore
 import Foundation
 import os
 
-fileprivate let logger = Logger(subsystem: "com.hoopr", category: "UserProfileService")
+fileprivate let logger = Logger(subsystem: "com.hoopsrn", category: "UserProfileService")
 
 /// Domain-level profile failures. `UserProfileService` translates Firestore's
 /// errors into these so no Firestore type escapes the service layer, mirroring
@@ -55,12 +55,22 @@ final class UserProfileService: ObservableObject {
     private enum Field {
         static let id = "id"
         static let userName = "userName"
-        static let email = "email"
+        static let userNameLower = "userNameLower"
         static let homeCourtId = "homeCourtId"
         static let preferredRadius = "preferredRadius"
         static let favoriteCourtIds = "favoriteCourtIds"
         static let createdAt = "createdAt"
         static let updatedAt = "updatedAt"
+    }
+
+    /// Bounds on the one-shot lookups. Neither applies to the profile listener,
+    /// which reads a single document by ID.
+    private enum Limit {
+        /// Firestore's ceiling on the number of values in an `in` filter.
+        static let documentIdBatch = 30
+        /// A picker of matches, not a directory — enough to find the person you
+        /// meant, few enough to read.
+        static let searchResults = 20
     }
 
     /// Resolved lazily so the Firestore singleton is never touched before
@@ -75,6 +85,12 @@ final class UserProfileService: ObservableObject {
 
     private var observedUID: String? { observedUser?.id }
     private var cancellables = Set<AnyCancellable>()
+
+    /// Whether this session has already tried to write a missing
+    /// `userNameLower` — see `backfillSearchKeyIfNeeded(for:)`. Reset per
+    /// signed-in session, so a failure retries on the next sign-in rather than
+    /// on every snapshot.
+    private var didBackfillSearchKey = false
 
     /// Brings the profile listener back after a terminal error. Same exposure
     /// `GameService` has, and the same reason — see `ListenerSupervisor`.
@@ -121,6 +137,7 @@ final class UserProfileService: ObservableObject {
         observedUser = user
         currentProfile = nil
         errorMessage = nil
+        didBackfillSearchKey = false
         attachListener()
     }
 
@@ -156,6 +173,7 @@ final class UserProfileService: ObservableObject {
         observedUser = nil
         currentProfile = nil
         errorMessage = nil
+        didBackfillSearchKey = false
     }
 
     /// Re-attaches now rather than waiting out the backoff.
@@ -182,13 +200,58 @@ final class UserProfileService: ObservableObject {
         }
 
         do {
-            currentProfile = try snapshot.data(as: UserProfile.self)
+            let profile = try snapshot.data(as: UserProfile.self)
+            currentProfile = profile
             errorMessage = nil
+            backfillSearchKeyIfNeeded(for: profile)
         } catch {
             report(
                 .decodingFailed(error.localizedDescription),
                 whileDoing: "reading your profile",
                 context: .load
+            )
+        }
+    }
+
+    /// Writes `userNameLower` onto a profile provisioned before player search
+    /// existed.
+    ///
+    /// Without this, an account created before that field shipped is **invisible
+    /// to name search forever** — the prefix range has nothing to match, so its
+    /// owner simply can't be found by anyone typing their name. Waiting for them
+    /// to happen to edit their display name is not a migration.
+    ///
+    /// It has to run here, on the *owner's* own client, because the rules only
+    /// ever let an account write its own document: nobody can backfill anyone
+    /// else, so every account heals itself the next time its owner opens the
+    /// app. That also makes this the whole migration — there's no server-side
+    /// backfill on the Spark plan.
+    ///
+    /// Idempotent and self-terminating: the write produces a snapshot whose
+    /// `userNameLower` is set, so the guard below stops it. `didBackfillSearchKey`
+    /// covers the other direction — one failed attempt per session, rather than a
+    /// write retried on every snapshot.
+    private func backfillSearchKeyIfNeeded(for profile: UserProfile) {
+        guard profile.userNameLower == nil, !didBackfillSearchKey else { return }
+        didBackfillSearchKey = true
+
+        Task { [weak self] in
+            await self?.writeSearchKey(for: profile)
+        }
+    }
+
+    /// Silent on failure by design: the user didn't ask for this and there's
+    /// nothing for them to do about it. It retries on the next sign-in.
+    private func writeSearchKey(for profile: UserProfile) async {
+        do {
+            try await database.collection(Collection.users).document(profile.id).updateData([
+                Field.userNameLower: UserProfile.searchKey(profile.userName),
+                Field.updatedAt: FieldValue.serverTimestamp(),
+            ])
+            logger.debug("Backfilled the search key on a pre-search profile")
+        } catch {
+            logger.error(
+                "Couldn't backfill the search key: \(error.localizedDescription, privacy: .public)"
             )
         }
     }
@@ -204,16 +267,23 @@ final class UserProfileService: ObservableObject {
             let snapshot = try await reference.getDocument()
             guard !snapshot.exists else { return }
 
-            var fields: [String: Any] = [
+            // The email is deliberately **not** stored, only read from Auth to
+            // seed a first name. `users` documents are readable by any
+            // signed-in user — that's what makes name resolution and player
+            // search work — and Firestore has no field-level read ACLs, so
+            // anything kept here is effectively visible to every other player.
+            // Auth already owns the address, and nothing in the app ever needed
+            // the copy: the profile screen's Email row reads
+            // `AuthService.currentUser`.
+            let name = Self.fallbackUserName(for: user)
+            let fields: [String: Any] = [
                 Field.id: user.id,
-                Field.userName: Self.fallbackUserName(for: user),
+                Field.userName: name,
+                // Derived, never independently supplied — see `searchKey`.
+                Field.userNameLower: UserProfile.searchKey(name),
                 Field.createdAt: FieldValue.serverTimestamp(),
                 Field.updatedAt: FieldValue.serverTimestamp(),
             ]
-            // Omit rather than writing an explicit null.
-            if let email = user.email {
-                fields[Field.email] = email
-            }
 
             try await reference.setData(fields)
             logger.debug("Provisioned profile document for signed-in user")
@@ -222,9 +292,9 @@ final class UserProfileService: ObservableObject {
         }
     }
 
-    /// Updates only `userName` and `updatedAt`, leaving `id` and `createdAt`
-    /// untouched — the mutability contract the security rules enforce
-    /// server-side.
+    /// Updates only `userName`, its search mirror, and `updatedAt`, leaving
+    /// `id` and `createdAt` untouched — the mutability contract the security
+    /// rules enforce server-side.
     func updateUserName(_ rawName: String) async throws {
         // Rejected here rather than reshaped, matching `GameService.createGame`
         // — and checked at all because the rules cap the length too, so an
@@ -239,6 +309,10 @@ final class UserProfileService: ObservableObject {
         do {
             try await database.collection(Collection.users).document(uid).updateData([
                 Field.userName: name,
+                // Written in the same update as `userName`, never separately:
+                // the two drifting apart would make a profile unsearchable
+                // under the name it actually displays.
+                Field.userNameLower: UserProfile.searchKey(name),
                 Field.updatedAt: FieldValue.serverTimestamp(),
             ])
             errorMessage = nil
@@ -317,6 +391,125 @@ final class UserProfileService: ObservableObject {
             let profileError = Self.mapped(error)
             report(profileError, whileDoing: "saving your favorites", context: .write)
             throw profileError
+        }
+    }
+
+    // MARK: - Lookups
+
+    /// Resolves other people's profiles by uid.
+    ///
+    /// This is where "one service, one collection" is paid for: `friendships`
+    /// documents carry only uids — never denormalized names, the same way a
+    /// `Game` never denormalizes its court name — so `FriendService` hands its
+    /// uids here rather than importing anything about `users` itself.
+    ///
+    /// One-shot rather than a listener: live-updating other players' names
+    /// while a screen sits open isn't worth a second listener on this
+    /// collection, and callers re-run this whenever their uid set changes.
+    ///
+    /// Missing uids are simply absent from the result — a profile deleted out
+    /// from under a friendship isn't an error worth failing the whole batch
+    /// for. Unlike the write paths, a failure here throws *without* touching
+    /// `errorMessage`: that banner belongs to the signed-in user's own profile,
+    /// and a friend-lookup failure surfacing there would appear on the profile
+    /// screen for something that happened on another tab.
+    func profiles(for uids: [String]) async throws -> [UserProfile] {
+        guard !uids.isEmpty else { return [] }
+
+        let unique = Array(Set(uids))
+
+        do {
+            var resolved: [UserProfile] = []
+            // `in` takes at most 30 values per query, so a longer friends list
+            // becomes several queries.
+            for start in stride(from: 0, to: unique.count, by: Limit.documentIdBatch) {
+                let end = min(start + Limit.documentIdBatch, unique.count)
+                let snapshot = try await database
+                    .collection(Collection.users)
+                    .whereField(FieldPath.documentID(), in: Array(unique[start..<end]))
+                    .getDocuments()
+                resolved.append(contentsOf: Self.decoded(snapshot))
+            }
+            return resolved
+        } catch {
+            throw Self.mapped(error)
+        }
+    }
+
+    /// Case-insensitive prefix search over display names.
+    ///
+    /// A single-field range filter on `userNameLower`, which Firestore
+    /// auto-indexes — no `firestore.indexes.json` entry. `\u{f8ff}` is the
+    /// upper end of the private-use block, so it sorts above any character a
+    /// name realistically ends with, making the pair of bounds a prefix match.
+    ///
+    /// A blank prefix returns nothing rather than the first 20 accounts in the
+    /// database: an empty search field is "no query yet", not "everyone".
+    ///
+    /// Profiles written before `userNameLower` existed have no value to match
+    /// and are invisible here until their owner next saves a name.
+    func searchProfiles(matching rawPrefix: String) async throws -> [UserProfile] {
+        let prefix = UserProfile.searchKey(rawPrefix)
+        guard !prefix.isEmpty else { return [] }
+
+        do {
+            let snapshot = try await database
+                .collection(Collection.users)
+                .whereField(Field.userNameLower, isGreaterThanOrEqualTo: prefix)
+                .whereField(Field.userNameLower, isLessThan: prefix + "\u{f8ff}")
+                .limit(to: Limit.searchResults)
+                .getDocuments()
+            return Self.decoded(snapshot)
+        } catch {
+            throw Self.mapped(error)
+        }
+    }
+
+    /// Exact lookup by uid — the "search by ID" path, and cheaper than the name
+    /// one: `users` documents are keyed by uid, so this is a direct read rather
+    /// than a query.
+    ///
+    /// - Returns: `nil` when no such account exists, which is an ordinary
+    ///   answer to "is this ID real" rather than a failure.
+    func profile(uid: String) async throws -> UserProfile? {
+        let id = uid.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !id.isEmpty else { return nil }
+
+        let snapshot: DocumentSnapshot
+        do {
+            snapshot = try await database.collection(Collection.users).document(id).getDocument()
+        } catch {
+            throw Self.mapped(error)
+        }
+
+        guard snapshot.exists else { return nil }
+
+        // Decoded outside the fetch's `catch` so a malformed document reports
+        // as `decodingFailed` rather than being flattened into `.unknown` by a
+        // classifier that only understands Firestore's own errors.
+        do {
+            return try snapshot.data(as: UserProfile.self)
+        } catch {
+            throw UserProfileError.decodingFailed(error.localizedDescription)
+        }
+    }
+
+    /// Decodes per document rather than per snapshot, matching
+    /// `GameService.decoded`: one profile that drifted from the model shouldn't
+    /// blank a whole result list. The skipped document is logged so it stays
+    /// discoverable.
+    private static func decoded(_ snapshot: QuerySnapshot?) -> [UserProfile] {
+        guard let snapshot else { return [] }
+
+        return snapshot.documents.compactMap { document in
+            do {
+                return try document.data(as: UserProfile.self)
+            } catch {
+                logger.error(
+                    "Skipping profile \(document.documentID, privacy: .public): \(error.localizedDescription, privacy: .public)"
+                )
+                return nil
+            }
         }
     }
 

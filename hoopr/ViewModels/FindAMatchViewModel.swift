@@ -51,10 +51,6 @@ final class FindAMatchViewModel: ObservableObject {
 
     @Published private(set) var favoriteCourtIds: Set<String> = []
 
-    /// Set when the map has been panned far enough from `searchOrigin` that the
-    /// list is no longer about what's on screen. Drives the "Search here" pill.
-    @Published private(set) var canSearchHere = false
-
     /// The radius the nearby list was actually built with — the profile's
     /// preference, or the default while signed out or before the first
     /// snapshot lands. Published so the empty state can name the real number
@@ -62,10 +58,6 @@ final class FindAMatchViewModel: ObservableObject {
     @Published private(set) var radiusMiles: Double = UserProfile.defaultPreferredRadius
 
     // MARK: - Tuning
-
-    /// How far the map must move before re-searching is worth offering. Below
-    /// this the list is still a fair description of what's on screen.
-    private static let searchHereThresholdMeters: CLLocationDistance = 1_500
 
     /// The user's default location, hardcoded to Durham, NC until the profile
     /// owns it. Anchors the initial region and the recenter button.
@@ -84,11 +76,11 @@ final class FindAMatchViewModel: ObservableObject {
     private let recentCourtsStore: RecentCourtsStore
     private var cancellables = Set<AnyCancellable>()
 
-    /// Where distances are measured from. Moves when the user taps "Search here".
-    private var searchOrigin: CLLocationCoordinate2D
-    /// Latest centre reported by the map, used to decide whether to offer a
-    /// re-search. Not a published value — only the resulting flag is.
-    private var lastMapCenter: CLLocationCoordinate2D
+    /// Where distances are measured from. Fixed for the life of the view
+    /// model: panning the map changes what you're looking at, not where you
+    /// are. It reads `homeLocation` like every other distance in the app, so
+    /// pointing that at the device moves this with it.
+    private let searchOrigin: CLLocationCoordinate2D
     private var recentCourtIds: [String] = []
 
     init(
@@ -102,7 +94,6 @@ final class FindAMatchViewModel: ObservableObject {
         self.userProfileService = userProfileService
         self.recentCourtsStore = recentCourtsStore
         self.searchOrigin = Self.homeLocation
-        self.lastMapCenter = Self.homeLocation
 
         courtService.$courts
             .receive(on: DispatchQueue.main)
@@ -200,25 +191,6 @@ final class FindAMatchViewModel: ObservableObject {
             locationService.requestLocationPermission()
         }
         return Self.homeLocation
-    }
-
-    func mapRegionChanged(to center: CLLocationCoordinate2D) {
-        lastMapCenter = center
-
-        // Only the geographic list can go stale; favourites and recents mean
-        // the same thing wherever the map happens to be pointing.
-        guard selectedTab == .nearby else {
-            canSearchHere = false
-            return
-        }
-        canSearchHere = Distance.between(searchOrigin, center) > Self.searchHereThresholdMeters
-    }
-
-    /// Re-anchors the nearby list to wherever the map is now looking.
-    func searchHere() {
-        searchOrigin = lastMapCenter
-        canSearchHere = false
-        rebuild()
     }
 
     // MARK: - Derivation

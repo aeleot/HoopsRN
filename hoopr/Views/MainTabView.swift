@@ -9,12 +9,16 @@ struct MainTabView: View {
     private let courtService: CourtService
     private let locationService: LocationService
     private let gameService: GameService
+    /// Observed, unlike the other services held here, because the header itself
+    /// reads it: the Friends pill carries a dot while a request is unanswered,
+    /// and a plain `let` wouldn't redraw when one arrives.
+    @ObservedObject private var friendService: FriendService
     private let recentCourtsStore: RecentCourtsStore
 
     private let tabs: [(String, String)] = [
         ("Court Map", "map"),
         ("Local Runs", "calendar"),
-        ("Find Match", "figure.run"),
+        ("Friends", "person.2.fill"),
     ]
 
     init(
@@ -23,6 +27,7 @@ struct MainTabView: View {
         locationService: LocationService,
         userProfileService: UserProfileService,
         gameService: GameService,
+        friendService: FriendService,
         recentCourtsStore: RecentCourtsStore
     ) {
         self.authService = authService
@@ -30,6 +35,7 @@ struct MainTabView: View {
         self.locationService = locationService
         self.userProfileService = userProfileService
         self.gameService = gameService
+        self.friendService = friendService
         self.recentCourtsStore = recentCourtsStore
     }
 
@@ -100,6 +106,21 @@ struct MainTabView: View {
                                         .hooprFont(12, weight: .semibold, maximumSize: 15)
                                         .lineLimit(1)
                                         .minimumScaleFactor(0.8)
+
+                                    // A dot, not a count: the pills share one
+                                    // row inside a header pinned to 14% of the
+                                    // screen, and there's no width for a
+                                    // number. The exact figure is on the
+                                    // inbox button one tap away.
+                                    if hasUnansweredRequests(at: index) {
+                                        Circle()
+                                            .fill(
+                                                selectedTab == index
+                                                    ? Color.hooprOnBrand
+                                                    : Color.hooprOrange
+                                            )
+                                            .frame(width: 6, height: 6)
+                                    }
                                 }
                                 .padding(.vertical, 9)
                                 .frame(maxWidth: .infinity)
@@ -111,6 +132,11 @@ struct MainTabView: View {
                                 )
                                 .clipShape(RoundedRectangle(cornerRadius: 10))
                             }
+                            .accessibilityLabel(
+                                hasUnansweredRequests(at: index)
+                                    ? "\(tabs[index].0), requests waiting"
+                                    : tabs[index].0
+                            )
                         }
                     }
                     .padding(.horizontal, 12)
@@ -126,7 +152,7 @@ struct MainTabView: View {
                 .zIndex(1)
 
                 ZStack {
-                    FindAMatchTab(
+                    MapTab(
                         courtService: courtService,
                         locationService: locationService,
                         userProfileService: userProfileService,
@@ -145,7 +171,11 @@ struct MainTabView: View {
                     }
 
                     if selectedTab == 2 {
-                        FindMatchTab()
+                        FriendsTab(
+                            friendService: friendService,
+                            userProfileService: userProfileService,
+                            courtService: courtService
+                        )
                     }
                 }
                 .clipped()
@@ -159,6 +189,19 @@ struct MainTabView: View {
     private var userName: String {
         userProfileService.currentProfile?.userName ?? "there"
     }
+
+    /// Whether the tab at `index` should carry a badge dot.
+    ///
+    /// Only Friends has one, and only for *incoming* requests — a request you
+    /// sent isn't waiting on you. Reading the service directly rather than
+    /// through `FriendsViewModel` keeps the dot alive while the tab is
+    /// unmounted, which is the entire reason it's here: an inbox you can only
+    /// discover by already being on its tab isn't a notification.
+    private func hasUnansweredRequests(at index: Int) -> Bool {
+        index == friendsTabIndex && !friendService.incomingRequests.isEmpty
+    }
+
+    private var friendsTabIndex: Int { 2 }
 }
 
 #Preview {
@@ -169,6 +212,7 @@ struct MainTabView: View {
         locationService: LocationService(),
         userProfileService: UserProfileService(authService: authService),
         gameService: GameService(authService: authService),
+        friendService: FriendService(authService: authService),
         recentCourtsStore: RecentCourtsStore()
     )
 }

@@ -29,9 +29,14 @@ struct CreateGameSheet: View {
             ScrollView {
                 VStack(spacing: 16) {
                     courtSummary
-                    whenCard
-                    visibilityCard
-                    playersCard
+
+                    if let inviteLink = viewModel.inviteLink {
+                        inviteStep(link: inviteLink)
+                    } else {
+                        whenCard
+                        visibilityCard
+                        playersCard
+                    }
 
                     if let errorMessage = viewModel.errorMessage {
                         Text(errorMessage)
@@ -46,23 +51,37 @@ struct CreateGameSheet: View {
             // The whole cycle is gated on `isSaving`, matching the profile
             // sheets: nothing can move out from under an in-flight write.
             .disabled(viewModel.isSaving)
-            .navigationTitle("Start a Run")
+            .navigationTitle(viewModel.inviteLink == nil ? "Start a Run" : "Run Created")
             #if os(iOS) || os(visionOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
-                        .foregroundStyle(Color.hooprSecondaryText)
-                        .disabled(viewModel.isSaving)
+                // The run already exists by the time the invite step shows, so
+                // there is nothing left to cancel — offering it would read as
+                // "discard the run".
+                if viewModel.inviteLink == nil {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel", action: onCancel)
+                            .foregroundStyle(Color.hooprSecondaryText)
+                            .disabled(viewModel.isSaving)
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if viewModel.isSaving {
                         ProgressView()
+                    } else if viewModel.inviteLink != nil {
+                        Button("Done", action: onCreated)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Color.hooprOrange)
                     } else {
                         Button("Create") {
                             Task {
-                                if await viewModel.create() { onCreated() }
+                                // A private run stays open on its invite step
+                                // instead of dismissing — `inviteLink` is set
+                                // by the time `create()` returns.
+                                if await viewModel.create(), viewModel.inviteLink == nil {
+                                    onCreated()
+                                }
                             }
                         }
                         .fontWeight(.semibold)
@@ -104,6 +123,28 @@ struct CreateGameSheet: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.hooprFill)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    /// Replaces the form once a private run is written. The link is the only
+    /// way anyone else reaches an invite-only run, and this is the one moment
+    /// the host is certainly looking at it — it's repeated on the run's card in
+    /// Queued Games, so leaving here without copying costs nothing.
+    private func inviteStep(link: String) -> some View {
+        card(title: "Invite") {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Your run is set. It won't show up in anyone's search — send this link to the players you want in.")
+                    .hooprFont(14)
+                    .foregroundStyle(Color.hooprPrimaryText)
+                    .multilineTextAlignment(.leading)
+
+                InviteLinkCard(link: link)
+
+                Text("You can copy it again any time from Queued Games.")
+                    .hooprFont(12)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .multilineTextAlignment(.leading)
+            }
+        }
     }
 
     private var whenCard: some View {

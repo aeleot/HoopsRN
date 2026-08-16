@@ -1,10 +1,12 @@
 # Plan — Friends
 
-**Status:** proposed, not started
+**Status:** Phases 1–3 shipped (1–2 on 2026-08-13, 3 on 2026-08-15, branch
+`map-tab`); Phases 4–5 proposed
 **Drafted:** 2026-08-13 @ 5a1f834
 **Touches:** `firestore.rules`, `hoopr/Models/`, `hoopr/Services/`,
-`hoopr/ViewModels/`, `hoopr/Views/Tabs/`, `hoopr/Views/MainTabView.swift`,
-`hoopr/Views/RootView.swift`, `hoopr/hooprApp.swift`
+`hoopr/ViewModels/`, `hoopr/Views/Tabs/`, `hoopr/Views/Profile/`,
+`hoopr/Views/MainTabView.swift`, `hoopr/Views/RootView.swift`,
+`hoopr/hooprApp.swift`
 
 > `context/plans/` is not a dictionary entry and carries no `Scope`/`Verified`
 > stamp. A plan describes work that hasn't happened; the dictionary describes
@@ -45,9 +47,14 @@ favor:
 
 Nothing here requires Cloud Functions (the project is on the Spark plan —
 confirmed by `context/GAPS.md`, which names waitlist promotion, not this, as
-"the first thing that requires the Blaze plan") and nothing here touches
-`games` or its rules. This is a clean, additive feature: one new collection,
-one repurposed tab.
+"the first thing that requires the Blaze plan") and **`games`' rules and
+schema are untouched.** The one place this plan does touch `games`-adjacent
+UI is a read-only, client-side cross-reference — surfacing which already-
+visible public runs a friend is on — covered in §4; it needs no new rule,
+query, or index, and is a materially different (and much smaller) thing than
+letting a friend see a *private* run they aren't on, which stays out of
+scope. This is a clean, additive feature: one new collection, one repurposed
+tab, one small enhancement to a list that already exists.
 
 ---
 
@@ -79,6 +86,22 @@ is cosmetic.
 neither available); share-link-by-uid as the *primary* mechanism (solves "add
 this exact known person," not "find someone whose first name I remember" —
 worth adding later as a precision aid, not as v1's only path).
+
+**Search by ID, alongside search by name.** Cheaper than the name path, not
+harder: `users` documents are already keyed by uid, so an exact-ID lookup is
+a direct `document(uid).getDocument()` — no query, no index, no rules change.
+`UserProfileService` gains a third one-shot method,
+`profile(uid:) async throws -> UserProfile?`, and the search bar routes to it
+when the typed text looks like an ID rather than a name (length/character-set
+heuristic — Firebase uids are ~28-character alphanumeric strings, display
+names in practice aren't) rather than requiring a separate input mode.
+
+This only works if a person can learn someone else's ID to type it in. Add a
+read-only **"Player ID"** row to `ProfileView`'s existing card grid — same
+`onEdit: nil` pattern as `Email`/`Joined` — showing the signed-in user's own
+`uid` with a copy affordance, so it's something people can actually share
+out-of-band (text, in person) rather than a value that only ever exists
+server-side.
 
 ---
 
@@ -210,14 +233,41 @@ infrastructure to notify through yet.
 
 ---
 
-## 4. Out of scope: `games` integration
+## 4. `games`: friends' public runs are in scope, private ones aren't
 
-Nothing about `games` or its rules changes. No "invite a friend to a run,"
-no friends-only visibility filter on public games, no `FriendService`
-reference from `GameService` or vice versa. This is deliberately distinct
-from `GAPS.md`'s "Next steps #4" (invite-only games via a share link) — a
-separate, still-unbuilt feature. A friends list could feed an invite
-autocomplete there eventually; wiring that up isn't part of this plan.
+**In scope: "which public runs is a friend already on."** This needs no new
+rule, query, or index — `GameService.publicGames` is already a fully-resolved
+live list any signed-in user can read in full, and `FriendService.friends`
+is already a live list of uids. Cross-referencing them is a client-side
+computation, not a backend feature:
+
+```swift
+func friendUids(in game: Game) -> Set<String> {
+    Set(game.playerIds + game.queuedPlayerIds).intersection(friendUids)
+}
+```
+
+`LocalRunsViewModel` gains a `friendService: FriendService` dependency and
+exposes this per row; `GameCard` grows an optional "N friends here" badge in
+the Public Games section of `LocalRunsTab`. Joining is the existing `Join` /
+`Join waitlist` action already on that card — nothing about *how* you join
+changes, only that you can now see it's worth joining. Sorting friend-
+occupied runs to the top of the section is a reasonable follow-on, not a
+requirement of the first cut.
+
+**Out of scope: a friend's *private* run.** Today, `isPublic: false` makes a
+run invisible under the `games` read rule to anyone not already on its
+roster — friendship doesn't factor in, and can't without a rules change (a
+`get()` cross-check into `friendships` from the `games` rule, or something
+denormalized onto the game document). That's a genuine authorization
+decision — who gets to see an invite-only run — not a small addition, and it
+overlaps with `GAPS.md`'s separate, still-unbuilt "Next steps #4"
+(invite-only games via a share link). Confirmed with you as out of scope for
+this plan; revisit alongside that design, not as an extension of this one.
+
+No `FriendService` reference from `GameService` or vice versa either way —
+the cross-reference above lives in the view model layer, one level above
+both services, so neither service gains a dependency on the other.
 
 ---
 
@@ -242,6 +292,21 @@ struct Friendship: Identifiable, Sendable, Codable, Hashable {
 }
 
 extension Friendship {
+    /// What this edge looks like from `uid`'s side. Computed, not stored —
+    /// `requestedBy` is the single source of truth; storing "sent" on one
+    /// person's copy and "received" on the other's is exactly the two-copies-
+    /// that-can-drift shape §2 rejects the mirrored-subcollection model for.
+    enum Direction {
+        case sent       // uid is requestedBy, awaiting the other participant
+        case received   // the other participant is requestedBy, awaiting uid
+        case mutual     // status == .accepted
+    }
+
+    func direction(for uid: String) -> Direction {
+        guard status == .pending else { return .mutual }
+        return requestedBy == uid ? .sent : .received
+    }
+
     static func id(for uid1: String, _ uid2: String) -> String {
         uid1 < uid2 ? "\(uid1)_\(uid2)" : "\(uid2)_\(uid1)"
     }
@@ -299,6 +364,7 @@ one-shot (non-listener) methods:
 ```swift
 func profiles(for uids: [String]) async throws -> [UserProfile]  // whereField(FieldPath.documentID(), in:), chunked at 30
 func searchProfiles(matching prefix: String) async throws -> [UserProfile]
+func profile(uid: String) async throws -> UserProfile?            // exact-ID lookup, see §1
 ```
 
 This keeps "one service, one collection" literal — `FriendService` never
@@ -332,7 +398,7 @@ above them (an action surface, not a list section):
   requests needing a response": they can't collapse away by default.
 - **Friends** — defaults expanded. Cold-start empty state points at the
   search bar above ("Search above to find people you play with") rather than
-  a bare blank list.
+  a bare blank list. Clicking on the player will show their profile (only certain fields: name, home court)
 - **Sent** (outgoing, pending) — defaults **collapsed**
   (`@AppStorage("friends.sentExpanded")`, default `false`); lower priority,
   cancel-only.
@@ -365,6 +431,11 @@ tab), so its `@AppStorage`-backed section state is required, matching
   FriendsTab(friendService: friendService, userProfileService:
   userProfileService) }`; update the `#Preview`.
 - Delete `hoopr/Views/Tabs/FindMatchTab.swift`.
+- `MainTabView.swift` also passes `friendService` into the existing
+  `LocalRunsTab(...)` call (`MainTabView.swift:139-144`), for the friends'-
+  public-games cross-reference in §4 — that's a separate addition from the
+  three bullets above, tracked as its own phase (§8, Phase 4) since it
+  touches `LocalRunsTab`/`LocalRunsViewModel` rather than the new tab.
 
 ---
 
@@ -391,10 +462,19 @@ Each phase is independently shippable and independently revertable.
 
 This document: the `uidA`/`uidB`/`requestedBy`/`status` schema on the
 ordered pair, the `friendships` rules block, `userNameLower` prefix search
-for discovery, the two-listener split, repurposing the "Find Match" slot, and
-the explicit non-goals (no Cloud Functions, no `games` integration).
+plus exact-ID lookup for discovery, the two-listener split, repurposing the
+"Find Match" slot, friends'-*public*-games as an in-scope client-side
+cross-reference, and the explicit non-goals (no Cloud Functions, no visibility
+into a friend's private runs).
 
-### Phase 1 — Backend only, no UI
+### Phase 1 — Backend only, no UI ✅ shipped
+
+> Built as described, with two corrections worth carrying forward: `Friendship.id`
+> is **computed** rather than stored (§5's `let id: String` contradicts §2's key
+> allowlist, which has no `id` — see `../DATA_MODEL.md`), and the write methods
+> take a friendship ID `String` rather than a `Friendship`. Rules deployed. The
+> six manual two-account checks are **still outstanding**.
+
 
 - `Models/Friendship.swift`, `FriendError`
 - `Services/FriendService.swift` — two listeners, five write methods,
@@ -414,7 +494,15 @@ the explicit non-goals (no Cloud Functions, no `games` integration).
 
 Ship-check: nothing in the app changes visually, nothing regresses.
 
-### Phase 2 — Friends tab: respond and view only
+### Phase 2 — Friends tab: respond and view only ✅ shipped
+
+> Built as described. `FindMatchTab.swift` deleted; `FindAMatchTab.swift`
+> renamed to `MapTab.swift` at the same time, since "Find A Match" naming the
+> court map next to a Friends tab was the confusion that prompted it. Section
+> keys are `friends.requestsExpanded` and `friends.friendsExpanded`. The
+> Friends empty state deliberately doesn't reference the not-yet-built search
+> bar; §6's copy applies from Phase 3.
+
 
 `FriendsTab` replaces `FindMatchTab`. Requests + Friends sections only
 (accept / decline / remove). No search, no send-request UI yet — sending is
@@ -425,17 +513,60 @@ Ship-check: two accounts, two simulators — one accepts/declines a request
 seeded via Phase 1's manual verification, the other sees the friendship
 appear/disappear live.
 
-### Phase 3 — Discovery UI
+### Phase 3 — Discovery UI ✅ shipped
 
-Search bar, results list, Sent section, "Add" wired to
-`FriendService.sendRequest`. Completes the request/accept loop end to end in
-the UI, no longer needing a hand-seeded document.
+> Built, with §6's layout superseded. **No backend change at all**: Phase 1
+> already shipped every service method this needed, so `firestore.rules`,
+> `firestore.indexes.json`, `FriendService`, `UserProfileService`, `Friendship`
+> and `UserProfile` are untouched. Deltas from §6 as written:
+>
+> - **The collapsible sections are gone.** §6 planned a search bar above three
+>   collapsibles (Requests / Friends / Sent). Shipped instead: a pinned toolbar
+>   (search field + badged inbox button) over a single list, with requests moved
+>   into `InboxSheet` — the surface future social notifications land in. A
+>   dropdown you must expand to learn something is waiting on you is the wrong
+>   shape for the one screen whose job is to tell you that. Both `@AppStorage`
+>   keys were deleted.
+> - **Rows are keyed on the person, not the edge.** §5's
+>   `pendingFriendshipId` became `pendingUid`, because a search result has no
+>   friendship document to key on. The friendship ID is recomputed with
+>   `Friendship.id(for:_:)` at write time.
+> - **`FriendCard` was replaced by `FriendRow`** — a compact ~68pt card with one
+>   trailing control supplied by the caller, rather than a tall card with
+>   full-width buttons.
+> - **`PlayerProfileSheet` shows name, home court and joined** (§6 said "name,
+>   home court"; `createdAt` was added as a low-cost legitimacy signal). It
+>   reuses `ProfileCard` with `onEdit: nil`.
+> - **Search runs both lookups rather than routing between them.** §1 proposed
+>   a heuristic that *routes* to the ID path; shipped runs the name query always
+>   and adds the ID read only when the text is uid-shaped, so a wrong guess
+>   costs one document read instead of every result.
+> - **The Friends pill in `MainTabView` carries a badge dot** — not in §6, added
+>   because an inbox discoverable only from its own tab isn't a notification.
+>
+> The "Player ID" row on `ProfileView` (§1) already shipped in Phase 2 as the
+> copyable uid under the handle, so it needed nothing here.
 
 Ship-check: two accounts, two simulators — search by name, send, see the
 incoming request land live on the other device, accept, see it move into
-Friends on both sides.
+Friends on both sides. Also verify search by ID (§1) and the copyable uid on
+the profile screen. **Still outstanding** — verified single-account so far
+(search, profile sheet, inbox, row menu, self-exclusion); the two-account half
+needs a second signed-in device.
 
-### Phase 4 — Later, not now
+### Phase 4 — Friends' public games
+
+`LocalRunsViewModel` gains `friendService`; `GameCard`'s Public Games rows in
+`LocalRunsTab` show a "friends here" badge per §4. No rules, index, or new
+listener — purely a client-side join of two lists both already published by
+Phase 1/2's services. Independently shippable from Phase 3: it doesn't need
+search or the ability to send requests, only an existing friends list.
+
+Ship-check: two accounts already friended (from Phase 1/2 testing), one
+joins a public run, the other sees the badge appear on that run in Local
+Runs without a refresh.
+
+### Phase 5 — Later, not now
 
 - Blocking / reporting abusive users
 - Push notifications on incoming request / acceptance
@@ -443,9 +574,10 @@ Friends on both sides.
   third-party search index — explicitly deferred already in
   `database/DATABASE_SCHEMA.md`'s "Deliberately excluded from v1"
 - Share-link-by-uid as a discovery precision aid alongside search
-- Any `games` interaction (invite-a-friend-to-a-run) — belongs to
-  `GAPS.md`'s separate, still-unbuilt invite-only-games design; a friends
-  list could feed it later, but that wiring isn't part of this plan
+- **Friends' *private* runs** — needs a real authorization design (§4), and
+  overlaps with `GAPS.md`'s separate, still-unbuilt invite-only-games work.
+  Not an extension of Phase 4; a different feature that happens to share a
+  sentence with it in the original ask.
 - Mutual-friend counts or other social-graph features needing a Cloud
   Function or expensive client-side fan-out
 
@@ -472,9 +604,9 @@ When phases ship, update rather than let the dictionary drift:
 |---|---|
 | `database/DATABASE_SCHEMA.md` | The `friendships` collection, its rules, `userNameLower` on `users`. |
 | `DATA_MODEL.md` | `Friendship` and `FriendError`. |
-| `UI_SHELL.md` | Replace the "Find Match" tab description with the real Friends tab; strike the placeholder note. |
+| `UI_SHELL.md` | Replace the "Find Match" tab description with the real Friends tab; strike the placeholder note; document the "Player ID" profile row and the Public Games "friends here" badge. |
 | `ARCHITECTURE.md` | `FriendService` added to the ownership table. |
-| `GAPS.md` | Strike "`FindMatchTab` is a placeholder label." |
+| `GAPS.md` | Strike "`FindMatchTab` is a placeholder label."; note friends'-private-runs visibility as a named, still-open next step alongside invite-only games. |
 
 ## See also
 

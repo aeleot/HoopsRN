@@ -256,7 +256,7 @@ final class ServiceFailureTests: XCTestCase {
     func testNonFirestoreErrorIsNeverReadAsAFirestoreCode() {
         // Code 7 is `permissionDenied` in Firestore's domain.
         let impostor = NSError(
-            domain: "com.hoopr.something.else",
+            domain: "com.hoopsrn.something.else",
             code: FirestoreErrorCode.permissionDenied.rawValue
         )
 

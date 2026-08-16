@@ -31,6 +31,11 @@ final class ProfileViewModel: ObservableObject {
     /// if the profile hasn't been provisioned yet.
     @Published private(set) var email: String?
 
+    /// The Auth uid, which is also the profile's document ID. From the same
+    /// source and for the same reason as `email`: it resolves as soon as the
+    /// session does, without waiting on a Firestore snapshot.
+    @Published private(set) var userId: String?
+
     @Published private(set) var homeCourtId: String?
     @Published private(set) var preferredRadius: Double?
     @Published private(set) var dateJoined: Date?
@@ -74,6 +79,7 @@ final class ProfileViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] user in
                 self?.email = user?.email
+                self?.userId = user?.id
             }
             .store(in: &cancellables)
 

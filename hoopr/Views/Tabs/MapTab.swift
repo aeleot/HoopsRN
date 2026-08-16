@@ -1,7 +1,7 @@
 import SwiftUI
 import MapKit
 
-struct FindAMatchTab: View {
+struct MapTab: View {
     /// How far up the sheet is resting. `medium` is the default: enough list to
     /// be useful, enough map to stay oriented.
     private enum Detent {
@@ -135,9 +135,6 @@ struct FindAMatchTab: View {
                     if !isDraggingSlider {
                         zoomLevel = level
                     }
-                },
-                onRegionChange: { center in
-                    viewModel.mapRegionChanged(to: center)
                 }
             )
 
@@ -171,8 +168,11 @@ struct FindAMatchTab: View {
 
     // MARK: - Map chrome
 
-    /// Filter chips at the top, zoom controls on the right, and the re-search
-    /// pill that appears once the map has wandered from the list.
+    /// Filter chips at the top and zoom controls on the right.
+    ///
+    /// The trailing `Spacer` is load-bearing: it holds the stack at full
+    /// height so the chips stay pinned to the top of a `ZStack` that aligns
+    /// its children to the bottom.
     private var mapOverlay: some View {
         VStack(spacing: 0) {
             filterChips
@@ -185,32 +185,10 @@ struct FindAMatchTab: View {
             .padding(.top, 10)
 
             Spacer()
-
-            if viewModel.canSearchHere {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        viewModel.searchHere()
-                    }
-                } label: {
-                    Text("Search here")
-                        .hooprFont(14, weight: .semibold)
-                        .foregroundStyle(Color.hooprPrimaryText)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 10)
-                        .background(
-                            Capsule()
-                                .fill(Color.hooprSurface)
-                                .shadow(color: Color.hooprShadow(opacity: 0.15), radius: 8, x: 0, y: 2)
-                        )
-                }
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-                .padding(.bottom, 12)
-            }
         }
         .padding(.top, 12)
         // Keep the chrome clear of the sheet, whatever height it's at.
         .padding(.bottom, max(0, sheetHeight - sheetOffset))
-        .animation(.easeInOut(duration: 0.2), value: viewModel.canSearchHere)
     }
 
     private var filterChips: some View {
@@ -662,7 +640,7 @@ struct FindAMatchTab: View {
 
 #Preview {
     let authService = AuthService()
-    return FindAMatchTab(
+    return MapTab(
         courtService: CourtService(),
         locationService: LocationService(),
         userProfileService: UserProfileService(authService: authService),

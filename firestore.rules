@@ -1,9 +1,10 @@
 rules_version = '2';
 
-// Hoopr Firestore security rules.
+// hoopsRN Firestore security rules.
 //
-// Two collections: `users` (one owner per document) and `games` (the first
-// shared, multi-user state in the app). See
+// Three collections: `users` (one owner per document), `games` (the first
+// shared, multi-user state in the app), and `friendships` (one document per
+// pair of people, written by either of them). See
 // `context/database/DATABASE_SCHEMA.md`.
 //
 // SEVERAL VALUES HERE ARE MIRRORED IN SWIFT — the roster bounds, the
@@ -27,7 +28,21 @@ service cloud.firestore {
 
       allow read: if request.auth != null;
 
+      // The key allowlist is what keeps this document safe to leave world-
+      // readable. Without it a modified client could store anything it liked
+      // on its own profile — an email, a phone number — and every other
+      // signed-in user could read it, because Firestore has no field-level
+      // read ACLs. `email` was exactly that mistake: written at provisioning,
+      // read by nothing, visible to everyone. Anything private belongs in an
+      // owner-only subcollection, never here.
+      //
+      // The update rule below has always had this; create didn't, which left
+      // the field-level contract enforced only after the first write.
       allow create: if isOwner()
+        && request.resource.data.keys().hasOnly(['id', 'userName', 'userNameLower',
+                                                 'homeCourtId', 'preferredRadius',
+                                                 'favoriteCourtIds',
+                                                 'createdAt', 'updatedAt'])
         && request.resource.data.id == uid
         && request.resource.data.userName is string
         && request.resource.data.userName.size() > 0
@@ -44,8 +59,8 @@ service cloud.firestore {
         && request.resource.data.id == resource.data.id
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['userName', 'homeCourtId', 'preferredRadius',
-                       'favoriteCourtIds', 'updatedAt'])
+             .hasOnly(['userName', 'userNameLower', 'homeCourtId',
+                       'preferredRadius', 'favoriteCourtIds', 'updatedAt'])
         && request.resource.data.userName is string
         && request.resource.data.userName.size() > 0
         && request.resource.data.userName.size() <= 50
@@ -169,6 +184,80 @@ service cloud.firestore {
       // first-class action here — a run that can't be called off would sit in
       // everyone's list until it aged out.
       allow delete: if isSignedIn() && resource.data.hostId == request.auth.uid;
+    }
+
+    // A friendship, or a request to become one. Like `games`, written by two
+    // different people; unlike `games`, the authority is asymmetric and spent
+    // in one move — the requester creates the document, and the only thing the
+    // other participant may ever do to it is accept.
+    //
+    // Declining, cancelling and unfriending are all the same operation
+    // (delete), which is why there's no `declined` status: absence, never null.
+    match /friendships/{friendshipId} {
+      function isSignedIn() { return request.auth != null; }
+      function incoming() { return request.resource.data; }
+
+      // The two participants, always in a fixed lexicographic order, so a given
+      // pair of people can only ever be represented by one document — without
+      // this, A could create `A_B` while B independently created `B_A` for the
+      // same friendship, and the two copies would drift out of sync.
+      function isOrderedPair() {
+        return incoming().uidA < incoming().uidB;
+      }
+
+      // Ties the document ID to its own content instead of trusting the client
+      // to pick a consistent one — the same role `incoming().id == gameId` plays
+      // on `games`, just derived instead of client-chosen.
+      function idMatchesPair() {
+        return friendshipId == incoming().uidA + '_' + incoming().uidB;
+      }
+
+      function isParticipant(data) {
+        return request.auth.uid == data.uidA || request.auth.uid == data.uidB;
+      }
+
+      // A friendship isn't public like `users` or `games` — only the two people
+      // on it may know it exists, including while it's still a pending request.
+      allow read: if isSignedIn() && isParticipant(resource.data);
+
+      allow create: if isSignedIn()
+        && isOrderedPair()
+        && idMatchesPair()
+        && incoming().keys().hasOnly(['uidA', 'uidB', 'requestedBy', 'status',
+                                      'createdAt', 'updatedAt'])
+        && incoming().keys().hasAll(['uidA', 'uidB', 'requestedBy', 'status',
+                                     'createdAt', 'updatedAt'])
+        && incoming().uidA is string && incoming().uidB is string
+        && incoming().uidA != incoming().uidB
+        // Only the requester may create the edge, and only as one of its own
+        // two participants — nobody can fabricate a request on someone else's
+        // behalf or insert a third party into a pair they're not part of.
+        && incoming().requestedBy == request.auth.uid
+        && isParticipant(incoming())
+        && incoming().status == 'pending'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn()
+        && isParticipant(resource.data)
+        // Who the two people are, and who asked, can never change after
+        // creation — an update can only ever be the recipient answering.
+        && incoming().uidA == resource.data.uidA
+        && incoming().uidB == resource.data.uidB
+        && incoming().requestedBy == resource.data.requestedBy
+        && incoming().diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && resource.data.status == 'pending'
+        && incoming().status == 'accepted'
+        // The requester already spent their one move by creating the doc; only
+        // the *other* participant may move it to accepted.
+        && request.auth.uid != resource.data.requestedBy
+        && incoming().updatedAt == request.time;
+
+      // Either participant may remove the edge outright. While pending that's
+      // the recipient declining or the requester cancelling; once accepted
+      // that's either side unfriending — all three are the same operation
+      // (delete), distinguished client-side only for wording/logging.
+      allow delete: if isSignedIn() && isParticipant(resource.data);
     }
   }
 }

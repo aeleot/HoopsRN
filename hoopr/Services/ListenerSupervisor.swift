@@ -5,7 +5,7 @@ import os
 import UIKit
 #endif
 
-fileprivate let logger = Logger(subsystem: "com.hoopr", category: "ListenerSupervisor")
+fileprivate let logger = Logger(subsystem: "com.hoopsrn", category: "ListenerSupervisor")
 
 /// Which side of a service an error came from. Both Firestore services report
 /// the same `permission-denied` for a rejected read and a rejected write, and

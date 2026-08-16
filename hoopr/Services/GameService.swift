@@ -3,7 +3,7 @@ import FirebaseFirestore
 import Foundation
 import os
 
-fileprivate let logger = Logger(subsystem: "com.hoopr", category: "GameService")
+fileprivate let logger = Logger(subsystem: "com.hoopsrn", category: "GameService")
 
 /// Owns the `games` collection — scheduled runs, and the first shared,
 /// multi-user state in the app.
@@ -265,12 +265,17 @@ final class GameService: ObservableObject {
     /// `status`, the two rosters, and both timestamps — is derived here, so the
     /// creation form only ever collects the four fields a person can actually
     /// decide.
+    ///
+    /// - Returns: the new run's document ID, which is also its `Game.id` — the
+    ///   create form needs it to show an invite link for a private run, and the
+    ///   listener that will deliver the run itself arrives a round trip later.
+    @discardableResult
     func createGame(
         courtId: String,
         scheduledTime: Date,
         isPublic: Bool,
         maxPlayers: Int
-    ) async throws {
+    ) async throws -> String {
         guard let uid = observedUID else { throw GameError.notSignedIn }
 
         // Rejected, not reshaped: silently clamping a bad roster size would
@@ -304,6 +309,7 @@ final class GameService: ObservableObject {
             try await reference.setData(fields)
             clearError()
             logger.debug("Created run at court \(courtId, privacy: .public)")
+            return reference.documentID
         } catch {
             let gameError = Self.mapped(error)
             report(gameError, whileDoing: "starting your run", context: .write)

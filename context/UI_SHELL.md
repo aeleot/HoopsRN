@@ -1,10 +1,11 @@
-# Hoopr — UI Shell
+# hoopsRN — UI Shell
 
 **Scope:** `hoopr/Views/RootView.swift`, `hoopr/Views/MainTabView.swift`,
 `hoopr/Views/LoginView.swift`, `hoopr/Views/Profile/`, `hoopr/Views/Games/`,
-`hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Support/Theme.swift`,
+`hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Views/Tabs/FriendsTab.swift`,
+`hoopr/Views/Friends/`, `hoopr/Support/Theme.swift`,
 `hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`
-**Verified:** 2026-08-13 @ map-tab
+**Verified:** 2026-08-15 @ map-tab
 
 Navigation structure and the visual conventions every screen follows. Read this
 before adding a screen, changing how one is presented, or picking a colour or a
@@ -58,10 +59,10 @@ is up.
   "Visual conventions".
 - Greeting reads `userProfileService.currentProfile?.userName`, falling back to
   `"there"` while the first snapshot is in flight.
-- Tabs: Court Map / Local Runs / Find Match. Selected pill is `hooprOrange` on
+- Tabs: Court Map / Local Runs / Friends. Selected pill is `hooprOrange` on
   `hooprOnBrand`; unselected is `hooprFill` on `hooprSecondaryText`.
 
-**`FindAMatchTab` stays mounted** — it's always in the content `ZStack`, hidden
+**`MapTab` stays mounted** — it's always in the content `ZStack`, hidden
 with `.opacity` + `.allowsHitTesting`, while the other two tabs mount
 conditionally. This is deliberate: it preserves map region, zoom, and sheet
 state across tab switches. Rebuilding it on selection would reset the map to
@@ -80,7 +81,7 @@ anyway: "am I busy, and what else is on?"
 
 Section expansion is **`@AppStorage`, not `@State`**. This tab is unmounted
 whenever another tab is selected, so view state would reopen both sections on
-every visit and silently discard the choice. `FindAMatchTab` solves the same
+every visit and silently discard the choice. `MapTab` solves the same
 problem by staying mounted; that isn't available here without paying for a
 permanently live tab.
 
@@ -94,9 +95,99 @@ Only one roster write is in flight at a time: the acting card shows a spinner
 and every other card's button goes inert, so a double tap can't race the
 transaction already running.
 
+A card for a run you host that isn't public also carries an `InviteLinkCard` —
+the run's `hoopsrn://game/{id}` link, shown in full with a tap that copies it.
+Host-only: an invite-only run is the host's to hand out. **The link doesn't
+resolve yet** — nothing registers the scheme and nothing handles an incoming
+URL, so it's a string to send while the receiving half is built (`GAPS.md` §4).
+
+## `FriendsTab`
+
+Occupies the third tab slot, which was a placeholder (`FindMatchTab`, a centred
+`Text` and nothing else) until the `friendships` collection existed to put
+behind it.
+
+**This is the one list screen that is *not* built from the `LocalRunsTab`
+parts,** and the departure is deliberate. It was that shape once — two
+collapsible sections (Requests, Friends) over one `ScrollView` — which fits
+Local Runs because its two lists answer one question together ("am I busy, and
+what else is on?"). A social screen isn't that. Finding someone is an *action*
+and needs a permanently visible control, and requests waiting on you must not
+be reachable only by expanding a dropdown. So:
+
+```
+VStack
+├── toolbar (pinned)   [ 🔍 search field ..... ] [ 📥 inbox • badge ]
+└── ScrollView
+    ├── query empty → Friends list
+    └── query typed → Results (idle / searching / results / empty / failed)
+```
+
+No `@AppStorage` here any more — there are no collapsible sections left to
+remember, so the keys `friends.requestsExpanded` and `friends.friendsExpanded`
+are gone. The `ErrorBanner` + `isRecovering` retry treatment is unchanged.
+
+**Search** is one field for two lookups. `FriendsViewModel` debounces the text
+by 300ms, then always runs a `userNameLower` prefix range and — only when the
+text is uid-shaped (`looksLikeUserId`: 20–128 ASCII alphanumerics) —
+*additionally* a direct document read. Running both rather than routing between
+them means a wrong guess never costs the user a result; a display name is never
+uid-shaped, so ordinary typing never pays for the extra read. An exact ID match
+ranks first, duplicates collapse, and **the signed-in user is dropped** from
+results. Clearing the field restores the friends list in the same frame —
+`reactToQueryEdit` handles that undebounced, so an empty field never sits on
+stale results.
+
+**Rows are `FriendRow`**, a compact ~68pt card (avatar, name, `@handle`, one
+trailing control) with the same chrome every card in the app carries. It
+replaced the tall `FriendCard`, which put a full-width button under every name
+and made twelve friends read as twelve forms. The trailing control is passed in
+as a `@ViewBuilder`, so one row serves the friends list, the search results and
+both inbox sections without a mode flag.
+
+The subtitle is **always the handle**, never the home court. A subtitle that's a
+court on one row and a handle on the next means two different things in one
+column — and the handle is what distinguishes two friends who share a display
+name, since `userName` isn't unique. The home court has a labelled card on the
+profile.
+
+**`InboxSheet`** holds what's waiting: **Requests** (incoming, what the badge
+counts) and **Sent** (outgoing, cancel-only). Friend requests are the only kind
+of notification today, so there is deliberately **no notification-kind
+abstraction** — a second kind costs a second section, and an `InboxItem` enum
+for one case would be invented structure.
+
+**`PlayerProfileSheet`** shows another player: name, home court, joined. That's
+a *display* decision, not an access control — `users` is readable whole by any
+signed-in account (see `database/DATABASE_SCHEMA.md`), so leaving
+`favoriteCourtIds` and `preferredRadius` off the screen doesn't make them
+private; it just declines to amplify them. Friend counts and mutual friends
+aren't omitted but *impossible*: `friendships` is participants-only. It reuses
+`ProfileCard` with `onEdit: nil`, so these cards can't drift from your own
+profile's. Every relationship action lives in its bottom action bar (a
+`safeAreaInset`, like `ProfileView`'s Sign Out). It holds a **uid**, never a
+snapshot, and reads back through the view model on every render, so a name
+landing or the other person accepting updates the open sheet.
+
+Removing a friend is the one action behind a confirmation dialog: a declined
+request can be re-sent by the other person, but an unfriend is only undone by
+asking again. One write in flight at a time, keyed on the **person** rather than
+the friendship — a search result has no friendship document yet.
+
+Names are **not** stored on a friendship — `FriendsViewModel` resolves them
+through `UserProfileService.profiles(for:)` and renders the row with a skeleton
+until they arrive. A name that fails to resolve leaves the row fully actionable,
+retries on the next snapshot, and is healed by `loadProfileIfNeeded(for:)` when
+its profile sheet opens.
+
+The **Friends pill in `MainTabView` carries a dot** while a request is
+unanswered, read straight off `FriendService` rather than through the view
+model — the tab is unmounted when you're not on it, and an inbox you can only
+discover by already being on its tab isn't a notification.
+
 ## Starting a run
 
-`CreateGameSheet` is presented from the court detail card in `FindAMatchTab`.
+`CreateGameSheet` is presented from the court detail card in `MapTab`.
 **Both entry points the feature calls for — a map pin and a nearby-list row —
 already converge on that card**, so one "Start Run" button there covers both
 without duplicating a control in the list.
@@ -106,14 +197,32 @@ Everything else the `games` schema stores — host, status, both rosters, both
 timestamps — is derived by `GameService` on the write path, so none of it
 appears in the UI.
 
+A **public** run dismisses the sheet on save; it arrives in Local Runs on the
+listener that's already open. A **private** one doesn't — `createGame` returns
+the new document ID, `CreateGameViewModel.inviteLink` is set from it, and the
+sheet swaps the form for an invite step titled "Run Created" with the same
+`InviteLinkCard` the queued card uses. Cancel is dropped there and Create
+becomes Done: the run already exists, so offering Cancel would read as
+"discard it". The link is repeated on the card in Queued Games, so leaving
+without copying costs nothing.
+
+`InviteLink` (in `Support/`) owns the `hoopsrn://game/{id}` format — one
+definition, because the create flow holds a bare document ID and the card holds
+a whole `Game`. `GameTests` pins the string so the scheme can't move on one
+side alone.
+
 ## `ProfileView`
 
 Orange identity header at **`geo.size.height * 0.14`** — the same fraction
 `MainTabView` pins its own header to, so the two screens share a skyline and
 the profile doesn't open on a quarter-screen of orange. One row: back button,
-avatar, then the `@handle`. At this height there's no room to stack the back
-button above the avatar and no need to, since nothing collides in a single
-line. Avatar size is `min(56, max(38, height * 0.44))`; it carries the user's
+avatar, then the `@handle` with the **Auth uid in italics beneath it** — held
+well below the handle in size and contrast. The uid row is a button that copies
+it to the pasteboard, glyph swapping to a checkmark for 1.6s rather than
+raising a toast: quoting the uid is the only reason it's on screen, nobody
+retypes 28 characters, and the header has no room for a larger confirmation. At this
+height there's no room to stack the back button above the avatar and no need
+to, since nothing collides in a single line. Avatar size is `min(56, max(38, height * 0.44))`; it carries the user's
 initials, falling back to a person glyph while the first snapshot is in flight
 or for a name with no letters in it. The header background is an
 `hooprOrange → hooprDarkOrange` gradient under `.ignoresSafeArea(edges: .top)`,
@@ -121,7 +230,9 @@ so it bleeds beneath the status bar while content still lays out inside the
 safe area.
 
 The handle is **rendered, not stored** — `userName` is a display name (see
-`UserProfile`), so the header strips its whitespace and prefixes an `@`.
+`UserProfile`), so the header strips its whitespace and prefixes an `@`. The
+uid under it comes from `AuthService`, not the profile document, so it resolves
+with the session rather than waiting on a Firestore snapshot.
 
 Below it, the profile is a **card mosaic, not a list** — `ProfileCard`s in two
 titled sections, "Your Game" and "Account". The cards interlock: `Home Court`
@@ -208,10 +319,24 @@ outside `ProfileViewModel.EditableField`: nothing about it touches Firestore.
 - Top-level screen selection lives in `RootViewModel.destination`. Don't add a
   fourth presentation path around it.
 - `ProfileView` is presented in place of `MainTabView`, never inside it.
-- `FindAMatchTab` must stay mounted across tab switches; hide it with opacity,
+- `MapTab` must stay mounted across tab switches; hide it with opacity,
   don't unmount it.
-- `LocalRunsTab` *is* unmounted on tab switches, so anything the user chose
-  there (section expansion) belongs in `@AppStorage`, not `@State`.
+- `LocalRunsTab` and `FriendsTab` *are* unmounted on tab switches, so anything
+  the user chose there belongs in `@AppStorage`, not `@State`. (Only
+  `LocalRunsTab` still has such a choice — `FriendsTab`'s collapsibles are
+  gone.)
+- A list screen is built from the `LocalRunsTab` parts — collapsible section
+  header, one shared card, one write in flight — **unless the screen's primary
+  job is an action rather than a list**, which is the `FriendsTab` exception:
+  search and the inbox are pinned controls, and only the last of those three
+  parts survives there. `ProfileView`'s mosaic is for a fixed set of distinct
+  entities, not a list.
+- One write in flight is keyed by whatever the screen's rows are *about* —
+  `pendingGameId` on Local Runs, `pendingUid` on Friends. A friendship ID can't
+  key a search result, because a search result has no friendship yet.
+- Anything showing another player renders a deliberate subset of their profile.
+  `users` is readable whole by any signed-in account, so that subset is a
+  display choice, not privacy — don't reach for a field just because it decodes.
 - A card's action is resolved once and reused by its button and its
   confirmation dialog. Don't recompute it at tap time.
 - Colours come from `Theme.swift`, including the map's `UIColor` marker tint,

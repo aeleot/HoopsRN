@@ -16,6 +16,15 @@ final class CreateGameViewModel: ObservableObject {
     @Published private(set) var isSaving = false
     @Published private(set) var errorMessage: String?
 
+    /// Set once a **private** run is written, which turns the form into its
+    /// confirmation step. Public runs leave this `nil` and the sheet dismisses
+    /// straight away — there's nothing to hand out.
+    ///
+    /// It's shown here rather than only on the run's card because this is the
+    /// one moment the host is certain to be looking: they just chose to hide
+    /// the run, and the link is the whole of how anyone else reaches it.
+    @Published private(set) var inviteLink: String?
+
     let court: Court
 
     private let gameService: GameService
@@ -60,7 +69,7 @@ final class CreateGameViewModel: ObservableObject {
     var visibilityCaption: String {
         isPublic
             ? "Anyone searching near this court can find and join your run."
-            : "Hidden from search. Only you can see it for now — invites are coming."
+            : "Hidden from search. You'll get a link to share with the players you want in."
     }
 
     /// The one check the form runs, shared with the write path — the button
@@ -88,11 +97,12 @@ final class CreateGameViewModel: ObservableObject {
 
     // MARK: - Saving
 
-    /// - Returns: `true` once the run is written, so the caller can dismiss.
-    ///   The new run arrives in the Local Runs tab on the listener that's
-    ///   already open — there's nothing to hand back.
+    /// - Returns: `true` once the run is written. The new run arrives in the
+    ///   Local Runs tab on the listener that's already open, so a public run
+    ///   has nothing left to show and the caller dismisses. A private one sets
+    ///   `inviteLink` first — the caller checks it before dismissing.
     func create() async -> Bool {
-        guard !isSaving else { return false }
+        guard !isSaving, inviteLink == nil else { return false }
         if let invalid = validationError {
             errorMessage = GameService.message(for: invalid, whileDoing: "starting your run", context: .write)
             return false
@@ -102,13 +112,16 @@ final class CreateGameViewModel: ObservableObject {
         defer { isSaving = false }
 
         do {
-            try await gameService.createGame(
+            let gameId = try await gameService.createGame(
                 courtId: court.id,
                 scheduledTime: scheduledTime,
                 isPublic: isPublic,
                 maxPlayers: maxPlayers
             )
             errorMessage = nil
+            if !isPublic {
+                inviteLink = InviteLink.text(forGameId: gameId)
+            }
             return true
         } catch {
             errorMessage = Self.message(for: error)

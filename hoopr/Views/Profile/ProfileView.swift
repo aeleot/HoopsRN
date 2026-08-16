@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Full-screen profile. Presented in place of the main tab interface rather
 /// than inside it, so it owns the whole screen including its own back button.
@@ -17,6 +18,9 @@ struct ProfileView: View {
     /// write to the profile document, so it shares none of that sheet's
     /// in-flight or failure handling.
     @State private var isChangingPassword = false
+
+    /// Drives the uid's copy glyph, which reverts to itself after a beat.
+    @State private var didCopyUserId = false
 
     @AppStorage(AppearancePreference.storageKey)
     private var appearance: AppearancePreference = .system
@@ -139,13 +143,28 @@ struct ProfileView: View {
 
             avatar(size: Self.avatarSize(forHeaderHeight: height))
 
-            Text(handle)
-                // Capped like the rest of the pinned header: the bar's height
-                // is a fraction of the screen, so its type can't grow freely.
-                .hooprFont(22, weight: .bold, maximumSize: 28)
-                .foregroundStyle(Color.hooprOnBrand)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(handle)
+                    // Capped like the rest of the pinned header: the bar's
+                    // height is a fraction of the screen, so its type can't
+                    // grow freely.
+                    .hooprFont(22, weight: .bold, maximumSize: 28)
+                    .foregroundStyle(Color.hooprOnBrand)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+
+                // The Auth uid. Held well below the handle in size and
+                // contrast because it's a reference to quote, not something to
+                // read.
+                if let userId = viewModel.userId {
+                    copyableUserId(userId)
+                } else {
+                    // Holds the line's height while the session resolves, so
+                    // the handle above doesn't shift when the uid lands.
+                    Text(" ")
+                        .hooprFont(11, maximumSize: 14)
+                }
+            }
 
             Spacer(minLength: 0)
         }
@@ -170,6 +189,48 @@ struct ProfileView: View {
             )
             .ignoresSafeArea(edges: .top)
         )
+    }
+
+    /// The uid, with a tap that puts it on the pasteboard — quoting it in a
+    /// bug report is the only reason it's on screen, and a 28-character string
+    /// is not something anyone should retype.
+    ///
+    /// The glyph swaps to a checkmark on success rather than raising a toast:
+    /// the confirmation belongs where the tap was, and this header has no room
+    /// for anything larger.
+    private func copyableUserId(_ userId: String) -> some View {
+        Button {
+            UIPasteboard.general.string = userId
+            withAnimation(.easeInOut(duration: 0.15)) {
+                didCopyUserId = true
+            }
+            // Reverts on its own; a copy affordance that stays "copied" stops
+            // reading as a button.
+            Task {
+                try? await Task.sleep(for: .seconds(1.6))
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    didCopyUserId = false
+                }
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Text(userId)
+                    .hooprFont(11, maximumSize: 14)
+                    .italic()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+
+                Image(systemName: didCopyUserId ? "checkmark" : "doc.on.doc")
+                    .hooprFont(10, weight: .semibold, maximumSize: 13)
+            }
+            .foregroundStyle(Color.hooprOnBrand.opacity(0.75))
+            // The row is short, so the whole of it — uid included — is the
+            // target rather than just the glyph.
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Copy user ID")
+        .accessibilityValue(userId)
     }
 
     /// The identity line. `userName` is a *display* name, not a stored handle

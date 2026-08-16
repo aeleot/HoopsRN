@@ -6,6 +6,14 @@ import Foundation
 /// players will eventually see — starting with a real name instead of a guess
 /// derived from an email address.
 ///
+/// **Treat every field here as visible to all other players.** The `users` read
+/// rule grants any signed-in user, which is what makes name resolution on game
+/// rosters and player search work, and Firestore has no field-level read ACLs —
+/// so a document is readable whole or not at all. That's why there's no `email`:
+/// it was stored, read by nothing (the profile screen's Email row comes from
+/// `AuthService`), and exposed every account's address to every other account.
+/// Anything genuinely private belongs in an owner-only subcollection, not here.
+///
 /// Deliberately free of Firebase types, like `Court` and `AuthenticatedUser`.
 /// `UserProfileService` owns all encoding: it writes explicit field maps so
 /// server timestamps stay server-assigned and `createdAt` is never clobbered
@@ -19,8 +27,14 @@ struct UserProfile: Identifiable, Sendable, Codable, Hashable {
     /// not a handle. Nothing enforces uniqueness on it.
     var userName: String
 
-    /// Denormalized from Auth for display only. Never a lookup key.
-    var email: String?
+    /// Lowercased mirror of `userName`, written by `UserProfileService`
+    /// alongside it and never edited independently — it exists only so player
+    /// search can do a case-insensitive prefix range, which Firestore can't
+    /// express over `userName` itself.
+    ///
+    /// Optional because profiles provisioned before search existed omit it;
+    /// those rows are invisible to search until their owner next saves a name.
+    var userNameLower: String?
 
     /// Reserved for a future "home court" preference. Read but never written
     /// yet — no UI sets it.
@@ -78,6 +92,14 @@ extension UserProfile {
         guard !name.isEmpty else { return .emptyUserName }
         guard name.count <= maxUserNameLength else { return .userNameTooLong }
         return nil
+    }
+
+    /// The stored form of a display name for searching — what goes into
+    /// `userNameLower` on a write, and what a typed prefix is reduced to before
+    /// it's compared against one. Both sides call this so a name saved with
+    /// stray padding or different casing still matches what someone types.
+    static func searchKey(_ raw: String) -> String {
+        raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     /// The radius to actually search with.

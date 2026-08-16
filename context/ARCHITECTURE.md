@@ -1,4 +1,4 @@
-# Hoopr — Architecture
+# hoopsRN — Architecture
 
 **Scope:** `hoopr/hooprApp.swift`, `hoopr/Services/`, `hoopr/ViewModels/`
 **Verified:** 2026-08-13 @ map-tab
@@ -12,7 +12,7 @@ object is constructed.
 
 ## Ownership and injection
 
-`hooprApp` owns six services as `@StateObject` for the process lifetime and
+`hooprApp` owns seven services as `@StateObject` for the process lifetime and
 passes them down as plain `let`s. There is no `@EnvironmentObject` anywhere —
 every view model takes its dependencies through its initializer, so any of them
 can be built with a stub.
@@ -24,12 +24,22 @@ can be built with a stub.
 | `CourtService` | `courts: [Court]`, `loadError: String?` | Loads the bundled dataset synchronously in `init()`. |
 | `LocationService` | `userLocation: CLLocationCoordinate2D?`, `authorizationStatus` | `CLLocationManagerDelegate` wrapper. Also owns `homeLocation`, the single anchor every distance in the app measures from. |
 | `GameService` | `queuedGames: [Game]`, `publicGames: [Game]`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns two session-scoped query listeners and a `ListenerSupervisor` that keys their health separately. |
+| `FriendService` | `friends: [Friendship]`, `incomingRequests: [Friendship]`, `outgoingRequests: [Friendship]`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Two session-scoped query listeners (`uidA == me`, `uidB == me`) merged client-side, and a `ListenerSupervisor` keying their health separately. |
 | `RecentCourtsStore` | `recentCourtIds: [String]` | `UserDefaults`-backed; deliberately on-device. |
 
-Four view models are built from them, each `@StateObject` inside the view it
+Six view models are built from them, each `@StateObject` inside the view it
 backs: `RootViewModel` (from `AuthService`), `LoginViewModel` (`AuthService`),
 `FindAMatchViewModel` (`CourtService` + `LocationService`), `ProfileViewModel`
-(`AuthService` + `UserProfileService` + `CourtService`).
+(`AuthService` + `UserProfileService` + `CourtService`), `LocalRunsViewModel`
+(`GameService` + `CourtService` + `UserProfileService`), `FriendsViewModel`
+(`FriendService` + `UserProfileService` + `CourtService` — the last one only to
+name a home court on another player's profile).
+
+The last two are where **cross-collection joins live**. A service owns one
+collection and never learns about another's: `LocalRunsViewModel` joins runs to
+the bundled court dataset for its distance filter, and `FriendsViewModel` joins
+friendship uids to profiles for their names. Pushing either down into a service
+would give one collection's owner a dependency on another's.
 
 `RootViewModel` is a separate type from `RootView` specifically so the
 launching/login/main gating rule can be tested without rendering.
@@ -48,6 +58,7 @@ init() {
     _authService = StateObject(wrappedValue: authService)
     _userProfileService = StateObject(wrappedValue: UserProfileService(authService: authService))
     _gameService = StateObject(wrappedValue: GameService(authService: authService))
+    _friendService = StateObject(wrappedValue: FriendService(authService: authService))
 }
 ```
 
@@ -82,13 +93,14 @@ the service layer", which still holds.)*
 | `Services/AuthService.swift` | `FirebaseAuth` | identity | `AuthenticatedUser`, `AuthError` |
 | `Services/UserProfileService.swift` | `FirebaseFirestore` | `users` | `UserProfile`, `UserProfileError` |
 | `Services/GameService.swift` | `FirebaseFirestore` | `games` | `Game`, `GameError` |
+| `Services/FriendService.swift` | `FirebaseFirestore` | `friendships` | `Friendship`, `FriendError` |
 | `Services/ListenerSupervisor.swift` | *(none)* | listener re-attach + `FailureContext` | both, to the two Firestore services |
 
 `hooprApp.swift` imports `FirebaseCore` for the one `configure()` call.
 `hooprTests/UserProfileTests.swift` imports `FirebaseFirestore` deliberately —
 it decodes through the real `Firestore.Decoder`.
 
-All three services translate the SDK's `NSError`s into domain enums in a
+All four services translate the SDK's `NSError`s into domain enums in a
 private static `mapped(_:)`; view models then map those to user-facing strings. No
 `DocumentSnapshot`, `User`, or `AuthErrorCode` reaches a model, view model, or
 view.
@@ -120,15 +132,16 @@ anything that reaches the callback is something it gave up on. Nothing
 re-attaches automatically, which is how a still-building index once emptied both
 Local Runs lists until the app was relaunched.
 
-`ListenerSupervisor` is what re-attaches them. Both Firestore services own one,
+`ListenerSupervisor` is what re-attaches them. All three Firestore services own one,
 hand it a weakly-captured re-attach closure, and report every listener error and
 every snapshot to it. Delays escalate 2s → 5m and then repeat rather than giving
 up, since the failures it exists for (an index finishing, a ruleset being
 deployed) heal on their own. Returning to the foreground jumps the queue, and so
 does the "Try again" button on the Local Runs banner.
 
-It tracks health **per listener**, by key. `GameService` runs two, and other
-players' joins produce snapshots on the healthy one continuously — with a single
+It tracks health **per listener**, by key. `GameService` and `FriendService` each
+run two, and other people's actions produce snapshots on the healthy one
+continuously — with a single
 flag, those successes would cancel the dead listener's re-attach and leave that
 list permanently empty. Recovery ends only when every listener that failed has
 reported back, and `errorMessage` survives until then for the same reason.
@@ -139,9 +152,11 @@ Firestore returns the same code for "the ruleset was never deployed" and "the
 rules deliberately rejected this". The error can't distinguish them; the side it
 came from can, which is what `FailureContext` carries:
 
-- A denied **read** was one of the queries shaped to match the read rule for any
-  signed-in user, so the server isn't running the rules in this repo →
-  the message names deployment.
+- A denied **read** was one of the queries shaped so it only ever asks for
+  documents the read rule already admits — for `users` and `games` because the
+  rule grants any signed-in user, and for `friendships` because both listeners
+  filter on the caller's own uid. So the server isn't running the rules in this
+  repo → the message names deployment.
 - A denied **write** was already validated client-side (`Game.validate`,
   `UserProfile.validate(userName:)`), so the server rejected something the
   client believed was legal → the message describes the rejection and says

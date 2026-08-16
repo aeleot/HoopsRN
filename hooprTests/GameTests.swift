@@ -320,6 +320,27 @@ final class GameTests: XCTestCase {
         XCTAssertEqual(game.rosterText, "2 / 10 players")
     }
 
+    // MARK: - Invite link
+
+    /// The format the (unbuilt) deep-link handler will have to parse. Pinning
+    /// it here means the scheme can't be changed on one side alone.
+    func testInviteLinkFormat() throws {
+        let game = try decoder.decode(Game.self, from: storedDocument())
+
+        XCTAssertEqual(game.inviteLink, "hoopsrn://game/game-001")
+        XCTAssertEqual(InviteLink.text(forGameId: "5FQxT2mKpLwd0aZbYc19"),
+                       "hoopsrn://game/5FQxT2mKpLwd0aZbYc19")
+    }
+
+    /// Firestore's own IDs are alphanumeric, so this only guards a hand-written
+    /// one — but a link that isn't a URL is worse than no link.
+    func testInviteLinkEncodesAnUnsafeId() {
+        let link = InviteLink.text(forGameId: "a b/c?d")
+
+        XCTAssertEqual(link, "hoopsrn://game/a%20b%2Fc%3Fd")
+        XCTAssertNotNil(URL(string: link))
+    }
+
     // MARK: - Distance
 
     func testDistanceFormatting() {

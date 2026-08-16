@@ -29,6 +29,7 @@ struct hooprApp: App {
     /// initializer can't reference another property.
     @StateObject private var userProfileService: UserProfileService
     @StateObject private var gameService: GameService
+    @StateObject private var friendService: FriendService
 
     /// Applied at the window root so it reaches every screen *and* every sheet
     /// presented from one — a `preferredColorScheme` set further down would
@@ -48,6 +49,7 @@ struct hooprApp: App {
         _authService = StateObject(wrappedValue: authService)
         _userProfileService = StateObject(wrappedValue: UserProfileService(authService: authService))
         _gameService = StateObject(wrappedValue: GameService(authService: authService))
+        _friendService = StateObject(wrappedValue: FriendService(authService: authService))
     }
 
     var body: some Scene {
@@ -58,6 +60,7 @@ struct hooprApp: App {
                 locationService: locationService,
                 userProfileService: userProfileService,
                 gameService: gameService,
+                friendService: friendService,
                 recentCourtsStore: recentCourtsStore
             )
             .preferredColorScheme(appearance.colorScheme)

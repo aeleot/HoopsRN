@@ -433,7 +433,7 @@ struct ChangePasswordSheet: View {
                 .lineLimit(2)
                 .minimumScaleFactor(0.7)
 
-            Text("Hoopr never stores your password, so you'll choose the new one on the link's page. Opening it signs you out on your other devices.")
+            Text("hoopsRN never stores your password, so you'll choose the new one on the link's page. Opening it signs you out on your other devices.")
                 .hooprFont(13)
                 .foregroundStyle(Color.hooprSecondaryText)
                 .fixedSize(horizontal: false, vertical: true)

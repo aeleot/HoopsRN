@@ -26,6 +26,13 @@ struct GameCard: View {
             details
             capacity
 
+            // Host-only, matching the invite design: an invite-only run is the
+            // host's to hand out, and every private run in this list is one
+            // they created until the receiving half of the link ships.
+            if isHost && !game.isPublic {
+                InviteLinkCard(link: game.inviteLink)
+            }
+
             if action != .none {
                 primaryButton
             }

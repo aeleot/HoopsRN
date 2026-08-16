@@ -1,4 +1,4 @@
-# Hoopr — Court Dataset
+# hoopsRN — Court Dataset
 
 **Scope:** `hoopr/Resources/`, `tools/`, `location-decoder-script/`
 **Verified:** 2026-08-07 @ 2d483bb

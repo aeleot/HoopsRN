@@ -1,11 +1,11 @@
-# Hoopr — User Profile Workflow
+# hoopsRN — User Profile Workflow
 
 **Scope:** runtime auth + profile behaviour (`AuthService`, `UserProfileService`,
 `ProfileViewModel`, `Views/Profile/`)
 **Verified:** 2026-08-07 @ 2d483bb
 
 How the app connects to Firestore and what happens at runtime between someone
-signing in and a rendered profile. This is the first Hoopr feature backed by a
+signing in and a rendered profile. This is the first hoopsRN feature backed by a
 real database, so it also establishes the patterns every later collection
 (matches, queues) should follow.
 
@@ -24,6 +24,12 @@ Two separate layers, deliberately:
 | Provides | `uid`, `email` | `userName`, `homeCourtId`, future profile fields |
 | Who can read it | Only the account itself | Any signed-in user |
 | Managed by | `AuthService` | `UserProfileService` |
+
+That read-access row is the reason **the email is never copied into Firestore**.
+Auth keeps it private to the account; a `users` document is visible to every
+signed-in player, and Firestore can't hide one field of a readable document.
+The profile screen's Email row reads `AuthService.currentUser` directly, so
+nothing was lost by not storing it — see `DATABASE_SCHEMA.md`.
 
 Before this, the greeting guessed a name by slicing the email at the `@`. That
 guess was recomputed on every render, was never stored, and could never be
@@ -59,13 +65,17 @@ optionals, matching how `Court` is modeled.
 ## 3. Schema
 
 Defined in `DATABASE_SCHEMA.md`. In short: `id` (Auth uid, immutable),
-`userName` (1–50 chars, editable, not unique), `email` (denormalized from Auth,
-display only), `homeCourtId` (a `Court.id`, editable, deleted when cleared),
-`preferredRadius` (1–50 miles, editable, defaults to 5), `createdAt` (write-once)
+`userName` (1–50 chars, editable, not unique), `userNameLower` (its lowercased
+mirror, derived on write so player search has something to prefix-match),
+`homeCourtId` (a `Court.id`, editable, deleted when cleared),
+`preferredRadius` (1–50 miles, editable, defaults to 5), `favoriteCourtIds`
+(starred courts), `createdAt` (write-once)
 and `updatedAt` (refreshed on every write).
 
-`userName`, `homeCourtId`, and `preferredRadius` are the only fields a client
-can ever change. Enforced server-side, not by convention.
+`userName`, `homeCourtId`, `preferredRadius` and `favoriteCourtIds` are the only
+fields a person can change — plus `userNameLower`, which nobody edits directly:
+it's written in the same field map as `userName`, through
+`UserProfile.searchKey(_:)`. Enforced server-side, not by convention.
 
 The 1–50 character bound on `userName` is enforced client-side too, by
 `UserProfile.validate(userName:)` — the sheet's Save button and
@@ -153,8 +163,9 @@ User signs in
 4. **Provisioning** reads the document once. If it exists, it does nothing —
    idempotent, so it's safe on every sign-in. If missing, it writes `id`,
    `userName` (seeded from the email local part, `aeleot11@gmail.com` →
-   `aeleot11`, or `"Hooper"` if Auth has no email), `email` **only if present**,
-   and `createdAt`/`updatedAt` as `FieldValue.serverTimestamp()`.
+   `aeleot11`, or `"Hooper"` if Auth has no email), `userNameLower` derived from
+   it, and `createdAt`/`updatedAt` as `FieldValue.serverTimestamp()`. The email
+   is *read* from Auth to seed that name and then deliberately not stored.
 5. The write triggers the listener, which decodes into `UserProfile` and
    publishes it. The UI updates reactively — no manual refresh.
 
@@ -237,9 +248,13 @@ data leaks into the next session.
 
 Rules live in `firestore.rules`; the update rule and its rationale are in
 `DATABASE_SCHEMA.md`. In effect: you can only write your own document, you can
-only change `userName` and `homeCourtId` (+ `updatedAt`), `id` and `createdAt`
-are immutable **even against a hand-crafted request**, and reads are open to any
-signed-in user because match rosters will need to resolve names later.
+only change `userName`/`userNameLower`, `homeCourtId`, `preferredRadius` and
+`favoriteCourtIds` (+ `updatedAt`), `id` and `createdAt`
+are immutable **even against a hand-crafted request**, both create and update
+carry a key allowlist so no unvetted field can be stored at all, and reads are
+open to any
+signed-in user — which is what lets match rosters resolve names, and what friend
+search is built on.
 
 ---
 

@@ -72,7 +72,6 @@ struct MapView: UIViewRepresentable {
     var onMarkerTap: ((Court) -> Void)?
     var onMarkerDeselect: (() -> Void)?
     var onZoomLevelChange: ((Double) -> Void)?
-    var onRegionChange: ((CLLocationCoordinate2D) -> Void)?
 
     private static let courtReuseID = "court"
     private static let clusterReuseID = "courtCluster"
@@ -293,12 +292,9 @@ struct MapView: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
             debounceWorkItem?.cancel()
             let zoomCallback = parent.onZoomLevelChange
-            let regionCallback = parent.onRegionChange
             let zoomLevel = MapView.zoomLevelFromSpan(mapView.region.span)
-            let center = mapView.region.center
             let work = DispatchWorkItem {
                 zoomCallback?(zoomLevel)
-                regionCallback?(center)
             }
             debounceWorkItem = work
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)

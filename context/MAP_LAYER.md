@@ -1,13 +1,18 @@
-# Hoopr — Map Layer
+# hoopsRN — Map Layer
 
-**Scope:** `hoopr/Views/MapView.swift`, `hoopr/Views/Tabs/FindAMatchTab.swift`,
-`hoopr/Views/Tabs/CourtRow.swift`, `hoopr/Views/Tabs/FindMatchTab.swift`
+**Scope:** `hoopr/Views/MapView.swift`, `hoopr/Views/Tabs/MapTab.swift`,
+`hoopr/Views/Tabs/CourtRow.swift`
 **Verified:** 2026-08-13 @ map-tab
 
 The map tab and its bottom sheet — the densest interaction code in the app, and
 the part most likely to break subtly when edited. Read this before touching
-`MapView.swift` or `FindAMatchTab.swift`. `FindMatchTab` is still a placeholder
-label; the Local Runs tab moved to `UI_SHELL.md`.
+`MapView.swift` or `MapTab.swift`. The Local Runs and Friends tabs are in
+`UI_SHELL.md`.
+
+`MapTab` was called `FindAMatchTab` until the third tab stopped being a
+"Find Match" placeholder and became Friends — at which point a file named for
+matchmaking that renders the court map was purely confusing. Its view model is
+still `FindAMatchViewModel`.
 
 ---
 
@@ -84,7 +89,7 @@ zoom-in.
 
 ---
 
-## `FindAMatchTab` — the sheet state machine
+## `MapTab` — the sheet state machine
 
 ```swift
 private enum SheetState: Equatable {

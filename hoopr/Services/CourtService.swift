@@ -2,7 +2,7 @@ import Combine
 import Foundation
 import os
 
-fileprivate let logger = Logger(subsystem: "com.hoopr", category: "CourtService")
+fileprivate let logger = Logger(subsystem: "com.hoopsrn", category: "CourtService")
 
 /// Court geography ships with the app as a curated dataset rather than being
 /// fetched at runtime: the map is populated instantly, works offline, and no

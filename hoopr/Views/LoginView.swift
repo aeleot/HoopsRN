@@ -22,7 +22,7 @@ struct LoginView: View {
                     .hooprFont(44)
                     .foregroundStyle(Color.hooprOrange)
 
-                Text("HoopRN")
+                Text("hoopsRN")
                     .hooprFont(34, weight: .bold)
                     .foregroundStyle(Color.hooprPrimaryText)
 

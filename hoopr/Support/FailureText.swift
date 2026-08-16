@@ -32,11 +32,14 @@ nonisolated enum FailureText {
 
     /// A **read** was refused by the security rules.
     ///
-    /// Both services' read queries are shaped to match a rule that grants any
-    /// signed-in user, so a refusal there means the rules the server is running
-    /// aren't the rules in this repo — a deployment problem rather than
-    /// anything the user did. See `GameService.message(for:whileDoing:context:)`
-    /// for why a refused *write* reads differently.
+    /// Every service's read queries are shaped so they only ever ask for
+    /// documents the read rule already admits — for `users` and `games` because
+    /// the rule grants any signed-in user, and for `friendships` because both
+    /// listeners filter on the caller's own uid. A refusal therefore means the
+    /// rules the server is running aren't the rules in this repo — a deployment
+    /// problem rather than anything the user did. See
+    /// `GameService.message(for:whileDoing:context:)` for why a refused *write*
+    /// reads differently.
     static func rulesNotDeployed(loading subject: String) -> String {
         "Can't load \(subject) — the server refused the request. The Firestore security rules are probably not deployed."
     }

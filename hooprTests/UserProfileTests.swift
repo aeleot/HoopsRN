@@ -10,8 +10,8 @@ final class UserProfileTests: XCTestCase {
 
     private let decoder = Firestore.Decoder()
 
-    /// Mirrors the seed document created by hand in the Firebase console,
-    /// including `homeCourtId`, which the app reads but never writes.
+    /// Mirrors the full stored document, including `homeCourtId` and the
+    /// derived `userNameLower` search mirror.
     func testDecodesStoredDocumentShape() throws {
         let created = Timestamp(date: Date(timeIntervalSince1970: 1_780_000_000))
         let updated = Timestamp(date: Date(timeIntervalSince1970: 1_780_000_015))
@@ -19,7 +19,7 @@ final class UserProfileTests: XCTestCase {
         let document: [String: Any] = [
             "id": "test-user-000",
             "userName": "Test User",
-            "email": "testuser@hoopr.edu",
+            "userNameLower": "test user",
             "homeCourtId": "0000",
             "preferredRadius": 12,
             "createdAt": created,
@@ -30,16 +30,15 @@ final class UserProfileTests: XCTestCase {
 
         XCTAssertEqual(profile.id, "test-user-000")
         XCTAssertEqual(profile.userName, "Test User")
-        XCTAssertEqual(profile.email, "testuser@hoopr.edu")
+        XCTAssertEqual(profile.userNameLower, "test user")
         XCTAssertEqual(profile.homeCourtId, "0000")
         XCTAssertEqual(profile.preferredRadius, 12)
         XCTAssertEqual(profile.createdAt, created.dateValue())
         XCTAssertEqual(profile.updatedAt, updated.dateValue())
     }
 
-    /// A freshly provisioned profile omits `email` when Auth has none, and
-    /// never sets `homeCourtId` or `preferredRadius`. All three must stay
-    /// optional.
+    /// A profile that predates a field must still decode — `homeCourtId`,
+    /// `preferredRadius` and `userNameLower` are all optional for that reason.
     func testDecodesMinimalDocument() throws {
         let document: [String: Any] = [
             "id": "uid-1",
@@ -50,11 +49,27 @@ final class UserProfileTests: XCTestCase {
 
         XCTAssertEqual(profile.id, "uid-1")
         XCTAssertEqual(profile.userName, "Hooper")
-        XCTAssertNil(profile.email)
+        XCTAssertNil(profile.userNameLower)
         XCTAssertNil(profile.homeCourtId)
         XCTAssertNil(profile.preferredRadius)
         XCTAssertNil(profile.createdAt)
         XCTAssertNil(profile.updatedAt)
+    }
+
+    /// Documents written before the email field was removed still carry one.
+    /// Decoding must ignore it rather than failing — and the model must not
+    /// resurface it, which is why there's no property to assert on.
+    func testIgnoresALegacyEmailField() throws {
+        let document: [String: Any] = [
+            "id": "uid-1",
+            "userName": "Hooper",
+            "email": "someone@hoopr.edu",
+        ]
+
+        let profile = try decoder.decode(UserProfile.self, from: document)
+
+        XCTAssertEqual(profile.id, "uid-1")
+        XCTAssertEqual(profile.userName, "Hooper")
     }
 
     /// Firestore stores every number as a double, but a value entered as a
@@ -147,7 +162,7 @@ final class UserProfileTests: XCTestCase {
     func testMissingUserNameFailsToDecode() {
         let document: [String: Any] = [
             "id": "uid-1",
-            "email": "someone@hoopr.edu",
+            "homeCourtId": "0000",
         ]
 
         XCTAssertThrowsError(try decoder.decode(UserProfile.self, from: document))

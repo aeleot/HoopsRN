@@ -1,4 +1,4 @@
-# Hoopr Context Dictionary — Incremental Refresh
+# hoopsRN Context Dictionary — Incremental Refresh
 
 Bring the context dictionary in `context/` back in sync with the code, re-reading only what actually changed.
 

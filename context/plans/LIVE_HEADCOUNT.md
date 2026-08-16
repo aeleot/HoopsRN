@@ -20,7 +20,7 @@ patterns for every later social feature get set.
 
 ## 1. Why this is worth building first
 
-`FindAMatchTab` currently answers "where are the courts?" — a question the
+`MapTab` currently answers "where are the courts?" — a question the
 bundled dataset already answers offline, with no account required. Headcounts
 are the first thing that makes signing in *worth it*: the map stops being a
 static directory and starts being a reason to open the app before leaving the
@@ -225,15 +225,15 @@ already in hand.
 
 ### Injection
 
-`FindAMatchTab` and `FindAMatchViewModel` currently take `courtService` +
+`MapTab` and `FindAMatchViewModel` currently take `courtService` +
 `locationService` only. `CheckInService` has to be threaded through the same
 chain the location work also needs to extend:
 
 ```
-hooprApp.swift  →  RootView  →  MainTabView  →  FindAMatchTab  →  FindAMatchViewModel
+hooprApp.swift  →  RootView  →  MainTabView  →  MapTab  →  FindAMatchViewModel
 ```
 
-`MainTabView.swift:114` constructs `FindAMatchTab(courtService:locationService:)`
+`MainTabView.swift:114` constructs `MapTab(courtService:locationService:)`
 today. **If the `homeLocation` work (which needs `UserProfileService` on the
 same chain) is done around the same time, do both init-signature changes in one
 pass** rather than editing four files' initializers twice.
@@ -263,7 +263,7 @@ Ship-check: nothing in the app changes visually, and nothing regresses.
 
 ### Phase 2 — Detail sheet: count + check in/out
 
-The court detail card (`courtCard`, `FindAMatchTab.swift:300`) grows a count
+The court detail card (`courtCard`, `MapTab.swift:300`) grows a count
 line and a primary action button. One listener, scoped to the selected court,
 started from `select(_:)` and torn down on `dismissDetail()`.
 

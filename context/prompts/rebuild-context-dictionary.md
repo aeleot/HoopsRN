@@ -1,4 +1,4 @@
-# Hoopr Context Dictionary — Full Rebuild
+# hoopsRN Context Dictionary — Full Rebuild
 
 Rebuild the context dictionary in `context/` from a complete read of the codebase.
 
@@ -56,7 +56,7 @@ Layout: entries live at the root of `context/`, except the two database entries 
 Every entry, without exception:
 
 ```markdown
-# Hoopr — <Entry Name>
+# hoopsRN — <Entry Name>
 
 **Scope:** `path/one`, `path/two`
 **Verified:** YYYY-MM-DD @ <short commit sha>
@@ -154,7 +154,7 @@ Only the things an agent would get wrong without being told. Verify each claim.
 - Log-scale zoom between 0.01° and 5.0° spans; `zoomLevelFromSpan`/`spanFromZoomLevel` are inverses so slider and map agree. Stepped zoom factors 0.75 / 1.4.
 - 200ms debounce on region reporting; 50ms delay before `onMarkerDeselect` because pin-to-pin taps deselect before selecting.
 - `canShowCallout = false` — the sheet owns detail display.
-- `FindAMatchTab`'s `SheetState` machine: `.list` / `.collapsed` / `.detail(court:returningTo:)`, where `.detail` carries the rest state so dismissing restores what was showing before. The sheet only claims a drag that starts with the list at the top (`listScrollOffset`); `tapSlop`, `collapseThreshold`.
+- `MapTab`'s `SheetState` machine: `.list` / `.collapsed` / `.detail(court:returningTo:)`, where `.detail` carries the rest state so dismissing restores what was showing before. The sheet only claims a drag that starts with the list at the top (`listScrollOffset`); `tapSlop`, `collapseThreshold`.
 - The `isDraggingSlider` guard that stops map-driven zoom updates fighting the user's finger.
 - `NearbyCourt` distances computed once at list build, never during scroll; 5-mile radius.
 - **Distances and recentering use the hardcoded Durham location, not the device's.** Device location is requested on first recenter tap only so MapKit can draw the blue dot — the map no longer blocks on a permission prompt. Swapping `FindAMatchViewModel.homeLocation` is the intended future change and the pipeline follows it with no other edits.
@@ -167,7 +167,7 @@ Only the things an agent would get wrong without being told. Verify each claim.
 
 **`UI_SHELL.md`**
 - `RootView` gates `.launching` / `.login` / `.main` with a 0.2s crossfade; `.launching` exists so the login screen never flashes at a user whose session is about to restore.
-- `MainTabView` is a custom shell, not a system `TabView`: header ~14% of height, greeting + profile button, three pill tabs. `FindAMatchTab` stays mounted via opacity/`allowsHitTesting` while the other two mount conditionally — so map state survives tab switches.
+- `MainTabView` is a custom shell, not a system `TabView`: header ~14% of height, greeting + profile button, three pill tabs. `MapTab` stays mounted via opacity/`allowsHitTesting` while the other two mount conditionally — so map state survives tab switches.
 - `ProfileView` **replaces** `MainTabView` full-screen rather than rendering inside it, because it owns its own header and back button.
 - The six `Theme.swift` colours with usage. Note the map marker tint is a hardcoded `UIColor` duplicating `hooprOrange` rather than deriving from it.
 - Light mode only: literal colours, direct `.black` / `Color.white`, no dark-mode handling.
@@ -181,7 +181,7 @@ Only the things an agent would get wrong without being told. Verify each claim.
 
 **`GAPS.md`** — dated, and split into two lists.
 
-*Unfinished:* `LocalGamesTab` / `FindMatchTab` are placeholder labels; the detail sheet shows name and address only while `hoops`/`surface`/`isLit`/`isCovered`/`access` sit unused; no occupancy or check-in; `AppIcon.appiconset` has no images and `AccentColor` is empty; `courts_updated.json` (135 courts) is stale and never loaded; distances anchored to a hardcoded point; no password reset, social login, or account deletion; `FindAMatchViewModel.select(_:)` is an empty hook; iOS 26.5 target is unusually restrictive — flag in case it's unintentional.
+*Unfinished:* no way to send a friend request from the UI (the `friendships` backend supports it; the search bar doesn't exist yet); the detail sheet shows name and address only while `hoops`/`surface`/`isLit`/`isCovered`/`access` sit unused; no occupancy or check-in; `AppIcon.appiconset` has no images and `AccentColor` is empty; `courts_updated.json` (135 courts) is stale and never loaded; distances anchored to a hardcoded point; no password reset, social login, or account deletion; `FindAMatchViewModel.select(_:)` is an empty hook; iOS 26.5 target is unusually restrictive — flag in case it's unintentional.
 
 *Known drift (comments/docs contradicting code):* `firestore.rules` points at `"hoopr project info/DATABASE_SCHEMA.md"` but the folder is `context/`; `UserProfile.homeCourtId`'s comment says "read but never written yet" while `updateHomeCourt` and the profile picker both write it. Record drift here rather than reproducing it elsewhere.
 
@@ -191,7 +191,7 @@ Only the things an agent would get wrong without being told. Verify each claim.
 
 1. `git rev-parse --short HEAD` — stamp every entry with it.
 2. Read `hooprApp.swift` first; startup order and ownership explain the rest.
-3. Read `Models/` → `Services/` → `ViewModels/` → `Views/`. `MapView.swift` and `FindAMatchTab.swift` are the two densest files — read them fully.
+3. Read `Models/` → `Services/` → `ViewModels/` → `Views/`. `MapView.swift` and `MapTab.swift` are the two densest files — read them fully.
 4. Read `firestore.rules`, `.firebaserc`, `firebase.json`.
 5. Pull identity values from `project.pbxproj` and `Package.resolved`; parse the `courts.json` header only.
 6. Read the test files and report actual coverage.
