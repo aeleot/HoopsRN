@@ -682,7 +682,7 @@ final class FriendsViewModel: ObservableObject {
 
     func homeCourtName(for profile: UserProfile) -> String? {
         guard profile.homeCourtId != nil else { return nil }
-        return homeCourt(for: profile)?.displayName ?? "Unknown court"
+        return homeCourt(for: profile)?.name ?? "Unknown court"
     }
 
     func homeCourtCity(for profile: UserProfile) -> String? {

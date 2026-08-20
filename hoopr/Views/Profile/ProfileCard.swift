@@ -117,7 +117,7 @@ struct ProfileCard: View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Image(systemName: symbol)
                 .hooprFont(11, weight: .semibold, maximumSize: 15)
-                .foregroundStyle(Color.hooprSecondary)
+                .foregroundStyle(Color.hooprOrange)
 
             Text(label.uppercased())
                 .hooprFont(11, weight: .semibold, maximumSize: 15)
@@ -133,7 +133,7 @@ struct ProfileCard: View {
             if onEdit != nil {
                 Image(systemName: "square.and.pencil")
                     .hooprFont(13, weight: .medium, maximumSize: 17)
-                    .foregroundStyle(Color.hooprSecondary)
+                    .foregroundStyle(Color.hooprOrange)
             }
         }
     }

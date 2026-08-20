@@ -24,7 +24,7 @@ final class LocalRunsViewModel: ObservableObject {
 
         var id: String { game.id }
 
-        var courtName: String { court?.displayName ?? "Unknown court" }
+        var courtName: String { court?.name ?? "Unknown court" }
 
         var distanceText: String? {
             distanceMeters.map(Distance.text)

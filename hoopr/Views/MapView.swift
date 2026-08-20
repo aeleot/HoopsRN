@@ -15,13 +15,44 @@ struct RecenterTrigger: Equatable {
     }
 }
 
+enum ZoomDirection {
+    case zoomIn
+    case zoomOut
+}
+
+struct ZoomTrigger: Equatable {
+    let direction: ZoomDirection
+    let id: UUID
+
+    init(direction: ZoomDirection) {
+        self.direction = direction
+        self.id = UUID()
+    }
+
+    static func == (lhs: ZoomTrigger, rhs: ZoomTrigger) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+struct AbsoluteZoomTrigger: Equatable {
+    let level: Double
+    let id: UUID
+
+    init(level: Double) {
+        self.level = level
+        self.id = UUID()
+    }
+
+    static func == (lhs: AbsoluteZoomTrigger, rhs: AbsoluteZoomTrigger) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
 final class CourtAnnotation: NSObject, MKAnnotation {
     let court: Court
     var coordinate: CLLocationCoordinate2D { court.coordinate }
-
-    /// Carried for VoiceOver only — `CourtMarkerView` draws no label, and
-    /// callouts are off. The sheet is where a court is named on screen.
-    var title: String? { court.displayName }
+    var title: String? { court.name }
+    var subtitle: String? { court.address.isEmpty ? nil : court.address }
 
     init(court: Court) {
         self.court = court
@@ -29,167 +60,50 @@ final class CourtAnnotation: NSObject, MKAnnotation {
     }
 }
 
-/// A flat circular disc, rather than MapKit's default teardrop.
-///
-/// Two reasons this isn't `MKMarkerAnnotationView`. The teardrop silhouette is
-/// instantly recognisable as stock Apple Maps furniture, and — the bigger
-/// problem — a marker view draws `annotation.title` beneath itself. With a
-/// dataset where every court is named `<Place> Basketball Court`, that produced
-/// labels wrapping onto three lines that covered more of the map than the roads
-/// did. A plain `MKAnnotationView` subclass draws no label at all.
-///
-/// Colours are read from `Theme.swift` through `UIColor`, and set as UIView
-/// background colours rather than layer colours, because a `UIColor` from the
-/// palette's dynamic provider only re-resolves on a trait change when it's held
-/// by a view. A `CALayer.backgroundColor` would freeze at whichever appearance
-/// was current when it was assigned.
-final class CourtMarkerView: MKAnnotationView {
-    static let courtReuseID = "courtMarker"
-    static let clusterReuseID = "courtClusterMarker"
-
-    private static let courtDiameter: CGFloat = 34
-    /// Slightly larger than a single court, so a group reads as "more than one"
-    /// before you've read the number in it.
-    private static let clusterDiameter: CGFloat = 38
-    private static let ringWidth: CGFloat = 3
-
-    private let ring = UIView()
-    private let disc = UIView()
-    private let glyph = UIImageView()
-    private let countLabel = UILabel()
-
-    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
-        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
-
-        // A circular pin marks its spot with its centre, unlike a teardrop
-        // whose tip does — so no centre offset, and a circular collision shape
-        // instead of MapKit's default rectangle.
-        centerOffset = .zero
-        collisionMode = .circle
-        // The sheet owns detail display; a callout would be a second surface
-        // saying the same thing.
-        canShowCallout = false
-        backgroundColor = .clear
-
-        ring.backgroundColor = UIColor(Color.hooprSurface)
-        ring.isUserInteractionEnabled = false
-        // Bridged from the theme rather than `.black`, which was the one
-        // literal colour left in the view layer — and the one value here that
-        // wouldn't have inverted with the appearance.
-        ring.layer.shadowColor = UIColor(Color.hooprShadow(opacity: 1)).cgColor
-        ring.layer.shadowOpacity = 0.25
-        ring.layer.shadowRadius = 3
-        ring.layer.shadowOffset = CGSize(width: 0, height: 1)
-        addSubview(ring)
-
-        disc.isUserInteractionEnabled = false
-        ring.addSubview(disc)
-
-        glyph.contentMode = .center
-        glyph.tintColor = UIColor(Color.hooprOnBrand)
-        glyph.image = UIImage(
-            systemName: "basketball.fill",
-            withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
-        )
-        disc.addSubview(glyph)
-
-        countLabel.textAlignment = .center
-        countLabel.textColor = UIColor(Color.hooprOnBrand)
-        countLabel.font = .systemFont(ofSize: 14, weight: .bold)
-        disc.addSubview(countLabel)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("CourtMarkerView is created in code, never from a nib")
-    }
-
-    override func prepareForReuse() {
-        super.prepareForReuse()
-        transform = .identity
-    }
-
-    func configureAsCourt(isSelected: Bool) {
-        layOut(diameter: Self.courtDiameter)
-
-        disc.backgroundColor = UIColor(isSelected ? Color.hooprBrandDeep : Color.hooprBrand)
-        glyph.frame = disc.bounds
-        glyph.isHidden = false
-        countLabel.isHidden = true
-
-        // Selected pins outrank their neighbours so MapKit stops hiding them
-        // when markers collide.
-        displayPriority = isSelected ? .required : .defaultHigh
-        zPriority = isSelected ? .max : .defaultUnselected
-        transform = isSelected
-            ? CGAffineTransform(scaleX: 1.25, y: 1.25)
-            : .identity
-    }
-
-    func configureAsCluster(count: Int) {
-        layOut(diameter: Self.clusterDiameter)
-
-        disc.backgroundColor = UIColor(Color.hooprBrandDeep)
-        countLabel.frame = disc.bounds
-        countLabel.text = "\(count)"
-        countLabel.isHidden = false
-        glyph.isHidden = true
-
-        displayPriority = .required
-        zPriority = .max
-        transform = .identity
-    }
-
-    private func layOut(diameter: CGFloat) {
-        bounds = CGRect(x: 0, y: 0, width: diameter, height: diameter)
-        ring.frame = bounds
-        ring.layer.cornerRadius = diameter / 2
-
-        disc.frame = ring.bounds.insetBy(dx: Self.ringWidth, dy: Self.ringWidth)
-        disc.layer.cornerRadius = disc.bounds.width / 2
-    }
-}
-
 struct MapView: UIViewRepresentable {
     let courts: [Court]
     let initialRegion: MKCoordinateRegion
     @Binding var recenterTrigger: RecenterTrigger?
+    @Binding var zoomTrigger: ZoomTrigger?
+    @Binding var absoluteZoomTrigger: AbsoluteZoomTrigger?
     /// Drawn larger and in the dark brand tint so the tapped court stays
     /// findable once the sheet covers part of the map.
     var selectedCourtID: String?
     var onMarkerTap: ((Court) -> Void)?
     var onMarkerDeselect: (() -> Void)?
+    var onZoomLevelChange: ((Double) -> Void)?
 
-    /// Bounds on how far a programmatic zoom may travel. The stepped zoom
-    /// buttons that used to read these are gone — pinch has no such limit —
-    /// but a cluster tap still clamps against `minDelta` so tapping the last
-    /// group doesn't bottom out the map.
-    fileprivate static let minDelta: Double = 0.01
-    fileprivate static let maxDelta: Double = 5.0
+    private static let courtReuseID = "court"
+    private static let clusterReuseID = "courtCluster"
+
+    private static let minDelta: Double = 0.01
+    private static let maxDelta: Double = 5.0
+
+    static func zoomLevelFromSpan(_ span: MKCoordinateSpan) -> Double {
+        let delta = max(min(span.latitudeDelta, maxDelta), minDelta)
+        let logMin = log(minDelta)
+        let logMax = log(maxDelta)
+        return 1.0 - (log(delta) - logMin) / (logMax - logMin)
+    }
+
+    static func spanFromZoomLevel(_ level: Double) -> MKCoordinateSpan {
+        let clamped = max(min(level, 1.0), 0.0)
+        let logMin = log(minDelta)
+        let logMax = log(maxDelta)
+        let delta = exp(logMin + (1.0 - clamped) * (logMax - logMin))
+        return MKCoordinateSpan(latitudeDelta: delta, longitudeDelta: delta)
+    }
 
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
         mapView.showsUserLocation = true
-
-        // Everything Apple's map offers that isn't "where am I and where is
-        // that court". None of these carry information this app needs, and each
-        // one competes with the pins for attention.
-        mapView.showsCompass = false
-        mapView.showsScale = false
-        mapView.showsTraffic = false
-        mapView.showsBuildings = false
-        mapView.pitchButtonVisibility = .hidden
-        mapView.selectableMapFeatures = []
+        mapView.showsCompass = true
 
         // Courts sit in parks, and Apple's default basemap renders parks in a
         // saturated green that competes with the pins on top of them. Muting
         // the basemap and dropping Apple's own POIs leaves the courts as the
         // only thing asking for attention.
-        //
-        // This is as far as MapKit goes: road labels, highway shields and
-        // neighbourhood names have no API and stay. Getting rid of those means
-        // leaving Apple's tiles — see `MAP_LAYER.md`.
         let configuration = MKStandardMapConfiguration(
             elevationStyle: .flat,
             emphasisStyle: .muted
@@ -199,12 +113,12 @@ struct MapView: UIViewRepresentable {
 
         mapView.setRegion(initialRegion, animated: false)
         mapView.register(
-            CourtMarkerView.self,
-            forAnnotationViewWithReuseIdentifier: CourtMarkerView.courtReuseID
+            MKMarkerAnnotationView.self,
+            forAnnotationViewWithReuseIdentifier: Self.courtReuseID
         )
         mapView.register(
-            CourtMarkerView.self,
-            forAnnotationViewWithReuseIdentifier: CourtMarkerView.clusterReuseID
+            MKMarkerAnnotationView.self,
+            forAnnotationViewWithReuseIdentifier: Self.clusterReuseID
         )
         return mapView
     }
@@ -230,9 +144,10 @@ struct MapView: UIViewRepresentable {
         // styling has to be re-applied to the views already on screen.
         for annotation in mapView.annotations {
             guard let court = annotation as? CourtAnnotation,
-                  let markerView = mapView.view(for: court) as? CourtMarkerView
+                  let markerView = mapView.view(for: court) as? MKMarkerAnnotationView
             else { continue }
-            markerView.configureAsCourt(
+            Self.applyCourtStyle(
+                to: markerView,
                 isSelected: court.court.id == selectedCourtID
             )
         }
@@ -245,15 +160,60 @@ struct MapView: UIViewRepresentable {
             )
             mapView.setRegion(region, animated: true)
         }
+
+        if let trigger = zoomTrigger, trigger.id != context.coordinator.lastZoomId {
+            context.coordinator.lastZoomId = trigger.id
+            let factor: Double = trigger.direction == .zoomIn ? 0.75 : 1.4
+            let currentRegion = mapView.region
+            let newLatDelta = min(max(currentRegion.span.latitudeDelta * factor, Self.minDelta), Self.maxDelta)
+            let newLonDelta = min(max(currentRegion.span.longitudeDelta * factor, Self.minDelta), Self.maxDelta)
+            let region = MKCoordinateRegion(
+                center: currentRegion.center,
+                span: MKCoordinateSpan(latitudeDelta: newLatDelta, longitudeDelta: newLonDelta)
+            )
+            mapView.setRegion(region, animated: true)
+        }
+
+        if let trigger = absoluteZoomTrigger, trigger.id != context.coordinator.lastAbsoluteZoomId {
+            context.coordinator.lastAbsoluteZoomId = trigger.id
+            let span = MapView.spanFromZoomLevel(trigger.level)
+            let region = MKCoordinateRegion(
+                center: mapView.region.center,
+                span: span
+            )
+            mapView.setRegion(region, animated: false)
+        }
     }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
     }
 
+    /// Shared by `viewFor` and `updateUIView` so a pin looks the same however
+    /// its view got there.
+    fileprivate static func applyCourtStyle(
+        to view: MKMarkerAnnotationView,
+        isSelected: Bool
+    ) {
+        view.markerTintColor = isSelected
+            ? UIColor(Color.hooprDarkOrange)
+            : UIColor(Color.hooprOrange)
+        view.glyphImage = UIImage(systemName: "basketball.fill")
+        // Selected pins outrank their neighbours so MapKit stops hiding them
+        // when markers collide.
+        view.displayPriority = isSelected ? .required : .defaultHigh
+        view.zPriority = isSelected ? .max : .defaultUnselected
+        view.transform = isSelected
+            ? CGAffineTransform(scaleX: 1.25, y: 1.25)
+            : .identity
+    }
+
     final class Coordinator: NSObject, MKMapViewDelegate {
         var parent: MapView
         var lastRecenterId: UUID?
+        var lastZoomId: UUID?
+        var lastAbsoluteZoomId: UUID?
+        private var debounceWorkItem: DispatchWorkItem?
 
         init(parent: MapView) {
             self.parent = parent
@@ -265,26 +225,37 @@ struct MapView: UIViewRepresentable {
             // A hundred courts across two cities pile into an unreadable mass
             // when zoomed out, so let MapKit collapse them into counted groups.
             if let cluster = annotation as? MKClusterAnnotation {
-                guard let view = mapView.dequeueReusableAnnotationView(
-                    withIdentifier: CourtMarkerView.clusterReuseID,
+                let view = mapView.dequeueReusableAnnotationView(
+                    withIdentifier: MapView.clusterReuseID,
                     for: cluster
-                ) as? CourtMarkerView else { return nil }
-
+                ) as? MKMarkerAnnotationView ?? MKMarkerAnnotationView(
+                    annotation: cluster,
+                    reuseIdentifier: MapView.clusterReuseID
+                )
                 view.annotation = cluster
-                view.configureAsCluster(count: cluster.memberAnnotations.count)
+                view.markerTintColor = UIColor(Color.hooprDarkOrange)
+                view.glyphText = "\(cluster.memberAnnotations.count)"
+                view.glyphImage = nil
+                view.canShowCallout = false
+                view.displayPriority = .required
                 return view
             }
 
-            guard let court = annotation as? CourtAnnotation,
-                  let view = mapView.dequeueReusableAnnotationView(
-                      withIdentifier: CourtMarkerView.courtReuseID,
-                      for: court
-                  ) as? CourtMarkerView
-            else { return nil }
+            guard let court = annotation as? CourtAnnotation else { return nil }
 
+            let view = mapView.dequeueReusableAnnotationView(
+                withIdentifier: MapView.courtReuseID,
+                for: court
+            ) as? MKMarkerAnnotationView ?? MKMarkerAnnotationView(
+                annotation: court,
+                reuseIdentifier: MapView.courtReuseID
+            )
             view.annotation = court
-            view.clusteringIdentifier = CourtMarkerView.courtReuseID
-            view.configureAsCourt(
+            view.canShowCallout = false
+            view.clusteringIdentifier = MapView.courtReuseID
+            view.glyphText = nil
+            MapView.applyCourtStyle(
+                to: view,
                 isSelected: court.court.id == parent.selectedCourtID
             )
             return view
@@ -316,6 +287,17 @@ struct MapView: UIViewRepresentable {
                     self.parent.onMarkerDeselect?()
                 }
             }
+        }
+
+        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+            debounceWorkItem?.cancel()
+            let zoomCallback = parent.onZoomLevelChange
+            let zoomLevel = MapView.zoomLevelFromSpan(mapView.region.span)
+            let work = DispatchWorkItem {
+                zoomCallback?(zoomLevel)
+            }
+            debounceWorkItem = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
         }
     }
 }

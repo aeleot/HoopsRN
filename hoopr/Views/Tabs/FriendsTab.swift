@@ -153,7 +153,7 @@ struct FriendsTab: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isSearchFocused ? Color.hooprSecondary : Color.hooprBorder, lineWidth: 1)
+                .stroke(isSearchFocused ? Color.hooprOrange : Color.hooprBorder, lineWidth: 1)
         )
     }
 
@@ -181,7 +181,7 @@ struct FriendsTab: View {
                             .foregroundStyle(Color.hooprOnBrand)
                             .padding(.horizontal, 5)
                             .frame(minWidth: 18, minHeight: 18)
-                            .background(Capsule().fill(Color.hooprBrand))
+                            .background(Capsule().fill(Color.hooprOrange))
                             // A ring in the page colour, so the badge reads as
                             // sitting on top of the button rather than as part
                             // of its border.

@@ -65,7 +65,7 @@ struct GameCard: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "basketball.fill")
                 .hooprFont(18)
-                .foregroundStyle(Color.hooprBrandText)
+                .foregroundStyle(Color.hooprOrange)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(listing.courtName)
@@ -84,20 +84,10 @@ struct GameCard: View {
             if let badge = badge {
                 Text(badge.text)
                     .hooprFont(11, weight: .bold)
-                    .foregroundStyle(badge.isSolid ? Color.hooprOnSecondary : badge.tint)
+                    .foregroundStyle(badge.tint)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(badge.isSolid ? badge.tint : Color.clear)
-                    )
-                    .overlay(
-                        Capsule()
-                            .stroke(
-                                badge.isSolid ? Color.clear : badge.tint.opacity(0.35),
-                                lineWidth: 1
-                            )
-                    )
+                    .background(Capsule().fill(badge.tint.opacity(0.12)))
             }
         }
     }
@@ -138,7 +128,7 @@ struct GameCard: View {
                     .fill(Color.hooprFill)
 
                 Capsule()
-                    .fill(capacityTint)
+                    .fill(game.isFull ? Color.hooprSecondaryText : Color.hooprOrange)
                     .frame(width: geo.size.width * filledFraction)
             }
         }
@@ -172,43 +162,20 @@ struct GameCard: View {
             .frame(maxWidth: .infinity)
             .frame(height: 42)
             .foregroundStyle(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
-            .background(action.isDestructive ? Color.hooprFill : Color.hooprBrand)
+            .background(action.isDestructive ? Color.hooprFill : Color.hooprOrange)
             .clipShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
         .disabled(isPending || isDisabled)
-        .opacity(isDisabled && !isPending ? Color.hooprDisabledOpacity : 1)
+        .opacity(isDisabled && !isPending ? 0.5 : 1)
     }
-
-    /// The roster fraction at which a run starts reading as urgent rather than
-    /// available. Below it the card is green; at or above it, gold.
-    private static let fillingThreshold: CGFloat = 0.7
 
     /// At most one badge, in priority order — your own relationship to the run
-    /// says more than its capacity does.
-    ///
-    /// `isSolid` is what keeps WAITLIST from colliding with FULL. Both are
-    /// slate, because `hooprSecondary` and `hooprSecondaryText` resolve to the
-    /// same value in light mode, so hue alone can't separate them — and they
-    /// are genuinely different situations, one you can act on and one you
-    /// can't. The solid chip marks the state you opted into; every other badge
-    /// is outlined and reports the run's own state.
-    private var badge: (text: String, tint: Color, isSolid: Bool)? {
-        if isHost { return ("HOSTING", .hooprBrandText, false) }
-        if isWaitlisted { return ("WAITLIST", .hooprSecondary, true) }
-        if game.isFull { return ("FULL", .hooprSecondaryText, false) }
-
-        // A count beats a word: "3 SPOTS" is the same pixels as "OPEN" and
-        // actually answers the question the player is asking.
-        let slots = game.openSlots
-        let text = slots == 1 ? "1 SPOT" : "\(slots) SPOTS"
-        return (text, filledFraction >= Self.fillingThreshold ? .hooprFilling : .hooprOpen, false)
-    }
-
-    /// The capacity bar reports the roster and nothing else, so a host still
-    /// sees how full their own run is rather than a badge colour repeated.
-    private var capacityTint: Color {
-        if game.isFull { return .hooprSecondaryText }
-        return filledFraction >= Self.fillingThreshold ? .hooprFilling : .hooprOpen
+    /// says more than its status does.
+    private var badge: (text: String, tint: Color)? {
+        if isHost { return ("HOSTING", Color.hooprOrange) }
+        if isWaitlisted { return ("WAITLIST", Color.hooprSecondaryText) }
+        if game.isFull { return ("FULL", Color.hooprSecondaryText) }
+        return nil
     }
 }

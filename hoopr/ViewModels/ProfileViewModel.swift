@@ -125,7 +125,7 @@ final class ProfileViewModel: ObservableObject {
     /// the card doesn't read as "not set" when it is.
     var homeCourtName: String? {
         guard homeCourtId != nil else { return nil }
-        return homeCourt?.displayName ?? "Unknown court"
+        return homeCourt?.name ?? "Unknown court"
     }
 
     /// The card's second line. `nil` for an unresolvable court, where there's

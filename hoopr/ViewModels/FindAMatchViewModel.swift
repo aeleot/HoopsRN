@@ -26,9 +26,9 @@ final class FindAMatchViewModel: ObservableObject {
 
         var title: String {
             switch self {
-            case .nearby:    "Nearby"
-            case .favorites: "Favorites"
-            case .recent:    "Recent"
+            case .nearby:    "NEARBY"
+            case .favorites: "FAVORITES"
+            case .recent:    "RECENT"
             }
         }
     }
@@ -191,22 +191,6 @@ final class FindAMatchViewModel: ObservableObject {
             locationService.requestLocationPermission()
         }
         return Self.homeLocation
-    }
-
-    /// Distance to an arbitrary court, measured from the same origin the list
-    /// uses. The detail card needs this and holds a bare `Court` — both of its
-    /// entry points (a map pin and a list row) converge on the card, and the
-    /// pin never had a `NearbyCourt` to carry the precomputed figure.
-    ///
-    /// Safe to call per render: it's one `CLLocation.distance(from:)`, not the
-    /// whole-dataset sort that `ranked(courts:from:)` does.
-    func distanceText(for court: Court) -> String {
-        let from = CLLocation(
-            latitude: searchOrigin.latitude,
-            longitude: searchOrigin.longitude
-        )
-        let to = CLLocation(latitude: court.latitude, longitude: court.longitude)
-        return Distance.text(from.distance(from: to))
     }
 
     // MARK: - Derivation

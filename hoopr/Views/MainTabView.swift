@@ -61,159 +61,127 @@ struct MainTabView: View {
 
     private var mainInterface: some View {
         GeometryReader { geo in
-            let headerHeight = geo.size.height * 0.14
+            VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
+                    Spacer()
 
-            // The header floats *over* the content rather than stacking above
-            // it, so the map can run to every edge of the screen. The two list
-            // tabs get the header's height back as safe area, which lets their
-            // scroll content pass under the glass instead of starting below it.
-            ZStack(alignment: .top) {
-                content(headerHeight: headerHeight)
-
-                header
-                    .frame(height: headerHeight)
-                    .frame(maxWidth: .infinity)
-                    .background(alignment: .top) {
-                        // Extended past the top safe area so the glass carries
-                        // on under the status bar — otherwise the clock sits
-                        // directly on the map.
-                        //
-                        // `contentShape` is load-bearing, not decoration: the
-                        // bar's fill is clear, a clear fill doesn't hit-test,
-                        // and the map is now its ZStack sibling *underneath*
-                        // rather than a panel below it. Without this, every
-                        // tap and drag on the header reached MapKit and panned
-                        // the map — including taps on the tab pills.
-                        Rectangle()
-                            .fill(.clear)
-                            .glassEffect(.regular, in: .rect)
-                            .contentShape(Rectangle())
-                            .ignoresSafeArea(edges: .top)
+                    HStack {
+                        // The whole header is pinned to 14% of the screen
+                        // below, so the type in it is capped and allowed to
+                        // shrink rather than being clipped by its own bar.
+                        Text("Let's go hoop \(Text(userName).fontWeight(.bold)).")
+                            .hooprFont(28, maximumSize: 34)
+                            .foregroundStyle(Color.hooprPrimaryText)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.7)
+                        Spacer()
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showProfile = true
+                            }
+                        } label: {
+                            Image(systemName: "person.crop.circle.fill")
+                                .hooprFont(32, maximumSize: 38)
+                                .foregroundStyle(Color.hooprSecondaryText)
+                        }
+                        .accessibilityLabel("Profile")
                     }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 12)
+
+                    HStack(spacing: 6) {
+                        ForEach(0..<tabs.count, id: \.self) { index in
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedTab = index
+                                }
+                            } label: {
+                                // Three tabs share one row inside the pinned
+                                // header, so these are capped tightly and
+                                // scale down before they'd truncate.
+                                HStack(spacing: 5) {
+                                    Image(systemName: tabs[index].1)
+                                        .hooprFont(12, weight: .medium, maximumSize: 15)
+                                    Text(tabs[index].0)
+                                        .hooprFont(12, weight: .semibold, maximumSize: 15)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
+
+                                    // A dot, not a count: the pills share one
+                                    // row inside a header pinned to 14% of the
+                                    // screen, and there's no width for a
+                                    // number. The exact figure is on the
+                                    // inbox button one tap away.
+                                    if hasUnansweredRequests(at: index) {
+                                        Circle()
+                                            .fill(
+                                                selectedTab == index
+                                                    ? Color.hooprOnBrand
+                                                    : Color.hooprOrange
+                                            )
+                                            .frame(width: 6, height: 6)
+                                    }
+                                }
+                                .padding(.vertical, 9)
+                                .frame(maxWidth: .infinity)
+                                .background(
+                                    selectedTab == index ? Color.hooprOrange : Color.hooprFill
+                                )
+                                .foregroundStyle(
+                                    selectedTab == index ? Color.hooprOnBrand : Color.hooprSecondaryText
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                            }
+                            .accessibilityLabel(
+                                hasUnansweredRequests(at: index)
+                                    ? "\(tabs[index].0), requests waiting"
+                                    : tabs[index].0
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
+                }
+                .frame(height: geo.size.height * 0.14)
+                .background(Color.hooprBackground)
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(Color.hooprBorder)
+                        .frame(height: 1)
+                }
+                .zIndex(1)
+
+                ZStack {
+                    MapTab(
+                        courtService: courtService,
+                        locationService: locationService,
+                        userProfileService: userProfileService,
+                        gameService: gameService,
+                        recentCourtsStore: recentCourtsStore
+                    )
+                        .opacity(selectedTab == 0 ? 1 : 0)
+                        .allowsHitTesting(selectedTab == 0)
+
+                    if selectedTab == 1 {
+                        LocalRunsTab(
+                            gameService: gameService,
+                            courtService: courtService,
+                            userProfileService: userProfileService
+                        )
+                    }
+
+                    if selectedTab == 2 {
+                        FriendsTab(
+                            friendService: friendService,
+                            userProfileService: userProfileService,
+                            courtService: courtService
+                        )
+                    }
+                }
+                .clipped()
             }
-            .environment(\.floatingHeaderHeight, headerHeight)
         }
         .ignoresSafeArea(edges: .bottom)
-    }
-
-    private func content(headerHeight: CGFloat) -> some View {
-        ZStack {
-            MapTab(
-                courtService: courtService,
-                locationService: locationService,
-                userProfileService: userProfileService,
-                gameService: gameService,
-                recentCourtsStore: recentCourtsStore
-            )
-                .opacity(selectedTab == 0 ? 1 : 0)
-                .allowsHitTesting(selectedTab == 0)
-
-            if selectedTab == 1 {
-                LocalRunsTab(
-                    gameService: gameService,
-                    courtService: courtService,
-                    userProfileService: userProfileService
-                )
-                .safeAreaPadding(.top, headerHeight)
-            }
-
-            if selectedTab == 2 {
-                FriendsTab(
-                    friendService: friendService,
-                    userProfileService: userProfileService,
-                    courtService: courtService
-                )
-                .safeAreaPadding(.top, headerHeight)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Spacer()
-
-            HStack {
-                // The whole header is pinned to 14% of the screen below, so
-                // the type in it is capped and allowed to shrink rather than
-                // being clipped by its own bar.
-                Text("Let's go hoop \(Text(userName).fontWeight(.bold)).")
-                    .hooprFont(28, maximumSize: 34)
-                    .foregroundStyle(Color.hooprPrimaryText)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.7)
-
-                Spacer()
-
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showProfile = true
-                    }
-                } label: {
-                    Image(systemName: "person.crop.circle.fill")
-                        .hooprFont(32, maximumSize: 38)
-                        .foregroundStyle(Color.hooprSecondaryText)
-                }
-                .accessibilityLabel("Profile")
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 12)
-
-            HStack(spacing: 6) {
-                ForEach(0..<tabs.count, id: \.self) { index in
-                    let isSelected = selectedTab == index
-
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            selectedTab = index
-                        }
-                    } label: {
-                        // Three tabs share one row inside the pinned header,
-                        // so these are capped tightly and scale down before
-                        // they'd truncate.
-                        HStack(spacing: 5) {
-                            Image(systemName: tabs[index].1)
-                                .hooprFont(12, weight: .medium, maximumSize: 15)
-                            Text(tabs[index].0)
-                                .hooprFont(12, weight: .semibold, maximumSize: 15)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-
-                            // A dot, not a count: the pills share one row
-                            // inside a header pinned to 14% of the screen, and
-                            // there's no width for a number. The exact figure
-                            // is on the inbox button one tap away.
-                            if hasUnansweredRequests(at: index) {
-                                Circle()
-                                    .fill(isSelected ? Color.hooprOnBrand : Color.hooprBrand)
-                                    .frame(width: 6, height: 6)
-                            }
-                        }
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity)
-                        .foregroundStyle(
-                            isSelected ? Color.hooprOnBrand : Color.hooprPrimaryText
-                        )
-                        // The pills sit on glass now, so an unselected one is
-                        // clear glass rather than an opaque grey fill — which
-                        // over a moving map would read as a hole in the bar.
-                        .glassEffect(
-                            isSelected
-                                ? .regular.tint(Color.hooprBrand).interactive()
-                                : .clear.interactive(),
-                            in: .rect(cornerRadius: 12)
-                        )
-                    }
-                    .accessibilityLabel(
-                        hasUnansweredRequests(at: index)
-                            ? "\(tabs[index].0), requests waiting"
-                            : tabs[index].0
-                    )
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
-        }
     }
 
     /// Reads the stored profile name. Falls back to a neutral greeting while
@@ -234,18 +202,6 @@ struct MainTabView: View {
     }
 
     private var friendsTabIndex: Int { 2 }
-}
-
-/// How tall the header hovering over the content is.
-///
-/// The two list tabs get this back as safe-area padding, which `MainTabView`
-/// applies for them. The map tab can't: its whole point is that the map runs
-/// underneath the header, so only its *floating chrome* is inset — and that
-/// happens deep enough inside `MapTab` that threading it through as an
-/// initialiser argument would mean the shell dictating a private layout
-/// detail of one tab.
-extension EnvironmentValues {
-    @Entry var floatingHeaderHeight: CGFloat = 0
 }
 
 #Preview {
