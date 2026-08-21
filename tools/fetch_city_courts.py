@@ -44,8 +44,12 @@ from courts_common import (
     truthy,
 )
 
-# Same mirrors CourtSearchService.swift used to try, so one rate-limited
-# mirror doesn't block a fetch.
+# Several mirrors, so one rate-limited endpoint doesn't block a fetch.
+#
+# These were inherited from `CourtSearchService.swift`, the runtime Overpass
+# client the app used before courts were bundled. That file no longer exists —
+# the live-query path was removed precisely because this API times out — so the
+# list survives here only as the tuned set, not as a shared constant.
 OVERPASS_ENDPOINTS = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",

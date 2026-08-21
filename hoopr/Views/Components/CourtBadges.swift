@@ -9,12 +9,6 @@ import SwiftUI
 struct CourtBadges: View {
     let court: Court
 
-    /// Only facts the dataset actually carries. Absent OSM tags mean unknown,
-    /// so nothing is inferred and no placeholder badge is shown.
-    static func labels(for court: Court) -> [String] {
-        amenities(for: court).map(\.text)
-    }
-
     /// A badge and whether it's a caution rather than a feature.
     ///
     /// "Restricted" is the odd one out: every other label tells you what the

@@ -26,8 +26,14 @@ from courts_common import (
     truthy,
 )
 
-# Which of the Triangle cities this build actually ships. Local to this script:
-# the per-city fetcher scopes by radius instead.
+# Which of the Triangle cities *this script's* build ships. Local to this
+# script: the per-city fetcher scopes by radius instead.
+#
+# The shipped `courts.json` has six cities, not these two — Apex, Cary, Chapel
+# Hill and Morrisville were appended afterwards by `fetch_city_courts.py`. This
+# constant describes the original bulk build, which is no longer re-runnable
+# (its Overpass extracts aren't in the repo), so don't read it as the dataset's
+# contents.
 LAUNCH_CITIES = {"Durham", "Raleigh"}
 
 

@@ -36,8 +36,13 @@ struct UserProfile: Identifiable, Sendable, Codable, Hashable {
     /// those rows are invisible to search until their owner next saves a name.
     var userNameLower: String?
 
-    /// Reserved for a future "home court" preference. Read but never written
-    /// yet — no UI sets it.
+    /// The court a player calls home. Written by
+    /// `UserProfileService.updateHomeCourt` from the profile's court picker,
+    /// and cleared with `FieldValue.delete()` rather than a stored null.
+    ///
+    /// Holds a `Court.id` from the bundled dataset. Courts aren't in Firestore,
+    /// so nothing validates it server-side — a stale ID renders as "Unknown
+    /// court" rather than hiding the row.
     var homeCourtId: String?
 
     /// How far out the nearby-courts list reaches, in miles. Absent until the

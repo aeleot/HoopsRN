@@ -57,6 +57,12 @@ final class FindAMatchViewModel: ObservableObject {
     /// rather than restating a constant that may not be the one in force.
     @Published private(set) var radiusMiles: Double = UserProfile.defaultPreferredRadius
 
+    /// Set when the bundled court dataset failed to load, so the empty state
+    /// can say *why* the list is empty. Without it an unreadable bundle is
+    /// indistinguishable from "no courts near you" — the same list, the same
+    /// wording, and nothing to act on.
+    @Published private(set) var datasetError: String?
+
     // MARK: - Tuning
 
     /// The user's default location, hardcoded to Durham, NC until the profile
@@ -98,6 +104,12 @@ final class FindAMatchViewModel: ObservableObject {
         courtService.$courts
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.rebuild() }
+            .store(in: &cancellables)
+
+        courtService.$loadError
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] message in self?.datasetError = message }
             .store(in: &cancellables)
 
         // The nearby list depends on the saved radius as well as the dataset
@@ -263,15 +275,26 @@ final class FindAMatchViewModel: ObservableObject {
         }
     }
 
+    /// A dataset failure outranks every per-tab message: with no courts loaded
+    /// *every* tab is empty, and "No favorites yet" would be a true sentence
+    /// that sends the reader to fix the wrong thing.
     var emptyStateTitle: String {
+        if datasetError != nil { return "Court data unavailable" }
+
         switch selectedTab {
-        case .nearby:    "No courts within \(Int(radiusMiles)) miles"
-        case .favorites: "No favorites yet"
-        case .recent:    "No recent courts"
+        case .nearby:    return "No courts within \(Int(radiusMiles)) miles"
+        case .favorites: return "No favorites yet"
+        case .recent:    return "No recent courts"
         }
     }
 
     var emptyStateDetail: String? {
+        if let datasetError {
+            // Names the build rather than the network: the dataset ships in the
+            // app bundle, so there is nothing for the reader to retry.
+            return "\(datasetError) Reinstalling the app is the only fix."
+        }
+
         switch selectedTab {
         case .nearby:
             return activeFilters.isEmpty

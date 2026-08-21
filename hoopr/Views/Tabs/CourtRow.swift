@@ -49,23 +49,4 @@ struct CourtRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
     }
-
-    /// Only facts the dataset actually carries. Absent OSM tags mean unknown,
-    /// so nothing is inferred and no placeholder badge is shown.
-    private var badges: [String] {
-        var result: [String] = []
-        if let hoops = court.hoops {
-            result.append(hoops == 1 ? "1 hoop" : "\(hoops) hoops")
-        }
-        if court.isLit == true {
-            result.append("Lit")
-        }
-        if let surface = court.surface {
-            result.append(surface.capitalized)
-        }
-        if court.access == .restricted {
-            result.append("Restricted")
-        }
-        return result
-    }
 }

@@ -97,13 +97,14 @@ it partly shipped; the general "Next steps" list below is everything else.
   `attribution` property anywhere to display. That's a licence obligation
   currently unmet, and closing it means holding the value as well as rendering
   it. (This entry said the string was "loaded into `CourtService.attribution`"
-  until 2026-08-21; no such property has ever existed.)
-- **A court-dataset load failure is completely silent.** `CourtService` logs a
-  missing or undecodable `courts.json` and leaves `courts` empty — it publishes
-  no error, so the map renders with no pins and the nearby list reads "none in
-  range". Nothing on screen distinguishes a broken bundle from a genuinely empty
-  result. `ARCHITECTURE.md` and `COURT_DATASET.md` both described a
-  `loadError` property until 2026-08-21; it doesn't exist.
+  until 2026-08-21; no such property has ever existed. `CourtService` now
+  publishes `loadError`, but still keeps no `attribution`.)
+- ~~A court-dataset load failure is completely silent.~~ **Fixed 2026-08-21.**
+  `CourtService` publishes `loadError`, `FindAMatchViewModel` mirrors it as
+  `datasetError`, and the map's empty state reports "Court data unavailable"
+  ahead of any per-tab wording — a broken bundle no longer reads as "no courts
+  within 5 miles". Still no retry, deliberately: the dataset ships in the app
+  bundle, so a failure is a build problem rather than a transient one.
 
 **Accessibility**
 
@@ -130,18 +131,16 @@ it partly shipped; the general "Next steps" list below is everything else.
 
 **Invariant violations**
 
-- **`Court.displayName` is not used everywhere a court is named.**
-  `UI_SHELL.md` states the invariant — "a court is rendered through
-  `Court.displayName`, never `name`" — and two screens break it:
-  `LocalRunsViewModel.Listing.courtName` (`court?.name`), which `GameCard`
-  renders, and `CreateGameSheet.swift:107` (`viewModel.court.name`). So a run's
-  card and the form that creates it say "Long Meadow Park Basketball Court #2"
-  while the map row, the detail card, the home-court picker and both profiles
-  say "Long Meadow Park #2". Two one-line changes; the reason to do them is that
-  a half-applied rule is worse than no rule, because the next reader can't tell
-  which side is intentional.
-  *(The home-court picker's **search** deliberately matches over the full
-  `name` — that one isn't a violation, it's a wider haystack.)*
+- ~~`Court.displayName` is not used everywhere a court is named.~~ **Fixed
+  2026-08-21.** `LocalRunsViewModel.Listing.courtName` and `CreateGameSheet`'s
+  title both rendered the raw `name`, so a run's card and the form that creates
+  it said "Long Meadow Park Basketball Court #2" while every other surface said
+  "Long Meadow Park #2". Both were collateral from `eb67f1c` reverting the
+  palette commit, which had bundled `Court.displayName` into the same change;
+  `da44193` restored the property and most callers but missed these two. Both
+  now use `displayName`.
+  *(The home-court picker's **search** still matches over the full `name` —
+  deliberate, a wider haystack rather than a violation.)*
 
 **Code quality**
 
@@ -153,11 +152,9 @@ it partly shipped; the general "Next steps" list below is everything else.
   hand on 2026-08-14 (see the Friends TODO), which proves it was correct that
   day and nothing about the next edit. That needs the Firebase emulator, which
   isn't set up.
-- **`CourtRow.badges` is dead and already wrong.** The row renders
-  `CourtBadges` now; its own `private var badges` is unreferenced, and it has
-  already drifted from the live version — no "Covered" case, and no caution
-  styling for "Restricted". `CourtBadges.labels(for:)` is unused too. Delete
-  both before someone reads the dead copy as the rule.
+- ~~`CourtRow.badges` is dead and already wrong.~~ **Fixed 2026-08-21.** Both
+  it and the unused `CourtBadges.labels(for:)` are deleted. `CourtBadges` is
+  now the only definition of what a court's amenity chips say.
 
 **Configuration**
 
@@ -170,14 +167,13 @@ it partly shipped; the general "Next steps" list below is everything else.
   `GoogleService-Info.plist` and can't move without a new Firebase iOS app
   registration and a fresh plist. `BUILD_AND_CONFIG.md` has the full split, and
   the agreed prefix (`hoops`) if the identifiers are ever renamed.
-- **`Package.resolved` is gitignored, so the dependency pins aren't in version
-  control.** `.gitignore`'s `*.xcworkspace` line matches the
-  `project.xcworkspace` *directory* inside `hoopr.xcodeproj`, and the resolved
-  file lives under it. Every version `BUILD_AND_CONFIG.md` states describes this
-  working copy only; a fresh clone re-resolves `upToNextMajorVersion` to
-  whatever is current that day, which is exactly the reproducibility the file
-  exists to provide. Narrowing the ignore pattern would fix it, but check what
-  else that pattern is currently catching first.
+- ~~`Package.resolved` is gitignored.~~ **Fixed 2026-08-21.** `.gitignore`'s
+  `*.xcworkspace` line matched the `project.xcworkspace` *directory* inside
+  `hoopr.xcodeproj`, so the SPM pins were untracked and a fresh clone
+  re-resolved `upToNextMajorVersion` to whatever was current that day. The
+  pattern is gone — the per-user state it was meant to catch is already covered
+  by the `xcuserdata/` rule, which matches at any depth — and the file is now
+  tracked, so the versions `BUILD_AND_CONFIG.md` states are reproducible.
 - Deployment target is **iOS 26.5**, which excludes almost every device in use
   and isn't required by any API the app calls. Worth confirming this is
   intentional rather than an artifact of the Xcode version it was created with.
@@ -227,15 +223,15 @@ Comments and docs that contradict the code. **The code wins.**
 
 | Where | Says | Actually |
 |---|---|---|
-| `Models/UserProfile.swift:25` | `homeCourtId` is "Reserved for a future preference. Read but never written yet — no UI sets it" | `UserProfileService.updateHomeCourt` writes it and `HomeCourtPickerSheet` sets it |
-| `hooprTests/UserProfileTests.swift:13` | `homeCourtId` is what "the app reads but never writes" | same — the comment predates the picker |
-| `tools/build_courts.py:32` | `LAUNCH_CITIES = {"Durham", "Raleigh"}` | the shipped dataset has six cities; the other four were appended by `fetch_city_courts.py` |
-| `tools/fetch_city_courts.py:39` | mirrors "CourtSearchService.swift used to try" | `CourtSearchService.swift` no longer exists — the live-query path was removed |
 | `context/prompts/*.md` | cite `firestore.rules` pointing at `"hoopr project info/…"` as standing drift | fixed; the prompts use it as a stale worked example |
-| `Views/Tabs/CourtRow.swift:53` | a `private var badges` listing hoops/lit/surface/restricted | dead — the row renders `CourtBadges`, which also has "Covered" and caution styling |
-| `hooprTests/CourtTests.swift:7` | `displayName` is rendered by "six screens", Local Runs cards and the create-run form among them | those two render `court.name` — see the invariant violation below |
-| `firestore.rules:56` | the update rule enforces that "`id`, `email` and `createdAt` are write-once" | `email` was removed from the schema; there is no such field to protect |
-| `Views/MainTabView.swift:181` | "Three tabs share one row inside the pinned header" | two — Friends became a pane of the profile |
+
+**Nothing else is outstanding.** Every other row this table carried was
+corrected in the code on 2026-08-21 rather than recorded here: `UserProfile`'s
+`homeCourtId` doc (it *is* written), `UserProfileTests`' matching comment,
+`build_courts.py`'s `LAUNCH_CITIES` (now says the shipped file has six cities),
+`fetch_city_courts.py`'s reference to the deleted `CourtSearchService.swift`,
+`CourtRow`'s dead `badges`, `CourtTests`' "six screens" claim, `firestore.rules`
+protecting a removed `email` field, and `MainTabView`'s "three tabs".
 
 Resolved on 2026-08-21 by the full rebuild, kept here only so they aren't
 re-reported: `database/USER_PROFILE_WORKFLOW.md` carried a `Scope` of
@@ -432,16 +428,12 @@ answer and would pay for itself the first time someone edits `hasOnly`.
 
 ### 7. Smaller, self-contained
 
-- Fix `RootViewModel`'s retain cycle to match the other two view models.
 - Consume `LocationService.userLocation` so distances follow the device;
   `homeLocation` is the single seam and every distance follows it.
-- Display the ODbL attribution — an outstanding licence obligation.
-- Delete `CourtRow.badges` and `CourtBadges.labels(for:)`; both are dead, and
-  the first has already drifted from the view that replaced it.
-- Route `LocalRunsViewModel.Listing.courtName` and `CreateGameSheet`'s title
-  through `Court.displayName`, closing the invariant violation above.
-- Publish a load error from `CourtService` so an empty map can say why.
-- Narrow `.gitignore`'s `*.xcworkspace` so `Package.resolved` is tracked.
+- Display the ODbL attribution — `CourtService` discards it today, so this
+  means holding the value as well as rendering it.
+- Give `hooprOrange` a readable companion role so it can be used as a
+  foreground without failing AA in light mode — see **Accessibility** above.
 - Rename `FindAMatchViewModel` to match `MapTab`. The view was renamed when the
   third tab became Friends; its view model wasn't, so the file backing the
   court map is still named for matchmaking.

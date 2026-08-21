@@ -185,9 +185,9 @@ struct MainTabView: View {
                             selectedTab = index
                         }
                     } label: {
-                        // Three tabs share one row inside the pinned header,
-                        // so these are capped tightly and scale down before
-                        // they'd truncate.
+                        // The pills share one row inside the pinned
+                        // header, so these are capped tightly and scale down
+                        // before they'd truncate.
                         HStack(spacing: 5) {
                             Image(systemName: tabs[index].1)
                                 .hooprFont(12, weight: .medium, maximumSize: 15)

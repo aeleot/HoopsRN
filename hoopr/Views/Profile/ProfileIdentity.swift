@@ -23,6 +23,12 @@ struct ProfileIdentityBlock: View {
     /// Drives the uid's copy glyph, which reverts to itself after a beat.
     @State private var didCopy = false
 
+    /// The pending revert, held so a second tap can cancel the first one's.
+    /// Without this, tapping twice inside the revert window lets the earlier
+    /// task clear the checkmark moments after the later tap set it — the one
+    /// control whose whole job is confirming the copy, reading as a failure.
+    @State private var revertTask: Task<Void, Never>?
+
     @ScaledMetric(relativeTo: .largeTitle) private var diameter: CGFloat = 72
 
     var body: some View {
@@ -76,9 +82,12 @@ struct ProfileIdentityBlock: View {
             UIPasteboard.general.string = userId
             didCopy = true
             // Reverts on its own; a copy affordance that stays "copied" stops
-            // reading as a button.
-            Task {
+            // reading as a button. Each tap replaces the previous revert so the
+            // window restarts rather than overlapping.
+            revertTask?.cancel()
+            revertTask = Task {
                 try? await Task.sleep(for: .seconds(1.6))
+                guard !Task.isCancelled else { return }
                 didCopy = false
             }
         } label: {

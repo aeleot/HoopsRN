@@ -24,7 +24,10 @@ final class LocalRunsViewModel: ObservableObject {
 
         var id: String { game.id }
 
-        var courtName: String { court?.name ?? "Unknown court" }
+        /// `displayName`, not `name`: every other surface in the app strips the
+        /// dataset's "Basketball Court" boilerplate, and a card that didn't
+        /// would disagree with the map row the run was started from.
+        var courtName: String { court?.displayName ?? "Unknown court" }
 
         var distanceText: String? {
             distanceMeters.map(Distance.text)
@@ -110,7 +113,7 @@ final class LocalRunsViewModel: ObservableObject {
             .store(in: &cancellables)
 
         // Indexed once per dataset load rather than searched per run: the
-        // public list can hold a hundred runs, and a linear scan of 213 courts
+        // public list can hold a hundred runs, and a linear scan of 214 courts
         // for each of them is work with no purpose.
         courtService.$courts
             .receive(on: DispatchQueue.main)

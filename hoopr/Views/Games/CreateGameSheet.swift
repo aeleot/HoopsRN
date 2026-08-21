@@ -104,7 +104,7 @@ struct CreateGameSheet: View {
                 .foregroundStyle(Color.hooprOrange)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(viewModel.court.name)
+                Text(viewModel.court.displayName)
                     .hooprFont(16, weight: .semibold)
                     .foregroundStyle(Color.hooprPrimaryText)
                     .multilineTextAlignment(.leading)

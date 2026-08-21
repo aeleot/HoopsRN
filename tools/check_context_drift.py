@@ -38,11 +38,21 @@ def run_git(*args):
 
 
 def parse_scope(raw):
+    """Backticked paths from a Scope line, or None for an entry that owns none.
+
+    Returns None for **both** an explicit dash and a line that yields no paths.
+    That second case matters: an empty list is not "no scope", it is a scope
+    that silently matches everything -- `git diff <sha> --` with no pathspec
+    diffs the whole repo, so the entry would be reported stale on any commit
+    anywhere while simultaneously contributing nothing to the unowned check.
+    A Scope line whose paths aren't backticked is a formatting mistake, and
+    `main` warns about it rather than guessing.
+    """
     raw = raw.strip()
     if raw in ("—", "-", ""):
         return None
     paths = re.findall(r"`([^`]+)`", raw)
-    return paths
+    return paths or None
 
 
 def entry_files():
@@ -71,6 +81,17 @@ def main():
             continue
         scope_raw, date, ref = header_match.groups()
         scope_paths = parse_scope(scope_raw)
+
+        # A dash means "owns no paths, revisit by hand". Anything else that
+        # parsed to nothing is a malformed Scope line -- most likely paths
+        # written without backticks -- and would otherwise be silently
+        # indistinguishable from the deliberate case.
+        if scope_paths is None and scope_raw.strip() not in ("—", "-", ""):
+            print(
+                f"WARN  {f.relative_to(REPO_ROOT)}: Scope line has no backticked "
+                f"paths -- treating as unscoped. Wrap each path in backticks."
+            )
+
         entries.append({
             "file": str(f.relative_to(REPO_ROOT)),
             "scope": scope_paths,
@@ -109,6 +130,18 @@ def main():
 
         resolved_shas.append((resolved, e["date"]))
 
+        # A pathspec that matches nothing is not an error to git: it exits 0
+        # with empty output, which this loop would read as "nothing changed"
+        # and report as CURRENT. That is the worst possible failure for this
+        # tool -- a typo'd or stale scope path makes an entry permanently look
+        # fresh. `database/USER_PROFILE_WORKFLOW.md` shipped a scope of bare
+        # fragments that matched nothing and sat two weeks stale while this
+        # script called it current every run. So: check the paths exist first,
+        # and shout rather than pass.
+        missing = [s for s in e["scope"] if not (REPO_ROOT / s.rstrip("/")).exists()]
+        if missing:
+            e["missing_paths"] = missing
+
         # Deliberately `git diff <ref> -- <scope>` with NO second ref: that
         # compares the verified commit against the **working tree**, not just
         # HEAD, so uncommitted and staged-but-uncommitted work in scope still
@@ -123,6 +156,17 @@ def main():
             stale.append(e)
         else:
             current.append(e)
+
+    broken = [e for e in stale + current if e.get("missing_paths")]
+    if broken:
+        print("=== BROKEN SCOPE (paths that match nothing -- these entries are NOT being checked) ===")
+        for e in broken:
+            print(f"  {e['file']}")
+            for m in e["missing_paths"]:
+                print(f"      {m}  <- no such path in the working tree")
+        print("  Fix these first: git reports no diff for a pathspec that matches")
+        print("  nothing, so any entry above is reported CURRENT on a scope that")
+        print("  can never go stale.\n")
 
     print("=== STALE (scope touched since Verified -- reread these) ===")
     if not stale:

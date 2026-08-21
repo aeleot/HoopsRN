@@ -4,11 +4,17 @@ import XCTest
 /// Guards `Court.displayName`, the one piece of derivation the `Court` model
 /// carries.
 ///
-/// It's worth pinning because six screens render it — the map's detail card,
-/// the nearby list, the Local Runs cards, the create-run form, the home-court
-/// picker and another player's profile — and because the rule is a string
-/// substitution, which is exactly the kind of thing that quietly starts
+/// It's worth pinning because every court label in the app goes through it —
+/// the map's pin accessibility title and detail card, the nearby list, the
+/// Local Runs cards, the create-run form, the home-court picker, and both the
+/// signed-in user's and another player's home court — and because the rule is a
+/// string substitution, which is exactly the kind of thing that quietly starts
 /// mangling names when the dataset's naming changes.
+///
+/// Two of those call sites were reverted to the raw `name` by `eb67f1c` and
+/// restored on 2026-08-21; the enumeration above is deliberately a claim this
+/// suite's own passing doesn't prove, so re-grep for `court.name` rather than
+/// trusting it.
 final class CourtTests: XCTestCase {
 
     private func court(named name: String) -> Court {

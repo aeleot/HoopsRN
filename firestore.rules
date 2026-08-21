@@ -48,7 +48,7 @@ service cloud.firestore {
         && request.resource.data.userName.size() > 0
         && request.resource.data.userName.size() <= 50;
 
-      // Enforces the mutability contract: `id`, `email` and `createdAt` are
+      // Enforces the mutability contract: `id` and `createdAt` are
       // write-once, and a client may only ever touch the user-editable fields
       // (plus the `updatedAt` bookkeeping). Anything else is rejected
       // server-side, including a hand-crafted request.
