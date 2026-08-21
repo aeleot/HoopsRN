@@ -1,7 +1,8 @@
 # hoopsRN — Architecture
 
-**Scope:** `hoopr/hooprApp.swift`, `hoopr/Services/`, `hoopr/ViewModels/`
-**Verified:** 2026-08-13 @ map-tab
+**Scope:** `hoopr/hooprApp.swift`, `hoopr/Services/`, `hoopr/ViewModels/`,
+`hoopr/Support/FailureText.swift`, `hoopr/Support/PreferredRadiusPublisher.swift`
+**Verified:** 2026-08-21 @ da44193
 
 How the app is assembled: who owns what, what gets injected where, and the two
 orderings/boundaries that break the design if violated. Read this before
@@ -21,22 +22,24 @@ can be built with a stub.
 |---|---|---|
 | `AuthService` | `currentUser: AuthenticatedUser?`, `hasLoadedInitialState: Bool` | `hasLoadedInitialState` exists because Firebase restores a cached session asynchronously — session state is genuinely unknown until the first listener callback. |
 | `UserProfileService` | `currentProfile: UserProfile?`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns a `ListenerSupervisor`. |
-| `CourtService` | `courts: [Court]`, `loadError: String?` | Loads the bundled dataset synchronously in `init()`. |
+| `CourtService` | `courts: [Court]` | Loads the bundled dataset synchronously in `init()`, sorted by `name`. **Publishes no error.** A missing or undecodable `courts.json` is logged and leaves `courts` empty, so the failure mode is a map with no pins and no explanation. |
 | `LocationService` | `userLocation: CLLocationCoordinate2D?`, `authorizationStatus` | `CLLocationManagerDelegate` wrapper. Also owns `homeLocation`, the single anchor every distance in the app measures from. |
 | `GameService` | `queuedGames: [Game]`, `publicGames: [Game]`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns two session-scoped query listeners and a `ListenerSupervisor` that keys their health separately. |
 | `FriendService` | `friends: [Friendship]`, `incomingRequests: [Friendship]`, `outgoingRequests: [Friendship]`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Two session-scoped query listeners (`uidA == me`, `uidB == me`) merged client-side, and a `ListenerSupervisor` keying their health separately. |
 | `RecentCourtsStore` | `recentCourtIds: [String]` | `UserDefaults`-backed; deliberately on-device. |
 
-Six view models are built from them, each `@StateObject` inside the view it
+Seven view models are built from them, each `@StateObject` inside the view it
 backs: `RootViewModel` (from `AuthService`), `LoginViewModel` (`AuthService`),
 `FindAMatchViewModel` (`CourtService` + `LocationService`), `ProfileViewModel`
 (`AuthService` + `UserProfileService` + `CourtService`), `LocalRunsViewModel`
 (`GameService` + `CourtService` + `UserProfileService`), `FriendsViewModel`
 (`FriendService` + `UserProfileService` + `CourtService` — the last one only to
-name a home court on another player's profile).
+name a home court on another player's profile), and `CreateGameViewModel`
+(`GameService`, plus the `Court` the form was opened from — the one view model
+built per-presentation rather than per-screen, inside `CreateGameSheet`).
 
-The last two are where **cross-collection joins live**. A service owns one
-collection and never learns about another's: `LocalRunsViewModel` joins runs to
+`LocalRunsViewModel` and `FriendsViewModel` are where **cross-collection joins
+live**. A service owns one collection and never learns about another's: `LocalRunsViewModel` joins runs to
 the bundled court dataset for its distance filter, and `FriendsViewModel` joins
 friendship uids to profiles for their names. Pushing either down into a service
 would give one collection's owner a dependency on another's.
@@ -94,16 +97,44 @@ the service layer", which still holds.)*
 | `Services/UserProfileService.swift` | `FirebaseFirestore` | `users` | `UserProfile`, `UserProfileError` |
 | `Services/GameService.swift` | `FirebaseFirestore` | `games` | `Game`, `GameError` |
 | `Services/FriendService.swift` | `FirebaseFirestore` | `friendships` | `Friendship`, `FriendError` |
-| `Services/ListenerSupervisor.swift` | *(none)* | listener re-attach + `FailureContext` | both, to the two Firestore services |
+| `Services/FirestoreFailure.swift` | `FirebaseFirestore` | *(nothing)* | `FirestoreFailure`, the shared classification |
+| `Services/ListenerSupervisor.swift` | *(none)* | listener re-attach + `FailureContext` | both, to the three Firestore services |
 
 `hooprApp.swift` imports `FirebaseCore` for the one `configure()` call.
 `hooprTests/UserProfileTests.swift` imports `FirebaseFirestore` deliberately —
 it decodes through the real `Firestore.Decoder`.
 
 All four services translate the SDK's `NSError`s into domain enums in a
-private static `mapped(_:)`; view models then map those to user-facing strings. No
+private static `mapped(_:)`. The three Firestore ones don't classify the error
+themselves — they switch over `FirestoreFailure.classify(_:)`, which owns the
+`FirestoreErrorDomain` guard and the code-to-case mapping once, so a newly
+handled code can't be added to one service and forgotten in the other two.
+*What went wrong* is decided there; *what to call it* stays per-collection.
+View models then map those to user-facing strings. No
 `DocumentSnapshot`, `User`, or `AuthErrorCode` reaches a model, view model, or
 view.
+
+## Shared derivations
+
+Two pieces of duplication were pulled out and are easy to re-create by accident,
+because in both cases the copies were byte-identical and each read naturally at
+its own call site:
+
+- **`Support/FailureText.swift`** — the failure sentences more than one mapper
+  produces. Only genuinely shared wording belongs there; anything a single flow
+  words for itself stays at its call site, because `ProfileViewModel`
+  deliberately says something different from `LoginViewModel` about the same
+  invalid email.
+- **`Support/PreferredRadiusPublisher.swift`** — `preferredRadiusMiles`, the
+  `UserProfile?` → miles pipeline (`effectivePreferredRadius`, the default while
+  signed out, `removeDuplicates`, `receive(on:)`) that `FindAMatchViewModel` and
+  `LocalRunsViewModel` both need. It shares the *operator chain*, not the
+  subscription — each view model still subscribes to
+  `userProfileService.$currentProfile` itself, so isolation is unchanged and the
+  fallback rule has one home.
+
+Both are `nonisolated` (the project defaults to `MainActor` isolation) so the
+error mappers and tests can reach them off the main actor.
 
 ---
 

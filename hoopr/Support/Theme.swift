@@ -39,9 +39,39 @@ extension Color {
     )
 
     /// Content drawn *on top of* `hooprOrange` — a button's label, a selected
-    /// chip's text. Fixed white in both appearances, because the brand orange
-    /// it sits on doesn't invert.
-    static let hooprOnBrand = Color.white
+    /// chip's text, the map pin's glyph.
+    ///
+    /// **Black, not white, and this is the one value here you must not flip on
+    /// taste.** The brand orange is a light colour in both appearances, so a
+    /// white label on it measures 2.55:1 in light mode and 2.25:1 in dark —
+    /// under AA (4.5:1) and under even the 3:1 large-text floor, on every
+    /// primary button in the app. Black clears 8.24:1 and 9.33:1 on
+    /// `hooprOrange`, and 6.64:1 / 8.24:1 on `hooprDarkOrange` behind the
+    /// selected map pin.
+    ///
+    /// Fixed rather than dynamic, because the ground it sits on doesn't invert:
+    /// orange stays light in dark mode, so the label that reads on it stays
+    /// dark. Darkening the orange until white passed would take it to roughly
+    /// `rgb(187, 93, 0)` — a brown, not a brand.
+    ///
+    /// `ThemeContrastTests` fails if this pairing ever slips back under AA. It
+    /// shipped as white once and nothing caught it.
+    static let hooprOnBrand = Color.black
+
+    /// Content drawn *on top of* a solid `hooprRed` fill — today only the
+    /// inbox badge's count.
+    ///
+    /// The one role here that genuinely has to invert. `hooprRed` is deep in
+    /// light mode and deliberately lightened in dark mode (so it holds contrast
+    /// against a near-black page), which flips which label reads on it: white
+    /// is 6.71:1 light but 2.82:1 dark, black is 3.13:1 light but 7.45:1 dark.
+    /// No fixed colour clears AA on both, so this resolves per appearance —
+    /// 6.71:1 and 7.45:1.
+    ///
+    /// Distinct from `hooprOnBrand` on purpose. The badge borrowed that role
+    /// while it was white, which happened to pass in light mode and hid the
+    /// dark-mode failure behind a name that promised something else.
+    static let hooprOnRed = Color.hoopr(light: .white, dark: UIColor(white: 0, alpha: 1))
 
     // MARK: - Surfaces
 

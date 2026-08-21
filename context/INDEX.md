@@ -5,7 +5,14 @@ the routing table to the one or two entries that own what you're changing, then
 read the code.
 
 Every entry carries a `Scope` line (the source paths it owns) and a `Verified`
-stamp (date + commit sha). Scopes don't overlap; together they cover the repo.
+stamp (date + **commit sha**, never a branch name — a branch moves and the stamp
+stops meaning anything). Scopes don't overlap, and together they cover every
+source path in the repo.
+
+Two entries own no paths and say so with `Scope: —`: `GAPS.md` and
+`database/USER_PROFILE_WORKFLOW.md`. Both are cross-cutting narratives over code
+other entries own, so they can't be diffed — the drift check lists them under
+"always revisit" and they're re-read by hand every pass.
 
 ---
 
@@ -13,15 +20,15 @@ stamp (date + commit sha). Scopes don't overlap; together they cover the repo.
 
 | Entry | What it answers | Verified |
 |---|---|---|
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the app is wired: service ownership, startup order, the Firebase vendor boundary. | 2026-08-13 @ map-tab |
-| [`DATA_MODEL.md`](DATA_MODEL.md) | The domain types and their contracts — stable court IDs, the profile's write rules, derived game status, what each error case means. | 2026-08-13 @ map-tab |
-| [`database/DATABASE_SCHEMA.md`](database/DATABASE_SCHEMA.md) | What's stored in Firestore and what a client may write. | 2026-08-13 @ map-tab |
-| [`database/USER_PROFILE_WORKFLOW.md`](database/USER_PROFILE_WORKFLOW.md) | What happens between sign-in and a rendered profile. | 2026-08-07 @ 2d483bb |
-| [`MAP_LAYER.md`](MAP_LAYER.md) | The map, its UUID trigger pattern, and the bottom-sheet state machine. | 2026-08-13 @ map-tab |
-| [`COURT_DATASET.md`](COURT_DATASET.md) | Where courts come from and how to regenerate or extend them. | 2026-08-07 @ 2d483bb |
-| [`UI_SHELL.md`](UI_SHELL.md) | Navigation structure, the Local Runs and Friends tabs, player search and profiles, run creation, and the visual conventions. | 2026-08-15 @ map-tab |
-| [`BUILD_AND_CONFIG.md`](BUILD_AND_CONFIG.md) | Project identity, dependencies, Firebase CLI surface, real test coverage. | 2026-08-13 @ map-tab |
-| [`GAPS.md`](GAPS.md) | What's unfinished, and where comments and docs contradict the code. | 2026-08-15 @ map-tab |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the app is wired: service ownership, startup order, the Firebase vendor boundary, listener recovery. | 2026-08-21 @ da44193 |
+| [`DATA_MODEL.md`](DATA_MODEL.md) | The domain types and their contracts — stable court IDs, the profile's write rules, derived game status, what each error case means. | 2026-08-21 @ da44193 |
+| [`database/DATABASE_SCHEMA.md`](database/DATABASE_SCHEMA.md) | What's stored in Firestore and what a client may write, across all three collections. | 2026-08-21 @ da44193 |
+| [`database/USER_PROFILE_WORKFLOW.md`](database/USER_PROFILE_WORKFLOW.md) | What happens between sign-in and a rendered profile, including the search-key backfill. | 2026-08-21 @ da44193 |
+| [`MAP_LAYER.md`](MAP_LAYER.md) | The map, its UUID trigger pattern, the north bias, and the bottom sheet's detent machine. | 2026-08-21 @ da44193 |
+| [`COURT_DATASET.md`](COURT_DATASET.md) | Where courts come from and how to regenerate or extend them. | 2026-08-21 @ da44193 |
+| [`UI_SHELL.md`](UI_SHELL.md) | Navigation structure, the Local Runs tab, the profile and its Friends pane, run creation, and the visual conventions. | 2026-08-21 @ da44193 |
+| [`BUILD_AND_CONFIG.md`](BUILD_AND_CONFIG.md) | Project identity, dependencies, the Firebase CLI surface, repo tooling, real test coverage. | 2026-08-21 @ da44193 |
+| [`GAPS.md`](GAPS.md) | What's unfinished, and where comments and docs contradict the code. | 2026-08-21 @ da44193 |
 
 ---
 
@@ -32,7 +39,8 @@ stamp (date + commit sha). Scopes don't overlap; together they cover the repo.
 | anything touching Firebase | `ARCHITECTURE.md` (vendor boundary + startup order) |
 | a stored profile field | `database/DATABASE_SCHEMA.md` + `database/USER_PROFILE_WORKFLOW.md` — it takes a service method *and* a rules redeploy |
 | games, rosters, or run scheduling | `database/DATABASE_SCHEMA.md` (`games`) + `UI_SHELL.md` (Local Runs) |
-| friendships, requests, or player search | `database/DATABASE_SCHEMA.md` (`friendships`) + `UI_SHELL.md` (Friends) |
+| friendships, requests, or player search | `database/DATABASE_SCHEMA.md` (`friendships`) + `UI_SHELL.md` (the profile's Friends pane) |
+| a snapshot listener, or an error message | `ARCHITECTURE.md` (`ListenerSupervisor`, and the read/write split on `permission-denied`) |
 | map behaviour or the bottom sheet | `MAP_LAYER.md` |
 | court data, or adding a city | `COURT_DATASET.md` |
 | navigation, screen presentation, or styling | `UI_SHELL.md` |
@@ -51,7 +59,7 @@ ships, fold what's true into the entries above and strike it from the plan.
 | Plan | Status |
 |---|---|
 | [`plans/LIVE_HEADCOUNT.md`](plans/LIVE_HEADCOUNT.md) | Proposed — live court occupancy via a `checkins` collection. |
-| [`plans/FRIENDS.md`](plans/FRIENDS.md) | **Partly shipped** — the `friendships` backend (Phase 1), the Friends tab (Phase 2), and search, public profiles and the inbox (Phase 3) are built and folded into the entries above. The friends'-public-runs badge (Phase 4) is still a proposal. |
+| [`plans/FRIENDS.md`](plans/FRIENDS.md) | **Partly shipped** — the `friendships` backend (Phase 1), the Friends UI (Phase 2), and search, public profiles and the inbox (Phase 3) are built and folded into the entries above. The friends'-public-runs badge (Phase 4) is still a proposal. |
 | [`plans/SCALE_UP.md`](plans/SCALE_UP.md) | Proposed — the multi-city scaling roadmap: the global public-games query fix, court-dataset delivery for many cities, and the sequencing of every other pending feature/gap around them. |
 | [`plans/BACKLOG.md`](plans/BACKLOG.md) | Proposed — medium-to-large enhancement stories in four tracks: the Queue Up matchmaking feature, the friends system, UI depth, and correctness/standards. Its D1 records verified drift in the entries above. |
 
@@ -59,17 +67,17 @@ ships, fold what's true into the entries above and strike it from the plan.
 
 ## Refreshing this dictionary
 
-Run `context/prompts/refresh-context-dictionary.md` for routine upkeep — it maps
-changed files onto the `Scope` lines to find stale entries. Run
-`context/prompts/rebuild-context-dictionary.md` to rebuild from scratch when
-drift has outrun repair.
+Run `python3 tools/check_context_drift.py` **first**, always. It parses every
+entry's `Scope`/`Verified` header, diffs the owned paths against the working
+tree — uncommitted work included, not just the last commit — and prints which
+entries are stale, unresolvable, or current, plus any changed file that matches
+no entry's scope at all. Feed its output straight into the refresh rather than
+re-deriving staleness by hand, and don't restamp an entry it calls current: an
+untouched stamp is the signal that nothing in that area moved.
 
-Before either, run `python3 tools/check_context_drift.py` — it does the
-scope/verified diffing mechanically (working tree included, not just the
-last commit) and prints exactly which entries are stale, unresolvable, or
-current, plus any changed file that matches no entry's scope at all. Feed
-its output straight into the refresh rather than re-deriving staleness by
-hand.
+Then run `context/prompts/refresh-context-dictionary.md` for routine upkeep, or
+`context/prompts/rebuild-context-dictionary.md` when more than half the entries
+are stale and incremental repair has stopped being worth it.
 
 `context/prompts/` and `context/plans/` are not dictionary entries and carry no
 `Scope`/`Verified` stamp.

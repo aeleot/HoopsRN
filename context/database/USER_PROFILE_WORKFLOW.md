@@ -1,13 +1,19 @@
 # hoopsRN — User Profile Workflow
 
-**Scope:** runtime auth + profile behaviour (`AuthService`, `UserProfileService`,
-`ProfileViewModel`, `Views/Profile/`)
-**Verified:** 2026-08-07 @ 2d483bb
+**Scope:** —
+**Verified:** 2026-08-21 @ da44193
 
 How the app connects to Firestore and what happens at runtime between someone
 signing in and a rendered profile. This is the first hoopsRN feature backed by a
-real database, so it also establishes the patterns every later collection
-(matches, queues) should follow.
+real database, so it also establishes the patterns `games` and `friendships`
+both followed.
+
+**This entry owns no source paths, deliberately.** It's a narrative across
+`AuthService`, `UserProfileService`, `ProfileViewModel` and `Views/Profile/`,
+every one of which is owned by `ARCHITECTURE.md` or `UI_SHELL.md` — scopes may
+not overlap, so it declares none and is re-checked by hand every pass, like
+`GAPS.md`. It previously carried a scope of un-resolvable path fragments, which
+made the drift check report it "current" while it went two weeks stale.
 
 ---
 
@@ -110,14 +116,14 @@ is never touched before configuration either.
 .firebaserc              → project hoopsrn-4f1e9
 firebase.json            → points at the rules + indexes files
 firestore.rules          → security rules (source of truth)
-firestore.indexes.json   → composite indexes (empty; none needed yet)
+firestore.indexes.json   → composite indexes (two, both for `games`)
 ```
 
 **d. Deploying rules** — the repo is authoritative; the console is not. Redeploy
 after any rules change:
 
 ```bash
-firebase deploy --only firestore:rules
+firebase deploy --only firestore:rules,firestore:indexes
 ```
 
 Until rules are deployed, a new database denies every read and write, and the
@@ -168,6 +174,10 @@ User signs in
    is *read* from Auth to seed that name and then deliberately not stored.
 5. The write triggers the listener, which decodes into `UserProfile` and
    publishes it. The UI updates reactively — no manual refresh.
+6. **The search-key backfill runs on that same snapshot.** If the decoded
+   profile has no `userNameLower`, `backfillSearchKeyIfNeeded` writes one — see
+   below. It has to happen here, on the owner's own client, because the update
+   rule is owner-only.
 
 A snapshot for a document that doesn't exist is **not** treated as an error —
 provisioning may still be in flight, so `currentProfile` just stays nil.
@@ -175,17 +185,54 @@ provisioning may still be in flight, so `currentProfile` just stays nil.
 Provisioning exists because accounts created *before* this feature shipped have
 no profile document. Rather than a one-off migration, every sign-in self-heals.
 
+### The `userNameLower` backfill — the same pattern, a second time
+
+Player search needs a lowercased mirror of the display name to prefix-match on.
+Accounts provisioned before that field existed don't have one, and a profile
+with no `userNameLower` is **invisible to name search forever** — the range
+query has nothing to match.
+
+There is no server-side fix available: the update rule is owner-only, so no
+client can backfill another account, and the project is on the Spark plan with
+no Cloud Functions. So the migration is the same self-healing shape as
+provisioning — each account writes its own key the next time its owner opens the
+app.
+
+Two guards make it safe to run on every snapshot:
+
+- The write produces a snapshot whose `userNameLower` **is** set, so the
+  `== nil` check stops it the second time round.
+- `didBackfillSearchKey` covers a *failed* attempt, which produces no such
+  snapshot — one try per session rather than a write retried on every snapshot.
+  It resets in `startObserving`, so the next sign-in tries again.
+
+It fails silently by design: the user didn't ask for it and can do nothing about
+it. **The consequence is a real one and belongs in any conversation about
+search:** until an account's owner has launched a build containing this, that
+person can't be found by name — only by user ID, which reads the document
+directly.
+
 ### The edit cycle
 
-The profile screen shows five fields. Three are editable:
+The profile screen shows eight rows in two sections. Only **three** go through
+`ProfileViewModel.EditableField` and its `.sheet(item:)`, and that distinction
+is the point: `EditableField` means "a field of the profile *document*", so
+everything sharing its in-flight and failure handling is a Firestore write.
 
-| Field | Source | Editable |
-|---|---|---|
-| Username | `userName` | yes — text sheet |
-| Email | Firebase Auth | no — changing it needs an Auth re-authentication flow |
-| Home Court | `homeCourtId` → resolved via `CourtService` | yes — searchable court picker |
-| Preferred Radius | `preferredRadius` | yes — slider (1–50 miles) |
-| Date Joined | `createdAt` | no — write-once by design |
+| Row | Section | Source | Editable |
+|---|---|---|---|
+| Home Court | Your Game | `homeCourtId` → resolved via `CourtService` | yes — `EditableField`, searchable court picker |
+| Favorites | Your Game | `favoriteCourtIds`.count | no — starred from the map; the profile only counts them |
+| Search Radius | Your Game | `preferredRadius` | yes — `EditableField`, slider (1–50 miles) |
+| Username | Account | `userName` | yes — `EditableField`, text sheet |
+| Email | Account | Firebase Auth | no — changing it needs an Auth re-authentication flow |
+| Password | Account | *(a `••••••••` fiction)* | yes, but **outside `EditableField`** — sends a reset link via Auth, writing no document |
+| Appearance | Account | `UserDefaults` | yes, but **outside `EditableField`** — device-local, no network round trip |
+| Joined | Account | `createdAt` | no — write-once by design |
+
+The two outside `EditableField` carry their own `@State` + `.sheet(isPresented:)`,
+and the password reset additionally carries its own
+`isSendingPasswordReset` / `didSendPasswordReset` / `passwordResetError`.
 
 1. Tapping an edit icon calls `beginEditing(_:)`, which clears any error, seeds
    `nameDraft` from the current value for the username case, and sets
@@ -219,12 +266,13 @@ data leaks into the next session.
 | `Models/UserProfile.swift` | The profile struct. **Free of Firebase types**, like `Court`. Decode-oriented — never hand it to `setData(from:)`. |
 | `Services/UserProfileService.swift` | The only file that reads/writes `users`. Owns the listener, provisioning, and updates. Translates Firestore errors into `UserProfileError`. |
 | `ViewModels/ProfileViewModel.swift` | Profile screen state: field values, which field is being edited, save/cancel, sign-out. Resolves `homeCourtId` to a court name via `CourtService`. |
-| `Views/Profile/ProfileView.swift` | The full-screen profile: orange identity header (3/12 of the screen), field list, sign-out. |
-| `Views/Profile/ProfileFieldRow.swift` | One label/value row. `onEdit: nil` renders it read-only. |
-| `Views/Profile/ProfileEditSheets.swift` | The username editor and the searchable home-court picker. |
+| `Views/Profile/ProfileView.swift` | The full-screen profile. **Two panes** — Profile and Friends — over one scroll view, with a `ProfileTopBar` safe-area inset. There is no orange header any more; see `../UI_SHELL.md`. |
+| `Views/Profile/ProfileIdentity.swift` | `ProfileIdentityBlock` (avatar, `@handle`, copyable uid) and `ProfileTopBar`. |
+| `Views/Profile/ProfileRow.swift` | One label/value row, plus `ProfileActionRow`. `onTap: nil` renders it read-only. (This replaced `ProfileFieldRow.swift`, which no longer exists.) |
+| `Views/Profile/ProfileEditSheets.swift` | The username editor, the searchable home-court picker, the radius slider, the appearance picker and the password-reset sheet. |
 | `Views/MainTabView.swift` | Greeting reads `currentProfile?.userName`; presents `ProfileView` **in place of** the tab interface. |
 | `hooprApp.swift` | `FirebaseApp.configure()`, service ownership, dependency injection. |
-| `hooprTests/UserProfileTests.swift` | Pins the model against the stored document shape. |
+| `hooprTests/UserProfileTests.swift` | 17 cases: the stored document shape, the radius coercion ladder, and name validation. |
 
 ### Architectural rules this establishes
 
@@ -267,12 +315,13 @@ search is built on.
 4. Relaunch the app → the name persists.
 5. In the console, confirm `updatedAt` moved but **`createdAt` did not**.
 
-**Unit tests** (`hooprTests/UserProfileTests.swift`) run through
+**Unit tests** (`hooprTests/UserProfileTests.swift`, 17 cases) run through
 `Firestore.Decoder` — the same decoder the service uses — so a field rename in
 the console or the model fails a test instead of silently blanking the UI. They
 cover the full stored shape, a minimal document, a missing `userName` (must fail
-loudly), unresolved server timestamps decoding as nil, and the name-length and
-blank-name bounds shared with the rules.
+loudly), unresolved server timestamps decoding as nil, a document still carrying
+the purged `email` field, the six-case radius coercion ladder, and the
+name-length and blank-name bounds shared with the rules.
 
 **Troubleshooting:**
 
@@ -300,6 +349,11 @@ noise from the keyboard and MapKit — not Firestore.
 - Writes are explicit field maps containing only the changed field plus
   `updatedAt`.
 - Sign-out must clear `observedUID`, `currentProfile` and `errorMessage`.
+- `EditableField` means a write to the profile *document*. An edit that doesn't
+  touch Firestore — appearance, the password reset — stays outside it and brings
+  its own presentation state.
+- The `userNameLower` backfill stays idempotent and once-per-session. It is the
+  entire migration; there is no server-side one.
 
 ## See also
 

@@ -3,9 +3,9 @@
 **Scope:** `hoopr/Views/RootView.swift`, `hoopr/Views/MainTabView.swift`,
 `hoopr/Views/LoginView.swift`, `hoopr/Views/Profile/`, `hoopr/Views/Games/`,
 `hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Views/Friends/`,
-`hoopr/Support/Theme.swift`, `hoopr/Support/Typography.swift`,
-`hoopr/Support/AppearancePreference.swift`
-**Verified:** 2026-08-21 @ ui-tune-up
+`hoopr/Views/Components/ErrorBanner.swift`, `hoopr/Support/Theme.swift`,
+`hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`
+**Verified:** 2026-08-21 @ da44193
 
 Navigation structure and the visual conventions every screen follows. Read this
 before adding a screen, changing how one is presented, or picking a colour or a
@@ -388,7 +388,7 @@ with appearance and the password reset outside it — see "Navigation" above.
 Every sheet on the screen, both panes', is applied in `body` around a `page`
 property, which is the only reason `body` and the page are separate.
 
-The home-court picker is search-only: with 213 courts an up-front list is noise.
+The home-court picker is search-only: with 214 courts an up-front list is noise.
 Name matches rank above city-only matches, capped at 25 suggestions.
 
 ## Visual conventions

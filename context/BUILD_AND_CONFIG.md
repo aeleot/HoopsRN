@@ -1,8 +1,9 @@
 # hoopsRN — Build and Config
 
-**Scope:** `hoopr.xcodeproj/`, `Package.resolved`, `hooprTests/`, `hooprUITests/`,
-`hoopr/Assets.xcassets/`, `hoopr/GoogleService-Info.plist`, `.gitignore`
-**Verified:** 2026-08-13 @ map-tab
+**Scope:** `hoopr.xcodeproj/`, `hooprTests/`, `hooprUITests/`,
+`hoopr/Assets.xcassets/`, `hoopr/GoogleService-Info.plist`, `.gitignore`,
+`tools/check_context_drift.py`
+**Verified:** 2026-08-21 @ da44193
 
 Project identity, dependencies, the Firebase CLI surface, and what the tests
 actually cover. Read this before changing a build setting, adding a dependency,
@@ -60,6 +61,14 @@ Storage, Crashlytics are *not* linked, though transitive pins for
 GoogleAppMeasurement and the ads on-device conversion SDK appear in
 `Package.resolved` — 13 pins total, all transitive apart from Firebase itself.
 
+**`Package.resolved` is not in version control.** `.gitignore`'s `*.xcworkspace`
+line matches the `project.xcworkspace` *directory* inside `hoopr.xcodeproj`, and
+the resolved file lives under it — so the pins above describe this working copy
+only. A fresh clone resolves whatever `upToNextMajorVersion` yields that day.
+Confirm with `git check-ignore -v` before trusting a version stated here; it is
+also why this entry's scope doesn't list the file (an ignored path can never
+show up in the drift check's diff).
+
 `GoogleService-Info.plist` is committed at `hoopr/GoogleService-Info.plist`.
 
 ## Assets
@@ -69,6 +78,19 @@ images**) and `AccentColor.colorset` (**no colour defined**). Nothing in the app
 references an asset catalogue entry — every colour comes from `Theme.swift` and
 every icon is an SF Symbol. `.gitignore` covers the usual Xcode noise plus
 `node_modules/` and `*.xcworkspace`.
+
+## Repo tooling
+
+`tools/check_context_drift.py` is the context dictionary's own pre-check: it
+parses every entry's `Scope`/`Verified` header, diffs the owned paths against
+the **working tree** (not just `HEAD`, so uncommitted work counts), and reports
+which entries are stale. It lives under `tools/` beside the court scripts but
+has nothing to do with court data — it's owned here so a change to it doesn't
+mark `COURT_DATASET.md` stale.
+
+```bash
+python3 tools/check_context_drift.py
+```
 
 ## Firebase CLI surface
 
@@ -96,27 +118,49 @@ allowed to save yet." A newly created database denies everything.
 
 ## Tests
 
-Six suites carry the real coverage: `UserProfileTests`, `GameTests` and
+**91 test methods across seven suites**, counted from the `func test`
+declarations rather than from a run. All of them carry real coverage; there is
+no scaffold left in `hooprTests/`.
+
+| Suite | Cases | Guards |
+|---|---|---|
+| `GameTests` | 21 | Decoding, derived status, form validation, roster membership, visibility, presentation, the invite-link string, distance. |
+| `UserProfileTests` | 17 | Decoding, the radius coercion ladder, name validation. |
+| `FriendsViewModelTests` | 16 | `looksLikeUserId`, search-stream `merged`, `relationship`. |
+| `ServiceFailureTests` | 15 | Backoff schedule, per-listener recovery, read/write messaging, `FirestoreFailure` classification. |
+| `FriendshipTests` | 10 | Decoding, the derived document ID, direction. |
+| `CourtTests` | 6 | `Court.displayName`. |
+| `FirestoreRulesParityTests` | 6 | The `status` derivation and the shared bounds, parsed out of `firestore.rules`. |
+
+`UserProfileTests`, `GameTests` and
 `FriendshipTests` run through `Firestore.Decoder` — the same decoder the
 services use — so a field rename in the console or in the model fails a test
 rather than silently emptying the UI. `ServiceFailureTests` covers error
 classification and `ListenerSupervisor`'s backoff, `FirestoreRulesParityTests`
-parses `firestore.rules` and fails when a mirrored bound drifts, and
-`FriendsViewModelTests` covers the Friends pane's three pure decisions.
+parses `firestore.rules` and fails when a mirrored bound drifts,
+`FriendsViewModelTests` covers the Friends pane's three pure decisions, and
+`CourtTests` pins `Court.displayName`.
+
+`CourtTests` (six cases) is the only coverage of a `Court`, and it earns its
+place because `displayName` is a string substitution rendered on six screens:
+boilerplate stripped, a trailing `#2` suffix kept, whitespace collapsed, case
+insensitivity, the strip-to-nothing fallback, and a name without the boilerplate
+left alone.
 
 `GameTests` covers the stored `games` shape, pending server timestamps, the
 `in_progress` raw value, required-field failures, and the pure rules the client
 shares with `firestore.rules`: derived status, roster clamping, membership
 queries, and the visibility grace window.
 
-`UserProfileTests`:
+`UserProfileTests` is worth knowing in more detail, because most of it isn't
+about decoding at all:
 
-| Test | Guards |
+| Group | Guards |
 |---|---|
-| `testDecodesStoredDocumentShape` | The full stored document, `Timestamp` → `Date` included. |
-| `testDecodesMinimalDocument` | A freshly provisioned profile: no `email`, no `homeCourtId`. Both must stay optional. |
-| `testMissingUserNameFailsToDecode` | A missing `userName` must fail loudly, not render blank. |
-| `testDecodesPendingServerTimestamps` | Unresolved `serverTimestamp()` sentinels read back as null must not crash decoding. |
+| Decoding | The full stored shape (`Timestamp` → `Date`), a freshly provisioned document (no `homeCourtId`), a missing `userName` failing loudly rather than rendering blank, and unresolved `serverTimestamp()` sentinels not crashing the decoder. |
+| `testIgnoresALegacyEmailField` | A document still carrying the purged `email` field decodes fine. Accounts written before the field was removed still exist. |
+| Radius coercion | Six cases over `effectivePreferredRadius` — integer values, unset, stored-overrides-default, **zero**, out-of-range, and the range bounds. Zero is the one that matters: a perfectly good `Double` that would silently empty the nearby list. |
+| Name validation | Five cases over `UserProfile.validate(userName:)`, including length measured *after* trimming. |
 
 `FriendsViewModelTests` exercises the three `nonisolated static` helpers on
 `FriendsViewModel` — they're static precisely so they can be tested without
@@ -128,14 +172,15 @@ Firebase, a live service, or a main actor:
 | `merged` | Exact-ID hit ranks first, duplicates collapse by uid, the signed-in user is dropped without consuming a result slot, and the cap holds. |
 | `relationship` | Direction read off `requestedBy` from *both* sides of a pair — the case a naive `uidA == me` implementation gets wrong. |
 
-Everything else is Xcode scaffold: `hooprTests/hooprTests.swift` (empty
-`testExample` + `measure {}`), `hooprUITests/hooprUITests.swift`, and
-`hooprUITestsLaunchTests.swift` (launch + screenshot attachment).
+The only scaffold left is `hooprUITests/LaunchTests.swift` (launch + screenshot
+attachment). The empty `hooprTests/hooprTests.swift` and the second UI test file
+were deleted on 2026-08-15; every file in `hooprTests/` now carries real
+coverage.
 
-Worth testing and currently untested: `MapView.zoomLevelFromSpan` /
-`spanFromZoomLevel` round-tripping, `RootViewModel`'s gating rule,
-`FindAMatchViewModel.nearby(courts:to:)` filtering and ordering, and both
-`mapped(_:)` error translations.
+Worth testing and currently untested: `RootViewModel`'s gating rule,
+`FindAMatchViewModel`'s ranking and radius filtering, `MapTab`'s detent
+transitions, and the four `mapped(_:)` error translations. (The zoom-conversion
+round-trip named here until 2026-08-21 is gone — so are the functions.)
 
 ---
 

@@ -200,7 +200,10 @@ struct ProfileTopBar: View {
                     if unansweredCount > 0 {
                         Text(badgeText)
                             .hooprFont(11, weight: .bold, maximumSize: 13)
-                            .foregroundStyle(Color.hooprOnBrand)
+                            // `hooprOnRed`, not `hooprOnBrand`: this is the one
+                            // label in the app on a red fill, and red is the one
+                            // ground that inverts between appearances.
+                            .foregroundStyle(Color.hooprOnRed)
                             .padding(.horizontal, 5)
                             .frame(minWidth: 18, minHeight: 18)
                             .background(Capsule().fill(Color.hooprRed))

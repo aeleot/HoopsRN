@@ -1,7 +1,7 @@
 # hoopsRN — Database Schema
 
 **Scope:** `firestore.rules`, `firestore.indexes.json`, `firebase.json`, `.firebaserc`
-**Verified:** 2026-08-13 @ map-tab
+**Verified:** 2026-08-21 @ da44193
 
 What's stored server-side and what a client may write. Three collections are
 live: `users` (one owner per document), `games` (the first shared, multi-user

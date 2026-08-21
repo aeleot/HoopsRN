@@ -1,7 +1,8 @@
 # hoopsRN — Court Dataset
 
-**Scope:** `hoopr/Resources/`, `tools/`, `location-decoder-script/`
-**Verified:** 2026-08-07 @ 2d483bb
+**Scope:** `hoopr/Resources/`, `tools/build_courts.py`, `tools/courts_common.py`,
+`tools/fetch_city_courts.py`, `location-decoder-script/`
+**Verified:** 2026-08-21 @ da44193
 
 Where courts come from, how they get into the app, and how to add a city. Read
 this before changing court data or wondering why there's no network call for it.
@@ -29,12 +30,21 @@ Live game state will layer on top of this at runtime, joined by `Court.id`.
 | `generated` | 2026-08-06 |
 | `attribution` | `Court data © OpenStreetMap contributors, ODbL 1.0` |
 | `cities` | Apex, Cary, Chapel Hill, Durham, Morrisville, Raleigh |
-| courts | **213** — Durham 54, Raleigh 53, Chapel Hill 43, Cary 26, Apex 22, Morrisville 15 |
+| courts | **214** — Durham 55, Raleigh 53, Chapel Hill 43, Cary 26, Apex 22, Morrisville 15 |
 
 `CourtService` hardcodes the resource name `"courts"`, decodes the whole file
-into `CourtDataset` in `init()`, and sorts by name. Any failure — missing from
-bundle or decode error — publishes `loadError = "Court data unavailable"` and
-leaves `courts` empty; there is no retry and no fallback file.
+into `CourtDataset` in `init()`, and sorts by name.
+
+**A load failure is invisible.** Missing from the bundle or undecodable, it is
+logged through `os.Logger` and leaves `courts` empty — there is no published
+error, no retry, and no fallback file, so the symptom is a map with no pins and
+a nearby list that reads as "none in range". Nothing in the UI can tell that
+apart from a genuinely empty result.
+
+The envelope's `version` and `attribution` are decoded into `CourtDataset` and
+then **discarded** — `CourtService` keeps only `courts`. `version` is logged
+once at load; `attribution` is read by nothing, which is the licence obligation
+`GAPS.md` records.
 
 The Xcode target uses `PBXFileSystemSynchronizedRootGroup`, so **anything
 dropped into `hoopr/` is bundled automatically** — no pbxproj edit needed, and
@@ -75,10 +85,15 @@ ID across scripts and re-fetches. Don't change the namespace.
 **`location-decoder-script/reverseGeocode.js`** — a Node one-off that reverse-
 geocodes coordinates through Nominatim to improve names and addresses (1 req/sec,
 retry with backoff, resumable). It reads `courts.json` and writes
-`courts_updated.json`. It is **not** part of the current pipeline: its output
-is a flat array with `"lat,lon"` string IDs, which `CourtDataset` cannot decode,
-and nothing loads it. `node_modules/` exists at the repo root but is gitignored;
-run `npm install` in `location-decoder-script/` if you ever need this script.
+`courts_updated.json`. It is **not** part of the current pipeline: its output is
+a flat array with `"lat,lon"` string IDs, which `CourtDataset` cannot decode.
+That output was committed and bundled for a while without ever being loaded; it
+has since been deleted, so `hoopr/Resources/` holds `courts.json` and nothing
+else. Its `OUTPUT_FILE` is `hoopr/Resources/courts_updated.json` — it writes
+straight into the bundled directory, so re-running it re-creates a shipped file.
+Move the output elsewhere or delete it afterwards. `node_modules/` exists at
+the repo root but is gitignored; run `npm install` in `location-decoder-script/`
+if you ever need this script.
 
 ---
 
@@ -93,9 +108,11 @@ run `npm install` in `location-decoder-script/` if you ever need this script.
   file breaks the map silently at runtime, not at compile time.
 - The ODbL attribution string travels with the data and must survive any
   regeneration.
+- `hoopr/Resources/` holds exactly the files meant to ship. The target uses a
+  synchronized group, so a scratch file left there is a bundled file.
 
 ## See also
 
 - `DATA_MODEL.md` — the `Court` and `CourtDataset` contracts.
 - `MAP_LAYER.md` — what consumes the loaded courts.
-- `GAPS.md` — `courts_updated.json` and the unshown attribution.
+- `GAPS.md` — the unshown ODbL attribution, and the un-rerunnable bulk build.

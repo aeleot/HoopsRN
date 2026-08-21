@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr/Models/`, `hoopr/Support/Distance.swift`,
 `hoopr/Support/InviteLink.swift`
-**Verified:** 2026-08-15 @ map-tab
+**Verified:** 2026-08-21 @ da44193
 
 The domain types and the contracts attached to them. Read this before
 changing a field, adding one, or deciding how something gets persisted. The
@@ -17,8 +17,8 @@ reasoning that isn't.
 from coordinates.** The build scripts compute it as `uuid5` over the OSM
 type/id, so re-extracting later yields the same ID for the same real-world
 court — and correcting a court's position never orphans the games, ratings, or
-check-ins that will reference it. (The abandoned `courts_updated.json` used
-`"lat,lon"` strings as IDs; that's the mistake this avoids.)
+check-ins that will reference it. (The abandoned `courts_updated.json`, since
+deleted, used `"lat,lon"` strings as IDs; that's the mistake this avoids.)
 
 `osmType` / `osmId` are retained provenance so a future extract can match
 existing records instead of minting duplicates.
@@ -26,12 +26,23 @@ existing records instead of minting duplicates.
 `Access` (`public` / `school` / `restricted`) is **derived at build time from
 the court's name**, not read from an OSM tag: OSM rarely tags apartment- and
 hotel-attached courts as private, so the tag alone would classify them as
-playable. Current distribution: 171 public, 32 school, 10 restricted.
+playable. Current distribution: 172 public, 32 school, 10 restricted.
 
 `hoops`, `surface`, `isLit`, `isCovered` are optional because OSM tags them
-inconsistently — most rows are `null`. **None of the five attribute fields
-(`access` included) is read anywhere in the app yet**; they decode and sit
-unused. See `GAPS.md`.
+inconsistently — most rows are `null`. All five attribute fields (`access`
+included) are now read: `CourtFilter` filters on `isLit`, `hoops` and `access`,
+and `CourtBadges` renders all five on the list row and the map's detail card.
+Absent means unknown, so nothing is inferred and no placeholder badge is shown.
+
+`displayName` is `name` with the words "basketball court" stripped and the
+leftover whitespace collapsed. **Every one of the 214 courts in the dataset is
+named `<Place> Basketball Court`**, so the words carry no information in an app
+where everything is a basketball court — they only push real names onto a second
+and third line. It falls back to the stored `name` when stripping would leave
+nothing (a court named only after its type). This is derivation, not storage:
+`name` is what the dataset holds and what a regeneration overwrites.
+`CourtTests` pins the rule, because a string substitution is exactly what
+quietly starts mangling names when the dataset's naming changes.
 
 ## `CourtDataset`
 
@@ -230,6 +241,9 @@ copy of the conversion factor.
   never stored themselves. Adding either as a field would create a second copy
   that can disagree with the first.
 - Distances go through `Distance`. Don't reintroduce a local metres-per-mile.
+- Anything user-facing names a court through `Court.displayName`, not `name`.
+  Six screens do; a seventh reaching for `name` reintroduces the wrapped
+  three-line labels the derivation exists to remove.
 
 ## See also
 

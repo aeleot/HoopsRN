@@ -54,10 +54,14 @@ struct CourtBadges: View {
                         )
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        // The caution badge is outlined rather than filled: on
-                        // `hooprFill` the red lands at 4.05:1 in dark mode,
-                        // under AA, while on the card ground behind it the same
-                        // red clears in both appearances.
+                        // The caution badge is outlined rather than filled so
+                        // its text lands on the card ground rather than on
+                        // `hooprFill`, where the red is at its tightest —
+                        // 6.15:1 light, 4.94:1 dark. Both clear AA today, so
+                        // this is headroom rather than a fix: on the surface
+                        // behind it the same red reads 6.71:1 / 6.03:1.
+                        // (A "4.05:1, under AA" figure stood here until
+                        // 2026-08-21; it measured the reverted palette's red.)
                         .background(amenity.isCaution ? Color.clear : Color.hooprFill)
                         .clipShape(Capsule())
                         .overlay(

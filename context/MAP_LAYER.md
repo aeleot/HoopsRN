@@ -1,8 +1,8 @@
 # hoopsRN — Map Layer
 
 **Scope:** `hoopr/Views/MapView.swift`, `hoopr/Views/Tabs/MapTab.swift`,
-`hoopr/Views/Tabs/CourtRow.swift`
-**Verified:** 2026-08-13 @ map-tab
+`hoopr/Views/Tabs/CourtRow.swift`, `hoopr/Views/Components/CourtBadges.swift`
+**Verified:** 2026-08-21 @ da44193
 
 The map tab and its bottom sheet — the densest interaction code in the app, and
 the part most likely to break subtly when edited. Read this before touching
@@ -58,6 +58,25 @@ map to duplicate a pinch, and no shipping iOS map app has one. `minDelta` /
 `maxDelta` survive as plain constants because the cluster-tap zoom still clamps
 against `minDelta`.
 
+## The north bias
+
+Every `setRegion` — the initial region and the recenter trigger both — goes
+through `MapView.biasedNorth(_:)` first, which shifts the region's centre south
+by `0.12 * span.latitudeDelta`.
+
+`setRegion` centres its target in the map view's **bounds**, but the map runs
+edge to edge underneath the floating header and behind the bottom sheet, so a
+target centred in the full screen lands below the centre of what's actually
+visible between them. Moving the region south moves the target north on screen.
+It's `setVisibleMapRect(_:edgePadding:)` without the Mercator-space padding
+maths, which `MapView` can't do anyway — it doesn't know the header or sheet
+heights.
+
+The 0.12 is sized against `MapTab`'s geometry: a ~0.14-screen-height header and
+a sheet at its medium detent (~⅓ of the screen) put the visible gap's centre
+around 40% down rather than 50%. Change either of those and this fraction is
+what stops matching.
+
 ## Annotation diffing
 
 `updateUIView` diffs by `court.id` — set difference in both directions, then
@@ -80,7 +99,8 @@ Two reasons, and the second is the load-bearing one:
    plain `MKAnnotationView` subclass draws no label at all.
 
 `CourtAnnotation.title` is still populated, now from `Court.displayName`, purely
-so VoiceOver has something to read. Nothing renders it.
+so VoiceOver has something to read. Nothing renders it, and `subtitle` is gone
+entirely.
 
 The view is a shadowed `ring` (surface-coloured) containing a `disc` (brand
 orange) containing either the basketball glyph or a cluster count. **Colours are
@@ -120,44 +140,114 @@ options above without knowing this is the ceiling.
 ## `MapTab` — the sheet state machine
 
 ```swift
+private enum Detent { case collapsed, medium, expanded }
+
 private enum SheetState: Equatable {
-    case list
-    case collapsed
-    case detail(court: Court, returningTo: RestState)
+    case rest(Detent)
+    case detail(court: Court, returningTo: Detent)
 }
 ```
 
-`.detail` **carries the rest state it came from**, so dismissing a court
-restores whatever the sheet was showing beforehand — a pin tapped while the
-sheet was collapsed returns to collapsed, not to the list. `restState` and
-`selectedCourt` are the accessors; `RestState` is the two-case subset (`.list`,
-`.collapsed`) that a drag can settle into.
+**Two orthogonal axes, deliberately not merged.** `Detent` is how far up the
+sheet sits; `SheetState` is what it's showing. `.detail` carries the detent to
+fall back to, so dismissing a court restores whatever the sheet was at
+beforehand — a pin tapped while the sheet was collapsed returns to collapsed.
 
-Sheet height is `UIScreen.main.bounds.height / 3`. Collapsing offsets it by its
-full height — the sheet leaves the screen entirely and the floating `collapsedPeek`
-pill is what remains, fading in only over the last 40% of the travel
+Three accessors do the work, and mixing them up is the bug this shape invites:
+
+- `detent` — what a drag settles into, and what a dismiss restores.
+- `displayDetent` — where the sheet actually renders. **A detail card always
+  shows at `.medium`, whatever it will restore to.** Without this, a court
+  tapped while the list sits collapsed inherits the collapsed offset and the
+  card renders entirely off-screen.
+- `selectedCourt` — `nil` unless `.detail`.
+
+**Geometry comes from the tab, not the screen.** `containerHeight` is fed by
+`onGeometryChange`, seeded at 852 so the first frame is sensible before geometry
+lands; `mediumHeight` is a third of it and `expandedHeight` 0.78 of it.
+`UIScreen.main` is deprecated on iOS 26 and is no longer read anywhere.
+
+Between medium and expanded the sheet **grows and shrinks** — `sheetHeight`
+tracks the finger, so the top edge moves and the bottom stays put. Only heading
+to or from `.collapsed` does it **offset** instead, leaving the screen entirely;
+the floating `collapsedPeek` pill is what remains, held at zero opacity until
+the sheet is 60% gone and fading in over the last 40% of the travel
 (`peekOpacity`) so it never competes with the sheet it replaces.
 
 **Drag ownership.** The handle claims any drag (`minimumDistance: 0`). Inside
-the list, `sheetDragGesture(fromHandle: false)` only claims a drag that is
-downward *and* starts with the list at the top (`listScrollOffset <= 1`, fed by
-`onScrollGeometryChange`); otherwise the gesture returns without setting
-`sheetDrag` and the scroll view keeps it. Once the sheet is dragging,
-`.scrollDisabled(sheetDrag != 0)` stops the list scrolling underneath.
+the list, `sheetDragGesture(fromHandle: false)` uses an 8pt minimum and only
+claims a drag that is downward *and* starts with the list at the top
+(`listScrollOffset <= 1`, fed by `onScrollGeometryChange`); otherwise it returns
+without setting `sheetDrag` and the scroll view keeps it. Once the sheet is
+dragging, `.scrollDisabled(sheetDrag != 0)` stops the list scrolling underneath.
 
-Other constants: `tapSlop` 6pt — a handle drag shorter than this is treated as a
-tap and toggles the sheet; `collapseThreshold` 60pt, applied to
-`predictedEndTranslation` so a flick settles the same way a long drag does;
-`headerHeight` 52, `peekBottomInset` 28. Overshoot is rubber-banded through
-`resistance(_:)`, an exponential ease toward a 40pt limit.
+**One detent per gesture.** `nextDetent(from:projecting:)` steps a single
+position against `predictedEndTranslation` — so a flick settles the same way a
+long drag does, and a hard fling from expanded can't skip past medium and off
+the bottom of the screen.
+
+Other constants: `tapSlop` 6pt — a handle drag shorter than this is a tap, which
+toggles between medium and collapsed; `detentThreshold` 60pt; `peekBottomInset`
+28. Overshoot is rubber-banded through `resistance(_:)`, an exponential ease
+toward a 40pt limit, applied only past the collapsed extreme. Every settle
+animates on the same `.spring(response: 0.35, dampingFraction: 0.85)`.
+
+## Map chrome
+
+Everything floating over the map is **Liquid Glass** (`.glassEffect`): the
+filter chips, the recenter button, and the collapsed peek pill. An *active*
+filter chip tints the same glass with `Color.hooprOrange` rather than swapping to
+an opaque fill, so it reads as the same object lit up instead of a different one.
+
+The sheet is deliberately **not** glass. Small chrome you look past can be
+translucent; a list of courts is something you read, and reading it against a
+moving map is worse in every way than reading it against a surface.
+
+The map `.ignoresSafeArea()` — it *is* the screen, running under the status bar,
+the app's floating header and the home indicator. So `mapOverlay` insets itself
+by `floatingHeaderHeight` (an `@Environment` value published by the shell, see
+`UI_SHELL.md`) plus 10pt, and by `max(0, sheetHeight - sheetOffset)` at the
+bottom so the chrome stays clear of the sheet at any detent. The trailing
+`Spacer` in that `VStack` is load-bearing: it holds the stack at full height so
+the row stays pinned to the top of a bottom-aligned `ZStack`.
+
+The recenter button is the **only map control left** — see the zoom-stack note
+above.
+
+## The court detail card
+
+Reached from a pin tap or a list row, both through `select(_:recenter:)`.
+It carries the court's `displayName`, a `city · distance` line, the same
+`CourtBadges` the list row shows, and two buttons:
+
+- **Directions** — hands the court to Maps via `MKMapItem.openInMaps`, driving
+  mode. The app knows where courts are and nothing about how to get to one.
+- **Start Run** — presents `CreateGameSheet` for that court. One button covers
+  both entry points because both converge here. See `UI_SHELL.md`.
+
+**There is no address row, deliberately.** In this dataset `address` is the city
+and state — "Durham, NC" — which the metadata line above it already says. It's
+still passed to Maps by `openDirections(to:)`, where it does work.
+
+The card and the row show the same badges on purpose: before that, tapping a
+court to learn more about it showed you *less* than the row you tapped it from.
+`CourtBadges` is the shared view, and its "Restricted" chip is the odd one out —
+outlined in red rather than filled, because every other label says what a court
+*has* while that one says you may not get on it.
 
 ## Distances and location
 
-`NearbyCourt` pairs a court with its distance, computed **once when the list is
-built** (in a Combine `CombineLatest` over both `courtService.$courts` and
-`userProfileService.$currentProfile`), never during scroll. Radius comes from
+`NearbyCourt` pairs a court with its distance, computed **when the list is
+rebuilt**, never during scroll. Four Combine subscriptions — the dataset, the
+radius (`preferredRadiusMiles`), favourites, and recents — each call `rebuild()`,
+which re-ranks through `ranked(courts:from:)`. Radius comes from
 `userProfile.preferredRadius` (defaults to 5 miles if unset); the list is sorted
 nearest-first.
+
+The detail card is the exception: it holds a bare `Court` with no precomputed
+figure — a map pin never had a `NearbyCourt` — so it calls
+`distanceText(for:)`, one `CLLocation.distance(from:)` against the same origin.
+That's safe per render; the whole-dataset sort is not.
 
 **Distances and the recenter button both use the hardcoded Durham location, not
 the device's.** `FindAMatchViewModel.homeLocation` forwards to
@@ -186,9 +276,15 @@ nearby-list row — already open this card, so one button serves both. See
   on the ID, and the `Coordinator` records the last-handled ID. Don't compare on
   payload.
 - Annotations are diffed by `court.id`. Never `removeAnnotations(mapView.annotations)`.
-- `zoomLevelFromSpan` and `spanFromZoomLevel` must remain exact inverses.
-- Distances are computed once when the nearby list is built (in `CombineLatest`),
-  not during scroll. The radius comes from the profile's `preferredRadius`.
+- Every `setRegion` goes through `biasedNorth(_:)`. Centring on the raw region
+  puts the target under the sheet.
+- A `.detail` state renders at `.medium` regardless of the detent it restores
+  to. Reading `detent` where `displayDetent` belongs renders the card
+  off-screen.
+- Sheet geometry derives from `containerHeight`, fed by `onGeometryChange`.
+  Don't reintroduce `UIScreen.main` — it's deprecated on iOS 26.
+- Distances are computed on `rebuild()`, not during scroll. The radius comes
+  from the profile's `preferredRadius`, via `preferredRadiusMiles`.
 - The initial region, list distances, and the recenter target all read
   `FindAMatchViewModel.homeLocation`, which forwards to
   `LocationService.homeLocation`. Keep the single anchor.
@@ -197,4 +293,5 @@ nearby-list row — already open this card, so one button serves both. See
 
 - `UI_SHELL.md` — why this tab stays mounted while the other two don't.
 - `COURT_DATASET.md` — where the annotations' data comes from.
-- `DATA_MODEL.md` — `Court` fields, including the ones the sheet doesn't show.
+- `DATA_MODEL.md` — `Court` fields, and the `displayName` derivation every
+  court label on this screen goes through.
