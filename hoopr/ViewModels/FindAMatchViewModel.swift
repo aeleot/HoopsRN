@@ -63,6 +63,20 @@ final class FindAMatchViewModel: ObservableObject {
     /// wording, and nothing to act on.
     @Published private(set) var datasetError: String?
 
+    /// How many games are scheduled **today** at each court, keyed by
+    /// `Court.id`. Feeds the map's heat-coloured pins via `CourtHeat`.
+    ///
+    /// Built from `gameService.queuedGames` and `.publicGames` — the same two
+    /// listeners `LocalRunsViewModel` already reads — rather than a new query.
+    /// That's not just cheaper, it's the only thing that keeps this private:
+    /// those two arrays are exactly what the read rule already lets this
+    /// account see (public runs, plus runs it's personally on), so a pin's
+    /// colour can never reveal the existence of a private run this account
+    /// isn't part of. The union is deduplicated by `Game.id` first — a public
+    /// run the signed-in user is also on would otherwise arrive in both
+    /// arrays and count twice.
+    @Published private(set) var gameCountByCourtID: [String: Int] = [:]
+
     // MARK: - Tuning
 
     /// The user's default location, hardcoded to Durham, NC until the profile
@@ -79,6 +93,7 @@ final class FindAMatchViewModel: ObservableObject {
     private let courtService: CourtService
     private let locationService: LocationService
     private let userProfileService: UserProfileService
+    private let gameService: GameService
     private let recentCourtsStore: RecentCourtsStore
     private var cancellables = Set<AnyCancellable>()
 
@@ -93,11 +108,13 @@ final class FindAMatchViewModel: ObservableObject {
         courtService: CourtService,
         locationService: LocationService,
         userProfileService: UserProfileService,
+        gameService: GameService,
         recentCourtsStore: RecentCourtsStore
     ) {
         self.courtService = courtService
         self.locationService = locationService
         self.userProfileService = userProfileService
+        self.gameService = gameService
         self.recentCourtsStore = recentCourtsStore
         self.searchOrigin = Self.homeLocation
 
@@ -144,6 +161,17 @@ final class FindAMatchViewModel: ObservableObject {
             .sink { [weak self] ids in
                 self?.recentCourtIds = ids
                 self?.rebuild()
+            }
+            .store(in: &cancellables)
+
+        // Two listeners, not one: a game hosted publicly by the signed-in user
+        // arrives on both, which is exactly why `rebuildGameCounts` dedupes by
+        // id rather than just concatenating the two arrays.
+        gameService.$queuedGames
+            .combineLatest(gameService.$publicGames)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] queued, published in
+                self?.rebuildGameCounts(queued: queued, published: published)
             }
             .store(in: &cancellables)
     }
@@ -222,6 +250,44 @@ final class FindAMatchViewModel: ObservableObject {
     }
 
     // MARK: - Derivation
+
+    private func rebuildGameCounts(queued: [Game], published: [Game]) {
+        gameCountByCourtID = Self.gameCountsByCourt(queued: queued, published: published)
+    }
+
+    /// Buckets today's games by court. "Today" is the calendar day at `now`,
+    /// the same convention `Game.scheduledText` uses for its own "Today" —
+    /// not a rolling 24 hours, so the heat map resets at midnight rather than
+    /// drifting.
+    ///
+    /// Deliberately **not** filtered by `Game.isVisible(at:)` or by status: a
+    /// full run or one that tipped off two hours ago still happened at that
+    /// court today, and the heat map is answering "how busy was/is this court
+    /// today", not "what can I still join". `GameService`'s own query cutoff
+    /// (`Game.visibilityCutoff`) already drops anything more than three hours
+    /// past its start, so nothing from yesterday leaks in regardless.
+    ///
+    /// `nonisolated static` and pure — `queued`/`published` passed in rather
+    /// than read off `self` — so `FindAMatchViewModelTests` can pin the
+    /// dedup-by-id and day-boundary rules without constructing a `GameService`
+    /// or touching Firebase, the same shape `Game.status(playerCount:maxPlayers:)`
+    /// and `Game.validate` already use for their own pure rules.
+    nonisolated static func gameCountsByCourt(
+        queued: [Game],
+        published: [Game],
+        now: Date = Date()
+    ) -> [String: Int] {
+        var seen = Set<String>()
+        var counts: [String: Int] = [:]
+
+        for game in queued + published {
+            guard seen.insert(game.id).inserted else { continue }
+            guard Calendar.current.isDate(game.scheduledTime, inSameDayAs: now) else { continue }
+            counts[game.courtId, default: 0] += 1
+        }
+
+        return counts
+    }
 
     private func rebuild() {
         let filtered = courtService.courts.filter { court in

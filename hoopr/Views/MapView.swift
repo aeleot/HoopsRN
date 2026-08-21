@@ -109,16 +109,23 @@ final class CourtMarkerView: MKAnnotationView {
         transform = .identity
     }
 
-    func configureAsCourt(isSelected: Bool) {
+    /// - Parameters:
+    ///   - color: The disc fill. Callers pass `CourtHeat.color(forGameCount:)`
+    ///     for that court, bridged to `UIColor` — selection no longer swaps the
+    ///     tint (see the type-level note on why), so the same colour is drawn
+    ///     whichever branch below runs.
+    ///   - isSelected: Still drives the scale-up and collision priority. A
+    ///     selected pin outranking its neighbours is what stops MapKit hiding
+    ///     it when markers collide; that signal is independent of colour, so
+    ///     it survives the heat map without conflating "selected" with "busy".
+    func configureAsCourt(color: UIColor, isSelected: Bool) {
         layOut(diameter: Self.courtDiameter)
 
-        disc.backgroundColor = UIColor(isSelected ? Color.hooprDarkOrange : Color.hooprOrange)
+        disc.backgroundColor = color
         glyph.frame = disc.bounds
         glyph.isHidden = false
         countLabel.isHidden = true
 
-        // Selected pins outrank their neighbours so MapKit stops hiding them
-        // when markers collide.
         displayPriority = isSelected ? .required : .defaultHigh
         zPriority = isSelected ? .max : .defaultUnselected
         transform = isSelected
@@ -126,12 +133,21 @@ final class CourtMarkerView: MKAnnotationView {
             : .identity
     }
 
-    func configureAsCluster(count: Int) {
+    /// - Parameters:
+    ///   - memberCount: How many courts this cluster folds together — what the
+    ///     disc's number actually reads.
+    ///   - color: The disc fill, from `CourtHeat.color(forGameCount:)` over the
+    ///     **sum** of games across every court in the cluster — see
+    ///     `MapView.heatColor(forCluster:)`. Deliberately not the member count:
+    ///     a bundle of five quiet courts should read as cool, not busy, and a
+    ///     bundle of two courts hosting six games between them should read hot
+    ///     even though the number on the disc just says "2".
+    func configureAsCluster(memberCount: Int, color: UIColor) {
         layOut(diameter: Self.clusterDiameter)
 
-        disc.backgroundColor = UIColor(Color.hooprDarkOrange)
+        disc.backgroundColor = color
         countLabel.frame = disc.bounds
-        countLabel.text = "\(count)"
+        countLabel.text = "\(memberCount)"
         countLabel.isHidden = false
         glyph.isHidden = true
 
@@ -154,8 +170,13 @@ struct MapView: UIViewRepresentable {
     let courts: [Court]
     let initialRegion: MKCoordinateRegion
     @Binding var recenterTrigger: RecenterTrigger?
-    /// Drawn larger and in the dark brand tint so the tapped court stays
-    /// findable once the sheet covers part of the map.
+    /// How many games are scheduled today at each court, keyed by `Court.id`.
+    /// Drives a pin's fill through `CourtHeat` — see `heatColor(for:)` and
+    /// `heatColor(forCluster:)`, the two places this is actually read.
+    var gameCountByCourtID: [String: Int] = [:]
+    /// Drawn larger, and outranking its neighbours in a collision, so the
+    /// tapped court stays findable once the sheet covers part of the map.
+    /// No longer changes colour — see `CourtHeat`.
     var selectedCourtID: String?
     var onMarkerTap: ((Court) -> Void)?
     var onMarkerDeselect: (() -> Void)?
@@ -189,6 +210,24 @@ struct MapView: UIViewRepresentable {
             ),
             span: region.span
         )
+    }
+
+    /// A single court's heat colour, bridged for `CourtMarkerView`. A court
+    /// absent from the dictionary has no games today, same as an explicit 0 —
+    /// `CourtHeat` doesn't distinguish "counted and empty" from "never
+    /// scheduled anything".
+    fileprivate func heatColor(for court: Court) -> UIColor {
+        UIColor(CourtHeat.color(forGameCount: gameCountByCourtID[court.id] ?? 0))
+    }
+
+    /// A cluster's heat colour: the **sum** of today's games across every
+    /// court it folds together, not the member count MapKit hands back —
+    /// those answer different questions, and only one of them is "how busy".
+    fileprivate func heatColor(forCluster cluster: MKClusterAnnotation) -> UIColor {
+        let total = cluster.memberAnnotations
+            .compactMap { ($0 as? CourtAnnotation)?.court.id }
+            .reduce(0) { $0 + (gameCountByCourtID[$1] ?? 0) }
+        return UIColor(CourtHeat.color(forGameCount: total))
     }
 
     func makeUIView(context: Context) -> MKMapView {
@@ -251,14 +290,32 @@ struct MapView: UIViewRepresentable {
         }
 
         // `viewFor` only runs when a view is created or recycled, so selection
-        // styling has to be re-applied to the views already on screen.
+        // *and* heat-colour styling both have to be re-applied to the views
+        // already on screen — the count backing a pin's colour can change
+        // (a game gets booked) without the set of courts or the selection
+        // changing at all, which is exactly the case `viewFor` never re-runs
+        // for.
         for annotation in mapView.annotations {
-            guard let court = annotation as? CourtAnnotation,
-                  let markerView = mapView.view(for: court) as? CourtMarkerView
-            else { continue }
-            markerView.configureAsCourt(
-                isSelected: court.court.id == selectedCourtID
-            )
+            switch annotation {
+            case let court as CourtAnnotation:
+                guard let markerView = mapView.view(for: court) as? CourtMarkerView
+                else { continue }
+                markerView.configureAsCourt(
+                    color: heatColor(for: court.court),
+                    isSelected: court.court.id == selectedCourtID
+                )
+
+            case let cluster as MKClusterAnnotation:
+                guard let markerView = mapView.view(for: cluster) as? CourtMarkerView
+                else { continue }
+                markerView.configureAsCluster(
+                    memberCount: cluster.memberAnnotations.count,
+                    color: heatColor(forCluster: cluster)
+                )
+
+            default:
+                continue
+            }
         }
 
         if let trigger = recenterTrigger, trigger.id != context.coordinator.lastRecenterId {
@@ -295,7 +352,10 @@ struct MapView: UIViewRepresentable {
                 ) as? CourtMarkerView else { return nil }
 
                 view.annotation = cluster
-                view.configureAsCluster(count: cluster.memberAnnotations.count)
+                view.configureAsCluster(
+                    memberCount: cluster.memberAnnotations.count,
+                    color: parent.heatColor(forCluster: cluster)
+                )
                 return view
             }
 
@@ -309,6 +369,7 @@ struct MapView: UIViewRepresentable {
             view.annotation = court
             view.clusteringIdentifier = CourtMarkerView.courtReuseID
             view.configureAsCourt(
+                color: parent.heatColor(for: court.court),
                 isSelected: court.court.id == parent.selectedCourtID
             )
             return view

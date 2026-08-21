@@ -87,6 +87,7 @@ struct MapTab: View {
             courtService: courtService,
             locationService: locationService,
             userProfileService: userProfileService,
+            gameService: gameService,
             recentCourtsStore: recentCourtsStore
         ))
     }
@@ -127,6 +128,7 @@ struct MapTab: View {
                 courts: viewModel.courts,
                 initialRegion: viewModel.initialRegion,
                 recenterTrigger: $recenterTrigger,
+                gameCountByCourtID: viewModel.gameCountByCourtID,
                 selectedCourtID: sheetState.selectedCourt?.id,
                 onMarkerTap: { court in
                     select(court)
