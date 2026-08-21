@@ -3,7 +3,7 @@
 **Scope:** `hoopr.xcodeproj/`, `hooprTests/`, `hooprUITests/`,
 `hoopr/Assets.xcassets/`, `hoopr/GoogleService-Info.plist`, `.gitignore`,
 `tools/check_context_drift.py`
-**Verified:** 2026-08-21 @ 9a81cc2
+**Verified:** 2026-08-21 @ 0edbeec
 
 `Package.resolved` isn't listed separately — it lives under `hoopr.xcodeproj/`
 and is covered by it. (Anything backticked between the `Scope` and `Verified`
@@ -101,6 +101,14 @@ typo'd scope was reported CURRENT forever — which is exactly how
 `database/USER_PROFILE_WORKFLOW.md` sat two weeks stale with a code map
 pointing at a deleted file.
 
+It also folds `git status --porcelain`'s untracked files into every entry's
+diff, not just `git diff`'s tracked changes. `git diff <sha> -- <path>` only
+ever compares content git already knows about, so a brand-new file — created,
+never staged — was invisible to this tool from the moment it landed, no matter
+whose scope it fell in. Two new test files and `CourtHeat.swift` sat unowned
+this way for one drift-check run during the heat-map work before the tool was
+fixed to look for them.
+
 ```bash
 python3 tools/check_context_drift.py
 ```
@@ -131,7 +139,7 @@ allowed to save yet." A newly created database denies everything.
 
 ## Tests
 
-**99 test methods across eight suites**, from a green
+**112 test methods across ten suites**, from a green
 `-only-testing:hooprTests` run on 2026-08-21. All of them carry real coverage;
 there is no scaffold left in `hooprTests/`.
 
@@ -142,9 +150,11 @@ there is no scaffold left in `hooprTests/`.
 | `FriendsViewModelTests` | 16 | `looksLikeUserId`, search-stream `merged`, `relationship`. |
 | `ServiceFailureTests` | 15 | Backoff schedule, per-listener recovery, read/write messaging, `FirestoreFailure` classification. |
 | `FriendshipTests` | 10 | Decoding, the derived document ID, direction. |
+| `ThemeContrastTests` | 8 | Every colour pairing the UI actually draws, against WCAG AA. |
+| `CourtHeatTests` | 8 | `CourtHeat.color(forGameCount:)`'s five stops, its ceiling and floor clamps. |
 | `CourtTests` | 6 | `Court.displayName`. |
 | `FirestoreRulesParityTests` | 6 | The `status` derivation and the shared bounds, parsed out of `firestore.rules`. |
-| `ThemeContrastTests` | 8 | Every colour pairing the UI actually draws, against WCAG AA. |
+| `FindAMatchViewModelTests` | 5 | `gameCountsByCourt` — the per-court/per-day join behind the map's heat colours. |
 
 `UserProfileTests`, `GameTests` and
 `FriendshipTests` run through `Firestore.Decoder` — the same decoder the
@@ -160,6 +170,18 @@ place because `displayName` is a string substitution rendered on six screens:
 boilerplate stripped, a trailing `#2` suffix kept, whitespace collapsed, case
 insensitivity, the strip-to-nothing fallback, and a name without the boilerplate
 left alone.
+
+`CourtHeatTests` pins `CourtHeat.color(forGameCount:)` by resolved hex — zero
+through four games each land on their own stop, everything at or above four
+clamps to the same deep red rather than indexing off the end of the array, and
+a negative count clamps to the quietest stop instead of crashing.
+`FindAMatchViewModelTests` covers the join underneath it:
+`gameCountsByCourt` dedupes a game that appears on both `queuedGames` and
+`publicGames` (a public run the signed-in user also hosts or joined) down to
+one, buckets by calendar day rather than a rolling 24 hours, and counts a
+private run the same as a public one — deliberately, since by the time a game
+reaches either array the read rule has already decided this account may see
+it.
 
 `GameTests` covers the stored `games` shape, pending server timestamps, the
 `in_progress` raw value, required-field failures, and the pure rules the client

@@ -1,7 +1,7 @@
 # hoopsRN — Product Overview
 
 **Scope:** —
-**Verified:** 2026-08-21 @ 9a81cc2
+**Verified:** 2026-08-21 @ 0edbeec
 
 What the app does today, stated in business terms: what a person can actually
 accomplish in it, what it guarantees about their data, and what is deliberately
@@ -32,6 +32,14 @@ as friends today.
 - **Browse 214 curated courts** across six Triangle cities — Durham (55),
   Raleigh (53), Chapel Hill (43), Cary (26), Apex (22), Morrisville (15) — on a
   map with clustered pins, or as a distance-sorted list.
+- **See how busy a court is today at a glance.** Every pin is coloured on a
+  five-step scale from a quiet, pale blue (nothing scheduled) through two warm
+  ambers to a deep red (several runs booked) — today's game count at that
+  court, not a static rating. Zoomed out, a cluster of several courts is
+  coloured by the total across everything folded into it, so a bundle of quiet
+  courts still reads as quiet. This reads only games the account could already
+  see elsewhere in the app — a public run, or one it's personally on — so it
+  never reveals a private run belonging to someone else.
 - **Filter** by lights, two-or-more hoops, and public access.
 - **See what a court has** before travelling: hoop count, surface, lighting,
   covered, and a caution flag for restricted access. Only facts the source data
@@ -145,7 +153,7 @@ not intended to.
 
 ### Test coverage
 
-**99 automated tests across eight suites**, all carrying real coverage — no
+**112 automated tests across ten suites**, all carrying real coverage — no
 scaffold:
 
 | Area | Tests | What it protects |
@@ -156,8 +164,10 @@ scaffold:
 | Failure handling | 15 | Reconnection schedule, per-listener recovery, error classification |
 | Friendships | 10 | Stored shape, pair identity, request direction |
 | Accessibility | 8 | WCAG AA contrast, light and dark |
+| Map heat colours | 8 | The five-stop scale's boundaries and clamping |
 | Court naming | 6 | Display-name derivation across every screen |
 | Client/server parity | 6 | That the app's rules and the server's rules still agree |
+| Map heat join | 5 | Per-court/per-day game counting: dedup, day boundary, public vs. private |
 
 The parity suite is worth calling out: several limits are written **twice**, in
 the app and in the server's rules. It parses the rules file and fails if either

@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr/hooprApp.swift`, `hoopr/Services/`, `hoopr/ViewModels/`,
 `hoopr/Support/FailureText.swift`, `hoopr/Support/PreferredRadiusPublisher.swift`
-**Verified:** 2026-08-21 @ 9a81cc2
+**Verified:** 2026-08-21 @ 0edbeec
 
 How the app is assembled: who owns what, what gets injected where, and the two
 orderings/boundaries that break the design if violated. Read this before
@@ -30,7 +30,8 @@ can be built with a stub.
 
 Seven view models are built from them, each `@StateObject` inside the view it
 backs: `RootViewModel` (from `AuthService`), `LoginViewModel` (`AuthService`),
-`FindAMatchViewModel` (`CourtService` + `LocationService`), `ProfileViewModel`
+`FindAMatchViewModel` (`CourtService` + `LocationService` + `GameService` +
+`UserProfileService`), `ProfileViewModel`
 (`AuthService` + `UserProfileService` + `CourtService`), `LocalRunsViewModel`
 (`GameService` + `CourtService` + `UserProfileService`), `FriendsViewModel`
 (`FriendService` + `UserProfileService` + `CourtService` — the last one only to
@@ -38,11 +39,16 @@ name a home court on another player's profile), and `CreateGameViewModel`
 (`GameService`, plus the `Court` the form was opened from — the one view model
 built per-presentation rather than per-screen, inside `CreateGameSheet`).
 
-`LocalRunsViewModel` and `FriendsViewModel` are where **cross-collection joins
-live**. A service owns one collection and never learns about another's: `LocalRunsViewModel` joins runs to
-the bundled court dataset for its distance filter, and `FriendsViewModel` joins
-friendship uids to profiles for their names. Pushing either down into a service
-would give one collection's owner a dependency on another's.
+`LocalRunsViewModel`, `FriendsViewModel` and `FindAMatchViewModel` are where
+**cross-collection joins live**. A service owns one collection and never
+learns about another's: `LocalRunsViewModel` joins runs to the bundled court
+dataset for its distance filter, `FriendsViewModel` joins friendship uids to
+profiles for their names, and `FindAMatchViewModel` joins `GameService`'s
+`queuedGames` + `publicGames` to the court dataset to colour the map's pins by
+how busy each court is today — see `MAP_LAYER.md`'s `CourtHeat` section, and
+`gameCountsByCourt`'s doc comment for why summing those two arrays needs a
+dedup. Pushing any of these down into a service would give one collection's
+owner a dependency on another's.
 
 `RootViewModel` is a separate type from `RootView` specifically so the
 launching/login/main gating rule can be tested without rendering.

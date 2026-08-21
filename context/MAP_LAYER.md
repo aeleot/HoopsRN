@@ -1,8 +1,9 @@
 # hoopsRN — Map Layer
 
 **Scope:** `hoopr/Views/MapView.swift`, `hoopr/Views/Tabs/MapTab.swift`,
-`hoopr/Views/Tabs/CourtRow.swift`, `hoopr/Views/Components/CourtBadges.swift`
-**Verified:** 2026-08-21 @ 9a81cc2
+`hoopr/Views/Tabs/CourtRow.swift`, `hoopr/Views/Components/CourtBadges.swift`,
+`hoopr/Support/CourtHeat.swift`
+**Verified:** 2026-08-21 @ 0edbeec
 
 The map tab and its bottom sheet — the densest interaction code in the app, and
 the part most likely to break subtly when edited. Read this before touching
@@ -102,16 +103,69 @@ Two reasons, and the second is the load-bearing one:
 so VoiceOver has something to read. Nothing renders it, and `subtitle` is gone
 entirely.
 
-The view is a shadowed `ring` (surface-coloured) containing a `disc` (brand
-orange) containing either the basketball glyph or a cluster count. **Colours are
-set as UIView `backgroundColor`s, never `CALayer.backgroundColor`** — a
-`UIColor` from `Theme.swift`'s dynamic provider only re-resolves on a trait
-change when a view holds it; a layer colour freezes at whichever appearance was
-current when it was assigned.
+The view is a shadowed `ring` (surface-coloured) containing a `disc`
+containing either the basketball glyph or a cluster count. **Colours are set as
+UIView `backgroundColor`s, never `CALayer.backgroundColor`** — a `UIColor` from
+a dynamic provider only re-resolves on a trait change when a view holds it; a
+layer colour freezes at whichever appearance was current when it was assigned.
+That reasoning used to apply only to `Theme.swift`'s roles; since the heat map
+(below) the disc's colour is a fixed, non-dynamic `UIColor` bridged fresh from
+`CourtHeat` on every configure call, so the dynamic-provider case no longer
+applies to *this* colour specifically — the rule about setting it on the view
+rather than the layer still does, because `configureAsCourt`/`configureAsCluster`
+re-set `disc.backgroundColor` on every call anyway (selection changes, a game
+being booked), and a layer colour would still need the same re-assignment.
 
 Because a circle marks its spot with its centre rather than a tip,
 `centerOffset` is `.zero` and `collisionMode` is `.circle`. Courts are 34pt,
 clusters 38pt so a group reads as "more than one" before you've read its number.
+
+## `CourtHeat` — the pins' heat-map colouring
+
+Added 2026-08-21. Every pin's disc is coloured by **how many games are
+scheduled at that court today**, not by the fixed brand orange: a light,
+white-leaning sky blue for nothing scheduled, climbing through two close warm
+ambers, and landing on a deep red for the busiest tier. `CourtHeat.swift` owns
+the five-stop lookup (`color(forGameCount:)`, clamped at both ends); nothing
+about the map's own code decides what the colours *are*, only what count goes
+in.
+
+**Selection no longer changes a pin's colour.** It used to swap to
+`hooprDarkOrange`; now the heat colour is drawn regardless of selection, and a
+selected pin is set apart purely by the existing scale-up (1.25×) and raised
+collision priority in `configureAsCourt`. Conflating "selected" with "busy"
+would have made a cool, quiet court flash warm the moment you tapped it — the
+opposite of what the colour is supposed to mean.
+
+**Where the count comes from.** `FindAMatchViewModel.gameCountsByCourt` (see
+`ARCHITECTURE.md`) buckets `GameService`'s `queuedGames` + `publicGames` by
+court for the current calendar day, and publishes it as
+`gameCountByCourtID: [String: Int]`. `MapTab` threads that straight into
+`MapView`, which is the only thing that ever calls `CourtHeat`:
+
+- `MapView.heatColor(for:)` looks up a single court's own count.
+- `MapView.heatColor(forCluster:)` walks a `MKClusterAnnotation`'s
+  `memberAnnotations`, sums each member court's count, and colours the cluster
+  disc by that **sum** — not by how many courts got folded together. A cluster
+  of five quiet courts stays the quiet blue; two courts with three games each
+  make a two-court cluster read as busy as the four-tier ceiling. The member
+  count MapKit hands back still drives the number printed on the disc; it just
+  no longer drives the colour under it.
+
+**No new read, no rules change.** The two arrays this sums are exactly what
+`GameService`'s existing listeners already deliver — public runs, plus runs the
+signed-in user is personally on. A pin's colour can therefore never reveal a
+private run this account isn't part of; it can only ever show what the read
+rule already let this account see. See `PRODUCT_OVERVIEW.md` for the
+user-facing description.
+
+**Why colour has to be re-applied on every `updateUIView`, cluster views
+included.** `viewFor` only runs when MapKit creates or recycles a view, but a
+pin's count can change with no annotation being added, removed, or reselected —
+someone just booked a game. `updateUIView`'s restyle loop used to skip
+`MKClusterAnnotation`s entirely (it only matched `CourtAnnotation`); it now
+branches on both, because a cluster's colour is exactly as live as a solo
+pin's.
 
 ## Basemap suppression
 
@@ -290,6 +344,13 @@ nearby-list row — already open this card, so one button serves both. See
 - The initial region, list distances, and the recenter target all read
   `FindAMatchViewModel.homeLocation`, which forwards to
   `LocationService.homeLocation`. Keep the single anchor.
+- A pin's colour comes from `CourtHeat`, never from `hooprOrange`/
+  `hooprDarkOrange` directly, and never changes on selection. A cluster's
+  colour is `CourtHeat` over the **sum** of its members' counts, not their
+  member count. Both `viewFor` and `updateUIView`'s restyle loop must handle
+  `MKClusterAnnotation`, not just `CourtAnnotation` — a restyle loop that only
+  matches one silently stops recolouring the other the moment counts change
+  without an annotation being added or removed.
 
 ## See also
 
@@ -297,3 +358,6 @@ nearby-list row — already open this card, so one button serves both. See
 - `COURT_DATASET.md` — where the annotations' data comes from.
 - `DATA_MODEL.md` — `Court` fields, and the `displayName` derivation every
   court label on this screen goes through.
+- `ARCHITECTURE.md` — `FindAMatchViewModel`'s dependencies and the
+  cross-collection joins, including `gameCountsByCourt`.
+- `PRODUCT_OVERVIEW.md` — the heat map described in product terms.

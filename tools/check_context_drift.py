@@ -71,6 +71,23 @@ def owned(path, scope_paths):
     return False
 
 
+def untracked_files():
+    """Files git doesn't track yet, newest scope-drift blind spot: `git diff
+    <ref> -- <paths>` compares tracked content only, so a file created and
+    left unstaged is invisible to every diff below no matter whose scope it
+    falls in -- it can sit there acquiring real content while its owning
+    entry keeps reporting CURRENT. `git status --porcelain` is what actually
+    sees it.
+    """
+    rc, out, _ = run_git("status", "--porcelain")
+    if rc != 0:
+        return []
+    # Porcelain status lines are "XY path" or "XY orig -> path" for renames;
+    # untracked entries are prefixed "??". Path may be quoted if it contains
+    # spaces, but repo paths here don't, so a plain split is safe.
+    return [line[3:] for line in out.splitlines() if line.startswith("??")]
+
+
 def main():
     entries = []
     for f in entry_files():
@@ -114,6 +131,7 @@ def main():
 
     stale, current, always_revisit, unresolvable = [], [], [], []
     resolved_shas = []
+    untracked = untracked_files()
 
     for e in entries:
         if e["scope"] is None:
@@ -151,6 +169,10 @@ def main():
         diff_args = ["diff", "--name-only", resolved, "--"] + e["scope"]
         rc, out, _ = run_git(*diff_args)
         changed = [l for l in out.splitlines() if l]
+        # Untracked files never show up in a `git diff`, tracked or not --
+        # add any that fall under this entry's scope so a new file isn't
+        # invisible until someone remembers to `git add` it.
+        changed += [u for u in untracked if owned(u, e["scope"]) and u not in changed]
         if changed:
             e["changed"] = changed
             stale.append(e)
@@ -200,6 +222,7 @@ def main():
         # is sitting uncommitted in the working tree right now.
         rc, out, _ = run_git("diff", "--name-only", oldest_sha)
         all_changed = [l for l in out.splitlines() if l]
+        all_changed += [u for u in untracked if u not in all_changed]
         all_scoped_paths = [p for e in entries if e["scope"] for p in e["scope"]]
         # Drop paths that no longer exist on disk -- a file renamed or deleted
         # since the oldest verification point shows up in the diff but isn't
