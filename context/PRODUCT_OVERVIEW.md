@@ -127,7 +127,10 @@ server-side limit needs infrastructure the project doesn't have yet.
 
 One known exception is tracked in `GAPS.md`: the brand orange fails AA when used
 as a *foreground* colour in light mode. It is pinned by a test that will fail
-the moment it's fixed, so it cannot be quietly forgotten.
+the moment it's fixed, so it cannot be quietly forgotten. The orange itself was
+softened on 2026-08-21 — a visual-only change, same hue, less saturated — ahead
+of a planned broader colour-scheme revision; it does not touch this gap and was
+not intended to.
 
 ### Reliability
 

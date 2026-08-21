@@ -21,14 +21,27 @@ extension Color {
 
     /// The action colour. Slightly lifted in dark mode: the light-mode orange
     /// is tuned against white and reads muddy on a near-black surface.
+    ///
+    /// **Softened on 2026-08-21** from a fully-saturated `rgb(255, 126, 0)` —
+    /// same hue (29.6°), same near-full value, saturation pulled from 100% to
+    /// 80%. The pure version read as harsh across the large fills it's used on
+    /// (primary buttons, selected pills, the map pins); this keeps the same
+    /// brand hue without the fully-saturated edge. Purely a taste change — the
+    /// black-on-orange contrast this file's `hooprOnBrand` note documents only
+    /// improved (9.17:1 / 10.24:1, up from 8.24:1 / 9.33:1), because a slightly
+    /// duller orange is also a slightly darker one. **Does not touch** the
+    /// separate AA failure tracked in `GAPS.md` — `hooprOrange` as a
+    /// *foreground* still fails in light mode, and stays failing here; that
+    /// needs a second, deliberately different, readable role, not a retune of
+    /// this one.
     static let hooprOrange = Color.hoopr(
-        light: UIColor(red: 255 / 255, green: 126 / 255, blue: 0 / 255, alpha: 1),
-        dark: UIColor(red: 255 / 255, green: 145 / 255, blue: 38 / 255, alpha: 1)
+        light: UIColor(red: 247 / 255, green: 147 / 255, blue: 49 / 255, alpha: 1),
+        dark: UIColor(red: 247 / 255, green: 162 / 255, blue: 79 / 255, alpha: 1)
     )
 
     static let hooprDarkOrange = Color.hoopr(
-        light: UIColor(red: 230 / 255, green: 111 / 255, blue: 0 / 255, alpha: 1),
-        dark: UIColor(red: 255 / 255, green: 126 / 255, blue: 0 / 255, alpha: 1)
+        light: UIColor(red: 223 / 255, green: 131 / 255, blue: 45 / 255, alpha: 1),
+        dark: UIColor(red: 247 / 255, green: 147 / 255, blue: 49 / 255, alpha: 1)
     )
 
     /// Errors and destructive actions. The light-mode red fails contrast on a
@@ -43,11 +56,12 @@ extension Color {
     ///
     /// **Black, not white, and this is the one value here you must not flip on
     /// taste.** The brand orange is a light colour in both appearances, so a
-    /// white label on it measures 2.55:1 in light mode and 2.25:1 in dark —
-    /// under AA (4.5:1) and under even the 3:1 large-text floor, on every
-    /// primary button in the app. Black clears 8.24:1 and 9.33:1 on
-    /// `hooprOrange`, and 6.64:1 / 8.24:1 on `hooprDarkOrange` behind the
-    /// selected map pin.
+    /// white label on it fails AA badly regardless of exactly how it's tuned —
+    /// 2.55:1 / 2.25:1 against the original fully-saturated orange, and *worse*
+    /// (2.29:1 / 2.05:1) against the softened one below, because desaturating
+    /// toward white moves the fill's own luminance closer to white's. Black
+    /// clears 9.17:1 / 10.24:1 on `hooprOrange`, and 7.42:1 / 9.17:1 on
+    /// `hooprDarkOrange` behind the selected map pin.
     ///
     /// Fixed rather than dynamic, because the ground it sits on doesn't invert:
     /// orange stays light in dark mode, so the label that reads on it stays

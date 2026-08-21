@@ -109,13 +109,19 @@ it partly shipped; the general "Next steps" list below is everything else.
 **Accessibility**
 
 - **`hooprOrange` fails WCAG AA as a *foreground* in light mode.** It measures
-  2.55:1 on `hooprBackground` and `hooprSurface` and 2.34:1 on `hooprFill` —
+  2.29:1 on `hooprBackground` and `hooprSurface` and 2.10:1 on `hooprFill` —
   under the 4.5:1 text floor *and* the 3:1 graphic floor. Dark mode is fine
-  (9.33 / 7.56 / 6.19), because the orange is lifted there and the grounds are
+  (10.24 / 8.29 / 6.79), because the orange is lifted there and the grounds are
   dark. Affected: `ProfileRow`'s leading symbols, `PlayerAvatar`'s initials
   (genuinely text), `CourtRow`'s filled star, `GameCard`'s and `MapTab`'s
   basketball glyphs, the map's recenter glyph, `ProfileIdentityBlock`'s avatar
   ring.
+  *(`hooprOrange` was softened — desaturated, same hue — on 2026-08-21 as a
+  pure taste change, unrelated to this gap and not meant to address it. It
+  moved these ratios slightly further under the floor, from 2.55 / 2.34, because
+  pulling saturation toward white also pulls a colour's own luminance toward
+  white's. Worth knowing before assuming a future retune of the brand colour
+  fixes this for free — it can just as easily make it worse.)*
   The fix is a second brand role — a deepened orange for marks that are *read*
   rather than filled — plus a sweep of those call sites. The reverted palette
   had exactly this and called it `hooprBrandText` (`git show
