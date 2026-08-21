@@ -5,7 +5,7 @@
 `hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Views/Friends/`,
 `hoopr/Views/Components/ErrorBanner.swift`, `hoopr/Support/Theme.swift`,
 `hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`
-**Verified:** 2026-08-21 @ 9a81cc2
+**Verified:** 2026-08-21 @ 6e2fe50
 
 Navigation structure and the visual conventions every screen follows. Read this
 before adding a screen, changing how one is presented, or picking a colour or a
