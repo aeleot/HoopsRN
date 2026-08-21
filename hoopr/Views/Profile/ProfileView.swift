@@ -1,11 +1,81 @@
 import SwiftUI
-import UIKit
 
 /// Full-screen profile. Presented in place of the main tab interface rather
 /// than inside it, so it owns the whole screen including its own back button.
+///
+/// **Two panes, one screen.** Friends used to be the third tab of
+/// `MainTabView`; it lives here now, behind a selector under the identity
+/// block, and the shell got a tab slot back for it. The pairing isn't
+/// arbitrary — both panes answer "who am I in this app", one about your own
+/// settings and one about the people attached to them — and it's what lets a
+/// friend request be visible from the same place you'd go to change your home
+/// court.
+///
+/// **One scroll view owns the whole page.** The identity block scrolls away
+/// like any other content; the pane selector — plus the friends toolbar, when
+/// that pane is showing — is a *pinned section header*, so it stops under the
+/// top bar and stays there. That's the mechanism behind the two rules this
+/// screen used to enforce with pinned containers: the search field never
+/// scrolls out of reach, and the identity never costs a fixed slab of screen.
 struct ProfileView: View {
+    /// Which half of the screen is showing. Ordered as the selector renders
+    /// them, left to right.
+    enum Pane: Hashable, CaseIterable {
+        case profile
+        case friends
+
+        var title: String {
+            switch self {
+            case .profile: "Profile"
+            case .friends: "Friends"
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .profile: "person.crop.circle"
+            case .friends: "person.2.fill"
+            }
+        }
+    }
+
     @StateObject private var viewModel: ProfileViewModel
+
+    /// Held by the screen rather than by the friends pane, so search text and
+    /// results survive a trip through the Profile pane and back — the pane's
+    /// views are stateless and are rebuilt on every switch.
+    @StateObject private var friendsViewModel: FriendsViewModel
+
     private let onBack: () -> Void
+
+    @State private var pane: Pane = .profile
+
+    /// How far the content has scrolled, and how tall the identity block is —
+    /// together they say whether the top bar has anything to show. See
+    /// `barProgress`.
+    @State private var scrollOffset: CGFloat = 0
+    @State private var identityHeight: CGFloat = 0
+
+    /// Slides the selection behind the pane selector's pills.
+    @Namespace private var paneSelection
+
+    // MARK: Friends-pane presentation
+    //
+    // Owned here rather than by `FriendsPaneContent` because the toolbar that
+    // opens the inbox and the list that opens a profile are two separate views
+    // in two separate parts of the scroll — there is no single pane view left
+    // to hold this between them.
+
+    @FocusState private var isSearchFocused: Bool
+    @State private var isInboxPresented = false
+    @State private var presentedPlayer: PlayerRoute?
+
+    /// Which friend a remove confirmation is about. Held here rather than on
+    /// the row so the dialog survives the row being re-created by a snapshot
+    /// arriving mid-confirmation.
+    @State private var pendingRemoval: FriendsViewModel.Row?
+
+    // MARK: Profile-pane presentation
 
     /// Presented separately from `viewModel.editingField`, which is strictly
     /// the profile *document*'s editable fields — appearance is stored on the
@@ -19,32 +89,18 @@ struct ProfileView: View {
     /// in-flight or failure handling.
     @State private var isChangingPassword = false
 
-    /// Drives the uid's copy glyph, which reverts to itself after a beat.
-    @State private var didCopyUserId = false
-
     @AppStorage(AppearancePreference.storageKey)
     private var appearance: AppearancePreference = .system
 
-    /// Proportion of the screen given to the orange identity header. The same
-    /// fraction `MainTabView` pins its header slab to, so the two screens share
-    /// a skyline and the profile doesn't open on a quarter-screen of orange.
-    private static let headerHeightRatio: CGFloat = 0.14
-
-    /// The gap between cards, and — because the mosaic interlocks — the amount
-    /// a feature card is taller than the two tiles beside it combined.
-    private static let gridSpacing: CGFloat = 12
-
-    /// One grid unit: a short tile's *floor*, not its height. Scaled so the
-    /// floor tracks the reader's text size along with everything else.
-    @ScaledMetric(relativeTo: .body) private var tileHeight: CGFloat = 80
-
-    /// A feature card's floor: it spans the two tiles beside it, gap included.
-    private var featureHeight: CGFloat { tileHeight * 2 + Self.gridSpacing }
+    /// The page margin, and the gap between rows.
+    private static let pageMargin: CGFloat = 20
+    private static let rowSpacing: CGFloat = 10
 
     init(
         authService: AuthService,
         userProfileService: UserProfileService,
         courtService: CourtService,
+        friendService: FriendService,
         onBack: @escaping () -> Void
     ) {
         self.onBack = onBack
@@ -53,184 +109,142 @@ struct ProfileView: View {
             userProfileService: userProfileService,
             courtService: courtService
         ))
+        _friendsViewModel = StateObject(wrappedValue: FriendsViewModel(
+            friendService: friendService,
+            userProfileService: userProfileService,
+            courtService: courtService
+        ))
     }
 
     var body: some View {
-        GeometryReader { geo in
-            VStack(spacing: 0) {
-                // Floored so the identity row never gets crushed on short
-                // devices, where 14% of the screen is under 96pt.
-                header(height: max(geo.size.height * Self.headerHeightRatio, 96))
+        page
+            .sheet(item: $viewModel.editingField) { field in
+                editSheet(for: field)
+            }
+            .sheet(isPresented: $isEditingAppearance) {
+                AppearanceSheet(preference: $appearance) {
+                    isEditingAppearance = false
+                }
+            }
+            .sheet(isPresented: $isChangingPassword) {
+                // Only reachable when `canChangePassword`, which is exactly
+                // when there's an email to send to.
+                ChangePasswordSheet(
+                    email: viewModel.email ?? "",
+                    isSending: viewModel.isSendingPasswordReset,
+                    didSend: viewModel.didSendPasswordReset,
+                    errorMessage: viewModel.passwordResetError,
+                    onSend: { Task { await viewModel.sendPasswordReset() } },
+                    onCancel: {
+                        isChangingPassword = false
+                        viewModel.cancelChangingPassword()
+                    },
+                    onDone: { isChangingPassword = false }
+                )
+            }
+            .sheet(isPresented: $isInboxPresented) {
+                InboxSheet(viewModel: friendsViewModel) {
+                    isInboxPresented = false
+                }
+            }
+            .sheet(item: $presentedPlayer) { route in
+                PlayerProfileSheet(uid: route.uid, viewModel: friendsViewModel) {
+                    presentedPlayer = nil
+                }
+            }
+            .confirmationDialog(
+                "Remove \(pendingRemoval?.nameForProse ?? "this player")?",
+                isPresented: .init(
+                    get: { pendingRemoval != nil },
+                    set: { if !$0 { pendingRemoval = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Remove", role: .destructive) {
+                    if let uid = pendingRemoval?.uid {
+                        Task { await friendsViewModel.perform(.remove, on: uid) }
+                    }
+                    pendingRemoval = nil
+                }
+                Button("Keep", role: .cancel) { pendingRemoval = nil }
+            } message: {
+                Text("You'll both drop off each other's friends list. You can add them again later.")
+            }
+    }
 
-                ScrollView {
-                    grid
-                        .padding(.horizontal, 16)
-                        .padding(.top, 16)
-                        .padding(.bottom, 8)
+    /// The page itself, without its presentation. Split from `body` only so the
+    /// sheets and dialogs the two panes brought with them don't bury it.
+    private var page: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                identity
+
+                Section {
+                    paneContent
+                        .padding(.horizontal, Self.pageMargin)
+                        .padding(.bottom, 40)
+                } header: {
+                    paneHeader
                 }
             }
         }
         .background(Color.hooprBackground)
-        // Pinned as a safe-area inset rather than the last item in the stack,
-        // so a growing card grid can never push it off the bottom edge.
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            bottomBar
+        .scrollDismissesKeyboard(.interactively)
+        // Measured against the top of the *content*, inset included, so it
+        // reads 0 at rest whatever the top bar's height works out to.
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.contentOffset.y + geometry.contentInsets.top
+        } action: { _, offset in
+            scrollOffset = offset
         }
-        .sheet(item: $viewModel.editingField) { field in
-            editSheet(for: field)
-        }
-        .sheet(isPresented: $isEditingAppearance) {
-            AppearanceSheet(preference: $appearance) {
-                isEditingAppearance = false
-            }
-        }
-        .sheet(isPresented: $isChangingPassword) {
-            // Only reachable when `canChangePassword`, which is exactly when
-            // there's an email to send to.
-            ChangePasswordSheet(
-                email: viewModel.email ?? "",
-                isSending: viewModel.isSendingPasswordReset,
-                didSend: viewModel.didSendPasswordReset,
-                errorMessage: viewModel.passwordResetError,
-                onSend: { Task { await viewModel.sendPasswordReset() } },
-                onCancel: {
-                    isChangingPassword = false
-                    viewModel.cancelChangingPassword()
-                },
-                onDone: { isChangingPassword = false }
+        // A safe-area inset rather than an overlay: this way the scroll view
+        // knows the bar is there, and the pinned pane header stops underneath
+        // it instead of sliding up under the status bar.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            ProfileTopBar(
+                handle: handle,
+                initial: initials,
+                progress: barProgress,
+                unansweredCount: friendsViewModel.unansweredCount,
+                badgeText: friendsViewModel.badgeText,
+                onBack: onBack,
+                onOpenInbox: {
+                    isSearchFocused = false
+                    isInboxPresented = true
+                }
             )
         }
     }
 
-    private var bottomBar: some View {
-        VStack(spacing: 0) {
-            // The grid scrolls under this bar, so it needs an edge of its own —
-            // without the rule a card is simply cut off mid-height.
-            Rectangle()
-                .fill(Color.hooprBorder)
-                .frame(height: 1)
+    // MARK: - Identity
 
-            VStack(spacing: 8) {
-                // Errors raised outside a sheet (profile load, sign-out) still
-                // need somewhere to surface.
-                if viewModel.editingField == nil, let errorMessage = viewModel.errorMessage {
-                    ErrorBanner(message: errorMessage)
-                        .padding(.horizontal, 28)
-                }
-
-                signOutButton
-            }
-            .padding(.top, 16)
-        }
-        .background(Color.hooprBackground)
-    }
-
-    // MARK: - Header
-
-    private func header(height: CGFloat) -> some View {
-        // One row, laid out the way the identity reads: back out, then who you
-        // are. At this height there's no room to stack the back button above
-        // the avatar, and no need to — nothing collides in a single line.
-        HStack(spacing: 10) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .hooprFont(19, weight: .semibold, maximumSize: 24)
-                    .foregroundStyle(Color.hooprOnBrand)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .accessibilityLabel("Back to home")
-
-            avatar(size: Self.avatarSize(forHeaderHeight: height))
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(handle)
-                    // Capped like the rest of the pinned header: the bar's
-                    // height is a fraction of the screen, so its type can't
-                    // grow freely.
-                    .hooprFont(22, weight: .bold, maximumSize: 28)
-                    .foregroundStyle(Color.hooprOnBrand)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-
-                // The Auth uid. Held well below the handle in size and
-                // contrast because it's a reference to quote, not something to
-                // read.
-                if let userId = viewModel.userId {
-                    copyableUserId(userId)
-                } else {
-                    // Holds the line's height while the session resolves, so
-                    // the handle above doesn't shift when the uid lands.
-                    Text(" ")
-                        .hooprFont(11, maximumSize: 14)
-                }
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.leading, 8)
-        .padding(.trailing, 16)
-        .frame(maxWidth: .infinity)
-        .frame(height: height)
-        // `.frame(height:)` fixes the layout slot but doesn't clip — without
-        // this, content that needs more room than the slot (e.g. the name at
-        // a large scale factor on a short device) paints past the boundary
-        // instead of being contained inside it.
-        .clipped()
-        // Bleeds the orange under the status bar while the content above
-        // still lays out within the safe area. The gradient runs into
-        // `hooprDarkOrange` at the bottom so the header settles into the card
-        // grid instead of ending on a flat band.
-        .background(
-            LinearGradient(
-                colors: [Color.hooprOrange, Color.hooprDarkOrange],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea(edges: .top)
+    private var identity: some View {
+        ProfileIdentityBlock(
+            handle: handle,
+            initial: initials,
+            userId: viewModel.userId
         )
+        .padding(.horizontal, Self.pageMargin)
+        .padding(.top, 8)
+        .padding(.bottom, 22)
+        // Measured rather than assumed: the block's height moves with the
+        // reader's text size, and it's what decides when the top bar's title
+        // has a reason to appear.
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.height
+        } action: { height in
+            identityHeight = height
+        }
     }
 
-    /// The uid, with a tap that puts it on the pasteboard — quoting it in a
-    /// bug report is the only reason it's on screen, and a 28-character string
-    /// is not something anyone should retype.
-    ///
-    /// The glyph swaps to a checkmark on success rather than raising a toast:
-    /// the confirmation belongs where the tap was, and this header has no room
-    /// for anything larger.
-    private func copyableUserId(_ userId: String) -> some View {
-        Button {
-            UIPasteboard.general.string = userId
-            withAnimation(.easeInOut(duration: 0.15)) {
-                didCopyUserId = true
-            }
-            // Reverts on its own; a copy affordance that stays "copied" stops
-            // reading as a button.
-            Task {
-                try? await Task.sleep(for: .seconds(1.6))
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    didCopyUserId = false
-                }
-            }
-        } label: {
-            HStack(spacing: 5) {
-                Text(userId)
-                    .hooprFont(11, maximumSize: 14)
-                    .italic()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-
-                Image(systemName: didCopyUserId ? "checkmark" : "doc.on.doc")
-                    .hooprFont(10, weight: .semibold, maximumSize: 13)
-            }
-            .foregroundStyle(Color.hooprOnBrand.opacity(0.75))
-            // The row is short, so the whole of it — uid included — is the
-            // target rather than just the glyph.
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Copy user ID")
-        .accessibilityValue(userId)
+    /// 0 while the identity block is still readable, 1 once it's behind the
+    /// bar, crossing over the last 32pt of its travel. Guarded on a measured
+    /// height so the bar can't come up titled on first layout.
+    private var barProgress: Double {
+        guard identityHeight > 0 else { return 0 }
+        let fadeDistance: CGFloat = 32
+        let start = identityHeight - fadeDistance - 20
+        return Double(min(max((scrollOffset - start) / fadeDistance, 0), 1))
     }
 
     /// The identity line. `userName` is a *display* name, not a stored handle
@@ -244,221 +258,260 @@ struct ProfileView: View {
         return "@" + userName.filter { !$0.isWhitespace }
     }
 
-    /// Scales with the header, which is now a fraction of the screen rather
-    /// than a quarter of it — the avatar has to fit inside a bar, not fill a
-    /// slab.
-    private static func avatarSize(forHeaderHeight height: CGFloat) -> CGFloat {
-        min(56, max(38, height * 0.44))
-    }
-
-    private func avatar(size: CGFloat) -> some View {
-        ZStack {
-            Circle()
-                // Sits on the brand orange, which doesn't invert, so this is
-                // the on-brand white in both appearances rather than a surface.
-                .fill(Color.hooprOnBrand)
-                .frame(width: size, height: size)
-
-            Group {
-                if let initials = Self.initials(for: viewModel.userName) {
-                    Text(initials)
-                        // Deliberately *not* Dynamic Type, as with the glyph
-                        // below: both are sized as a fraction of a circle whose
-                        // diameter is fixed by the header height, so scaling
-                        // them would push them past their own container.
-                        .font(.system(size: size * 0.38, weight: .bold))
-                } else {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: size * 0.5))
-                }
-            }
-            .foregroundStyle(Color.hooprOrange)
-        }
-        // A hairline ring, so the white circle still separates from the header
-        // rather than dissolving into it at the top of the gradient.
-        .overlay(
-            Circle()
-                .stroke(Color.hooprOnBrand.opacity(0.35), lineWidth: 2)
-                .frame(width: size + 6, height: size + 6)
-        )
-        .accessibilityHidden(true)
-    }
-
-    /// Up to two initials from the display name, or `nil` while the first
-    /// snapshot is in flight — or for a name that's all punctuation, where the
-    /// person glyph says more than an empty circle would.
-    private static func initials(for name: String?) -> String? {
-        guard let name else { return nil }
+    /// Up to two initials from the display name, or empty — which selects
+    /// `PlayerAvatar`'s glyph — while the first snapshot is in flight, and for
+    /// a name that's all punctuation.
+    private var initials: String {
+        guard let name = viewModel.userName else { return "" }
 
         let letters = name
             .split(whereSeparator: \.isWhitespace)
             .compactMap { $0.first(where: \.isLetter) }
             .prefix(2)
 
-        return letters.isEmpty ? nil : String(letters).uppercased()
+        return String(letters).uppercased()
     }
 
-    // MARK: - Card grid
+    // MARK: - Pane selector
 
-    /// The profile as a mosaic rather than a list: each attribute gets a card
-    /// sized to what it holds, and the cards interlock — a tall one beside a
-    /// stacked pair, a full-width one under both — so the page reads as a whole
-    /// instead of as six rows separated by rules.
+    /// Everything that pins: the pane selector, and — on the Friends pane — the
+    /// search field that pane refuses to let scroll away.
     ///
-    /// **Cards state a floor, never a fixed height.** A fixed height doesn't
-    /// clip — a card whose content needs more room paints outside its own
-    /// frame and over its neighbour — so every card takes
-    /// `minHeight: … , maxHeight: .infinity` instead: it can't be shorter than
-    /// its grid unit, it grows if its content needs to, and being stretchable
-    /// means the tallest card in a row pulls the rest up to match it. That's
-    /// what keeps the seams aligned at every Dynamic Type size, without this
-    /// view having to predict how tall any card's text will be.
-    private var grid: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            section("Your Game") {
-                HStack(alignment: .top, spacing: Self.gridSpacing) {
-                    // The one card that leads the page: it's the setting the
-                    // rest of the app is organised around.
-                    ProfileCard(
-                        symbol: "basketball.fill",
-                        label: "Home Court",
-                        value: viewModel.homeCourtName,
-                        placeholder: "Not set",
-                        detail: viewModel.homeCourtCity,
-                        prominence: .feature,
-                        onEdit: { viewModel.beginEditing(.homeCourt) }
-                    )
-                    .frame(minHeight: featureHeight, maxHeight: .infinity)
+    /// Opaque, because rows scroll directly underneath it.
+    private var paneHeader: some View {
+        VStack(spacing: 12) {
+            paneSelector
 
-                    VStack(spacing: Self.gridSpacing) {
-                        // Read-only here by design: courts are starred from the
-                        // map, so this counts them rather than editing them.
-                        ProfileCard(
-                            symbol: "star.fill",
-                            label: "Favorites",
-                            value: viewModel.favoriteCourtCountText,
-                            placeholder: "0",
-                            detail: viewModel.favoriteCourtUnitText
-                        )
-                        .frame(minHeight: tileHeight, maxHeight: .infinity)
+            if pane == .friends {
+                FriendsSearchField(
+                    viewModel: friendsViewModel,
+                    isSearchFocused: $isSearchFocused
+                )
+            }
+        }
+        .padding(.horizontal, Self.pageMargin)
+        .padding(.top, 4)
+        .padding(.bottom, 14)
+        .background(Color.hooprBackground)
+        .overlay(alignment: .bottom) {
+            // Only once something is actually scrolling under the header —
+            // a rule under a header at rest reads as a divider in the page.
+            Rectangle()
+                .fill(Color.hooprBorder)
+                .frame(height: 1)
+                .opacity(barProgress)
+        }
+    }
 
-                        ProfileCard(
-                            symbol: "location.circle.fill",
-                            label: "Radius",
-                            value: viewModel.preferredRadiusText,
-                            placeholder: viewModel.defaultRadiusText,
-                            detail: "around you",
-                            onEdit: { viewModel.beginEditing(.preferredRadius) }
-                        )
-                        .frame(minHeight: tileHeight, maxHeight: .infinity)
+    /// A segmented control rather than the shell's glass pills: those float
+    /// over a live map and need to refract it, while this sits on a flat page
+    /// where a solid selection is simply easier to read.
+    private var paneSelector: some View {
+        HStack(spacing: 4) {
+            ForEach(Pane.allCases, id: \.self) { item in
+                let isSelected = pane == item
+
+                Button {
+                    isSearchFocused = false
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        pane = item
                     }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: item.symbol)
+                            .hooprFont(12, weight: .medium, maximumSize: 15)
+
+                        Text(item.title)
+                            .hooprFont(14, weight: .semibold, maximumSize: 18)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+
+                        // No badge here. This segment used to carry a dot for
+                        // waiting requests, which was only honest while the
+                        // inbox was inside the pane it selects. The inbox is in
+                        // the top bar now and its badge is visible from both
+                        // panes, so a second indicator would point at a place
+                        // the requests no longer live.
+                    }
+                    .padding(.vertical, 9)
+                    .frame(maxWidth: .infinity)
+                    .foregroundStyle(
+                        isSelected ? Color.hooprOnBrand : Color.hooprSecondaryText
+                    )
+                    .background {
+                        if isSelected {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.hooprOrange)
+                                // One shape moved between the two pills rather
+                                // than two shapes fading, so the selection
+                                // slides.
+                                .matchedGeometryEffect(id: "pane", in: paneSelection)
+                        }
+                    }
+                    .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(item.title)
+                .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+            }
+        }
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.hooprFill)
+        )
+    }
+
+    // MARK: - Panes
+
+    @ViewBuilder
+    private var paneContent: some View {
+        switch pane {
+        case .profile:
+            profileFields
+
+        case .friends:
+            FriendsPaneContent(
+                viewModel: friendsViewModel,
+                onOpenPlayer: { presentedPlayer = PlayerRoute(uid: $0) },
+                onRequestRemoval: { pendingRemoval = $0 }
+            )
+        }
+    }
+
+    /// The profile as one column of rows: every field on a line of its own,
+    /// each led by its symbol, values free to run the width of the page.
+    private var profileFields: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            // Errors raised outside a sheet — a profile load, a sign-out — used
+            // to surface in a pinned bottom bar. There isn't one any more, so
+            // they lead the pane instead, where they're read before the fields
+            // they're about.
+            if viewModel.editingField == nil, let errorMessage = viewModel.errorMessage {
+                ErrorBanner(message: errorMessage)
+            }
+
+            section("Your Game") {
+                // The setting the rest of the app is organised around, so it
+                // leads — first row, and the only one carrying a second fact.
+                ProfileRow(
+                    symbol: "basketball.fill",
+                    label: "Home Court",
+                    value: viewModel.homeCourtName,
+                    placeholder: "Not set",
+                    detail: viewModel.homeCourtCity,
+                    onTap: { viewModel.beginEditing(.homeCourt) }
+                )
+
+                // Read-only here by design: courts are starred from the map, so
+                // this counts them rather than editing them.
+                ProfileRow(
+                    symbol: "star.fill",
+                    label: "Favorites",
+                    value: favoriteCourtsText,
+                    placeholder: "None starred yet"
+                )
+
+                ProfileRow(
+                    symbol: "location.circle.fill",
+                    label: "Search Radius",
+                    value: viewModel.preferredRadiusText,
+                    placeholder: viewModel.defaultRadiusText,
+                    detail: "around you",
+                    onTap: { viewModel.beginEditing(.preferredRadius) }
+                )
             }
 
             section("Account") {
-                HStack(alignment: .top, spacing: Self.gridSpacing) {
-                    ProfileCard(
-                        symbol: "person.fill",
-                        label: "Username",
-                        value: viewModel.userName,
-                        placeholder: "Not set",
-                        onEdit: { viewModel.beginEditing(.userName) }
-                    )
-                    .frame(minHeight: tileHeight, maxHeight: .infinity)
+                ProfileRow(
+                    symbol: "person.fill",
+                    label: "Username",
+                    value: viewModel.userName,
+                    placeholder: "Not set",
+                    onTap: { viewModel.beginEditing(.userName) }
+                )
 
-                    // The value is a stand-in, not the password: Firebase Auth
-                    // stores a hash and this app never sees one, so there is
-                    // nothing real to render. Editing it sends a reset link
-                    // rather than opening a field — and goes read-only when
-                    // there's no address to send to.
-                    ProfileCard(
-                        symbol: "lock.fill",
-                        label: "Password",
-                        value: "••••••••",
-                        placeholder: "••••••••",
-                        onEdit: viewModel.canChangePassword ? {
-                            viewModel.beginChangingPassword()
-                            isChangingPassword = true
-                        } : nil
-                    )
-                    .frame(minHeight: tileHeight, maxHeight: .infinity)
-                }
-
-                // Full width because it's the longest value on the page — an
-                // address at half width would shrink to fit rather than read.
                 // Read-only: email belongs to Firebase Auth, and changing it
                 // needs a re-authentication flow this screen doesn't have yet.
-                ProfileCard(
+                ProfileRow(
                     symbol: "envelope.fill",
                     label: "Email",
                     value: viewModel.email,
                     placeholder: "Not set"
                 )
-                .frame(minHeight: tileHeight)
 
-                HStack(alignment: .top, spacing: Self.gridSpacing) {
-                    // Device-local, not part of the profile document — see
-                    // `AppearancePreference`. It sits among the stored fields
-                    // because this is where a user looks for a setting, not
-                    // because it shares their storage.
-                    ProfileCard(
-                        symbol: appearance.symbolName,
-                        label: "Appearance",
-                        value: appearance.title,
-                        placeholder: AppearancePreference.system.title,
-                        onEdit: { isEditingAppearance = true }
-                    )
-                    .frame(minHeight: tileHeight, maxHeight: .infinity)
+                // The value is a stand-in, not the password: Firebase Auth
+                // stores a hash and this app never sees one, so there is
+                // nothing real to render. Tapping sends a reset link rather
+                // than opening a field — and goes read-only when there's no
+                // address to send to.
+                ProfileRow(
+                    symbol: "lock.fill",
+                    label: "Password",
+                    value: "••••••••",
+                    placeholder: "••••••••",
+                    onTap: viewModel.canChangePassword ? {
+                        viewModel.beginChangingPassword()
+                        isChangingPassword = true
+                    } : nil
+                )
 
-                    // Immutable by design — `createdAt` is write-once
-                    // server-side.
-                    ProfileCard(
-                        symbol: "calendar",
-                        label: "Joined",
-                        value: viewModel.dateJoinedText,
-                        placeholder: "—"
-                    )
-                    .frame(minHeight: tileHeight, maxHeight: .infinity)
-                }
+                // Device-local, not part of the profile document — see
+                // `AppearancePreference`. It sits among the stored fields
+                // because this is where a user looks for a setting, not
+                // because it shares their storage.
+                ProfileRow(
+                    symbol: appearance.symbolName,
+                    label: "Appearance",
+                    value: appearance.title,
+                    placeholder: AppearancePreference.system.title,
+                    onTap: { isEditingAppearance = true }
+                )
+
+                // Immutable by design — `createdAt` is write-once server-side.
+                ProfileRow(
+                    symbol: "calendar",
+                    label: "Joined",
+                    value: viewModel.dateJoinedText,
+                    placeholder: "—"
+                )
             }
+
+            // The end of the list, not a bar of its own: the rows already run
+            // to the bottom of the screen, and a pinned bar over them would be
+            // a permanent reminder of the one action nobody comes here for.
+            ProfileActionRow(
+                symbol: "rectangle.portrait.and.arrow.right",
+                title: "Sign Out",
+                tint: .hooprRed
+            ) {
+                viewModel.signOut()
+            }
+            .padding(.top, 4)
         }
     }
 
-    /// A titled group of cards, using the same section heading as the Local
-    /// Runs tab so the two screens read as one app.
+    /// Count and unit as one value — "12 courts" — rather than a value with a
+    /// unit hung off it. `nil` at zero, which renders the placeholder.
+    private var favoriteCourtsText: String? {
+        guard let count = viewModel.favoriteCourtCountText else { return nil }
+        return "\(count) \(viewModel.favoriteCourtUnitText)"
+    }
+
+    /// A titled group of rows, using the same section heading as the Local Runs
+    /// tab so the two screens read as one app.
     private func section<Content: View>(
         _ title: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: Self.gridSpacing) {
+        VStack(alignment: .leading, spacing: Self.rowSpacing) {
             Text(title)
                 .hooprFont(18, weight: .bold)
                 .foregroundStyle(Color.hooprPrimaryText)
+                .padding(.bottom, 2)
 
             content()
         }
-    }
-
-    // MARK: - Sign out
-
-    private var signOutButton: some View {
-        Button {
-            viewModel.signOut()
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "rectangle.portrait.and.arrow.right")
-                    .hooprFont(15, weight: .semibold, maximumSize: 20)
-                Text("Sign Out")
-                    .hooprFont(17, weight: .semibold, maximumSize: 24)
-            }
-            .foregroundStyle(Color.hooprRed)
-            .frame(maxWidth: .infinity)
-            .frame(height: 52)
-            .background(Color.hooprFill)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .padding(.horizontal, 28)
-        .padding(.bottom, 24)
     }
 
     // MARK: - Edit sheets
@@ -506,6 +559,7 @@ struct ProfileView: View {
         authService: authService,
         userProfileService: UserProfileService(authService: authService),
         courtService: CourtService(),
+        friendService: FriendService(authService: authService),
         onBack: {}
     )
 }

@@ -6,7 +6,7 @@ import SwiftUI
 /// Replaces the tall `FriendCard` this tab used to stack. A friends list is a
 /// list of *people*, and a full-width button under each name made twelve friends
 /// read as twelve forms. The chrome is still the app's card — `hooprSurface`, a
-/// 1pt `hooprBorder`, the same 6% shadow `GameCard` and `ProfileCard` carry — at
+/// 1pt `hooprBorder`, the same 6% shadow `GameCard` and `ProfileRow` carry — at
 /// roughly a third of the height.
 ///
 /// Deliberately state-free, like `GameCard`: it renders what it's handed and

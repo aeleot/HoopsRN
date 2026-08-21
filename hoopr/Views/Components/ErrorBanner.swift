@@ -8,7 +8,7 @@ import SwiftUI
 /// places by construction, not by two views happening to agree.
 ///
 /// Both controls are optional, and a `nil` closure omits the control entirely
-/// rather than disabling it — the same convention `ProfileCard` uses for
+/// rather than disabling it — the same convention `ProfileRow` uses for
 /// `onEdit`. Outer padding is deliberately left to the caller: the two screens
 /// inset their content differently, and that's a property of the screen rather
 /// than of the banner.

@@ -40,10 +40,6 @@ struct PlayerProfileSheet: View {
 
     @State private var isConfirmingRemove = false
 
-    /// One grid unit, scaled with the reader's text size — the same
-    /// `@ScaledMetric` floor `ProfileView` gives its own cards.
-    @ScaledMetric(relativeTo: .body) private var tileHeight: CGFloat = 80
-
     private var row: FriendsViewModel.Row { viewModel.row(for: uid) }
 
     var body: some View {
@@ -52,18 +48,18 @@ struct PlayerProfileSheet: View {
                 identityHeader
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        cards
+                    VStack(alignment: .leading, spacing: 10) {
+                        rows
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 4)
                     .padding(.bottom, 8)
                 }
             }
             .background(Color.hooprBackground)
             // Pinned as a safe-area inset rather than the last item in the
-            // stack, matching `ProfileView`'s Sign Out bar: a growing card list
-            // can never push the action off the bottom edge.
+            // stack: the relationship action is why this sheet is open, and a
+            // growing list can never push it off the bottom edge.
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 actionBar
             }
@@ -73,13 +69,13 @@ struct PlayerProfileSheet: View {
             #endif
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    // On-brand white, not orange: the identity band is the
-                    // first thing in the stack, so the translucent bar sits
-                    // directly over the gradient and an orange label there is
-                    // orange on orange.
+                    // Orange again, now that the identity band underneath the
+                    // bar is the page colour rather than the brand gradient it
+                    // used to be — an on-brand white label there would be white
+                    // on white.
                     Button("Done", action: onDismiss)
                         .fontWeight(.semibold)
-                        .foregroundStyle(Color.hooprOnBrand)
+                        .foregroundStyle(Color.hooprOrange)
                 }
             }
         }
@@ -102,28 +98,34 @@ struct PlayerProfileSheet: View {
 
     // MARK: - Header
 
-    /// The same orange identity band `ProfileView` opens on, so a profile reads
-    /// as a profile wherever it appears — **without the uid row**. Copying out
-    /// your own ID is the sharing flow; republishing someone else's identifier
+    /// The same identity block `ProfileView` opens on, so a profile reads as a
+    /// profile wherever it appears — **without the uid row**. Copying out your
+    /// own ID is the sharing flow; republishing someone else's identifier
     /// serves nothing.
+    ///
+    /// Laid out sideways rather than stacked, because this one doesn't scroll
+    /// away: a sheet opens at a height it has to live within, so the identity
+    /// takes a band across the top instead of the full-width block a screen
+    /// with its own scroll can afford.
     private var identityHeader: some View {
         HStack(spacing: 14) {
-            PlayerAvatar(initial: row.initial, diameter: 56, onBrand: true)
+            PlayerAvatar(initial: row.initial, diameter: 56)
                 .overlay(
                     Circle()
-                        .stroke(Color.hooprOnBrand.opacity(0.35), lineWidth: 2)
+                        .stroke(Color.hooprOrange, lineWidth: 2)
                         .frame(width: 62, height: 62)
                 )
 
             if row.isResolved {
                 Text(row.handle.isEmpty ? row.nameForProse : row.handle)
-                    .hooprFont(22, weight: .bold, maximumSize: 28)
-                    .foregroundStyle(Color.hooprOnBrand)
+                    .hooprFont(24, weight: .bold, maximumSize: 30)
+                    .foregroundStyle(Color.hooprPrimaryText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
             } else {
+                // Held space rather than a name, while the lookup is in flight.
                 RoundedRectangle(cornerRadius: 5)
-                    .fill(Color.hooprOnBrand.opacity(0.3))
+                    .fill(Color.hooprFill)
                     .frame(width: 150, height: 18)
                     .accessibilityHidden(true)
             }
@@ -131,45 +133,36 @@ struct PlayerProfileSheet: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 18)
+        .padding(.top, 8)
+        .padding(.bottom, 20)
         .frame(maxWidth: .infinity)
-        .background(
-            LinearGradient(
-                colors: [Color.hooprOrange, Color.hooprDarkOrange],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
     }
 
-    // MARK: - Cards
+    // MARK: - Rows
 
-    /// `ProfileCard` with `onEdit: nil` — the component's existing way of saying
+    /// `ProfileRow` with `onTap: nil` — the component's existing way of saying
     /// read-only, which is exactly what someone else's profile is. Reusing it
-    /// means these cards can't drift from the ones on your own profile screen.
+    /// means these can't drift from the rows on your own profile screen.
     @ViewBuilder
-    private var cards: some View {
-        ProfileCard(
+    private var rows: some View {
+        ProfileRow(
             symbol: "basketball.fill",
             label: "Home Court",
             value: row.profile.flatMap { viewModel.homeCourtName(for: $0) },
             placeholder: row.isResolved ? "Not set" : "—",
-            detail: row.profile.flatMap { viewModel.homeCourtCity(for: $0) },
-            prominence: .feature
+            detail: row.profile.flatMap { viewModel.homeCourtCity(for: $0) }
         )
-        .frame(minHeight: tileHeight * 1.4)
 
-        ProfileCard(
+        ProfileRow(
             symbol: "calendar",
             label: "Joined",
             value: joinedText,
             placeholder: "—"
         )
-        .frame(minHeight: tileHeight)
     }
 
     /// Month and year only. A precise join date is more than a stranger needs,
-    /// and the profile screen's own `Joined` card already reads this way.
+    /// and the profile screen's own `Joined` row already reads this way.
     private var joinedText: String? {
         guard let createdAt = row.profile?.createdAt else { return nil }
         return createdAt.formatted(.dateTime.month(.wide).year())

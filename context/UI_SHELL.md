@@ -2,10 +2,10 @@
 
 **Scope:** `hoopr/Views/RootView.swift`, `hoopr/Views/MainTabView.swift`,
 `hoopr/Views/LoginView.swift`, `hoopr/Views/Profile/`, `hoopr/Views/Games/`,
-`hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Views/Tabs/FriendsTab.swift`,
-`hoopr/Views/Friends/`, `hoopr/Support/Theme.swift`,
-`hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`
-**Verified:** 2026-08-15 @ map-tab
+`hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Views/Friends/`,
+`hoopr/Support/Theme.swift`, `hoopr/Support/Typography.swift`,
+`hoopr/Support/AppearancePreference.swift`
+**Verified:** 2026-08-21 @ ui-tune-up
 
 Navigation structure and the visual conventions every screen follows. Read this
 before adding a screen, changing how one is presented, or picking a colour or a
@@ -23,8 +23,11 @@ RootView                    switches on RootViewModel.destination
 ├── .launching → LaunchScreen
 ├── .login     → LoginView
 └── .main      → MainTabView
-                 ├── mainInterface (header + 3 pill tabs + content ZStack)
+                 ├── mainInterface (header + 2 pill tabs + content ZStack)
                  └── ProfileView   (replaces the above entirely)
+                     ├── top bar: back · handle-on-scroll · inbox
+                     ├── Profile pane  (identity + field rows)
+                     └── Friends pane  (search + friends list)
 ```
 
 `.launching` exists so the login screen never flashes at a user whose cached
@@ -52,15 +55,49 @@ is up.
 
 ## `MainTabView`
 
-- Header is a fixed `geo.size.height * 0.14` slab: greeting on the left, profile
-  button on the right, then a row of three pill tabs, with a 1pt
-  `hooprBorder` rule along the bottom and `zIndex(1)` so it stays above the
-  map. Because the slab's height is pinned, its type is capped — see
-  "Visual conventions".
+- Header is a fixed `geo.size.height * 0.14` bar: greeting on the left, profile
+  button on the right, then a row of two pill tabs. Because its height is
+  pinned, its type is capped — see "Visual conventions".
+
+**The header floats over the content rather than stacking above it.** The shell
+is a `ZStack(alignment: .top)`, not a `VStack`, so the map runs to every edge of
+the screen and passes underneath the header and the status bar. The header's
+background is clear glass extended past the top safe area, so the status bar
+sits on glass rather than directly on the map.
+
+Two consequences, both easy to undo by accident:
+
+- **`.contentShape(Rectangle())` on the header is load-bearing.** A clear fill
+  does not hit-test, and the map is now the header's ZStack *sibling
+  underneath* rather than a panel below it — so without an explicit hit shape
+  every tap and drag on the header reached MapKit and panned the map, tab pills
+  included. It's applied twice: on the header itself, and on the extended
+  background that covers the status bar.
+- **The two list tabs get the header's height back as `safeAreaPadding(.top:)`**,
+  applied by `MainTabView`. That's what keeps their content clear of the bar
+  while still letting it scroll underneath. `MapTab` deliberately does *not*
+  get this — the map is supposed to run under the header — so it reads
+  `\.floatingHeaderHeight` from the environment and insets only its own
+  floating chrome.
 - Greeting reads `userProfileService.currentProfile?.userName`, falling back to
   `"there"` while the first snapshot is in flight.
-- Tabs: Court Map / Local Runs / Friends. Selected pill is `hooprOrange` on
-  `hooprOnBrand`; unselected is `hooprFill` on `hooprSecondaryText`.
+- Tabs: Court Map / Local Runs. **Friends used to be the third**, and moving it
+  into `ProfileView` as a pane is what freed the slot — the shell is written for
+  `tabs.count`, so the next one is a case here plus a branch in
+  `content(headerHeight:)`.
+- **The profile button carries the notification dot**, which the Friends pill
+  used to. Friends is inside the profile now, so the control that opens the
+  profile is what says something is waiting in it. The dot is `hooprRed`, not
+  the brand orange, matching the inbox badge it leads to — this header is
+  already orange in places, and a notification has to read as one thing to deal
+  with rather than as more brand. It reads `FriendService` directly rather than
+  a view model, which is what keeps the dot alive while the profile is closed —
+  an inbox you can only discover by already being inside it isn't a
+  notification.
+- Selected pill is glass tinted
+  `hooprOrange`; unselected is `.clear` glass. Neither is an opaque fill any
+  more — over a moving map an opaque grey pill reads as a hole punched in the
+  bar.
 
 **`MapTab` stays mounted** — it's always in the content `ZStack`, hidden
 with `.opacity` + `.allowsHitTesting`, while the other two tabs mount
@@ -101,11 +138,25 @@ Host-only: an invite-only run is the host's to hand out. **The link doesn't
 resolve yet** — nothing registers the scheme and nothing handles an incoming
 URL, so it's a string to send while the receiving half is built (`GAPS.md` §4).
 
-## `FriendsTab`
+## Friends — a pane of `ProfileView`
 
-Occupies the third tab slot, which was a placeholder (`FindMatchTab`, a centred
-`Text` and nothing else) until the `friendships` collection existed to put
-behind it.
+Held the third tab slot until the shell needed it back; it's the Friends pane of
+the profile now. `Views/Tabs/FriendsTab.swift` is gone and its two halves live
+in `Views/Friends/FriendsPane.swift` as **`FriendsSearchField`** and
+**`FriendsPaneContent`**. `ProfileView` owns the scroll view, the page margin
+and every piece of presentation state.
+
+**The inbox is not here.** It was a second button beside the search field, and
+it moved to the profile's top bar — see `ProfileTopBar` for why. What's left in
+the pane header is one control doing one thing, which is why it's a field now
+rather than a toolbar.
+
+**Both halves are stateless** — they render what `FriendsViewModel` holds and
+report intent through closures. That's load-bearing, not tidiness: the toolbar
+pins as a section header while the list scrolls in the section body, so any
+state held *between* them would be stranded. `isInboxPresented`,
+`presentedPlayer`, `pendingRemoval` and the search `@FocusState` are all
+`ProfileView`'s, and so are the sheets they raise.
 
 **This is the one list screen that is *not* built from the `LocalRunsTab`
 parts,** and the departure is deliberate. It was that shape once — two
@@ -116,9 +167,9 @@ and needs a permanently visible control, and requests waiting on you must not
 be reachable only by expanding a dropdown. So:
 
 ```
-VStack
-├── toolbar (pinned)   [ 🔍 search field ..... ] [ 📥 inbox • badge ]
-└── ScrollView
+ScrollView (ProfileView's)
+├── pinned section header  [ 🔍 search field .......................... ]
+└── section body
     ├── query empty → Friends list
     └── query typed → Results (idle / searching / results / empty / failed)
 ```
@@ -148,7 +199,7 @@ both inbox sections without a mode flag.
 The subtitle is **always the handle**, never the home court. A subtitle that's a
 court on one row and a handle on the next means two different things in one
 column — and the handle is what distinguishes two friends who share a display
-name, since `userName` isn't unique. The home court has a labelled card on the
+name, since `userName` isn't unique. The home court has a labelled row on the
 profile.
 
 **`InboxSheet`** holds what's waiting: **Requests** (incoming, what the badge
@@ -163,11 +214,15 @@ signed-in account (see `database/DATABASE_SCHEMA.md`), so leaving
 `favoriteCourtIds` and `preferredRadius` off the screen doesn't make them
 private; it just declines to amplify them. Friend counts and mutual friends
 aren't omitted but *impossible*: `friendships` is participants-only. It reuses
-`ProfileCard` with `onEdit: nil`, so these cards can't drift from your own
-profile's. Every relationship action lives in its bottom action bar (a
-`safeAreaInset`, like `ProfileView`'s Sign Out). It holds a **uid**, never a
-snapshot, and reads back through the view model on every render, so a name
-landing or the other person accepting updates the open sheet.
+`ProfileRow` with `onTap: nil`, so these rows can't drift from your own
+profile's. Its identity band is the page colour with an orange-ringed avatar —
+it followed `ProfileView`'s orange gradient before that header was retired, and
+it follows the replacement for the same reason: a profile should read as a
+profile wherever it appears. The band is laid out sideways rather than stacked
+because a sheet opens at a height it has to live within. Every relationship
+action lives in its bottom action bar (a `safeAreaInset`). It holds a **uid**,
+never a snapshot, and reads back through the view model on every render, so a
+name landing or the other person accepting updates the open sheet.
 
 Removing a friend is the one action behind a confirmation dialog: a declined
 request can be re-sent by the other person, but an unfriend is only undone by
@@ -180,10 +235,11 @@ until they arrive. A name that fails to resolve leaves the row fully actionable,
 retries on the next snapshot, and is healed by `loadProfileIfNeeded(for:)` when
 its profile sheet opens.
 
-The **Friends pill in `MainTabView` carries a dot** while a request is
-unanswered, read straight off `FriendService` rather than through the view
-model — the tab is unmounted when you're not on it, and an inbox you can only
-discover by already being on its tab isn't a notification.
+Waiting requests are announced in two places, both outside this pane: the
+**profile button in `MainTabView`** carries a red dot, and the **inbox in
+`ProfileTopBar`** carries a red count badge. The pane selector deliberately
+carries neither — it had a dot while the inbox lived inside the pane it selects,
+and keeping it would now point at a place the requests aren't.
 
 ## Starting a run
 
@@ -213,65 +269,124 @@ side alone.
 
 ## `ProfileView`
 
-Orange identity header at **`geo.size.height * 0.14`** — the same fraction
-`MainTabView` pins its own header to, so the two screens share a skyline and
-the profile doesn't open on a quarter-screen of orange. One row: back button,
-avatar, then the `@handle` with the **Auth uid in italics beneath it** — held
-well below the handle in size and contrast. The uid row is a button that copies
-it to the pasteboard, glyph swapping to a checkmark for 1.6s rather than
-raising a toast: quoting the uid is the only reason it's on screen, nobody
-retypes 28 characters, and the header has no room for a larger confirmation. At this
-height there's no room to stack the back button above the avatar and no need
-to, since nothing collides in a single line. Avatar size is `min(56, max(38, height * 0.44))`; it carries the user's
-initials, falling back to a person glyph while the first snapshot is in flight
-or for a name with no letters in it. The header background is an
-`hooprOrange → hooprDarkOrange` gradient under `.ignoresSafeArea(edges: .top)`,
-so it bleeds beneath the status bar while content still lays out inside the
-safe area.
+**Two panes, one screen.** A `Pane` enum — `.profile`, `.friends` — behind a
+segmented control. The pairing isn't arbitrary: both panes answer "who am I in
+this app", one about your own settings and one about the people attached to
+them, and it's what lets a friend request be visible from the same place you go
+to change your home court. The screen holds **two view models** for that reason,
+`ProfileViewModel` and `FriendsViewModel`, both `@StateObject` — the friends one
+lives here rather than in the pane so search text and results survive a trip
+through the Profile pane and back.
+
+**One scroll view owns the whole page:**
+
+```
+ScrollView
+└── LazyVStack(pinnedViews: .sectionHeaders)
+    ├── ProfileIdentityBlock          ← scrolls away
+    └── Section
+        ├── header: pane selector (+ friends search on that pane)    ← pins
+        └── body:   field rows, or the friends list
+      ⇧ safeAreaInset(.top): ProfileTopBar
+```
+
+The top bar is a **`safeAreaInset`, not a `ZStack` overlay** — that's what makes
+the scroll view treat it as safe area, so the pinned section header stops
+underneath it instead of sliding up under the status bar.
+
+**The inbox lives in that bar**, trailing, opposite the back chevron. It was a
+button beside the Friends pane's search field, which meant the one place social
+notifications collect was only visible on the pane you had to already be on to
+see it. Screen chrome is the honest home for it: reachable from either pane,
+never scrolls, and its badge is the profile's notification indicator rather than
+one pane's. The badge is `hooprRed` — the one thing on the screen asking to be
+dealt with, in the colour the app reserves for exactly that; orange is the brand
+and is everywhere on this screen, so a badge in it would say "waiting" no louder
+than the row icons beside it.
+
+**There is no orange header any more.** It was a fixed `0.14` slab of
+`hooprOrange → hooprDarkOrange` under the status bar, and it spent the most
+valuable real estate on the page restating something the user already knows,
+in the app's loudest colour, permanently. The identity is *content* now:
+`ProfileIdentityBlock` sets a 72pt avatar, the `@handle` at 30pt and the uid
+underneath on the page background, and it scrolls past like anything else.
+Orange survives as the avatar's ring and the row icons — an accent, not a
+ground.
+
+What replaces it is `ProfileTopBar`: a 52pt bar holding a back chevron that is
+always there, plus a glass background and a small avatar + handle that fade in
+only once the identity block is gone. The fade is driven by two measurements —
+`onScrollGeometryChange` for the offset, `onGeometryChange` for the block's
+height, since that height moves with the reader's text size — crossing 0→1 over
+the last 32pt of the block's travel (`barProgress`). The glass is the same
+`.glassEffect(.regular, in: .rect)` the shell header floats on, extended past
+the top safe area, with the same load-bearing `contentShape` (a clear fill
+doesn't hit-test, and content scrolls directly underneath).
 
 The handle is **rendered, not stored** — `userName` is a display name (see
-`UserProfile`), so the header strips its whitespace and prefixes an `@`. The
-uid under it comes from `AuthService`, not the profile document, so it resolves
-with the session rather than waiting on a Firestore snapshot.
+`UserProfile`), so it strips whitespace and prefixes an `@`. The uid comes from
+`AuthService`, not the profile document, so it resolves with the session rather
+than waiting on a Firestore snapshot. The uid is a button that copies it to the
+pasteboard, its glyph swapping to a checkmark for 1.6s rather than raising a
+toast: quoting the uid is the only reason it's on screen, and nobody retypes 28
+characters.
 
-Below it, the profile is a **card mosaic, not a list** — `ProfileCard`s in two
-titled sections, "Your Game" and "Account". The cards interlock: `Home Court`
-is a `.feature` card spanning the `Favorites` and `Radius` tiles beside it, and
-`Email` runs full width between two pairs of tiles. Card chrome matches
-`GameCard` — 16pt radius, `hooprSurface`, 1pt `hooprBorder`, a 6% shadow — so a
-card reads the same here as on the Local Runs tab.
+**The Profile pane is one column of rows, not a card mosaic.** `ProfileRow`
+replaced `ProfileCard`, and the mosaic went with it. That layout sized every
+card to its slot — a `.feature` `Home Court` spanning two tiles, `Email` full
+width between two pairs — which meant a card's *height* carried meaning its
+content didn't, and a long court name had to shrink to fit a tile rather than
+simply be read. A row is the opposite trade: one field per line, symbol in a
+tinted square on the left, label over value, chevron when it leads somewhere,
+values free to run the width of the page.
 
-**Cards state a floor, never a fixed height.** `ProfileView` owns one
-`@ScaledMetric` unit (`tileHeight`, 80pt at the default text size) and derives
-`featureHeight = tileHeight * 2 + 12` from it, then hands both to
-`.frame(minHeight:maxHeight: .infinity)`. A fixed height was the first attempt
-and was wrong: `.frame(height:)` doesn't clip, so a card whose content needed
-more room painted *outside* its own frame and over its neighbour — visibly, in
-the right-hand column. A floor plus a stretch fixes it from both ends: a card
-can't be shorter than its grid unit, it grows when its content needs to, and
-because it's stretchable the tallest card in a row pulls the rest up to match.
-The seams stay aligned at every Dynamic Type size without this view predicting
-how tall any card's text will be.
+**Rows state no height at all** — the mosaic's `@ScaledMetric` floors
+(`tileHeight`, `featureHeight`) are gone with it. A row is as tall as its own
+content, which is what lets a value wrap or scale at large Dynamic Type sizes
+without a caller predicting it. Nothing interlocks any more, so nothing needs a
+floor. Chrome is the app's usual card — 14pt radius, `hooprSurface`, 1pt
+`hooprBorder`, a 6% shadow — shared with `ProfileActionRow` through one
+`profileRowChrome()` helper so the tappable rows and Sign Out can't drift.
 
-Passing `onEdit: nil` renders a card read-only — used for `Email` (owned by
-Firebase Auth; changing it needs a re-authentication flow this screen doesn't
-have), `Joined` (`createdAt` is write-once server-side), and `Favorites`
-(starred from the map, so the profile only counts them). A read-only card isn't
-a `Button` at all, so there's no disabled state to style. On an editable card
-**the whole card is the tap target**; the pencil is the affordance saying so,
-not a control in its own right.
+A row's `detail` (the home court's city) is a trailing fragment on the *value*
+line, set off with a middot — and it's dropped **whole** rather than truncated
+alongside the value. `ViewThatFits` offers the pair first and the bare value
+second, so a wide row reads "Bethesda Park · Durham" and a narrow one reads one
+cleanly truncated name. Laid out as a plain `HStack` both halves end in an
+ellipsis, which is worse than either.
 
-`Password` is the one card whose value is a fiction: `••••••••` is a stand-in,
-because Auth stores a hash and this app has never held the password. Editing it
+Values are **one line, truncating with an ellipsis** rather than wrapping. That
+makes every row the same height without any of them stating one, and it's why
+`homeCourtName` resolves through `Court.displayName`: "Bethesda Park Basketball
+Court" is "Bethesda Park" on a row already labelled Home Court, and the words it
+drops are the ones that push a real name past the width.
+
+Passing `onTap: nil` renders a row read-only — `Email` (owned by Firebase Auth;
+changing it needs a re-authentication flow this screen doesn't have), `Joined`
+(`createdAt` is write-once server-side), and `Favorites` (starred from the map,
+so the profile only counts them). A read-only row isn't a `Button` at all, so
+there's no disabled state to style.
+
+`Password` is the one row whose value is a fiction: `••••••••` is a stand-in,
+because Auth stores a hash and this app has never held the password. Tapping it
 opens `ChangePasswordSheet`, which **collects no password either** — it sends a
 one-time reset link to the account's address, and the new password is chosen on
 that link's page. Being signed in is the authorisation, so no current password
-is asked for. The card falls back to read-only when there's no address to send
-to, via the same `onEdit: nil` mechanism.
+is asked for. The row falls back to read-only when there's no address to send
+to, via the same `onTap: nil` mechanism.
 
-The Sign Out bar is a `safeAreaInset` with a 1pt `hooprBorder` rule along its
-top — the grid scrolls underneath it, and without the rule a card is simply cut
-off mid-height.
+**Sign Out is the last row, not a bar.** It was a `safeAreaInset` with a rule
+along its top; a pinned bar over a page that already scrolls to the bottom is a
+permanent reminder of the one action nobody comes here for — and it made no
+sense at all under the Friends pane. It's a `ProfileActionRow` tinted
+`hooprRed`. Errors raised outside a sheet (a profile load, a sign-out) used to
+surface in that bar and now lead the Profile pane, where they're read before
+the fields they're about.
+
+Edit flows are unchanged: `.sheet(item:)` on `ProfileViewModel.editingField`,
+with appearance and the password reset outside it — see "Navigation" above.
+Every sheet on the screen, both panes', is applied in `body` around a `page`
+property, which is the only reason `body` and the page are separate.
 
 The home-court picker is search-only: with 213 courts an up-front list is noise.
 Name matches rank above city-only matches, capped at 25 suggestions.
@@ -285,10 +400,10 @@ keeps a light-only value from creeping back in.
 
 | Role | Used for |
 |---|---|
-| `hooprOrange` | Brand. Selected tab, primary buttons, focused field borders, map pins, profile header, slider tint. Lifted in dark mode, where the light-mode orange reads muddy. |
+| `hooprOrange` | Brand. Selected tab, selected profile pane, primary buttons, focused field borders, map pins, profile row icons and the avatar's ring, slider tint. Lifted in dark mode, where the light-mode orange reads muddy. |
 | `hooprDarkOrange` | The map's marker tint, via `UIColor(Color.hooprDarkOrange)`. |
-| `hooprRed` | Errors, Sign Out, "Remove home court". Lightened in dark mode to hold contrast. |
-| `hooprOnBrand` | Content *on top of* the orange — button labels, the profile avatar. Fixed white: the brand colour it sits on doesn't invert. |
+| `hooprRed` | Errors, Sign Out, "Remove home court", and the notification indicators — the inbox badge and the profile button's dot. Lightened in dark mode to hold contrast. |
+| `hooprOnBrand` | Content *on top of* the orange — button labels, the selected pane's title. Fixed white: the brand colour it sits on doesn't invert. |
 | `hooprBackground` | The page behind everything. |
 | `hooprSurface` | Cards and sheets. Equal to the background in light mode (separation there comes from border + shadow); lifted in dark mode, where a shadow on black conveys nothing. |
 | `hooprFill` | Field and button fills, unselected chips, the empty half of a capacity bar. |
@@ -321,16 +436,17 @@ outside `ProfileViewModel.EditableField`: nothing about it touches Firestore.
 - `ProfileView` is presented in place of `MainTabView`, never inside it.
 - `MapTab` must stay mounted across tab switches; hide it with opacity,
   don't unmount it.
-- `LocalRunsTab` and `FriendsTab` *are* unmounted on tab switches, so anything
-  the user chose there belongs in `@AppStorage`, not `@State`. (Only
-  `LocalRunsTab` still has such a choice — `FriendsTab`'s collapsibles are
-  gone.)
+- `LocalRunsTab` *is* unmounted on tab switches, so anything the user chose
+  there belongs in `@AppStorage`, not `@State`. The Friends pane has the same
+  problem inside `ProfileView` — its views are rebuilt on every pane switch —
+  and solves it by keeping `FriendsViewModel` and every piece of pane state on
+  the screen instead.
 - A list screen is built from the `LocalRunsTab` parts — collapsible section
   header, one shared card, one write in flight — **unless the screen's primary
-  job is an action rather than a list**, which is the `FriendsTab` exception:
-  search and the inbox are pinned controls, and only the last of those three
-  parts survives there. `ProfileView`'s mosaic is for a fixed set of distinct
-  entities, not a list.
+  job is an action rather than a list**, which is the Friends exception: search
+  is a pinned control and the inbox is screen chrome, so only the last of those
+  three parts survives there. `ProfileView`'s rows are a fixed set of distinct fields, not a
+  list.
 - One write in flight is keyed by whatever the screen's rows are *about* —
   `pendingGameId` on Local Runs, `pendingUid` on Friends. A friendship ID can't
   key a search result, because a search result has no friendship yet.
@@ -342,14 +458,23 @@ outside `ProfileViewModel.EditableField`: nothing about it touches Firestore.
 - Colours come from `Theme.swift`, including the map's `UIColor` marker tint,
   which bridges from `Color.hooprDarkOrange` rather than restating its RGB. A
   literal colour in a view is a bug — it won't invert.
-- Font sizes go through `.hooprFont(...)`. The one deliberate exception is the
-  profile avatar's initials and glyph, sized as a fraction of a fixed-diameter
-  circle and commented as such.
-- Read-only profile fields are expressed by omitting `onEdit`, not by a
+- Font sizes go through `.hooprFont(...)`. The deliberate exceptions are sized
+  as a fraction of a fixed shape and commented as such: `PlayerAvatar`'s initial
+  and glyph, and `ProfileRow`'s leading symbol square.
+- Read-only profile fields are expressed by omitting `onTap`, not by a
   disabled-state flag.
-- Profile cards take a **floor** (`minHeight` + `maxHeight: .infinity`) from
-  `tileHeight`/`featureHeight`. A `.frame(height:)` there doesn't clip — it
-  overflows onto the neighbouring card.
+- Profile rows are sized by their content. Don't give one a fixed height:
+  `.frame(height:)` doesn't clip, so a row whose text needs more room paints
+  over its neighbour. This is what the old card mosaic's `minHeight` floors
+  existed to work around.
+- The Friends pane's two halves stay stateless. Anything they'd hold between
+  them would be stranded — the search field pins as a section header while the
+  list scrolls in the section body.
+- There is **one** notification indicator per surface, and it's `hooprRed`: the
+  profile button on the shell, the inbox badge on the profile. Don't add a
+  third that points at a screen the requests don't live on.
+- A court is rendered through `Court.displayName`, never `name`. The stored name
+  repeats "Basketball Court" in an app where everything is one.
 
 ## See also
 

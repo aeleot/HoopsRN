@@ -6,7 +6,7 @@
 
 The map tab and its bottom sheet — the densest interaction code in the app, and
 the part most likely to break subtly when edited. Read this before touching
-`MapView.swift` or `MapTab.swift`. The Local Runs and Friends tabs are in
+`MapView.swift` or `MapTab.swift`. The Local Runs tab and the profile are in
 `UI_SHELL.md`.
 
 `MapTab` was called `FindAMatchTab` until the third tab stopped being a
@@ -18,11 +18,11 @@ still `FindAMatchViewModel`.
 
 ## The UUID trigger pattern
 
-SwiftUI drives the UIKit map through three one-shot commands. Each carries a
-`UUID` and defines `==` on that ID alone, so a newly constructed trigger is
-*always* unequal to the previous one — even for an identical recenter target or
-zoom level — which forces `updateUIView` to run. The `Coordinator` then records
-the ID it last handled so the command is applied exactly once.
+SwiftUI drives the UIKit map through a one-shot command. It carries a `UUID` and
+defines `==` on that ID alone, so a newly constructed trigger is *always*
+unequal to the previous one — even for an identical recenter target — which
+forces `updateUIView` to run. The `Coordinator` then records the ID it last
+handled so the command is applied exactly once.
 
 ```swift
 struct RecenterTrigger: Equatable {
@@ -47,10 +47,16 @@ if let trigger = recenterTrigger, trigger.id != context.coordinator.lastRecenter
 }
 ```
 
-`ZoomTrigger` (stepped, `.zoomIn`/`.zoomOut`) and `AbsoluteZoomTrigger` (slider,
-a 0…1 level) are the same shape with their own `lastZoomId` /
-`lastAbsoluteZoomId`. Any new imperative map command should follow this pattern;
-comparing on the payload instead would silently drop repeat commands.
+`RecenterTrigger` is the only one left. Any new imperative map command should
+follow this pattern; comparing on the payload instead would silently drop repeat
+commands.
+
+**`ZoomTrigger`, `AbsoluteZoomTrigger`, `zoomLevelFromSpan` and
+`spanFromZoomLevel` are gone**, along with the `+`/slider/`−` stack that was
+their only caller. The vertical zoom slider occupied a 44×180pt column of the
+map to duplicate a pinch, and no shipping iOS map app has one. `minDelta` /
+`maxDelta` survive as plain constants because the cluster-tap zoom still clamps
+against `minDelta`.
 
 ## Annotation diffing
 
@@ -61,31 +67,53 @@ wholesale: a full reset drops the current selection and re-animates every pin.
 `canShowCallout = false` on the marker view is deliberate — the bottom sheet
 owns detail display, so MapKit's callout would be a competing surface.
 
-The marker tint derives from the palette — `UIColor(Color.hooprDarkOrange)` —
-rather than restating the RGB values, which is what an earlier revision did.
+## `CourtMarkerView`
 
-## Zoom conversion
+Pins are a **custom `MKAnnotationView` subclass**, not `MKMarkerAnnotationView`.
+Two reasons, and the second is the load-bearing one:
 
-Zoom is a log scale between spans of **0.01°** (`minDelta`, level 1.0 = closest)
-and **5.0°** (`maxDelta`, level 0.0 = widest). `zoomLevelFromSpan` and
-`spanFromZoomLevel` are exact inverses, which is what keeps the slider and the
-map agreeing after a pinch. Changing one without the other desynchronises them.
+1. The teardrop silhouette is instantly recognisable as stock Apple Maps.
+2. `MKMarkerAnnotationView` **draws `annotation.title` beneath itself**. Every
+   court in the OSM extract is named `<Place> Basketball Court`, so that
+   produced labels wrapping onto three lines — "Long Meadow Park Basketball
+   Court #2 / +2 more" — that covered more of the map than the roads did. A
+   plain `MKAnnotationView` subclass draws no label at all.
 
-Stepped zoom multiplies the current span by **0.75** (in) or **1.4** (out),
-clamped to the same bounds. The slider is a plain `Slider` rotated −90° so up is
-zoom-in.
+`CourtAnnotation.title` is still populated, now from `Court.displayName`, purely
+so VoiceOver has something to read. Nothing renders it.
+
+The view is a shadowed `ring` (surface-coloured) containing a `disc` (brand
+orange) containing either the basketball glyph or a cluster count. **Colours are
+set as UIView `backgroundColor`s, never `CALayer.backgroundColor`** — a
+`UIColor` from `Theme.swift`'s dynamic provider only re-resolves on a trait
+change when a view holds it; a layer colour freezes at whichever appearance was
+current when it was assigned.
+
+Because a circle marks its spot with its centre rather than a tip,
+`centerOffset` is `.zero` and `collisionMode` is `.circle`. Courts are 34pt,
+clusters 38pt so a group reads as "more than one" before you've read its number.
+
+## Basemap suppression
+
+`MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .muted)` plus
+`pointOfInterestFilter = .excludingAll`, and on the map view itself:
+`showsCompass`, `showsScale`, `showsTraffic`, `showsBuildings` all off,
+`pitchButtonVisibility = .hidden`, `selectableMapFeatures = []`.
+
+**That is as far as MapKit goes.** Road labels, highway shields and
+neighbourhood names have no API and cannot be hidden. Removing those means
+leaving Apple's tiles entirely — either an `MKTileOverlay` with
+`canReplaceMapContent = true` (keeps every line of this file's annotation and
+clustering code) or a port to MapLibre Native, which supports `pmtiles://`
+directly as of iOS 6.10.0. Neither is done; don't re-litigate the muting
+options above without knowing this is the ceiling.
 
 ## Timing constants
 
-- **200ms debounce** on `regionDidChangeAnimated` before reporting the zoom
-  level up, so a pan doesn't fire a callback per frame.
 - **50ms delay** in `didDeselect` before calling `onMarkerDeselect`, then a
   re-check of `mapView.selectedAnnotations`. Tapping pin-to-pin deselects the
   old pin *before* selecting the new one; without the delay the sheet would
   close and immediately reopen.
-- **`isDraggingSlider` guard** in `onZoomLevelChange`: while the finger is on
-  the slider, map-driven zoom updates are ignored. Without it the map's reported
-  level fights the value the user is dragging.
 
 ---
 

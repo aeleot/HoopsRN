@@ -10,22 +10,22 @@ import SwiftUI
 ///
 /// Sizing is deliberately **not** Dynamic Type: the glyph and the initial are
 /// fractions of a fixed-diameter circle, so scaling them would push them past
-/// their own container. The same exception `ProfileView`'s avatar takes, for the
-/// same reason.
+/// their own container. The same exception `ProfileRow`'s leading square takes,
+/// for the same reason.
+///
+/// There was an `onBrand` variant that filled the circle white for the orange
+/// profile header. That header is gone — every avatar in the app now sits on a
+/// surface — so the variant went with it.
 struct PlayerAvatar: View {
-    /// A single uppercased letter, or empty to select the fallback glyph.
+    /// One or two uppercased letters, or empty to select the fallback glyph.
     let initial: String
 
     let diameter: CGFloat
 
-    /// Reversed for the orange profile header, where the circle sits on the
-    /// brand colour rather than on a surface.
-    var onBrand = false
-
     var body: some View {
         ZStack {
             Circle()
-                .fill(onBrand ? Color.hooprOnBrand : Color.hooprFill)
+                .fill(Color.hooprFill)
 
             Group {
                 if initial.isEmpty {
@@ -37,7 +37,7 @@ struct PlayerAvatar: View {
                 }
             }
             .foregroundStyle(
-                initial.isEmpty && !onBrand ? Color.hooprSecondaryText : Color.hooprOrange
+                initial.isEmpty ? Color.hooprSecondaryText : Color.hooprOrange
             )
         }
         .frame(width: diameter, height: diameter)
@@ -51,9 +51,7 @@ struct PlayerAvatar: View {
     HStack(spacing: 16) {
         PlayerAvatar(initial: "J", diameter: 44)
         PlayerAvatar(initial: "", diameter: 44)
-        PlayerAvatar(initial: "E", diameter: 56, onBrand: true)
-            .padding(8)
-            .background(Color.hooprOrange)
+        PlayerAvatar(initial: "EA", diameter: 72)
     }
     .padding()
     .background(Color.hooprBackground)

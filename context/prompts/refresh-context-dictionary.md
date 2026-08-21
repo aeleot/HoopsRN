@@ -17,17 +17,44 @@ Every entry declares the source paths it owns and the commit it was last verifie
 **Verified:** 2026-08-07 @ a1b2c3d
 ```
 
-So the stale set is computable rather than guessed:
+**Run the pre-check before reading anything:**
 
-1. `git rev-parse --short HEAD` — the commit you'll stamp.
-2. Read the `Scope` and `Verified` lines from every entry in `context/`.
-3. For each entry: `git diff --name-only <its verified sha> HEAD` and intersect with its scope.
-4. An entry with no touched files is **current** — do not reread it, do not restamp it. Leave it alone.
-5. An entry with touched files is **stale** — reread only those files plus the entry, correct it, restamp it.
+```bash
+python3 tools/check_context_drift.py
+```
 
-If an entry's `Verified` sha is missing or unresolvable (rebased away, or the entry predates the format), treat that entry as stale and reread its full scope.
+It parses every entry's `Scope`/`Verified` header, diffs each one's owned paths
+against the current working tree — not just the last commit, uncommitted work
+counts too — and prints four sections: **stale** entries (with the exact files
+that changed since their stamp), **unresolvable** entries (a `Verified` ref
+that no longer resolves — treat as fully stale), entries to **always
+revisit** (no scope to diff against; currently just `GAPS.md`), and **current**
+entries. It also prints **unowned changes**: files touched since the oldest
+verified point that match no entry's scope at all — a live scope gap, not
+something to shrug off.
 
-Also check for **unowned changes**: any changed path matching no entry's scope. That means either a scope line needs widening or a new entry is needed — say which, and do it.
+Trust its output directly rather than re-deriving staleness by eye:
+
+1. For each **stale** entry, reread only the files the script named plus the
+   entry's own text. Correct it, then restamp with `git rev-parse --short
+   HEAD` — **never a branch or tag name.** A branch ref moves every time
+   something is pushed to it, so a stamp like `@ map-tab` silently stops
+   meaning "verified as of this exact commit" the moment anyone commits to
+   that branch again, and this whole mechanism depends on the stamp being a
+   fixed point.
+2. Leave every entry the script lists as **current** untouched — don't reread
+   it, don't restamp it. An unchanged `Verified` stamp is signal that nothing
+   in that area moved; touching it anyway destroys that signal for the next
+   pass.
+3. For each file under **unowned changes**, decide whether an existing
+   entry's scope should widen to cover it or a new entry is needed — say
+   which, and do it.
+4. If the script errors, or `context/INDEX.md` doesn't exist, fall back to
+   the full rebuild prompt — there's nothing to refresh incrementally.
+
+If the script reports **more than half the entries stale**, stop and
+recommend a full rebuild instead of pushing through incrementally — the
+closing "Report back" section below asks for exactly this call.
 
 ---
 

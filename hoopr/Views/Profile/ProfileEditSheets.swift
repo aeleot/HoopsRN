@@ -202,7 +202,7 @@ struct HomeCourtPickerSheet: View {
                     } label: {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(court.name)
+                                Text(court.displayName)
                                     .hooprFont(16, weight: .medium)
                                     .foregroundStyle(Color.hooprPrimaryText)
                                     .multilineTextAlignment(.leading)

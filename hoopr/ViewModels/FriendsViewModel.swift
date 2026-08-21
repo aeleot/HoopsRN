@@ -682,7 +682,7 @@ final class FriendsViewModel: ObservableObject {
 
     func homeCourtName(for profile: UserProfile) -> String? {
         guard profile.homeCourtId != nil else { return nil }
-        return homeCourt(for: profile)?.name ?? "Unknown court"
+        return homeCourt(for: profile)?.displayName ?? "Unknown court"
     }
 
     func homeCourtCity(for profile: UserProfile) -> String? {
@@ -691,11 +691,13 @@ final class FriendsViewModel: ObservableObject {
 
     // MARK: - Presentation helpers
 
-    /// Drives the inbox badge and the tab-bar dot. Only *incoming* requests
-    /// count — a request you sent isn't waiting on you.
+    /// Drives the profile's inbox badge. Only *incoming* requests count — a
+    /// request you sent isn't waiting on you.
+    ///
+    /// The count is the whole signal; there was a `hasUnanswered` companion for
+    /// the callers that only wanted a yes/no, and both of those (the Friends
+    /// tab pill, the pane selector's dot) are gone.
     var unansweredCount: Int { incomingRequests.count }
-
-    var hasUnanswered: Bool { unansweredCount > 0 }
 
     /// Kept to two glyphs so it fits the badge at every Dynamic Type size.
     var badgeText: String {

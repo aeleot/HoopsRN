@@ -14,14 +14,6 @@ final class ProfileViewModel: ObservableObject {
         case preferredRadius
 
         var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .userName:       "Username"
-            case .homeCourt:      "Home Court"
-            case .preferredRadius: "Preferred Radius"
-            }
-        }
     }
 
     /// Stored profile name. `nil` until the first snapshot lands.
@@ -121,20 +113,24 @@ final class ProfileViewModel: ObservableObject {
         return courts.first { $0.id == homeCourtId }
     }
 
+    /// `displayName`, not `name`: "Bethesda Park Basketball Court" is
+    /// "Bethesda Park" on a row that already says Home Court, and the words it
+    /// drops are the ones that push a real name past the width.
+    ///
     /// Falls back to a placeholder when a court is stored but unresolvable, so
-    /// the card doesn't read as "not set" when it is.
+    /// the row doesn't read as "not set" when it is.
     var homeCourtName: String? {
         guard homeCourtId != nil else { return nil }
-        return homeCourt?.name ?? "Unknown court"
+        return homeCourt?.displayName ?? "Unknown court"
     }
 
-    /// The card's second line. `nil` for an unresolvable court, where there's
-    /// no city to name.
+    /// The row's trailing detail. `nil` for an unresolvable court, where
+    /// there's no city to name.
     var homeCourtCity: String? {
         homeCourt?.city
     }
 
-    /// `nil` at zero so the card renders it in placeholder styling — nothing
+    /// `nil` at zero so the row renders it in placeholder styling — nothing
     /// starred yet isn't a value worth reading as one.
     var favoriteCourtCountText: String? {
         favoriteCourtCount == 0 ? nil : "\(favoriteCourtCount)"
@@ -166,8 +162,8 @@ final class ProfileViewModel: ObservableObject {
         UserProfile.radiusText(UserProfile.defaultPreferredRadius)
     }
 
-    /// `.medium` ("Aug 7, 2026") rather than `.long`: this renders in a
-    /// half-width tile, where the spelled-out month wraps.
+    /// `.medium` ("Aug 7, 2026") rather than `.long`: the spelled-out month
+    /// buys nothing on a row that truncates rather than wraps.
     private static let joinedDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium

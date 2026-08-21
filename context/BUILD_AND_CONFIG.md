@@ -102,7 +102,7 @@ services use — so a field rename in the console or in the model fails a test
 rather than silently emptying the UI. `ServiceFailureTests` covers error
 classification and `ListenerSupervisor`'s backoff, `FirestoreRulesParityTests`
 parses `firestore.rules` and fails when a mirrored bound drifts, and
-`FriendsViewModelTests` covers the Friends tab's three pure decisions.
+`FriendsViewModelTests` covers the Friends pane's three pure decisions.
 
 `GameTests` covers the stored `games` shape, pending server timestamps, the
 `in_progress` raw value, required-field failures, and the pure rules the client
