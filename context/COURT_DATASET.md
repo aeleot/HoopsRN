@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr/Resources/`, `tools/build_courts.py`, `tools/courts_common.py`,
 `tools/fetch_city_courts.py`, `location-decoder-script/`
-**Verified:** 2026-08-21 @ da44193
+**Verified:** 2026-08-21 @ 9a81cc2
 
 Where courts come from, how they get into the app, and how to add a city. Read
 this before changing court data or wondering why there's no network call for it.

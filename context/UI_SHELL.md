@@ -5,7 +5,7 @@
 `hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Views/Friends/`,
 `hoopr/Views/Components/ErrorBanner.swift`, `hoopr/Support/Theme.swift`,
 `hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`
-**Verified:** 2026-08-21 @ da44193
+**Verified:** 2026-08-21 @ 9a81cc2
 
 Navigation structure and the visual conventions every screen follows. Read this
 before adding a screen, changing how one is presented, or picking a colour or a
@@ -403,7 +403,8 @@ keeps a light-only value from creeping back in.
 | `hooprOrange` | Brand. Selected tab, selected profile pane, primary buttons, focused field borders, map pins, profile row icons and the avatar's ring, slider tint. Lifted in dark mode, where the light-mode orange reads muddy. |
 | `hooprDarkOrange` | The map's marker tint, via `UIColor(Color.hooprDarkOrange)`. |
 | `hooprRed` | Errors, Sign Out, "Remove home court", and the notification indicators — the inbox badge and the profile button's dot. Lightened in dark mode to hold contrast. |
-| `hooprOnBrand` | Content *on top of* the orange — button labels, the selected pane's title. Fixed white: the brand colour it sits on doesn't invert. |
+| `hooprOnBrand` | Content *on top of* the orange — button labels, the selected pane's title, the map pin's glyph. **Black**, and fixed: orange is a light colour in both appearances, so white on it measured 2.55:1 / 2.25:1 — under AA, on every primary button. Black clears 8.24:1 / 9.33:1. |
+| `hooprOnRed` | The one label drawn on a solid red fill (the inbox badge's count). The only role here that inverts, because `hooprRed` is deep in light mode and lightened in dark: white passes light and fails dark, black the reverse. |
 | `hooprBackground` | The page behind everything. |
 | `hooprSurface` | Cards and sheets. Equal to the background in light mode (separation there comes from border + shadow); lifted in dark mode, where a shadow on black conveys nothing. |
 | `hooprFill` | Field and button fills, unselected chips, the empty half of a capacity bar. |
@@ -473,6 +474,11 @@ outside `ProfileViewModel.EditableField`: nothing about it touches Firestore.
 - There is **one** notification indicator per surface, and it's `hooprRed`: the
   profile button on the shell, the inbox badge on the profile. Don't add a
   third that points at a screen the requests don't live on.
+- Every colour pairing the UI draws clears WCAG AA, and `ThemeContrastTests`
+  holds the line. Contrast is arithmetic on two resolved colours, not taste —
+  if a new pairing appears, assert it there rather than eyeballing it. The one
+  known exception is `hooprOrange` used as a *foreground* in light mode, which
+  fails and is tracked in `GAPS.md`.
 - A court is rendered through `Court.displayName`, never `name`. The stored name
   repeats "Basketball Court" in an app where everything is one.
 

@@ -3,7 +3,11 @@
 **Scope:** `hoopr.xcodeproj/`, `hooprTests/`, `hooprUITests/`,
 `hoopr/Assets.xcassets/`, `hoopr/GoogleService-Info.plist`, `.gitignore`,
 `tools/check_context_drift.py`
-**Verified:** 2026-08-21 @ da44193
+**Verified:** 2026-08-21 @ 9a81cc2
+
+`Package.resolved` isn't listed separately — it lives under `hoopr.xcodeproj/`
+and is covered by it. (Anything backticked between the `Scope` and `Verified`
+lines is parsed as an owned path, so notes belong here, below the stamp.)
 
 Project identity, dependencies, the Firebase CLI surface, and what the tests
 actually cover. Read this before changing a build setting, adding a dependency,
@@ -61,13 +65,14 @@ Storage, Crashlytics are *not* linked, though transitive pins for
 GoogleAppMeasurement and the ads on-device conversion SDK appear in
 `Package.resolved` — 13 pins total, all transitive apart from Firebase itself.
 
-**`Package.resolved` is not in version control.** `.gitignore`'s `*.xcworkspace`
-line matches the `project.xcworkspace` *directory* inside `hoopr.xcodeproj`, and
-the resolved file lives under it — so the pins above describe this working copy
-only. A fresh clone resolves whatever `upToNextMajorVersion` yields that day.
-Confirm with `git check-ignore -v` before trusting a version stated here; it is
-also why this entry's scope doesn't list the file (an ignored path can never
-show up in the drift check's diff).
+`Package.resolved` **is** tracked, so the pins above are reproducible. It was
+gitignored until 2026-08-21: `.gitignore` carried a blanket `*.xcworkspace`,
+which matches the `project.xcworkspace` *directory* inside `hoopr.xcodeproj`,
+and the resolved file lives under it — so a fresh clone re-resolved
+`upToNextMajorVersion` to whatever was current that day. The pattern is gone;
+per-user workspace state is covered by `xcuserdata/`, which matches at any
+depth. **Don't reintroduce a `*.xcworkspace` rule** without checking what it
+swallows.
 
 `GoogleService-Info.plist` is committed at `hoopr/GoogleService-Info.plist`.
 
@@ -87,6 +92,14 @@ the **working tree** (not just `HEAD`, so uncommitted work counts), and reports
 which entries are stale. It lives under `tools/` beside the court scripts but
 has nothing to do with court data — it's owned here so a change to it doesn't
 mark `COURT_DATASET.md` stale.
+
+It **validates that scope paths exist** before diffing, and leads its report
+with a `BROKEN SCOPE` section when they don't. That check is the whole reason to
+trust the rest of the output: `git diff <sha> -- <path>` exits 0 with empty
+output for a pathspec that matches nothing, so before this an entry with a
+typo'd scope was reported CURRENT forever — which is exactly how
+`database/USER_PROFILE_WORKFLOW.md` sat two weeks stale with a code map
+pointing at a deleted file.
 
 ```bash
 python3 tools/check_context_drift.py
@@ -118,9 +131,9 @@ allowed to save yet." A newly created database denies everything.
 
 ## Tests
 
-**91 test methods across seven suites**, counted from the `func test`
-declarations rather than from a run. All of them carry real coverage; there is
-no scaffold left in `hooprTests/`.
+**99 test methods across eight suites**, from a green
+`-only-testing:hooprTests` run on 2026-08-21. All of them carry real coverage;
+there is no scaffold left in `hooprTests/`.
 
 | Suite | Cases | Guards |
 |---|---|---|
@@ -131,6 +144,7 @@ no scaffold left in `hooprTests/`.
 | `FriendshipTests` | 10 | Decoding, the derived document ID, direction. |
 | `CourtTests` | 6 | `Court.displayName`. |
 | `FirestoreRulesParityTests` | 6 | The `status` derivation and the shared bounds, parsed out of `firestore.rules`. |
+| `ThemeContrastTests` | 8 | Every colour pairing the UI actually draws, against WCAG AA. |
 
 `UserProfileTests`, `GameTests` and
 `FriendshipTests` run through `Firestore.Decoder` — the same decoder the

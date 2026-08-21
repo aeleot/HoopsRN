@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr/hooprApp.swift`, `hoopr/Services/`, `hoopr/ViewModels/`,
 `hoopr/Support/FailureText.swift`, `hoopr/Support/PreferredRadiusPublisher.swift`
-**Verified:** 2026-08-21 @ da44193
+**Verified:** 2026-08-21 @ 9a81cc2
 
 How the app is assembled: who owns what, what gets injected where, and the two
 orderings/boundaries that break the design if violated. Read this before
@@ -22,7 +22,7 @@ can be built with a stub.
 |---|---|---|
 | `AuthService` | `currentUser: AuthenticatedUser?`, `hasLoadedInitialState: Bool` | `hasLoadedInitialState` exists because Firebase restores a cached session asynchronously — session state is genuinely unknown until the first listener callback. |
 | `UserProfileService` | `currentProfile: UserProfile?`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns a `ListenerSupervisor`. |
-| `CourtService` | `courts: [Court]` | Loads the bundled dataset synchronously in `init()`, sorted by `name`. **Publishes no error.** A missing or undecodable `courts.json` is logged and leaves `courts` empty, so the failure mode is a map with no pins and no explanation. |
+| `CourtService` | `courts: [Court]`, `loadError: String?` | Loads the bundled dataset synchronously in `init()`, sorted by `name`. A missing or undecodable `courts.json` leaves `courts` empty **and sets `loadError`** — `FindAMatchViewModel` mirrors it as `datasetError` so the map's empty state can say why rather than reading as "no courts near you". No retry: the dataset is in the app bundle, so a failure is a build problem. |
 | `LocationService` | `userLocation: CLLocationCoordinate2D?`, `authorizationStatus` | `CLLocationManagerDelegate` wrapper. Also owns `homeLocation`, the single anchor every distance in the app measures from. |
 | `GameService` | `queuedGames: [Game]`, `publicGames: [Game]`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns two session-scoped query listeners and a `ListenerSupervisor` that keys their health separately. |
 | `FriendService` | `friends: [Friendship]`, `incomingRequests: [Friendship]`, `outgoingRequests: [Friendship]`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Two session-scoped query listeners (`uidA == me`, `uidB == me`) merged client-side, and a `ListenerSupervisor` keying their health separately. |

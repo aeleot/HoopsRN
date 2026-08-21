@@ -1,7 +1,7 @@
 # hoopsRN — User Profile Workflow
 
 **Scope:** —
-**Verified:** 2026-08-21 @ da44193
+**Verified:** 2026-08-21 @ 9a81cc2
 
 How the app connects to Firestore and what happens at runtime between someone
 signing in and a rendered profile. This is the first hoopsRN feature backed by a

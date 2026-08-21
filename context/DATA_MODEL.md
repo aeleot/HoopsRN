@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr/Models/`, `hoopr/Support/Distance.swift`,
 `hoopr/Support/InviteLink.swift`
-**Verified:** 2026-08-21 @ da44193
+**Verified:** 2026-08-21 @ 9a81cc2
 
 The domain types and the contracts attached to them. Read this before
 changing a field, adding one, or deciding how something gets persisted. The

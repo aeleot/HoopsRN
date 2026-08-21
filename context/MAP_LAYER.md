@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr/Views/MapView.swift`, `hoopr/Views/Tabs/MapTab.swift`,
 `hoopr/Views/Tabs/CourtRow.swift`, `hoopr/Views/Components/CourtBadges.swift`
-**Verified:** 2026-08-21 @ da44193
+**Verified:** 2026-08-21 @ 9a81cc2
 
 The map tab and its bottom sheet — the densest interaction code in the app, and
 the part most likely to break subtly when edited. Read this before touching
@@ -231,9 +231,11 @@ still passed to Maps by `openDirections(to:)`, where it does work.
 
 The card and the row show the same badges on purpose: before that, tapping a
 court to learn more about it showed you *less* than the row you tapped it from.
-`CourtBadges` is the shared view, and its "Restricted" chip is the odd one out —
-outlined in red rather than filled, because every other label says what a court
-*has* while that one says you may not get on it.
+`CourtBadges` is the shared view and the **only** definition of what those chips
+say — `CourtRow` carried a private duplicate until 2026-08-21 that had already
+drifted from it. Its "Restricted" chip is the odd one out, outlined in red
+rather than filled, because every other label says what a court *has* while that
+one says you may not get on it.
 
 ## Distances and location
 

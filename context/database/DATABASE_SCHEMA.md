@@ -1,7 +1,7 @@
 # hoopsRN — Database Schema
 
 **Scope:** `firestore.rules`, `firestore.indexes.json`, `firebase.json`, `.firebaserc`
-**Verified:** 2026-08-21 @ da44193
+**Verified:** 2026-08-21 @ 9a81cc2
 
 What's stored server-side and what a client may write. Three collections are
 live: `users` (one owner per document), `games` (the first shared, multi-user
@@ -41,7 +41,8 @@ directly against the document path.
 
 ### Mutability contract
 
-`id` and `createdAt` are **write-once**. A client may only ever change
+`id` and `createdAt` are **write-once** (the rules' own comment listed `email`
+alongside them until 2026-08-21, years after that field was removed). A client may only ever change
 `userName`, `userNameLower`, `homeCourtId`, `preferredRadius`, and
 `favoriteCourtIds` (plus the `updatedAt` bookkeeping that goes with them).
 This is enforced **server-side** in `firestore.rules` via

@@ -9,10 +9,11 @@ stamp (date + **commit sha**, never a branch name — a branch moves and the sta
 stops meaning anything). Scopes don't overlap, and together they cover every
 source path in the repo.
 
-Two entries own no paths and say so with `Scope: —`: `GAPS.md` and
-`database/USER_PROFILE_WORKFLOW.md`. Both are cross-cutting narratives over code
-other entries own, so they can't be diffed — the drift check lists them under
-"always revisit" and they're re-read by hand every pass.
+Three entries own no paths and say so with `Scope: —`: `GAPS.md`,
+`PRODUCT_OVERVIEW.md`, and `database/USER_PROFILE_WORKFLOW.md`. All three are
+cross-cutting narratives over code other entries own, so they can't be diffed —
+the drift check lists them under "always revisit" and they're re-read by hand
+every pass.
 
 ---
 
@@ -20,15 +21,16 @@ other entries own, so they can't be diffed — the drift check lists them under
 
 | Entry | What it answers | Verified |
 |---|---|---|
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the app is wired: service ownership, startup order, the Firebase vendor boundary, listener recovery. | 2026-08-21 @ da44193 |
-| [`DATA_MODEL.md`](DATA_MODEL.md) | The domain types and their contracts — stable court IDs, the profile's write rules, derived game status, what each error case means. | 2026-08-21 @ da44193 |
-| [`database/DATABASE_SCHEMA.md`](database/DATABASE_SCHEMA.md) | What's stored in Firestore and what a client may write, across all three collections. | 2026-08-21 @ da44193 |
-| [`database/USER_PROFILE_WORKFLOW.md`](database/USER_PROFILE_WORKFLOW.md) | What happens between sign-in and a rendered profile, including the search-key backfill. | 2026-08-21 @ da44193 |
-| [`MAP_LAYER.md`](MAP_LAYER.md) | The map, its UUID trigger pattern, the north bias, and the bottom sheet's detent machine. | 2026-08-21 @ da44193 |
-| [`COURT_DATASET.md`](COURT_DATASET.md) | Where courts come from and how to regenerate or extend them. | 2026-08-21 @ da44193 |
-| [`UI_SHELL.md`](UI_SHELL.md) | Navigation structure, the Local Runs tab, the profile and its Friends pane, run creation, and the visual conventions. | 2026-08-21 @ da44193 |
-| [`BUILD_AND_CONFIG.md`](BUILD_AND_CONFIG.md) | Project identity, dependencies, the Firebase CLI surface, repo tooling, real test coverage. | 2026-08-21 @ da44193 |
-| [`GAPS.md`](GAPS.md) | What's unfinished, and where comments and docs contradict the code. | 2026-08-21 @ da44193 |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the app is wired: service ownership, startup order, the Firebase vendor boundary, listener recovery. | 2026-08-21 @ 9a81cc2 |
+| [`DATA_MODEL.md`](DATA_MODEL.md) | The domain types and their contracts — stable court IDs, the profile's write rules, derived game status, what each error case means. | 2026-08-21 @ 9a81cc2 |
+| [`database/DATABASE_SCHEMA.md`](database/DATABASE_SCHEMA.md) | What's stored in Firestore and what a client may write, across all three collections. | 2026-08-21 @ 9a81cc2 |
+| [`database/USER_PROFILE_WORKFLOW.md`](database/USER_PROFILE_WORKFLOW.md) | What happens between sign-in and a rendered profile, including the search-key backfill. | 2026-08-21 @ 9a81cc2 |
+| [`MAP_LAYER.md`](MAP_LAYER.md) | The map, its UUID trigger pattern, the north bias, and the bottom sheet's detent machine. | 2026-08-21 @ 9a81cc2 |
+| [`COURT_DATASET.md`](COURT_DATASET.md) | Where courts come from and how to regenerate or extend them. | 2026-08-21 @ 9a81cc2 |
+| [`UI_SHELL.md`](UI_SHELL.md) | Navigation structure, the Local Runs tab, the profile and its Friends pane, run creation, and the visual conventions. | 2026-08-21 @ 9a81cc2 |
+| [`BUILD_AND_CONFIG.md`](BUILD_AND_CONFIG.md) | Project identity, dependencies, the Firebase CLI surface, repo tooling, real test coverage. | 2026-08-21 @ 9a81cc2 |
+| [`GAPS.md`](GAPS.md) | What's unfinished, and where comments and docs contradict the code. | 2026-08-21 @ 9a81cc2 |
+| [`PRODUCT_OVERVIEW.md`](PRODUCT_OVERVIEW.md) | **Business-facing.** What users can do today, what the app guarantees on security, accessibility and coverage, and what's planned. | 2026-08-21 @ 9a81cc2 |
 
 ---
 
@@ -47,6 +49,7 @@ other entries own, so they can't be diffed — the drift check lists them under
 | a model field or an error case | `DATA_MODEL.md` |
 | build settings, dependencies, or tests | `BUILD_AND_CONFIG.md` |
 | anything at all, before trusting a code comment | `GAPS.md` |
+| explaining the product to someone, or scoping a roadmap | `PRODUCT_OVERVIEW.md` |
 
 ---
 

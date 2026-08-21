@@ -1,7 +1,7 @@
 # hoopsRN — Gaps and Drift
 
 **Scope:** —
-**Verified:** 2026-08-21 @ da44193
+**Verified:** 2026-08-21 @ 9a81cc2
 
 What's unfinished, where comments or docs contradict the code, and what to do
 next. Read this before trusting an inline comment, and before assuming a feature
