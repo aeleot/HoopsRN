@@ -3,7 +3,7 @@
 **Scope:** `hoopr.xcodeproj/`, `hooprTests/`, `hooprUITests/`,
 `hoopr/Assets.xcassets/`, `hoopr/GoogleService-Info.plist`, `.gitignore`,
 `tools/check_context_drift.py`
-**Verified:** 2026-08-21 @ 0edbeec
+**Verified:** 2026-08-21 @ a524a7f
 
 `Package.resolved` isn't listed separately — it lives under `hoopr.xcodeproj/`
 and is covered by it. (Anything backticked between the `Scope` and `Verified`

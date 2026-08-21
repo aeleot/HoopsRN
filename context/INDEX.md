@@ -21,16 +21,16 @@ every pass.
 
 | Entry | What it answers | Verified |
 |---|---|---|
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the app is wired: service ownership, startup order, the Firebase vendor boundary, listener recovery. | 2026-08-21 @ 0edbeec |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the app is wired: service ownership, startup order, the Firebase vendor boundary, listener recovery. | 2026-08-21 @ a524a7f |
 | [`DATA_MODEL.md`](DATA_MODEL.md) | The domain types and their contracts — stable court IDs, the profile's write rules, derived game status, what each error case means. | 2026-08-21 @ 9a81cc2 |
 | [`database/DATABASE_SCHEMA.md`](database/DATABASE_SCHEMA.md) | What's stored in Firestore and what a client may write, across all three collections. | 2026-08-21 @ 9a81cc2 |
 | [`database/USER_PROFILE_WORKFLOW.md`](database/USER_PROFILE_WORKFLOW.md) | What happens between sign-in and a rendered profile, including the search-key backfill. | 2026-08-21 @ 9a81cc2 |
-| [`MAP_LAYER.md`](MAP_LAYER.md) | The map, its UUID trigger pattern, the north bias, and the pins' heat-map colouring. | 2026-08-21 @ 0edbeec |
+| [`MAP_LAYER.md`](MAP_LAYER.md) | The map, its UUID trigger pattern, the north bias, and the pins' heat-map colouring. | 2026-08-21 @ a524a7f |
 | [`COURT_DATASET.md`](COURT_DATASET.md) | Where courts come from and how to regenerate or extend them. | 2026-08-21 @ 9a81cc2 |
 | [`UI_SHELL.md`](UI_SHELL.md) | Navigation structure, the Local Runs tab, the profile and its Friends pane, run creation, and the visual conventions. | 2026-08-21 @ 9a81cc2 |
-| [`BUILD_AND_CONFIG.md`](BUILD_AND_CONFIG.md) | Project identity, dependencies, the Firebase CLI surface, repo tooling, real test coverage. | 2026-08-21 @ 0edbeec |
+| [`BUILD_AND_CONFIG.md`](BUILD_AND_CONFIG.md) | Project identity, dependencies, the Firebase CLI surface, repo tooling, real test coverage. | 2026-08-21 @ a524a7f |
 | [`GAPS.md`](GAPS.md) | What's unfinished, and where comments and docs contradict the code. | 2026-08-21 @ 9a81cc2 |
-| [`PRODUCT_OVERVIEW.md`](PRODUCT_OVERVIEW.md) | **Business-facing.** What users can do today, what the app guarantees on security, accessibility and coverage, and what's planned. | 2026-08-21 @ 0edbeec |
+| [`PRODUCT_OVERVIEW.md`](PRODUCT_OVERVIEW.md) | **Business-facing.** What users can do today, what the app guarantees on security, accessibility and coverage, and what's planned. | 2026-08-21 @ a524a7f |
 
 ---
 

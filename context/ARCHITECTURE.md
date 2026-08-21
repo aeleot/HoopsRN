@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr/hooprApp.swift`, `hoopr/Services/`, `hoopr/ViewModels/`,
 `hoopr/Support/FailureText.swift`, `hoopr/Support/PreferredRadiusPublisher.swift`
-**Verified:** 2026-08-21 @ 0edbeec
+**Verified:** 2026-08-21 @ a524a7f
 
 How the app is assembled: who owns what, what gets injected where, and the two
 orderings/boundaries that break the design if violated. Read this before

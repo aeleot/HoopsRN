@@ -1,7 +1,7 @@
 # hoopsRN — Product Overview
 
 **Scope:** —
-**Verified:** 2026-08-21 @ 0edbeec
+**Verified:** 2026-08-21 @ a524a7f
 
 What the app does today, stated in business terms: what a person can actually
 accomplish in it, what it guarantees about their data, and what is deliberately

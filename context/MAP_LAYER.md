@@ -3,7 +3,7 @@
 **Scope:** `hoopr/Views/MapView.swift`, `hoopr/Views/Tabs/MapTab.swift`,
 `hoopr/Views/Tabs/CourtRow.swift`, `hoopr/Views/Components/CourtBadges.swift`,
 `hoopr/Support/CourtHeat.swift`
-**Verified:** 2026-08-21 @ 0edbeec
+**Verified:** 2026-08-21 @ a524a7f
 
 The map tab and its bottom sheet — the densest interaction code in the app, and
 the part most likely to break subtly when edited. Read this before touching
