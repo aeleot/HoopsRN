@@ -55,9 +55,11 @@ commands.
 **`ZoomTrigger`, `AbsoluteZoomTrigger`, `zoomLevelFromSpan` and
 `spanFromZoomLevel` are gone**, along with the `+`/slider/`−` stack that was
 their only caller. The vertical zoom slider occupied a 44×180pt column of the
-map to duplicate a pinch, and no shipping iOS map app has one. `minDelta` /
-`maxDelta` survive as plain constants because the cluster-tap zoom still clamps
-against `minDelta`.
+map to duplicate a pinch, and no shipping iOS map app has one. `maxDelta` went
+with them, and `minDelta` followed on 2026-08-22: its last caller was the
+cluster-tap zoom clamp, which died with clustering (below). **There is no
+programmatic zoom left in the map at all** — only `setRegion` for the initial
+region and the recenter trigger, both at fixed spans.
 
 ## The north bias
 
@@ -104,7 +106,7 @@ so VoiceOver has something to read. Nothing renders it, and `subtitle` is gone
 entirely.
 
 The view is a shadowed `ring` (surface-coloured) containing a `disc`
-containing either the basketball glyph or a cluster count. **Colours are set as
+containing the basketball glyph. **Colours are set as
 UIView `backgroundColor`s, never `CALayer.backgroundColor`** — a `UIColor` from
 a dynamic provider only re-resolves on a trait change when a view holds it; a
 layer colour freezes at whichever appearance was current when it was assigned.
@@ -112,23 +114,44 @@ That reasoning used to apply only to `Theme.swift`'s roles; since the heat map
 (below) the disc's colour is a fixed, non-dynamic `UIColor` bridged fresh from
 `CourtHeat` on every configure call, so the dynamic-provider case no longer
 applies to *this* colour specifically — the rule about setting it on the view
-rather than the layer still does, because `configureAsCourt`/`configureAsCluster`
-re-set `disc.backgroundColor` on every call anyway (selection changes, a game
-being booked), and a layer colour would still need the same re-assignment.
+rather than the layer still does, because `configureAsCourt` re-sets
+`disc.backgroundColor` on every call anyway (selection changes, a game being
+booked), and a layer colour would still need the same re-assignment.
 
 Because a circle marks its spot with its centre rather than a tip,
-`centerOffset` is `.zero` and `collisionMode` is `.circle`. Courts are 34pt,
-clusters 38pt so a group reads as "more than one" before you've read its number.
+`centerOffset` is `.zero` and `collisionMode` is `.circle`. **Courts are 27pt**,
+cut 20% from 34pt when clustering was removed (below) — with every court drawn
+individually, a smaller circle is what keeps a dense block legible, because
+MapKit hides a pin whose circle collides with a higher-priority neighbour's and
+a smaller circle survives that test at more zoom levels. The glyph's symbol
+point size was scaled with it (15 → 12) so it keeps its share of the disc.
+There is no second diameter any more; `layOut()` takes no parameter.
 
 ## `CourtHeat` — the pins' heat-map colouring
 
 Added 2026-08-21. Every pin's disc is coloured by **how many games are
-scheduled at that court today**, not by the fixed brand orange: a light,
-white-leaning sky blue for nothing scheduled, climbing through two close warm
-ambers, and landing on a deep red for the busiest tier. `CourtHeat.swift` owns
-the five-stop lookup (`color(forGameCount:)`, clamped at both ends); nothing
-about the map's own code decides what the colours *are*, only what count goes
-in.
+scheduled at that court today**: an all-orange scale that *starts* on the
+brand orange for nothing scheduled and darkens and reddens in even steps to a
+saturated reddish orange for the busiest tier. `CourtHeat.swift` owns the
+five-stop lookup (`color(forGameCount:)`, clamped at both ends); nothing about
+the map's own code decides what the colours *are*, only what count goes in.
+
+**Stop 0 is `hooprOrange`'s light value, hardcoded** (`F79331`), not a
+reference to the role — the palette is deliberately fixed rather than routed
+through `Theme.swift`'s light/dark provider, because it's a data scale read
+against the muted basemap in both appearances rather than chrome that should
+invert. `CourtHeatTests` pins the hex, which is what catches the two drifting
+apart if the brand orange is ever retuned again.
+
+The scale was rebased onto the brand orange on 2026-08-22. It previously
+opened on a near-white cream (`FDECD8`) so a quiet court receded into the map;
+starting at the brand orange makes an unbooked court read as a *court* first
+and a quiet one second. The tradeoff is named rather than hidden: the whole
+ramp now occupies the top half of the old lightness range, so "nothing today"
+and "one game" differ by one even step rather than the pale-to-saturated jump
+they used to. The three middle stops are a straight linear RGB interpolation
+between the two ends, which is what keeps those steps even (~19 luma apiece,
+hue walking 30° → 10°); two tests assert that shape.
 
 **Selection no longer changes a pin's colour.** It used to swap to
 `hooprDarkOrange`; now the heat colour is drawn regardless of selection, and a
@@ -143,14 +166,10 @@ court for the current calendar day, and publishes it as
 `gameCountByCourtID: [String: Int]`. `MapTab` threads that straight into
 `MapView`, which is the only thing that ever calls `CourtHeat`:
 
-- `MapView.heatColor(for:)` looks up a single court's own count.
-- `MapView.heatColor(forCluster:)` walks a `MKClusterAnnotation`'s
-  `memberAnnotations`, sums each member court's count, and colours the cluster
-  disc by that **sum** — not by how many courts got folded together. A cluster
-  of five quiet courts stays the quiet blue; two courts with three games each
-  make a two-court cluster read as busy as the four-tier ceiling. The member
-  count MapKit hands back still drives the number printed on the disc; it just
-  no longer drives the colour under it.
+`MapView.heatColor(for:)` looks up a single court's own count, and since
+clustering was removed that is the only lookup there is — one pin, one court,
+one number. (`heatColor(forCluster:)`, which summed counts across a group's
+members, is gone with it.)
 
 **No new read, no rules change.** The two arrays this sums are exactly what
 `GameService`'s existing listeners already deliver — public runs, plus runs the
@@ -159,13 +178,43 @@ private run this account isn't part of; it can only ever show what the read
 rule already let this account see. See `PRODUCT_OVERVIEW.md` for the
 user-facing description.
 
-**Why colour has to be re-applied on every `updateUIView`, cluster views
-included.** `viewFor` only runs when MapKit creates or recycles a view, but a
-pin's count can change with no annotation being added, removed, or reselected —
-someone just booked a game. `updateUIView`'s restyle loop used to skip
-`MKClusterAnnotation`s entirely (it only matched `CourtAnnotation`); it now
-branches on both, because a cluster's colour is exactly as live as a solo
-pin's.
+**Why colour has to be re-applied on every `updateUIView`.** `viewFor` only
+runs when MapKit creates or recycles a view, but a pin's count can change with
+no annotation being added, removed, or reselected — someone just booked a game.
+So `updateUIView` walks every `CourtAnnotation` on screen and re-runs
+`configureAsCourt`, which re-applies both the heat colour and the selection
+styling.
+
+## There is no clustering
+
+**Removed 2026-08-22.** MapKit's automatic clustering folded nearby courts into
+a numbered disc. The number was the problem: it counted *member annotations*,
+so it read as a court count while sitting on a disc whose colour meant
+games-today — two different quantities in one badge, and the count was the
+misleading one. "3" on a pin in a park with three adjacent courts said nothing
+about whether anyone was playing there.
+
+It could not be tuned into something honest. MapKit exposes **no public
+radius/distance control** over when it clusters; the only lever is
+`MKAnnotationView.clusteringIdentifier` (`nil` opts a view out entirely), and
+a court's own view size has no effect on clustering at all — that's the
+separate `collisionMode` mechanism. An attempt to gate `clusteringIdentifier`
+on a zoom threshold also ran into the fact that it lives on the *view*, not the
+annotation, and MapKit only reads it when creating a fresh view — so already
+clustered courts kept their view and never split, no matter how far you zoomed.
+Forcing a full `removeAnnotations`/`addAnnotations` on each threshold crossing
+did work, but it bought a zoom-dependent split for a badge that still lied.
+Both of those mechanisms are gone; don't reintroduce either without re-reading
+this paragraph.
+
+**What replaces it: nothing.** `viewFor` never sets `clusteringIdentifier`,
+which is what keeps MapKit from grouping at all. `CourtMarkerView` shrank 20%
+instead (above), and MapKit's own collision handling — `collisionMode =
+.circle` plus `displayPriority` — thins dense areas by *hiding* overlapping
+pins rather than merging them. So a visible pin always means exactly one court,
+and its colour always means that court's games today. The cost is honest and
+worth naming: at wide zooms most courts are simply not drawn, and there is no
+badge telling you how many were dropped.
 
 ## Basemap suppression
 
@@ -283,13 +332,56 @@ It carries the court's `displayName`, a `city · distance` line, the same
 and state — "Durham, NC" — which the metadata line above it already says. It's
 still passed to Maps by `openDirections(to:)`, where it does work.
 
-The card and the row show the same badges on purpose: before that, tapping a
-court to learn more about it showed you *less* than the row you tapped it from.
-`CourtBadges` is the shared view and the **only** definition of what those chips
-say — `CourtRow` carried a private duplicate until 2026-08-21 that had already
-drifted from it. Its "Restricted" chip is the odd one out, outlined in red
-rather than filled, because every other label says what a court *has* while that
-one says you may not get on it.
+The card and the row draw the same badges from the same place on purpose:
+before that, tapping a court to learn more about it showed you *less* than the
+row you tapped it from. `CourtBadges` is the shared view and the **only**
+definition of what those chips say — `CourtRow` carried a private duplicate
+until 2026-08-21 that had already drifted from it. Its "Restricted" chip is the
+odd one out, outlined in red rather than filled, because every other label says
+what a court *has* while that one says you may not get on it.
+
+**The row may show fewer of them than the card, and only ever fewer.** Since
+2026-08-22 the badges sit beside the court's name rather than on their own line
+(see "`CourtRow` — one height for every court" below), so a long name and a
+well-equipped court can't both fit. `CourtBadges` takes an optional `limit` and
+`CourtRow` walks a `ViewThatFits` ladder — all badges, then 2, then 1, then
+none — picking the widest arrangement that fits. The card never passes a limit.
+The old invariant still holds in the direction that mattered: the card is never
+the *poorer* of the two.
+
+`amenities(for:limit:)` is where the narrowing lives, and it has one rule worth
+knowing before touching it: **a caution is never the badge that gets dropped.**
+"Restricted" is emitted last for display, so a plain `prefix` would shed exactly
+the chip a player most needs. Cautions are kept first and the leftover slots
+filled with features, then re-emitted in display order. `CourtBadgesTests` pins
+this.
+
+## `CourtRow` — one height for every court
+
+**Every row in the nearby list is exactly as tall as every other**, and that is
+a constraint the layout is built around rather than a happy accident. Badges
+used to sit on their own line under the metadata, so a court with amenities was
+a full line taller than one without and the list scrolled in uneven jumps.
+
+Three things together produce the uniform height, and removing any one of them
+brings the variance back:
+
+1. **Badges moved beside the name**, collapsing every row to two lines.
+2. **The name is `lineLimit(1)`.** Wrapping is the other way a row grows.
+3. **`badgeLineHeight` floors the name line.** A court with *no* badges would
+   otherwise be a couple of points shorter than one with them, because a badge
+   capsule (11pt text + 4pt padding each side) is slightly taller than a 16pt
+   name. It's a `@ScaledMetric(relativeTo: .caption2)` rather than a literal 21
+   because the badges scale with Dynamic Type — a fixed floor stops matching the
+   moment the reader leaves the default text size, which is exactly when uneven
+   rows read worst. `.caption2` is the style `Typography.swift` maps 11pt onto,
+   so the floor tracks the badge's own curve instead of guessing at one.
+
+The width tradeoff that falls out of this is handled by the `ViewThatFits`
+ladder described under the detail card above: **badges are shed, the name is
+not.** A badge is a fact you can still get by tapping through; the name is how
+you know which court the row is. "George Watts Playground" reads in full with
+one badge rather than truncating to "George Watts Playgro…" with two.
 
 ## Distances and location
 
@@ -344,13 +436,15 @@ nearby-list row — already open this card, so one button serves both. See
 - The initial region, list distances, and the recenter target all read
   `FindAMatchViewModel.homeLocation`, which forwards to
   `LocationService.homeLocation`. Keep the single anchor.
+- **`viewFor` never sets `clusteringIdentifier`.** That is the whole mechanism
+  keeping the map unclustered — one visible pin is always exactly one court.
+  Setting it reintroduces numbered group discs and the count-vs-colour
+  ambiguity they carried; see "There is no clustering" before you do.
 - A pin's colour comes from `CourtHeat`, never from `hooprOrange`/
-  `hooprDarkOrange` directly, and never changes on selection. A cluster's
-  colour is `CourtHeat` over the **sum** of its members' counts, not their
-  member count. Both `viewFor` and `updateUIView`'s restyle loop must handle
-  `MKClusterAnnotation`, not just `CourtAnnotation` — a restyle loop that only
-  matches one silently stops recolouring the other the moment counts change
-  without an annotation being added or removed.
+  `hooprDarkOrange` directly, and never changes on selection.
+  `updateUIView`'s restyle loop must keep re-running `configureAsCourt` over
+  the on-screen annotations — a loop that skips it silently stops recolouring
+  pins the moment counts change without an annotation being added or removed.
 
 ## See also
 

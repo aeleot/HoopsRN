@@ -31,15 +31,17 @@ as friends today.
 
 - **Browse 214 curated courts** across six Triangle cities — Durham (55),
   Raleigh (53), Chapel Hill (43), Cary (26), Apex (22), Morrisville (15) — on a
-  map with clustered pins, or as a distance-sorted list.
+  map, or as a distance-sorted list. **Every pin is one court.** Pins are never
+  grouped into a numbered bundle; zoomed out, the map thins itself by drawing
+  fewer pins rather than by merging them, so what you see is always individual
+  courts you can tap.
 - **See how busy a court is today at a glance.** Every pin is coloured on a
-  five-step scale from a quiet, pale blue (nothing scheduled) through two warm
-  ambers to a deep red (several runs booked) — today's game count at that
-  court, not a static rating. Zoomed out, a cluster of several courts is
-  coloured by the total across everything folded into it, so a bundle of quiet
-  courts still reads as quiet. This reads only games the account could already
-  see elsewhere in the app — a public run, or one it's personally on — so it
-  never reveals a private run belonging to someone else.
+  five-step, all-orange scale that starts at the brand orange (nothing
+  scheduled) and darkens step by step to a saturated reddish orange (several
+  runs booked) — today's game count at that court, not a static rating. This
+  reads only games the account could already see elsewhere in the app — a
+  public run, or one it's personally on — so it never reveals a private run
+  belonging to someone else.
 - **Filter** by lights, two-or-more hoops, and public access.
 - **See what a court has** before travelling: hoop count, surface, lighting,
   covered, and a caution flag for restricted access. Only facts the source data
@@ -153,7 +155,7 @@ not intended to.
 
 ### Test coverage
 
-**112 automated tests across ten suites**, all carrying real coverage — no
+**120 automated tests across eleven suites**, all carrying real coverage — no
 scaffold:
 
 | Area | Tests | What it protects |
@@ -164,8 +166,9 @@ scaffold:
 | Failure handling | 15 | Reconnection schedule, per-listener recovery, error classification |
 | Friendships | 10 | Stored shape, pair identity, request direction |
 | Accessibility | 8 | WCAG AA contrast, light and dark |
-| Map heat colours | 8 | The five-stop scale's boundaries and clamping |
+| Map heat colours | 10 | The five-stop scale's boundaries, clamping, and that it always darkens in even steps |
 | Court naming | 6 | Display-name derivation across every screen |
+| Court badges | 6 | That shortening a list row's badges never hides the restricted-access warning |
 | Client/server parity | 6 | That the app's rules and the server's rules still agree |
 | Map heat join | 5 | Per-court/per-day game counting: dedup, day boundary, public vs. private |
 

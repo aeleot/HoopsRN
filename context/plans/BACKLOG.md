@@ -653,7 +653,7 @@ until this exists.
 
 **Size:** Medium
 
-`SCALE_UP.md` §1 fixes *which* runs are queried; this fixes *when* they stop
+`SCALE_UP.md` fixes *which* runs are queried; this fixes *when* they stop
 being queried. `GAPS.md` step 1 describes it: `Game.visibilityGrace` is 3h, and
 the query's cutoff is **fixed when the listener attaches**. A session left open
 overnight keeps querying against last night's cutoff. `isVisible(at:)` hides
@@ -681,6 +681,16 @@ indefinitely.
 ---
 
 ### C5 — Heat-colored court markers by today's scheduled game count
+
+> **Shipped 2026-08-21; kept here only as the design record.** What's true now
+> lives in `MAP_LAYER.md` (`CourtHeat`) and `PRODUCT_OVERVIEW.md`. Two things
+> below did **not** land as written: the palette is a five-stop all-orange
+> scale of fixed, non-dynamic colours in `CourtHeat.swift` rather than
+> light/dark `Theme.swift` roles (it's a data scale read against the basemap,
+> not app chrome), and **every cluster criterion is void** — clustering was
+> removed outright on 2026-08-22, so `configureAsCluster` and any
+> member-aggregation policy no longer exist. See `MAP_LAYER.md`'s "There is no
+> clustering" for why.
 
 **Size:** Medium-Large
 
@@ -810,6 +820,224 @@ in both docs and leave them as two signals for now.
 
 ---
 
+### D5 — Ship a real app icon and accent color
+
+**Size:** Small-Medium
+
+`Assets.xcassets/AppIcon.appiconset/Contents.json` declares the full modern
+icon-slot set and every slot is empty; `Assets.xcassets/AccentColor.colorset`
+declares no color. `GAPS.md` calls this out under *Assets and data*: "The app
+ships with the default placeholder icon." Every other polish story in this
+backlog assumes there's a shipped-looking app underneath it — this is the one
+gap that's visible before a user opens the app at all, on the home screen and
+in the App Store listing alike.
+
+*Acceptance criteria:*
+- A real icon fills every slot `Contents.json` declares, at the checked-in
+  resolutions. If the target moves to the single 1024×1024 "all sizes" format
+  Xcode 26 supports, `Contents.json` itself is updated to match rather than
+  left declaring slots nothing fills.
+- `AccentColor` gets a deliberate value — recommend deriving it from
+  `Color.hooprOrange` in `Theme.swift` rather than a fresh literal, so the
+  system-level tint (widgets, the Settings app-icon row, share-sheet chrome)
+  agrees with the in-app brand color instead of introducing a second orange
+  nobody chose on purpose. `AccentColor.colorset` supports the same
+  light/dark split `Theme.swift` uses for every other role — use it, and
+  confirm the result reads correctly on both an actual light and dark home
+  screen.
+- The `hoopsRN`-vs-`hoopr` naming gap in `GAPS.md`'s Configuration section
+  doesn't block this — icon and accent color are visual assets, not
+  identifiers, so this story doesn't wait on that decision.
+- `GAPS.md`'s Assets and data row for this is struck once shipped.
+
+---
+
+### D6 — Host controls for a full run: waitlist promotion and closing out a game
+
+**Size:** Large · **Note:** the first story in this backlog that needs the
+Blaze plan
+
+Two related gaps that share a cause. `GAPS.md`: "No waitlist promotion. When a
+confirmed player leaves a full run, the freed slot isn't handed to the first
+waitlisted player — the update rule forbids writing another user's uid,
+deliberately. Needs a host action or a Cloud Function." And separately: "No
+host controls for `in_progress` / `completed`. Both statuses are declared and
+neither is ever written; runs age out `Game.visibilityGrace` (3h) after
+tip-off instead."
+
+The `games` update rule's membership diff is exactly as deliberate as Track
+A's design note says: a caller may only move themselves across
+`playerIds`/`queuedPlayerIds`, so *no client write* can hand a departing
+player's seat to someone else. That's correct and shouldn't be loosened — it's
+the same guarantee Track A leans on. The honest fix is server-side, which this
+project has avoided everywhere else specifically to stay on Spark. This story
+is the one place in the backlog to name that directly and make the call
+rather than let it sit as an unstated gap forever.
+
+*Acceptance criteria:*
+- **The plan decision is made explicitly and recorded**, not defaulted into.
+  If the project moves to Blaze: a Cloud Function triggered on `games`
+  updates promotes the first `queuedPlayerIds` entry into `playerIds` when a
+  confirmed player leaves a run that still has a waitlist, and a scheduled
+  Function transitions `open`/`full` → `in_progress` at `scheduledTime` and →
+  `completed` after some duration, superseding the client-side
+  `visibilityGrace` hiding used today (`D4`). If the project stays on Spark:
+  this story is recorded as explicitly deferred in `GAPS.md`, not silently
+  dropped, since two "Next steps" items already point at it.
+- Promotion selection is a **pure function** over `queuedPlayerIds`
+  (first-in, first-out unless a different order is chosen deliberately), unit
+  tested independent of the Function runtime — the same discipline every
+  other matching decision in this backlog follows.
+- The Function runs with admin credentials, so it is exempt from the
+  membership-diff rule by design (Cloud Functions bypass Firestore security
+  rules) — state that next to the rule itself in
+  `database/DATABASE_SCHEMA.md`, so a future reader doesn't conclude the rule
+  was weakened.
+- A promoted player gets an in-app state change; per `A3`'s honest
+  limitation, they cannot be *pushed* to unless `SCALE_UP.md` §7's push
+  design lands alongside this.
+- `D4`'s client-side `visibilityGrace` window stays as the fallback for any
+  run this Function hasn't reached yet (deploy lag, a cold Function), so a
+  stale run never renders as live even if the status write is late.
+
+---
+
+### C6 — Invite links: build the receiving half
+
+**Size:** Large
+
+Sending shipped 2026-08-15 — `Support/InviteLink.swift` mints a
+`hoopsrn://game/{id}` string, `CreateGameSheet` shows it after a private run
+is created, and `GameCard`/`InviteLinkCard` repeat it for a host. None of it
+does anything yet: `hoopsrn` isn't registered under `CFBundleURLSchemes`,
+nothing implements `.onOpenURL` in `hooprApp.swift`, and the `games` `read`
+rule refuses a non-member exactly as it should for a run with `isPublic ==
+false` — so a recipient who taps the link today gets nothing. `GAPS.md` §4
+has the full worked shape; this story is building it.
+
+*The decision this story has to make, not default into:* the current `read`
+rule is one clause covering both the list query and a direct-by-ID get. An
+unguessable document ID is not, by itself, an authorization model — anyone who
+learns the ID (a forwarded link, a leaked log line) can attempt the same read.
+Two ways to close that honestly:
+
+- *Option 1 — trust the ID (simplest):* leave the rule as-is; a private run's
+  ID is the only credential, generated server-side and never enumerable.
+  Cheap, and consistent with how `friendships/{uidA}_{uidB}` already treats a
+  derived ID as sufficient. Weakest if a link is ever pasted somewhere public.
+- *Option 2 — an `inviteToken` field, checked separately from membership:* a
+  rotatable credential distinct from the document ID, checked in the read
+  rule. Real revocation (a host can invalidate a leaked link without deleting
+  the run), at the cost of a schema field, a rule clause, and a "regenerate
+  invite" affordance somewhere.
+
+`context/prompts/invitation_for_private_game.md` has a worked design
+including the view-model skeleton — read it before starting rather than
+re-deriving the shape.
+
+*Acceptance criteria:*
+- The decision above is recorded in `database/DATABASE_SCHEMA.md` with its
+  reasoning.
+- `hoopsrn` registered under `CFBundleURLSchemes`; `hooprApp.swift` handles
+  `.onOpenURL`, stashing the pending `gameId` across a cold start and a
+  sign-in that hasn't completed yet.
+- `GameService.fetchGame(byId:)` added alongside the existing `createGame` /
+  `joinGame` / `leaveGame` / `cancelGame` methods, following the same
+  error-mapping convention as the rest of the service.
+- An `InviteJoinView` (or equivalent) covers every state a link can land in,
+  not just the happy path: already on the roster, full (offers the
+  waitlist), aged past `visibilityGrace`, deleted, and the "not signed in
+  yet" case the pending-`gameId` stash exists to handle.
+- Joining through an invite link uses the same self-join write `C1`'s roster
+  actions and `A1`'s Queue Up use — no second join path into `games`.
+- `InviteLink.swift`'s doc comment ("**The link is not yet openable**") and
+  `GAPS.md` §4 are both updated once this ships.
+
+---
+
+### C7 — Color system redesign: a genuinely new palette, not another shade tweak
+
+**Size:** Medium-Large
+
+Every palette change so far has been a one-line retune of the *existing*
+system: `6e2fe50` desaturated `hooprOrange` by 20 points, the same day
+`hooprOnBrand` flipped white→black on the same fill. Both were narrow,
+justified, and left the app looking like the same app. Nobody has taken a
+step back and asked whether one orange plus a neutral gray scale plus one red
+is the palette a run-finding social app should have, or just the palette it
+started with. This story is that step back: a deliberate visual redesign of
+the color system, driven by what looks good and distinctive, not by a
+one-field diff.
+
+`Theme.swift` today is genuinely narrow by design — brand (`hooprOrange`,
+`hooprDarkOrange`), one semantic red (`hooprRed`), two neutral surfaces
+(`hooprBackground`, `hooprSurface`, `hooprFill`, `hooprBorder`), and two text
+weights (`hooprPrimaryText`, `hooprSecondaryText`). `CourtHeat.swift` adds a
+five-stop literal ramp on top, deliberately outside this system. That's a
+reasonable *starting* palette, not a ceiling — this story should feel free to
+propose a genuinely different direction (a second accent hue, a warmer or
+cooler neutral base, a more considered relationship between the brand color
+and the map's heat ramp) rather than only reshading what's there.
+
+*Suggested approach:* mock up two or three real candidate palettes against
+actual screens — `LoginView`, `MapTab`'s court sheet, `GameCard`, `ProfileView`
+— before touching `Theme.swift`, so the choice is made by looking at the app
+rather than by eyeballing hex values. The `design` skill is built for exactly
+this kind of comp. Pick one direction and land it as a single considered
+change, not another drip of one-role patches.
+
+*The AA gap folds into this, as a constraint rather than the driver:*
+`hooprOrange` currently fails WCAG AA as a **foreground** — 2.55:1 on
+`hooprBackground`/`hooprSurface`, 2.34:1 on `hooprFill` in light mode, both
+under the 4.5:1 text floor and the 3:1 graphic floor. It's drawn as a
+foreground in at least nine places: `ProfileRow.swift`'s leading symbols,
+`PlayerAvatar.swift`'s initials, `CourtRow.swift`'s filled favorite star,
+`ProfileIdentity.swift`'s avatar ring, `MapTab.swift`'s recenter and favorite
+glyphs, and `GameCard.swift`'s basketball glyph. `hooprTests/ThemeContrastTests.swift`
+pins this as `testBrandAsForegroundIsATrackedGap`, a deliberately *failing*
+test with a comment reading "**Add the real assertion in the same change that
+adds the role.**" Whatever the new palette turns out to be, every color used
+as text or a thin glyph has to clear AA in both appearances before this story
+is done — that requirement shapes the redesign, it doesn't wait for a
+follow-up.
+
+*Acceptance criteria:*
+- A candidate palette is chosen against real screens (mockups or comps), not
+  tuned live in `Theme.swift` by trial and error.
+- The result is still expressed entirely as named roles in `Theme.swift`,
+  each with a light/dark pair through `Color.hoopr(light:dark:)` — the file's
+  own stated invariant is "there are no literal colours left in `Views/`,"
+  and this redesign should tighten that discipline, not create an exception
+  for itself.
+- Every role that can be drawn as text or a thin glyph clears 4.5:1 (or 3:1
+  for a purely graphic mark) against every surface it's actually drawn on, in
+  **both** appearances — extend `ThemeContrastTests` with the same
+  three-ground pattern `testSecondaryTextOnEverySurfaceItIsDrawnOn` already
+  uses, and replace `testBrandAsForegroundIsATrackedGap`'s failing pin with a
+  real passing assertion in the same change. `GAPS.md`'s Accessibility entry
+  is struck once this lands.
+- **`CourtHeat.swift`'s relationship to the new palette is a stated decision,
+  not an oversight.** Its five-stop ramp is deliberately "fixed rather than
+  routed through `Theme.swift`'s light/dark provider," on the reasoning that
+  it's a data scale read against the map's basemap, not app chrome — decide
+  whether that ramp gets restyled to match the new brand hue, stays exactly
+  as it is, or is redesigned as its own considered scale, and say which in
+  both `CourtHeat.swift`'s doc comment and `MAP_LAYER.md`.
+- Every top-level screen gets a visual pass with the new palette, not just
+  the components that happen to reference `Color.hooprOrange` today —
+  `LoginView`, `MainTabView`'s tab bar, `MapTab` (map chrome and the court
+  sheet), `ProfileView`, the Friends screens, `GameCard`, `CreateGameSheet`.
+  A redesign that reads as coherent in `Theme.swift` but disjointed on an
+  actual screen isn't done.
+- `UI_SHELL.md` is updated with the new palette's roles and the reasoning
+  behind the direction chosen, replacing its current description of the
+  brand color rather than appending to it.
+- **Sequence this ahead of `D5`** if both are picked up: `D5` recommends
+  deriving `AccentColor` from `Color.hooprOrange`, and that should point at
+  whatever this story lands on, not at a value about to be replaced.
+
+---
+
 ## Suggested sequencing
 
 Not a commitment, just the order with the fewest blocked dependencies:
@@ -822,18 +1050,23 @@ Not a commitment, just the order with the fewest blocked dependencies:
 5. **D3** (rules coverage) — before A2/B1/B3 each add an unverified rules block.
 6. **A2** (the queue) + the `presence`-vs-`checkins` decision.
 7. **B1** (handles) / **B3** (blocking) / **C2** / **C3** / **C5** (heat
-   markers) — parallel tracks. C5 has no rules/index dependency, so it can
-   slot in wherever there's capacity rather than waiting its turn.
-8. **A3** (auto-form), **D2**, **D4**, **C4** — as capacity allows.
+   markers) / **C7** (color redesign) — parallel tracks. None of these has a
+   rules or index dependency, so each can slot in wherever there's capacity
+   rather than waiting its turn. If **D5** (app icon) is picked up too, land
+   it after C7 — D5's accent color derives from the palette C7 settles on.
+8. **A3** (auto-form), **D2**, **D4**, **C4**, **C6** (invite links) — as
+   capacity allows.
+9. **D6** (waitlist promotion / completed status) — gated on the Blaze-plan
+   decision it names, otherwise sequence-independent of everything above.
 
 ## Documentation debt
 
 | Entry | Change |
 |---|---|
-| `database/DATABASE_SCHEMA.md` | `queueEntries` (or `presence`) and its rules/indexes; the `handles` collection if B1 takes that path; the block list under `private`. |
+| `database/DATABASE_SCHEMA.md` | `queueEntries` (or `presence`) and its rules/indexes; the `handles` collection if B1 takes that path; the block list under `private`; the invite-access decision (C6); the admin-Function-bypasses-rules note (D6). |
 | `DATA_MODEL.md` | The queue model and its error enum; the handle decision; correct the `CourtDataset` claim (D1). |
 | `ARCHITECTURE.md` | The new queue service in the ownership table; correct `CourtService`'s published properties (D1). |
-| `UI_SHELL.md` | The run detail screen's presentation and its player-display subset; the `@handle` rationale after B1; the queue's surface; the new heat color roles once C5 ships. |
+| `UI_SHELL.md` | The run detail screen's presentation and its player-display subset; the `@handle` rationale after B1; the queue's surface; the new heat color roles once C5 ships; the redesigned palette and its roles once C7 ships. |
 | `MAP_LAYER.md` | The `Detent`/`SheetState` model and container-height sizing (D1); court detail additions from C2; the location anchor after A0; C5's heat encoding, bucket thresholds, and cluster-aggregation policy. |
 | `COURT_DATASET.md` | Where attribution surfaces (C2); correct the `loadError` claim (D1). |
 | `BUILD_AND_CONFIG.md` | Emulator setup and how to run it (D3); the fixed UI test target (D2). |

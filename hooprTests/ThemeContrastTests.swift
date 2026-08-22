@@ -92,10 +92,14 @@ final class ThemeContrastTests: XCTestCase {
         assertContrast(.hooprOnBrand, on: .hooprOrange, atLeast: aaText, "on-brand label on brand fill")
     }
 
-    /// `hooprDarkOrange` is the selected map pin's disc and the cluster disc.
-    /// Asserted at the text floor rather than the graphic one even though both
-    /// marks are glyph-sized, because it clears it comfortably and a tighter
-    /// bound here costs nothing.
+    /// `hooprDarkOrange` **is not currently painted anywhere.** It was the
+    /// selected map pin's disc and then the cluster disc; `CourtHeat` took over
+    /// the first and clustering was removed entirely on 2026-08-22, leaving
+    /// this test as the role's only reference. Kept rather than deleted because
+    /// the role is still a defined part of the palette and this costs nothing
+    /// to hold — but if `hooprDarkOrange` is ever retired, this goes with it.
+    /// Asserted at the text floor rather than the graphic one because it clears
+    /// it comfortably and a tighter bound here costs nothing.
     func testBrandLabelOnDeepBrandClearsAA() {
         assertContrast(.hooprOnBrand, on: .hooprDarkOrange, atLeast: aaText, "on-brand label on deep brand fill")
     }

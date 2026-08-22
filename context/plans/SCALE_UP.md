@@ -135,54 +135,6 @@ home area" concept):
   city" needs it at this scale. Revisit only if region edges become a
   reported problem, not preemptively.
 
-### Stories
-
-**S1.1 — Add `region` to the `games` schema and rules**
-As the app, every run I store should carry a home-region key, so game
-discovery can be scoped instead of global.
-*Acceptance criteria:*
-- `Game` gains a non-optional `region: String`; `GameTests` covers decode/encode.
-- `GameService.createGame` writes `region` from the selected court's `city`.
-- `firestore.rules`' `games` `create` allowlist and type-check include
-  `region`; `update` continues to forbid touching it (it describes the run,
-  like `courtId`).
-- `FirestoreRulesParityTests` (or a new test) pins that the client and rules
-  agree on the field being required at create.
-- Existing runs without `region` are a known gap — see S1.3.
-
-**S1.2 — Scope the public-games query to the user's region**
-As a user, I want the Local Runs / public-games list to show runs near me
-first and only, so a growing platform doesn't drown out my own city.
-*Acceptance criteria:*
-- `publicListener`'s query adds `.whereField(Field.region, isEqualTo:
-  userRegion)`.
-- The new composite index is added to `firestore.indexes.json` and deployed
-  before the query change ships (an undeployed index turns every affected
-  read into `permission-denied`/`failed-precondition`, per the existing
-  two-step-rule pattern).
-- Two accounts in two different regions each see only their own region's
-  public runs in manual testing.
-- `Limit.published` is revisited now that it bounds one region instead of
-  the world — 100 was sized for a global list; a single city may want a
-  smaller number, or the same number now goes further.
-
-**S1.3 — Backfill `region` on existing documents**
-As an existing user, my already-scheduled public runs should keep showing up
-after the query changes shape.
-*Acceptance criteria:*
-- A one-off script (Admin SDK, run locally with a service account — this
-  does **not** require the Blaze plan, only Cloud Functions do) reads every
-  `games` document missing `region`, resolves `courtId` against the bundled
-  dataset, and writes the derived `region`.
-- Documented as a manual, one-time operation in `BUILD_AND_CONFIG.md`, the
-  same way the `userNameLower` backfill gap is documented in `GAPS.md` today
-  — this is exactly that shape of problem, with a real fix available this
-  time because there's no owner-only rule blocking a script from writing it.
-- Ship order matters: run the backfill, deploy the new rule + index, *then*
-  ship the client that queries by region — not the reverse, or a live app
-  briefly points a required-`region` query at documents that don't have one.
-
----
 
 ## 2. Court data has to stop being one bundled file
 
@@ -222,36 +174,6 @@ still correct and shouldn't be abandoned. Add a path that can grow past it:
 - New cities become a data push plus a `version` bump, not an app release.
   The build scripts in `tools/` don't change; only where their output lands
   does.
-
-### Stories
-
-**S2.1 — Serve court datasets from Firebase Hosting, bundled file as fallback**
-As the app, I want new-city court data to reach users without an app update,
-so expanding coverage isn't gated on App Store review.
-*Acceptance criteria:*
-- Regional (or delta) court JSON files are published to Firebase Hosting,
-  versioned per the existing `CourtDataset.version` field.
-- `CourtService` attempts a versioned fetch on launch/foreground, applies it
-  only if `version` is newer than the bundled copy, and silently keeps the
-  bundled dataset on any failure — offline and airplane-mode behavior is
-  unchanged from today.
-- A network-dependent fetch never blocks first paint; the bundled data
-  renders immediately, per the existing "map is populated instantly" design
-  goal in `COURT_DATASET.md`.
-- `COURT_DATASET.md` is updated to describe the hosted layer alongside the
-  bundled one.
-
-**S2.2 — City/region picker as onboarding and profile setting**
-As a user, I want to tell the app which city I'm in, so I see relevant runs
-and courts from the moment I sign up — including in a city added after I
-installed.
-*Acceptance criteria:*
-- New sign-ups pick (or the app suggests, from device location) a home
-  region during onboarding; existing users are prompted once, non-blockingly.
-- `UserProfile` gains `homeRegion`, following the existing two-step rule
-  (service method + rules allowlist entry + redeploy).
-- Changing it in `ProfileView` re-scopes both the court list and the public
-  games query (§1) live.
 
 ---
 

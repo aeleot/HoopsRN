@@ -45,18 +45,19 @@ final class CourtAnnotation: NSObject, MKAnnotation {
 /// was current when it was assigned.
 final class CourtMarkerView: MKAnnotationView {
     static let courtReuseID = "courtMarker"
-    static let clusterReuseID = "courtClusterMarker"
 
-    private static let courtDiameter: CGFloat = 34
-    /// Slightly larger than a single court, so a group reads as "more than one"
-    /// before you've read the number in it.
-    private static let clusterDiameter: CGFloat = 38
+    /// 20% down from the 34pt this was while clustering existed. With every
+    /// court now drawn individually (see `MapView`'s note on why clustering
+    /// was dropped), a smaller disc is what keeps a dense block of courts
+    /// legible: MapKit hides a pin whose circle collides with a
+    /// higher-priority neighbour's, so shrinking the circle is what lets more
+    /// of them survive that test at a given zoom.
+    private static let courtDiameter: CGFloat = 27
     private static let ringWidth: CGFloat = 3
 
     private let ring = UIView()
     private let disc = UIView()
     private let glyph = UIImageView()
-    private let countLabel = UILabel()
 
     override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
@@ -87,16 +88,13 @@ final class CourtMarkerView: MKAnnotationView {
 
         glyph.contentMode = .center
         glyph.tintColor = UIColor(Color.hooprOnBrand)
+        // Scaled with `courtDiameter` so the glyph keeps its share of the
+        // disc rather than crowding it at the smaller size.
         glyph.image = UIImage(
             systemName: "basketball.fill",
-            withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
+            withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
         )
         disc.addSubview(glyph)
-
-        countLabel.textAlignment = .center
-        countLabel.textColor = UIColor(Color.hooprOnBrand)
-        countLabel.font = .systemFont(ofSize: 14, weight: .bold)
-        disc.addSubview(countLabel)
     }
 
     @available(*, unavailable)
@@ -112,19 +110,16 @@ final class CourtMarkerView: MKAnnotationView {
     /// - Parameters:
     ///   - color: The disc fill. Callers pass `CourtHeat.color(forGameCount:)`
     ///     for that court, bridged to `UIColor` — selection no longer swaps the
-    ///     tint (see the type-level note on why), so the same colour is drawn
-    ///     whichever branch below runs.
+    ///     tint (see the type-level note on why).
     ///   - isSelected: Still drives the scale-up and collision priority. A
     ///     selected pin outranking its neighbours is what stops MapKit hiding
     ///     it when markers collide; that signal is independent of colour, so
     ///     it survives the heat map without conflating "selected" with "busy".
     func configureAsCourt(color: UIColor, isSelected: Bool) {
-        layOut(diameter: Self.courtDiameter)
+        layOut()
 
         disc.backgroundColor = color
         glyph.frame = disc.bounds
-        glyph.isHidden = false
-        countLabel.isHidden = true
 
         displayPriority = isSelected ? .required : .defaultHigh
         zPriority = isSelected ? .max : .defaultUnselected
@@ -133,30 +128,8 @@ final class CourtMarkerView: MKAnnotationView {
             : .identity
     }
 
-    /// - Parameters:
-    ///   - memberCount: How many courts this cluster folds together — what the
-    ///     disc's number actually reads.
-    ///   - color: The disc fill, from `CourtHeat.color(forGameCount:)` over the
-    ///     **sum** of games across every court in the cluster — see
-    ///     `MapView.heatColor(forCluster:)`. Deliberately not the member count:
-    ///     a bundle of five quiet courts should read as cool, not busy, and a
-    ///     bundle of two courts hosting six games between them should read hot
-    ///     even though the number on the disc just says "2".
-    func configureAsCluster(memberCount: Int, color: UIColor) {
-        layOut(diameter: Self.clusterDiameter)
-
-        disc.backgroundColor = color
-        countLabel.frame = disc.bounds
-        countLabel.text = "\(memberCount)"
-        countLabel.isHidden = false
-        glyph.isHidden = true
-
-        displayPriority = .required
-        zPriority = .max
-        transform = .identity
-    }
-
-    private func layOut(diameter: CGFloat) {
+    private func layOut() {
+        let diameter = Self.courtDiameter
         bounds = CGRect(x: 0, y: 0, width: diameter, height: diameter)
         ring.frame = bounds
         ring.layer.cornerRadius = diameter / 2
@@ -166,13 +139,31 @@ final class CourtMarkerView: MKAnnotationView {
     }
 }
 
+/// The court map. **Every court is its own pin — there is no clustering.**
+///
+/// MapKit's automatic clustering was removed on 2026-08-22. It folded nearby
+/// courts into a numbered disc, and that number was the problem: it counted
+/// *member annotations*, so it read as a court count while sitting on a disc
+/// whose colour meant games-today. Two different quantities in one badge, and
+/// the count was the misleading one — "3" on a pin in a park with three
+/// adjacent courts said nothing about whether anyone was playing. MapKit
+/// exposes no radius/distance control over when it clusters (only the coarse
+/// `clusteringIdentifier` opt-out), so there was no way to tune it into
+/// something honest, and a heat map you can't read at a glance isn't worth a
+/// badge that lies.
+///
+/// What replaces it: nothing. `CourtMarkerView` shrank 20% instead, and
+/// MapKit's own collision handling (`collisionMode = .circle` plus
+/// `displayPriority`) thins dense areas by *hiding* overlapping pins rather
+/// than merging them — so a visible pin always means one court, and its
+/// colour always means that court's games today.
 struct MapView: UIViewRepresentable {
     let courts: [Court]
     let initialRegion: MKCoordinateRegion
     @Binding var recenterTrigger: RecenterTrigger?
     /// How many games are scheduled today at each court, keyed by `Court.id`.
-    /// Drives a pin's fill through `CourtHeat` — see `heatColor(for:)` and
-    /// `heatColor(forCluster:)`, the two places this is actually read.
+    /// Drives a pin's fill through `CourtHeat` — see `heatColor(for:)`, the
+    /// one place this is actually read.
     var gameCountByCourtID: [String: Int] = [:]
     /// Drawn larger, and outranking its neighbours in a collision, so the
     /// tapped court stays findable once the sheet covers part of the map.
@@ -180,13 +171,6 @@ struct MapView: UIViewRepresentable {
     var selectedCourtID: String?
     var onMarkerTap: ((Court) -> Void)?
     var onMarkerDeselect: (() -> Void)?
-
-    /// Bounds on how far a programmatic zoom may travel. The stepped zoom
-    /// buttons that used to read these are gone — pinch has no such limit —
-    /// but a cluster tap still clamps against `minDelta` so tapping the last
-    /// group doesn't bottom out the map.
-    fileprivate static let minDelta: Double = 0.01
-    fileprivate static let maxDelta: Double = 5.0
 
     /// `setRegion` puts its target at the exact centre of the map view's
     /// bounds — but the map itself runs edge to edge under the floating
@@ -218,16 +202,6 @@ struct MapView: UIViewRepresentable {
     /// scheduled anything".
     fileprivate func heatColor(for court: Court) -> UIColor {
         UIColor(CourtHeat.color(forGameCount: gameCountByCourtID[court.id] ?? 0))
-    }
-
-    /// A cluster's heat colour: the **sum** of today's games across every
-    /// court it folds together, not the member count MapKit hands back —
-    /// those answer different questions, and only one of them is "how busy".
-    fileprivate func heatColor(forCluster cluster: MKClusterAnnotation) -> UIColor {
-        let total = cluster.memberAnnotations
-            .compactMap { ($0 as? CourtAnnotation)?.court.id }
-            .reduce(0) { $0 + (gameCountByCourtID[$1] ?? 0) }
-        return UIColor(CourtHeat.color(forGameCount: total))
     }
 
     func makeUIView(context: Context) -> MKMapView {
@@ -265,10 +239,6 @@ struct MapView: UIViewRepresentable {
             CourtMarkerView.self,
             forAnnotationViewWithReuseIdentifier: CourtMarkerView.courtReuseID
         )
-        mapView.register(
-            CourtMarkerView.self,
-            forAnnotationViewWithReuseIdentifier: CourtMarkerView.clusterReuseID
-        )
         return mapView
     }
 
@@ -295,27 +265,13 @@ struct MapView: UIViewRepresentable {
         // (a game gets booked) without the set of courts or the selection
         // changing at all, which is exactly the case `viewFor` never re-runs
         // for.
-        for annotation in mapView.annotations {
-            switch annotation {
-            case let court as CourtAnnotation:
-                guard let markerView = mapView.view(for: court) as? CourtMarkerView
-                else { continue }
-                markerView.configureAsCourt(
-                    color: heatColor(for: court.court),
-                    isSelected: court.court.id == selectedCourtID
-                )
-
-            case let cluster as MKClusterAnnotation:
-                guard let markerView = mapView.view(for: cluster) as? CourtMarkerView
-                else { continue }
-                markerView.configureAsCluster(
-                    memberCount: cluster.memberAnnotations.count,
-                    color: heatColor(forCluster: cluster)
-                )
-
-            default:
-                continue
-            }
+        for case let court as CourtAnnotation in mapView.annotations {
+            guard let markerView = mapView.view(for: court) as? CourtMarkerView
+            else { continue }
+            markerView.configureAsCourt(
+                color: heatColor(for: court.court),
+                isSelected: court.court.id == selectedCourtID
+            )
         }
 
         if let trigger = recenterTrigger, trigger.id != context.coordinator.lastRecenterId {
@@ -340,24 +296,11 @@ struct MapView: UIViewRepresentable {
             self.parent = parent
         }
 
+        /// Never sets `clusteringIdentifier` — leaving it `nil` is what keeps
+        /// MapKit from folding courts into group annotations at all. See the
+        /// note on `MapView` for why that folding was dropped.
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             if annotation is MKUserLocation { return nil }
-
-            // A hundred courts across two cities pile into an unreadable mass
-            // when zoomed out, so let MapKit collapse them into counted groups.
-            if let cluster = annotation as? MKClusterAnnotation {
-                guard let view = mapView.dequeueReusableAnnotationView(
-                    withIdentifier: CourtMarkerView.clusterReuseID,
-                    for: cluster
-                ) as? CourtMarkerView else { return nil }
-
-                view.annotation = cluster
-                view.configureAsCluster(
-                    memberCount: cluster.memberAnnotations.count,
-                    color: parent.heatColor(forCluster: cluster)
-                )
-                return view
-            }
 
             guard let court = annotation as? CourtAnnotation,
                   let view = mapView.dequeueReusableAnnotationView(
@@ -367,7 +310,6 @@ struct MapView: UIViewRepresentable {
             else { return nil }
 
             view.annotation = court
-            view.clusteringIdentifier = CourtMarkerView.courtReuseID
             view.configureAsCourt(
                 color: parent.heatColor(for: court.court),
                 isSelected: court.court.id == parent.selectedCourtID
@@ -376,20 +318,6 @@ struct MapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
-            // Tapping a group zooms in rather than leaving the user to pinch.
-            if let cluster = view.annotation as? MKClusterAnnotation {
-                mapView.deselectAnnotation(cluster, animated: false)
-                let region = MKCoordinateRegion(
-                    center: cluster.coordinate,
-                    span: MKCoordinateSpan(
-                        latitudeDelta: max(mapView.region.span.latitudeDelta / 2.5, MapView.minDelta),
-                        longitudeDelta: max(mapView.region.span.longitudeDelta / 2.5, MapView.minDelta)
-                    )
-                )
-                mapView.setRegion(region, animated: true)
-                return
-            }
-
             guard let ann = view.annotation as? CourtAnnotation else { return }
             parent.onMarkerTap?(ann.court)
         }

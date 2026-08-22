@@ -1,7 +1,7 @@
 # hoopsRN — User Profile Workflow
 
 **Scope:** —
-**Verified:** 2026-08-21 @ 9a81cc2
+**Verified:** 2026-08-22 @ aa093ee
 
 How the app connects to Firestore and what happens at runtime between someone
 signing in and a rendered profile. This is the first hoopsRN feature backed by a
@@ -277,9 +277,12 @@ data leaks into the next session.
 ### Architectural rules this establishes
 
 - **Firebase types stay in the service layer.** `AuthService` is the only file
-  importing `FirebaseAuth`; `UserProfileService` is the only one touching
-  Firestore. Models and ViewModels see `UserProfile` and `UserProfileError`,
-  never a `DocumentSnapshot`.
+  importing `FirebaseAuth`; Firestore is imported only by
+  `hoopr/Services/` files, each owning exactly one collection
+  (`UserProfileService` → `users`, `GameService` → `games`, `FriendService` →
+  `friendships`). Models and ViewModels see `UserProfile` and
+  `UserProfileError`, never a `DocumentSnapshot` — see `../ARCHITECTURE.md`'s
+  vendor boundary for the full table.
 - **Services own their own subscriptions.** `UserProfileService` subscribes to
   `AuthService` directly, so one listener serves the whole session. It is *not*
   driven by a ViewModel — a ViewModel's lifetime is tied to a screen, which

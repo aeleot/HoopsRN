@@ -139,7 +139,7 @@ allowed to save yet." A newly created database denies everything.
 
 ## Tests
 
-**112 test methods across ten suites**, from a green
+**120 test methods across eleven suites**, from a green
 `-only-testing:hooprTests` run on 2026-08-21. All of them carry real coverage;
 there is no scaffold left in `hooprTests/`.
 
@@ -151,8 +151,9 @@ there is no scaffold left in `hooprTests/`.
 | `ServiceFailureTests` | 15 | Backoff schedule, per-listener recovery, read/write messaging, `FirestoreFailure` classification. |
 | `FriendshipTests` | 10 | Decoding, the derived document ID, direction. |
 | `ThemeContrastTests` | 8 | Every colour pairing the UI actually draws, against WCAG AA. |
-| `CourtHeatTests` | 8 | `CourtHeat.color(forGameCount:)`'s five stops, its ceiling and floor clamps. |
+| `CourtHeatTests` | 10 | `CourtHeat.color(forGameCount:)`'s five stops, its ceiling and floor clamps, and the ramp's shape. |
 | `CourtTests` | 6 | `Court.displayName`. |
+| `CourtBadgesTests` | 6 | `amenities(for:limit:)` — that narrowing a row's badges never drops the "Restricted" caution. |
 | `FirestoreRulesParityTests` | 6 | The `status` derivation and the shared bounds, parsed out of `firestore.rules`. |
 | `FindAMatchViewModelTests` | 5 | `gameCountsByCourt` — the per-court/per-day join behind the map's heat colours. |
 
@@ -173,8 +174,12 @@ left alone.
 
 `CourtHeatTests` pins `CourtHeat.color(forGameCount:)` by resolved hex — zero
 through four games each land on their own stop, everything at or above four
-clamps to the same deep red rather than indexing off the end of the array, and
-a negative count clamps to the quietest stop instead of crashing.
+clamps to the same reddish orange rather than indexing off the end of the
+array, and a negative count clamps to the quietest stop instead of crashing.
+Two further cases assert the ramp's *shape* rather than its values: that every
+stop is darker than the one before it, and that the steps are evenly sized. The
+hex assertions alone can't distinguish a deliberate retune from one that
+accidentally flattens two tiers into looking identical.
 `FindAMatchViewModelTests` covers the join underneath it:
 `gameCountsByCourt` dedupes a game that appears on both `queuedGames` and
 `publicGames` (a public run the signed-in user also hosts or joined) down to

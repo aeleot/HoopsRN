@@ -4,35 +4,49 @@ import SwiftUI
 /// "where's actually happening" at a glance rather than just "where are the
 /// courts".
 ///
-/// Five fixed stops, one per game count from none to a lot: a cool, quiet
-/// light sky blue — blended roughly halfway to white, so a quiet map doesn't
-/// read as loud as a busy one — for a court with nothing scheduled, climbing
-/// through two close, warm ambers, and landing on a deep red for the busiest
-/// tier. Fixed
-/// rather than routed through `Theme.swift`'s light/dark provider on purpose —
-/// this is a data scale read against the map's own muted basemap in both
-/// appearances, not app chrome that should invert with the system setting. The
-/// existing brand roles (`hooprOrange`/`hooprDarkOrange`) stay exactly where
-/// they are; this is a separate, deliberately literal palette.
+/// Five fixed stops, one per game count from none to a lot, all one family:
+/// the brand orange for a court with nothing scheduled, then darkening and
+/// reddening in even steps to a saturated reddish orange for the busiest tier.
+///
+/// **The scale starts at the brand orange rather than below it.** It used to
+/// open on a near-white cream (`FDECD8`) so a quiet court receded into the
+/// basemap; anchoring stop 0 on `hooprOrange`'s light value instead makes an
+/// unbooked court read as a *court* first and a quiet one second. The cost is
+/// real and worth knowing: the whole ramp now lives in the top half of the
+/// old lightness range, so "nothing today" and "one game" are one step apart
+/// in darkness rather than the pale-to-saturated jump they used to be.
+///
+/// Fixed rather than routed through `Theme.swift`'s light/dark provider on
+/// purpose — this is a data scale read against the map's own muted basemap in
+/// both appearances, not app chrome that should invert with the system
+/// setting. Stop 0 therefore hardcodes `hooprOrange`'s **light** value rather
+/// than referencing the role: the role itself stays exactly where it is, and
+/// this palette stays a separate, deliberately literal one. If the brand
+/// orange is ever retuned, this stop does not follow on its own.
 ///
 /// `MapTab` / `FindAMatchViewModel` compute *what* to feed this — the count of
 /// games scheduled at a court today, from the same `queuedGames` +
 /// `publicGames` the app already holds, so this needs no new read and no rules
-/// change. `MapView` is the only caller: a single court's marker looks itself
-/// up, and a cluster looks up the **sum** across every court folded into it,
-/// so a bundle of quiet courts doesn't read as busy just because there are
-/// several of them.
+/// change. `MapView` is the only caller, and since clustering was dropped
+/// there is exactly one kind of lookup: a single court's marker looking up its
+/// own count. One pin, one court, one number.
 enum CourtHeat {
     /// Index *n* is the colour for exactly *n* games today; the last stop is
     /// also the ceiling for everything at or above it. Five stops because five
     /// were specified — widen this array to add finer tiers, the lookup
     /// doesn't care how many there are.
+    ///
+    /// The three middle stops are a straight linear RGB interpolation between
+    /// the two ends, which lands them on roughly even perceived-brightness
+    /// steps (~19 points of luma apiece) and a hue walking 30° → 10°. Keep that
+    /// property if you retune: uneven steps read as "these two mean the same
+    /// thing" even when the counts differ.
     private static let stops: [Color] = [
-        Color(red: 0xC3 / 255, green: 0xE6 / 255, blue: 0xFC / 255), // light sky blue, lightened toward white — nothing today
-        Color(red: 0xFF / 255, green: 0xD1 / 255, blue: 0x31 / 255), // FFD131
-        Color(red: 0xF5 / 255, green: 0xB8 / 255, blue: 0x2E / 255), // F5B82E
-        Color(red: 0xF4 / 255, green: 0xAC / 255, blue: 0x32 / 255), // F4AC32
-        Color(red: 0xB9 / 255, green: 0x0E / 255, blue: 0x0A / 255), // deep red — matches hooprRed's light value
+        Color(red: 0xF7 / 255, green: 0x93 / 255, blue: 0x31 / 255), // F79331 — hooprOrange's light value, nothing today
+        Color(red: 0xEB / 255, green: 0x7A / 255, blue: 0x29 / 255), // EB7A29
+        Color(red: 0xDF / 255, green: 0x61 / 255, blue: 0x21 / 255), // DF6121
+        Color(red: 0xD2 / 255, green: 0x47 / 255, blue: 0x18 / 255), // D24718
+        Color(red: 0xC6 / 255, green: 0x2E / 255, blue: 0x10 / 255), // C62E10 — reddish orange, busiest tier
     ]
 
     /// The top tier a court can reach — four or more games today all read the
@@ -40,11 +54,10 @@ enum CourtHeat {
     /// re-deriving `stops.count`.
     static let maxTier = stops.count - 1
 
-    /// - Parameter gameCount: How many games are scheduled at a court (or, for
-    ///   a cluster, summed across every court it bundles) for the day in
-    ///   question. Negative values clamp to the quietest stop rather than
-    ///   trapping — nothing produces one today, but a lookup table should never
-    ///   crash on a bad index.
+    /// - Parameter gameCount: How many games are scheduled at that court for
+    ///   the day in question. Negative values clamp to the quietest stop rather
+    ///   than trapping — nothing produces one today, but a lookup table should
+    ///   never crash on a bad index.
     static func color(forGameCount gameCount: Int) -> Color {
         stops[min(max(gameCount, 0), maxTier)]
     }

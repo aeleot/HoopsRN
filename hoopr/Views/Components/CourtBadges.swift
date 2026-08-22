@@ -9,6 +9,16 @@ import SwiftUI
 struct CourtBadges: View {
     let court: Court
 
+    /// Draw at most this many badges, or all of them when `nil` (the default,
+    /// and what the detail card wants — it has a line to itself).
+    ///
+    /// `CourtRow` sets it through a `ViewThatFits` ladder so a row sheds its
+    /// least-important badges rather than truncating the court's name. Dropping
+    /// a badge costs the reader a fact they can still get by tapping through;
+    /// crushing "Bethesda Park" to "Beth…" costs them the one thing that tells
+    /// them which court the row even is.
+    var limit: Int?
+
     /// A badge and whether it's a caution rather than a feature.
     ///
     /// "Restricted" is the odd one out: every other label tells you what the
@@ -35,8 +45,30 @@ struct CourtBadges: View {
         return result
     }
 
+    /// The badges to draw, narrowed to `limit` if one is set.
+    ///
+    /// **A caution is never the one dropped.** `amenities(for:)` emits
+    /// "Restricted" *last* because that's where it reads best when everything
+    /// is shown, so a plain `prefix` would shed the single badge a player most
+    /// needs to see — the one saying they may not get on this court at all.
+    /// Cautions are therefore kept first and the remaining slots filled with
+    /// features, then the result is re-emitted in the original order so the
+    /// row and the detail card still read the same way round.
+    static func amenities(for court: Court, limit: Int?) -> [(text: String, isCaution: Bool)] {
+        let all = amenities(for: court)
+        guard let limit, all.count > limit else { return all }
+        guard limit > 0 else { return [] }
+
+        let cautions = all.filter(\.isCaution)
+        let features = all.filter { !$0.isCaution }
+        let kept = Set(
+            cautions.map(\.text) + features.prefix(max(0, limit - cautions.count)).map(\.text)
+        )
+        return all.filter { kept.contains($0.text) }
+    }
+
     var body: some View {
-        let amenities = Self.amenities(for: court)
+        let amenities = Self.amenities(for: court, limit: limit)
 
         if !amenities.isEmpty {
             HStack(spacing: 6) {
