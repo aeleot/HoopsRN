@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "games",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "playerIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "scheduledTime", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "games",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isPublic", "order": "ASCENDING" },
+        { "fieldPath": "scheduledTime", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

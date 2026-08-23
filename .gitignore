@@ -1,8 +1,14 @@
 *.pbxuser
-*.xcworkspace
 xcuserdata/
 DerivedData/
 .DS_Store
 *.xcarchive
 Build/
 node_modules/
+
+# NOT `*.xcworkspace`. That pattern matches the `project.xcworkspace` directory
+# *inside* `hoopr.xcodeproj`, which swallowed
+# `xcshareddata/swiftpm/Package.resolved` — so the SPM dependency pins were
+# untracked and a fresh clone re-resolved `upToNextMajorVersion` to whatever
+# was current that day. The per-user state under a workspace is already covered
+# by the `xcuserdata/` rule above, which matches at any depth.

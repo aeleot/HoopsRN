@@ -3,24 +3,57 @@ import SwiftUI
 /// Gates the app behind authentication: nothing but the login screen is
 /// reachable until Firebase reports a signed-in user.
 struct RootView: View {
-    @EnvironmentObject var authManager: AuthManager
+    @StateObject private var viewModel: RootViewModel
+
+    private let authService: AuthService
+    private let courtService: CourtService
+    private let locationService: LocationService
+    private let userProfileService: UserProfileService
+    private let gameService: GameService
+    private let friendService: FriendService
+    private let recentCourtsStore: RecentCourtsStore
+
+    init(
+        authService: AuthService,
+        courtService: CourtService,
+        locationService: LocationService,
+        userProfileService: UserProfileService,
+        gameService: GameService,
+        friendService: FriendService,
+        recentCourtsStore: RecentCourtsStore
+    ) {
+        self.authService = authService
+        self.courtService = courtService
+        self.locationService = locationService
+        self.userProfileService = userProfileService
+        self.gameService = gameService
+        self.friendService = friendService
+        self.recentCourtsStore = recentCourtsStore
+        _viewModel = StateObject(wrappedValue: RootViewModel(authService: authService))
+    }
 
     var body: some View {
         Group {
-            if !authManager.hasLoadedInitialState {
-                // Firebase restores a cached session asynchronously on launch.
-                // Holding here avoids flashing the login screen at returning users.
+            switch viewModel.destination {
+            case .launching:
                 LaunchScreen()
-            } else if !authManager.isSignedIn {
-                LoginView()
+            case .login:
+                LoginView(authService: authService)
                     .transition(.opacity)
-            } else {
-                MainTabView()
-                    .transition(.opacity)
+            case .main:
+                MainTabView(
+                    authService: authService,
+                    courtService: courtService,
+                    locationService: locationService,
+                    userProfileService: userProfileService,
+                    gameService: gameService,
+                    friendService: friendService,
+                    recentCourtsStore: recentCourtsStore
+                )
+                .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: authManager.userID)
-        .animation(.easeInOut(duration: 0.2), value: authManager.hasLoadedInitialState)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.destination)
     }
 }
 
@@ -28,18 +61,26 @@ private struct LaunchScreen: View {
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "basketball.fill")
-                .font(.system(size: 44))
+                .hooprFont(44)
                 .foregroundStyle(Color.hooprOrange)
 
             ProgressView()
                 .tint(Color.hooprSecondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.white)
+        .background(Color.hooprBackground)
     }
 }
 
 #Preview {
-    RootView()
-        .environmentObject(AuthManager())
+    let authService = AuthService()
+    RootView(
+        authService: authService,
+        courtService: CourtService(),
+        locationService: LocationService(),
+        userProfileService: UserProfileService(authService: authService),
+        gameService: GameService(authService: authService),
+        friendService: FriendService(authService: authService),
+        recentCourtsStore: RecentCourtsStore()
+    )
 }

@@ -1,0 +1,375 @@
+import Combine
+import CoreLocation
+import Foundation
+import MapKit
+
+/// A court paired with its distance from the user, computed once when the list
+/// is built so the view never does geo math while scrolling.
+struct NearbyCourt: Identifiable, Equatable {
+    let court: Court
+    let distanceMeters: CLLocationDistance
+
+    var id: String { court.id }
+
+    var distanceText: String { Distance.text(distanceMeters) }
+}
+
+final class FindAMatchViewModel: ObservableObject {
+    /// Which list the sheet is showing. Nearby is geographic; the other two are
+    /// membership lists that ignore the search radius entirely.
+    enum ListTab: String, CaseIterable, Identifiable {
+        case nearby
+        case favorites
+        case recent
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .nearby:    "Nearby"
+            case .favorites: "Favorites"
+            case .recent:    "Recent"
+            }
+        }
+    }
+
+    // MARK: - Published state
+
+    /// Courts drawn on the map — every court that passes the active filters,
+    /// regardless of distance.
+    @Published private(set) var courts: [Court] = []
+
+    /// The rows currently in the sheet, already filtered and ordered for
+    /// `selectedTab`.
+    @Published private(set) var listedCourts: [NearbyCourt] = []
+
+    @Published var selectedTab: ListTab = .nearby {
+        didSet { rebuild() }
+    }
+
+    @Published private(set) var activeFilters: Set<CourtFilter> = []
+
+    @Published private(set) var favoriteCourtIds: Set<String> = []
+
+    /// The radius the nearby list was actually built with — the profile's
+    /// preference, or the default while signed out or before the first
+    /// snapshot lands. Published so the empty state can name the real number
+    /// rather than restating a constant that may not be the one in force.
+    @Published private(set) var radiusMiles: Double = UserProfile.defaultPreferredRadius
+
+    /// Set when the bundled court dataset failed to load, so the empty state
+    /// can say *why* the list is empty. Without it an unreadable bundle is
+    /// indistinguishable from "no courts near you" — the same list, the same
+    /// wording, and nothing to act on.
+    @Published private(set) var datasetError: String?
+
+    /// How many games are scheduled **today** at each court, keyed by
+    /// `Court.id`. Feeds the map's heat-coloured pins via `CourtHeat`.
+    ///
+    /// Built from `gameService.queuedGames` and `.publicGames` — the same two
+    /// listeners `LocalRunsViewModel` already reads — rather than a new query.
+    /// That's not just cheaper, it's the only thing that keeps this private:
+    /// those two arrays are exactly what the read rule already lets this
+    /// account see (public runs, plus runs it's personally on), so a pin's
+    /// colour can never reveal the existence of a private run this account
+    /// isn't part of. The union is deduplicated by `Game.id` first — a public
+    /// run the signed-in user is also on would otherwise arrive in both
+    /// arrays and count twice.
+    @Published private(set) var gameCountByCourtID: [String: Int] = [:]
+
+    // MARK: - Tuning
+
+    /// The user's default location, hardcoded to Durham, NC until the profile
+    /// owns it. Anchors the initial region and the recenter button.
+    static var homeLocation: CLLocationCoordinate2D { LocationService.homeLocation }
+
+    let initialRegion = MKCoordinateRegion(
+        center: FindAMatchViewModel.homeLocation,
+        span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+    )
+
+    // MARK: - Dependencies
+
+    private let courtService: CourtService
+    private let locationService: LocationService
+    private let userProfileService: UserProfileService
+    private let gameService: GameService
+    private let recentCourtsStore: RecentCourtsStore
+    private var cancellables = Set<AnyCancellable>()
+
+    /// Where distances are measured from. Fixed for the life of the view
+    /// model: panning the map changes what you're looking at, not where you
+    /// are. It reads `homeLocation` like every other distance in the app, so
+    /// pointing that at the device moves this with it.
+    private let searchOrigin: CLLocationCoordinate2D
+    private var recentCourtIds: [String] = []
+
+    init(
+        courtService: CourtService,
+        locationService: LocationService,
+        userProfileService: UserProfileService,
+        gameService: GameService,
+        recentCourtsStore: RecentCourtsStore
+    ) {
+        self.courtService = courtService
+        self.locationService = locationService
+        self.userProfileService = userProfileService
+        self.gameService = gameService
+        self.recentCourtsStore = recentCourtsStore
+        self.searchOrigin = Self.homeLocation
+
+        courtService.$courts
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.rebuild() }
+            .store(in: &cancellables)
+
+        courtService.$loadError
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] message in self?.datasetError = message }
+            .store(in: &cancellables)
+
+        // The nearby list depends on the saved radius as well as the dataset
+        // and filters, so it rebuilds when the radius moves. Editing the
+        // radius in the profile reflows this list without a reload.
+        //
+        // Distances are still measured from the hardcoded home location; swap
+        // `homeLocation` for a profile-owned one and this pipeline follows.
+        userProfileService.$currentProfile
+            .preferredRadiusMiles
+            .sink { [weak self] radius in
+                self?.radiusMiles = radius
+                self?.rebuild()
+            }
+            .store(in: &cancellables)
+
+        // Favourites arrive on the profile listener that `UserProfileService`
+        // already keeps open, so starring a court costs no extra read.
+        userProfileService.$currentProfile
+            .map { Set($0?.favoriteCourtIds ?? []) }
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] ids in
+                self?.favoriteCourtIds = ids
+                self?.rebuild()
+            }
+            .store(in: &cancellables)
+
+        recentCourtsStore.$recentCourtIds
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] ids in
+                self?.recentCourtIds = ids
+                self?.rebuild()
+            }
+            .store(in: &cancellables)
+
+        // Two listeners, not one: a game hosted publicly by the signed-in user
+        // arrives on both, which is exactly why `rebuildGameCounts` dedupes by
+        // id rather than just concatenating the two arrays.
+        gameService.$queuedGames
+            .combineLatest(gameService.$publicGames)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] queued, published in
+                self?.rebuildGameCounts(queued: queued, published: published)
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Filters
+
+    func toggle(_ filter: CourtFilter) {
+        if activeFilters.contains(filter) {
+            activeFilters.remove(filter)
+        } else {
+            activeFilters.insert(filter)
+        }
+        rebuild()
+    }
+
+    func isActive(_ filter: CourtFilter) -> Bool {
+        activeFilters.contains(filter)
+    }
+
+    // MARK: - Favourites and recents
+
+    func isFavorite(_ court: Court) -> Bool {
+        favoriteCourtIds.contains(court.id)
+    }
+
+    /// Optimistic: the star flips immediately and Firestore catches up. If the
+    /// write fails the profile listener re-emits the server's truth and the
+    /// star reverts on its own.
+    func toggleFavorite(_ court: Court) {
+        let shouldFavorite = !isFavorite(court)
+        if shouldFavorite {
+            favoriteCourtIds.insert(court.id)
+        } else {
+            favoriteCourtIds.remove(court.id)
+        }
+        rebuild()
+
+        Task { [userProfileService] in
+            try? await userProfileService.setFavorite(
+                courtId: court.id,
+                isFavorite: shouldFavorite
+            )
+        }
+    }
+
+    func select(_ court: Court) {
+        recentCourtsStore.record(courtId: court.id)
+    }
+
+    // MARK: - Map
+
+    /// The recenter button always returns to the user's default location. We
+    /// still ask for permission on the first tap so MapKit can draw the blue
+    /// user dot, but no longer make the user answer before the map moves.
+    func recenterTarget() -> CLLocationCoordinate2D {
+        if locationService.authorizationStatus == .notDetermined {
+            locationService.requestLocationPermission()
+        }
+        return Self.homeLocation
+    }
+
+    /// Distance to an arbitrary court, measured from the same origin the list
+    /// uses. The detail card needs this and holds a bare `Court` — both of its
+    /// entry points (a map pin and a list row) converge on the card, and the
+    /// pin never had a `NearbyCourt` to carry the precomputed figure.
+    ///
+    /// Safe to call per render: it's one `CLLocation.distance(from:)`, not the
+    /// whole-dataset sort that `ranked(courts:from:)` does.
+    func distanceText(for court: Court) -> String {
+        let from = CLLocation(
+            latitude: searchOrigin.latitude,
+            longitude: searchOrigin.longitude
+        )
+        let to = CLLocation(latitude: court.latitude, longitude: court.longitude)
+        return Distance.text(from.distance(from: to))
+    }
+
+    // MARK: - Derivation
+
+    private func rebuildGameCounts(queued: [Game], published: [Game]) {
+        gameCountByCourtID = Self.gameCountsByCourt(queued: queued, published: published)
+    }
+
+    /// Buckets today's games by court. "Today" is the calendar day at `now`,
+    /// the same convention `Game.scheduledText` uses for its own "Today" —
+    /// not a rolling 24 hours, so the heat map resets at midnight rather than
+    /// drifting.
+    ///
+    /// Deliberately **not** filtered by `Game.isVisible(at:)` or by status: a
+    /// full run or one that tipped off two hours ago still happened at that
+    /// court today, and the heat map is answering "how busy was/is this court
+    /// today", not "what can I still join". `GameService`'s own query cutoff
+    /// (`Game.visibilityCutoff`) already drops anything more than three hours
+    /// past its start, so nothing from yesterday leaks in regardless.
+    ///
+    /// `nonisolated static` and pure — `queued`/`published` passed in rather
+    /// than read off `self` — so `FindAMatchViewModelTests` can pin the
+    /// dedup-by-id and day-boundary rules without constructing a `GameService`
+    /// or touching Firebase, the same shape `Game.status(playerCount:maxPlayers:)`
+    /// and `Game.validate` already use for their own pure rules.
+    nonisolated static func gameCountsByCourt(
+        queued: [Game],
+        published: [Game],
+        now: Date = Date()
+    ) -> [String: Int] {
+        var seen = Set<String>()
+        var counts: [String: Int] = [:]
+
+        for game in queued + published {
+            guard seen.insert(game.id).inserted else { continue }
+            guard Calendar.current.isDate(game.scheduledTime, inSameDayAs: now) else { continue }
+            counts[game.courtId, default: 0] += 1
+        }
+
+        return counts
+    }
+
+    private func rebuild() {
+        let filtered = courtService.courts.filter { court in
+            activeFilters.allSatisfy { $0.matches(court) }
+        }
+        courts = filtered
+
+        let ranked = Self.ranked(courts: filtered, from: searchOrigin)
+
+        switch selectedTab {
+        case .nearby:
+            let radiusMeters = Distance.meters(miles: radiusMiles)
+            listedCourts = ranked.filter { $0.distanceMeters <= radiusMeters }
+
+        case .favorites:
+            listedCourts = ranked.filter { favoriteCourtIds.contains($0.court.id) }
+
+        case .recent:
+            // Recency order, not distance order — that's the whole point of
+            // the tab. Filters still apply, so a court can drop out.
+            let byID = Dictionary(uniqueKeysWithValues: ranked.map { ($0.court.id, $0) })
+            listedCourts = recentCourtIds.compactMap { byID[$0] }
+        }
+    }
+
+    private static func ranked(
+        courts: [Court],
+        from origin: CLLocationCoordinate2D
+    ) -> [NearbyCourt] {
+        let from = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
+
+        return courts
+            .map { court in
+                let to = CLLocation(latitude: court.latitude, longitude: court.longitude)
+                return NearbyCourt(court: court, distanceMeters: from.distance(from: to))
+            }
+            .sorted { $0.distanceMeters < $1.distanceMeters }
+    }
+
+    // MARK: - Presentation helpers
+
+    var listCountLabel: String {
+        let count = listedCourts.count
+        switch selectedTab {
+        case .nearby:
+            return count == 1 ? "1 court nearby" : "\(count) courts nearby"
+        case .favorites:
+            return count == 1 ? "1 favorite" : "\(count) favorites"
+        case .recent:
+            return count == 1 ? "1 recent court" : "\(count) recent courts"
+        }
+    }
+
+    /// A dataset failure outranks every per-tab message: with no courts loaded
+    /// *every* tab is empty, and "No favorites yet" would be a true sentence
+    /// that sends the reader to fix the wrong thing.
+    var emptyStateTitle: String {
+        if datasetError != nil { return "Court data unavailable" }
+
+        switch selectedTab {
+        case .nearby:    return "No courts within \(Int(radiusMiles)) miles"
+        case .favorites: return "No favorites yet"
+        case .recent:    return "No recent courts"
+        }
+    }
+
+    var emptyStateDetail: String? {
+        if let datasetError {
+            // Names the build rather than the network: the dataset ships in the
+            // app bundle, so there is nothing for the reader to retry.
+            return "\(datasetError) Reinstalling the app is the only fix."
+        }
+
+        switch selectedTab {
+        case .nearby:
+            return activeFilters.isEmpty
+                ? "Pan the map and tap Search here."
+                : "Try removing a filter."
+        case .favorites:
+            return "Tap the star on any court to save it here."
+        case .recent:
+            return "Courts you open will show up here."
+        }
+    }
+}
