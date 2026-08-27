@@ -14,45 +14,6 @@ private nonisolated struct SheetMetrics: Equatable {
 }
 
 struct MapTab: View {
-    /// How far up the sheet is resting. `medium` is the default: enough list to
-    /// be useful, enough map to stay oriented.
-    private enum Detent {
-        case collapsed
-        case medium
-        case expanded
-    }
-
-    /// The sheet is always in exactly one of these. `.detail` carries the
-    /// detent to fall back to, so dismissing a court restores whatever the
-    /// sheet was showing beforehand.
-    private enum SheetState: Equatable {
-        case rest(Detent)
-        case detail(court: Court, returningTo: Detent)
-
-        var detent: Detent {
-            switch self {
-            case .rest(let detent):          return detent
-            case .detail(_, let returningTo): return returningTo
-            }
-        }
-
-        /// Where the sheet actually renders right now. A detail card always
-        /// shows at medium, regardless of what it'll restore to on dismiss —
-        /// otherwise a court tapped while the list sits collapsed inherits
-        /// that offset and renders entirely off-screen.
-        var displayDetent: Detent {
-            switch self {
-            case .rest(let detent): return detent
-            case .detail:            return .medium
-            }
-        }
-
-        var selectedCourt: Court? {
-            if case .detail(let court, _) = self { return court }
-            return nil
-        }
-    }
-
     @StateObject private var viewModel: FindAMatchViewModel
     @State private var recenterTrigger: RecenterTrigger?
     @State private var sheetState: SheetState = .rest(.medium)
@@ -87,6 +48,31 @@ struct MapTab: View {
     /// back to `nil`, so selecting the same court twice works.
     @Binding var courtToSelect: Court?
 
+    /// Whether the search field has the keyboard.
+    ///
+    /// Load-bearing beyond the field itself: it drops the chip row, raises the
+    /// sheet, swaps the sheet's contents, and hides the recenter button — see
+    /// each of those for why.
+    @FocusState private var isSearchFocused: Bool
+
+    /// The run awaiting a cancel confirmation, if any.
+    ///
+    /// Cancelling destroys everyone else's spot, so it asks first — the same
+    /// bar `GameCard` sets on the Runs tab. Held as state rather than a
+    /// per-row flag so the dialog survives the row being rebuilt by a snapshot
+    /// arriving mid-confirmation.
+    @State private var runPendingCancel: Game?
+
+    /// Where the sheet was resting before search took it to `.expanded`, so
+    /// dismissing the keyboard puts it back rather than stranding it open.
+    @State private var detentBeforeSearch: SheetDetent?
+
+    /// Whether the map has already moved to the device's first fix. Guards a
+    /// one-shot: `initialFix` only publishes once, but a view can be re-created
+    /// while the view model survives, and re-applying the trigger would yank
+    /// the map back after the user had panned away.
+    @State private var hasAppliedInitialFix = false
+
     /// Gap kept below the sheet's own content, and under the collapsed pill, so
     /// neither sits beneath the home indicator.
     ///
@@ -94,7 +80,6 @@ struct MapTab: View {
     /// and the sheet is laid out above it, so this no longer has to clear the
     /// home indicator on its own.
     private let peekBottomInset: CGFloat = 12
-    private let detentThreshold: CGFloat = 60
     /// Finger travel below which a handle drag counts as a tap instead.
     private let tapSlop: CGFloat = 6
 
@@ -132,32 +117,20 @@ struct MapTab: View {
 
     // MARK: - Detent geometry
 
-    private var mediumHeight: CGFloat { containerHeight / 3 }
-    private var expandedHeight: CGFloat { containerHeight * 0.78 }
-
-    private func baseHeight(for detent: Detent) -> CGFloat {
-        switch detent {
-        case .collapsed, .medium: return mediumHeight
-        case .expanded:           return expandedHeight
-        }
+    /// All of the sheet's arithmetic, rebuilt whenever the container resizes.
+    /// The view keeps the state and the gestures; `SheetGeometry` does the maths.
+    private var geometry: SheetGeometry {
+        SheetGeometry(containerHeight: containerHeight)
     }
 
-    /// The sheet grows and shrinks between medium and expanded as you drag, so
-    /// its top edge tracks your finger instead of the whole panel sliding.
+    private var mediumHeight: CGFloat { geometry.mediumHeight }
+
     private var sheetHeight: CGFloat {
-        let base = baseHeight(for: sheetState.displayDetent)
-        return min(max(base - sheetDrag, mediumHeight), expandedHeight)
+        geometry.sheetHeight(detent: sheetState.displayDetent, drag: sheetDrag)
     }
 
-    /// Only non-zero heading to or from `.collapsed`, where the sheet leaves
-    /// the screen entirely rather than shrinking below its medium height.
     private var sheetOffset: CGFloat {
-        let detent = sheetState.displayDetent
-        let base: CGFloat = detent == .collapsed ? mediumHeight : 0
-        let travel: CGFloat = detent == .collapsed
-            ? sheetDrag
-            : max(0, sheetDrag - (baseHeight(for: detent) - mediumHeight))
-        return rubberBanded(base + travel)
+        geometry.sheetOffset(detent: sheetState.displayDetent, drag: sheetDrag)
     }
 
     var body: some View {
@@ -181,6 +154,8 @@ struct MapTab: View {
 
             mapOverlay
 
+            recenterButton
+
             sheet
 
             collapsedPeek
@@ -202,6 +177,62 @@ struct MapTab: View {
             courtToSelect = nil
             select(court, recenter: true)
         }
+        // The device's first fix, applied once and never over a selection — a
+        // map that yanks itself out from under a court you just tapped is
+        // worse than one still centred on Durham.
+        //
+        // `onReceive` rather than `onChange`: the latter needs `Equatable`, and
+        // `CLLocationCoordinate2D` isn't — conforming a CoreLocation type
+        // app-side to satisfy a view modifier would be the tail wagging the dog.
+        // Focus raises the sheet to meet the keyboard; blur puts it back where
+        // it was. Without the stash, dismissing the keyboard would leave the
+        // sheet stranded at full height over a map the user can no longer see.
+        .onChange(of: isSearchFocused) { _, focused in
+            if focused {
+                if detentBeforeSearch == nil {
+                    detentBeforeSearch = sheetState.detent
+                }
+                settle(to: .expanded)
+            } else if let previous = detentBeforeSearch {
+                detentBeforeSearch = nil
+                // A query left in the field keeps the results on screen, so the
+                // sheet stays up until it's actually cleared.
+                if !viewModel.hasSearchQuery {
+                    settle(to: previous)
+                }
+            }
+        }
+        // Clearing the field while unfocused is the other way out of search.
+        .onChange(of: viewModel.searchQuery) { _, query in
+            guard query.isEmpty, !isSearchFocused, let previous = detentBeforeSearch else { return }
+            detentBeforeSearch = nil
+            settle(to: previous)
+        }
+        .onReceive(viewModel.$initialFix) { fix in
+            guard let fix,
+                  !hasAppliedInitialFix,
+                  sheetState.selectedCourt == nil
+            else { return }
+            hasAppliedInitialFix = true
+            recenterTrigger = RecenterTrigger(center: fix)
+        }
+        .confirmationDialog(
+            "Cancel this run?",
+            isPresented: Binding(
+                get: { runPendingCancel != nil },
+                set: { if !$0 { runPendingCancel = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Cancel run", role: .destructive) {
+                guard let game = runPendingCancel else { return }
+                runPendingCancel = nil
+                Task { await viewModel.perform(.cancel, on: game) }
+            }
+            Button("Keep it", role: .cancel) { runPendingCancel = nil }
+        } message: {
+            Text("Everyone on the roster loses their spot. This can't be undone.")
+        }
         .sheet(item: $startingRunAt) { court in
             CreateGameSheet(
                 court: court,
@@ -218,30 +249,29 @@ struct MapTab: View {
 
     // MARK: - Map chrome
 
-    /// Filter chips and the recenter button share one row below the header,
-    /// floating over the map on glass.
+    /// Search and the filter chips, floating over the map on glass.
+    ///
+    /// Two rows, not three. The profile button used to occupy a whole row on
+    /// its own; folding it into the search row is what pays for the search
+    /// field without costing the map any height. (It doesn't *gain* height
+    /// either — the honest total is 4pt shorter than before. What changes is
+    /// that the top row stops being decoration and becomes the screen's
+    /// primary control.)
     ///
     /// The trailing `Spacer` is load-bearing: it holds the stack at full
-    /// height so the row stays pinned to the top of a `ZStack` that aligns
-    /// its children to the bottom.
+    /// height so the rows stay pinned to the top of a `ZStack` that aligns its
+    /// children to the bottom.
     private var mapOverlay: some View {
         VStack(alignment: .trailing, spacing: 10) {
-            // The profile button gets its own row rather than sharing one with
-            // the chips. Moving the tabs to the bottom freed the whole top of
-            // the map, so there's no longer a reason to crowd three controls
-            // into a single line — and the chips can use the full width.
-            ProfileButton(
-                friendService: friendService,
-                style: .glass,
-                action: onOpenProfile
-            )
-            .padding(.trailing, 14)
+            searchRow
 
-            HStack(spacing: 0) {
+            // Dropped while typing. This is a layout requirement, not a
+            // preference: the keyboard takes the bottom safe area, which
+            // shrinks `containerHeight` and pushes the sheet up until the
+            // overlay has roughly 95pt to work with. Two rows need ~106pt and
+            // would be clipped; one fits with room to spare.
+            if !isSearchFocused {
                 filterChips
-
-                recenterButton
-                    .padding(.trailing, 14)
             }
 
             Spacer()
@@ -251,50 +281,60 @@ struct MapTab: View {
         // Keep the chrome clear of the sheet, whatever height it's at — and of
         // the tab bar, which the sheet now sits on top of.
         .padding(.bottom, max(0, sheetHeight - sheetOffset) + tabBarInset)
+        .animation(.easeInOut(duration: 0.2), value: isSearchFocused)
+    }
+
+    private var searchRow: some View {
+        HStack(spacing: 10) {
+            HooprSearchField(
+                text: $viewModel.searchQuery,
+                placeholder: "Search courts or a city",
+                isFocused: $isSearchFocused,
+                ground: .glass,
+                // Court and city names are proper nouns.
+                capitalization: .words,
+                onClear: { viewModel.clearSearch() }
+            )
+
+            ProfileButton(
+                friendService: friendService,
+                style: .glass,
+                action: onOpenProfile
+            )
+        }
+        .padding(.horizontal, 14)
     }
 
     private var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(CourtFilter.allCases) { filter in
-                    let isActive = viewModel.isActive(filter)
-
-                    Button {
+                    GlassChip(
+                        symbolName: filter.symbolName,
+                        label: filter.label,
+                        isActive: viewModel.isActive(filter)
+                    ) {
                         withAnimation(.easeInOut(duration: 0.15)) {
                             viewModel.toggle(filter)
                         }
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: filter.symbolName)
-                                .hooprFont(11, weight: .semibold)
-                            Text(filter.label)
-                                .hooprFont(13, weight: .semibold)
-                        }
-                        .foregroundStyle(isActive ? Color.hooprOnBrand : Color.hooprPrimaryText)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 9)
-                        // Selection is carried by tinting the glass rather than
-                        // swapping to an opaque fill, so an active chip is the
-                        // same object lit up rather than a different one.
-                        .glassEffect(
-                            isActive
-                                ? .regular.tint(Color.hooprOrange).interactive()
-                                : .regular.interactive(),
-                            in: .capsule
-                        )
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 6)
         }
-        // Clipped at the frame, unlike before: the chips now share their row
-        // with the recenter button, so overflow has to stop at its edge
-        // instead of sliding underneath it.
+        // Full width now that the recenter button has moved down to the thumb
+        // zone, so a long row of chips scrolls under the screen edge rather
+        // than stopping short of a control.
     }
 
-    /// The only map control left.
+    /// The only map control left, and it now floats bottom-right rather than
+    /// sharing the chip row.
+    ///
+    /// Recenter is a frequent, casual tap; the top of a 6.7" phone is the part
+    /// you can't reach one-handed. Sitting just above the sheet puts it in the
+    /// thumb zone and matches where every other map app keeps it — and it
+    /// hands the chips back the ~60pt of width it was taking.
     ///
     /// There used to be a `+`/`−` pair with a vertical slider between them. It
     /// occupied a 44×180pt column of the map to duplicate a pinch every user
@@ -302,17 +342,33 @@ struct MapTab: View {
     /// so the whole stack is gone, along with the absolute/stepped zoom
     /// triggers and the log-scale span conversion that fed it.
     private var recenterButton: some View {
-        Button {
-            recenterMap()
-        } label: {
-            Image(systemName: "location.fill")
-                .hooprFont(17, weight: .semibold, maximumSize: 20)
-                .foregroundStyle(Color.hooprOrange)
-                .frame(width: 46, height: 46)
-                .glassEffect(.regular.interactive(), in: .circle)
+        // Hidden at the expanded detent. Its inset would put it above the
+        // chrome's bottom edge — on top of the filter chips — and at that
+        // detent the visible map is a sliver anyway.
+        let isHidden = sheetState.displayDetent == .expanded || isSearchFocused
+
+        return VStack {
+            Spacer()
+
+            Button {
+                recenterMap()
+            } label: {
+                Image(systemName: "location.fill")
+                    .hooprFont(17, weight: .semibold, maximumSize: 20)
+                    .foregroundStyle(Color.hooprOrange)
+                    .frame(width: 46, height: 46)
+                    .glassEffect(.regular.interactive(), in: .circle)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Recenter map")
+            .accessibilityHidden(isHidden)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Recenter map")
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .padding(.trailing, 14)
+        .padding(.bottom, max(0, sheetHeight - sheetOffset) + tabBarInset + peekBottomInset)
+        .opacity(isHidden ? 0 : 1)
+        .allowsHitTesting(!isHidden)
+        .animation(.easeInOut(duration: 0.2), value: isHidden)
     }
 
     // MARK: - Sheet
@@ -326,7 +382,13 @@ struct MapTab: View {
     /// every way than reading it against a surface.
     private var sheet: some View {
         Group {
-            if let court = sheetState.selectedCourt {
+            // Search outranks both: focusing the field is an explicit request
+            // for it, and it would be strange for a detail card opened earlier
+            // to keep the surface while the user is typing.
+            if isSearchFocused || viewModel.hasSearchQuery {
+                searchPane
+                    .transition(.opacity)
+            } else if let court = sheetState.selectedCourt {
                 courtCard(court: court)
                     .transition(.opacity)
             } else {
@@ -386,45 +448,192 @@ struct MapTab: View {
 
             listTabs
 
-            if viewModel.listedCourts.isEmpty {
+            if viewModel.isCurrentListEmpty {
                 emptyState
+            } else if viewModel.selectedTab == .now {
+                activeList
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(viewModel.listedCourts) { nearby in
-                            Button {
-                                select(nearby.court, recenter: true)
-                            } label: {
-                                CourtRow(
-                                    nearbyCourt: nearby,
-                                    isFavorite: viewModel.isFavorite(nearby.court),
-                                    onToggleFavorite: {
-                                        viewModel.toggleFavorite(nearby.court)
-                                    }
-                                )
-                            }
-                            .buttonStyle(.plain)
-
-                            Divider()
-                                .overlay(Color.hooprBorder)
-                                .padding(.leading, 20)
-                        }
-                    }
-                    .padding(.bottom, peekBottomInset)
-                }
-                .scrollDisabled(sheetDrag != 0)
-                .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                    geometry.contentOffset.y
-                } action: { _, offset in
-                    listScrollOffset = offset
-                }
-                .simultaneousGesture(sheetDragGesture(fromHandle: false))
+                nearbyList
             }
         }
     }
 
-    /// Nearby / Favorites / Recent. Switching only changes which courts the
-    /// sheet lists — the map and its filters are unaffected.
+    /// The sheet while search has it: matches for the query, or recent courts
+    /// before anything is typed.
+    ///
+    /// Recent lives here rather than as a fourth segment — the standard iOS
+    /// home for it, and it means an empty search field is useful instead of
+    /// blank.
+    private var searchPane: some View {
+        VStack(spacing: 0) {
+            sheetHandle
+                .gesture(sheetDragGesture(fromHandle: true))
+
+            Text(viewModel.searchHeaderLabel)
+                .hooprFont(12, weight: .bold, maximumSize: 16)
+                .kerning(0.6)
+                .textCase(.uppercase)
+                .foregroundStyle(Color.hooprSecondaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
+
+            if searchPaneCourts.isEmpty {
+                searchEmptyState
+            } else {
+                sheetScroll {
+                    ForEach(searchPaneCourts) { court in
+                        Button {
+                            selectFromSearch(court)
+                        } label: {
+                            searchResultRow(court)
+                        }
+                        .buttonStyle(.plain)
+
+                        rowDivider
+                    }
+                }
+                // The list is the keyboard's dismiss gesture. iOS users are
+                // trained on it, and it's the one dismissal that doesn't
+                // compete with the map's own tap handling.
+                .scrollDismissesKeyboard(.immediately)
+            }
+        }
+    }
+
+    private var searchPaneCourts: [Court] {
+        viewModel.hasSearchQuery ? viewModel.searchResults : viewModel.recentCourts
+    }
+
+    private func searchResultRow(_ court: Court) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(court.displayName)
+                    .hooprFont(16, weight: .semibold)
+                    .foregroundStyle(Color.hooprPrimaryText)
+                    .lineLimit(1)
+
+                Text("\(court.city) · \(viewModel.distanceText(for: court)) away")
+                    .hooprFont(13)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
+    private var searchEmptyState: some View {
+        VStack(spacing: 6) {
+            Spacer()
+
+            Text(viewModel.hasSearchQuery ? "No courts match" : "No recent courts")
+                .hooprFont(15, weight: .semibold)
+                .foregroundStyle(Color.hooprPrimaryText)
+
+            Text(
+                viewModel.hasSearchQuery
+                    ? "Try a court name, or the town it's in."
+                    : "Courts you open will show up here."
+            )
+            .hooprFont(13)
+            .foregroundStyle(Color.hooprSecondaryText)
+            .multilineTextAlignment(.center)
+
+            Spacer()
+        }
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity)
+    }
+
+    /// Picking a result closes search entirely — the query is cleared, not just
+    /// unfocused, so the sheet returns to its segments instead of sitting on a
+    /// stale result list behind the court you just opened.
+    private func selectFromSearch(_ court: Court) {
+        isSearchFocused = false
+        viewModel.clearSearch()
+        select(court, recenter: true)
+    }
+
+    /// The **Now** segment: courts with a run on today.
+    ///
+    /// Rows carry no Join/Leave button. Tapping one does exactly what a court
+    /// row does — opens the detail card — which is the single place either this
+    /// tab or the Runs tab acts on a run. The Runs tab is where a run is
+    /// *managed*; this is where one is *found*.
+    private var activeList: some View {
+        sheetScroll {
+            ForEach(viewModel.activeCourts) { active in
+                Button {
+                    select(active.court, recenter: true)
+                } label: {
+                    CourtGameRow(activeCourt: active)
+                }
+                .buttonStyle(.plain)
+
+                rowDivider
+            }
+        }
+    }
+
+    /// The **Nearby** and **Saved** segments, which both list plain courts.
+    private var nearbyList: some View {
+        sheetScroll {
+            ForEach(viewModel.listedCourts) { nearby in
+                Button {
+                    select(nearby.court, recenter: true)
+                } label: {
+                    CourtRow(
+                        nearbyCourt: nearby,
+                        isFavorite: viewModel.isFavorite(nearby.court),
+                        onToggleFavorite: {
+                            viewModel.toggleFavorite(nearby.court)
+                        }
+                    )
+                }
+                .buttonStyle(.plain)
+
+                rowDivider
+            }
+        }
+    }
+
+    private var rowDivider: some View {
+        Divider()
+            .overlay(Color.hooprBorder)
+            .padding(.leading, 20)
+    }
+
+    /// The sheet's one scrolling container.
+    ///
+    /// Every list goes through this rather than building its own, because the
+    /// three modifiers below are what arbitrate between scrolling the list and
+    /// dragging the sheet — and a second hand-rolled copy of that arbitration
+    /// is exactly how the two gestures start fighting.
+    private func sheetScroll<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                content()
+            }
+            .padding(.bottom, peekBottomInset + tabBarInset)
+        }
+        .scrollDisabled(sheetDrag != 0)
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.contentOffset.y
+        } action: { _, offset in
+            listScrollOffset = offset
+        }
+        .simultaneousGesture(sheetDragGesture(fromHandle: false))
+    }
+
+    /// Now / Nearby / Saved. Switching only changes which courts the sheet
+    /// lists — the map and its filters are unaffected.
     private var listTabs: some View {
         HStack(spacing: 0) {
             ForEach(FindAMatchViewModel.ListTab.allCases) { tab in
@@ -457,9 +666,23 @@ struct MapTab: View {
         }
     }
 
+    /// Shown when the current segment has nothing in it.
+    ///
+    /// The `.now` segment gets a button, the others don't. With no runs booked
+    /// anywhere, an empty Now list is the most common state this tab has — and
+    /// the only lever the interface has on that cold start is to make starting
+    /// a run the obvious next move rather than apologising for the emptiness.
+    /// Follows `HomeTab`'s `noRunCard`, which answers the same problem.
     private var emptyState: some View {
         VStack(spacing: 6) {
             Spacer()
+
+            if viewModel.selectedTab == .now, viewModel.datasetError == nil {
+                Image(systemName: "basketball.fill")
+                    .hooprFont(30, maximumSize: 40)
+                    .foregroundStyle(Color.hooprSecondaryText.opacity(0.45))
+                    .padding(.bottom, 4)
+            }
 
             Text(viewModel.emptyStateTitle)
                 .hooprFont(15, weight: .semibold)
@@ -472,13 +695,49 @@ struct MapTab: View {
                     .multilineTextAlignment(.center)
             }
 
+            // Only when there's somewhere to send them. Filters or a failed
+            // dataset can leave no court to start at, and a button that can't
+            // act is worse than no button.
+            if viewModel.selectedTab == .now,
+               viewModel.datasetError == nil,
+               let court = viewModel.nearestCourtForNewRun {
+                Button {
+                    startingRunAt = court
+                } label: {
+                    Text("Start a run")
+                        .hooprFont(15, weight: .semibold, maximumSize: 22)
+                        .foregroundStyle(Color.hooprOnBrand)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(Color.hooprOrange)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 12)
+            }
+
             Spacer()
         }
         .padding(.horizontal, 32)
         .frame(maxWidth: .infinity)
     }
 
+    /// The bare grab handle.
+    private var sheetHandle: some View {
+        RoundedRectangle(cornerRadius: 2.5)
+            .fill(Color.hooprBorder)
+            .frame(width: 36, height: 5)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 10)
+            .padding(.bottom, 10)
+            .contentShape(Rectangle())
+    }
+
     /// Drag handle plus court count — the only part left visible when collapsed.
+    ///
+    /// The count belongs to the *segments*, so the search pane uses
+    /// `sheetHandle` instead: "116 courts nearby" sitting above a RECENT list
+    /// describes neither of the two things on screen.
     private var sheetHeader: some View {
         VStack(spacing: 8) {
             RoundedRectangle(cornerRadius: 2.5)
@@ -495,15 +754,22 @@ struct MapTab: View {
         .contentShape(Rectangle())
     }
 
-    /// The selected court.
+    /// The selected court, led by what's happening there.
     ///
-    /// This used to be a name, an address and one button, which left roughly
-    /// half the sheet empty — and meant tapping a court to learn more about it
-    /// showed you *less* than the row you tapped it from. It now carries the
-    /// same distance and amenity badges the list row does, plus a route out to
-    /// Maps, so the card is worth the height it was already taking.
+    /// Restructured from a card that opened with amenity badges. On a tab whose
+    /// job is "find a game right now", the runs are the headline and the
+    /// surface material is the footnote — so today's runs come first and
+    /// `CourtBadges` moves below them.
+    ///
+    /// Three bands, and the split is load-bearing at the `.medium` detent,
+    /// where the sheet has ~256pt: a fixed header, a **scrolling** middle, and
+    /// a **pinned** action row. Letting the whole card scroll would put "Start
+    /// Run" below the fold — you'd have to scroll to find the primary action on
+    /// a screen that exists to start runs.
     @ViewBuilder
     private func courtCard(court: Court) -> some View {
+        let games = viewModel.gamesToday(at: court)
+
         VStack(alignment: .leading, spacing: 0) {
             RoundedRectangle(cornerRadius: 2.5)
                 .fill(Color.hooprBorder)
@@ -511,99 +777,193 @@ struct MapTab: View {
                 .frame(maxWidth: .infinity)
                 .padding(.top, 10)
                 .padding(.bottom, 14)
+                .contentShape(Rectangle())
+                .gesture(sheetDragGesture(fromHandle: true))
 
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "basketball.fill")
-                    .foregroundStyle(Color.hooprOrange)
-                    .hooprFont(20)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(court.displayName)
-                        .hooprFont(17, weight: .semibold)
-                        .foregroundStyle(Color.hooprPrimaryText)
-                        .lineLimit(2)
-
-                    Text("\(court.city) · \(viewModel.distanceText(for: court)) away")
-                        .hooprFont(13)
-                        .foregroundStyle(Color.hooprSecondaryText)
-                }
-
-                Spacer(minLength: 8)
-
-                Button {
-                    viewModel.toggleFavorite(court)
-                } label: {
-                    Image(systemName: viewModel.isFavorite(court) ? "star.fill" : "star")
-                        .hooprFont(19)
-                        .foregroundStyle(
-                            viewModel.isFavorite(court) ? Color.hooprOrange : Color.hooprSecondaryText
-                        )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(viewModel.isFavorite(court) ? "Remove favorite" : "Add favorite")
-
-                Button {
-                    dismissDetail()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .hooprFont(24)
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Close")
-            }
-            .padding(.horizontal, 20)
-
-            CourtBadges(court: court)
+            cardHeader(court: court)
                 .padding(.horizontal, 20)
-                .padding(.top, 12)
 
-            // No address row. In this dataset `address` is the city and state —
-            // "Durham, NC" — which the metadata line above already says. It's
-            // still handed to Maps by `openDirections(to:)`, where it does work.
-
-            HStack(spacing: 10) {
-                Button {
-                    openDirections(to: court)
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
-                            .hooprFont(14, weight: .semibold, maximumSize: 20)
-                        Text("Directions")
-                            .hooprFont(15, weight: .semibold, maximumSize: 22)
+            // Scrolls, so a court with three runs is reachable by dragging the
+            // sheet up rather than by the card growing past its detent.
+            sheetScroll {
+                VStack(alignment: .leading, spacing: 10) {
+                    if games.isEmpty {
+                        noRunsToday
+                    } else {
+                        ForEach(games) { game in
+                            runRow(game)
+                        }
                     }
-                    .foregroundStyle(Color.hooprPrimaryText)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 48)
-                    .background(Color.hooprFill)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                }
-                .buttonStyle(.plain)
 
-                Button {
-                    startingRunAt = court
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "plus.circle.fill")
-                            .hooprFont(14, weight: .semibold, maximumSize: 20)
-                        Text("Start Run")
-                            .hooprFont(15, weight: .semibold, maximumSize: 22)
-                    }
-                    .foregroundStyle(Color.hooprOnBrand)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 48)
-                    .background(Color.hooprOrange)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    CourtBadges(court: court)
+                        .padding(.top, 2)
                 }
-                .buttonStyle(.plain)
+                .padding(.horizontal, 20)
+                .padding(.top, 14)
+                // `sheetScroll`'s stack centres its children, which is right
+                // for full-width rows and wrong for this card — without it the
+                // copy floats mid-sheet while the header above it is flush left.
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
 
-            Spacer()
+            cardActions(court: court, hasRuns: !games.isEmpty)
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+                .padding(.bottom, 14)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func cardHeader(court: Court) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "basketball.fill")
+                .foregroundStyle(Color.hooprOrange)
+                .hooprFont(20)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(court.displayName)
+                    .hooprFont(17, weight: .semibold)
+                    .foregroundStyle(Color.hooprPrimaryText)
+                    .lineLimit(2)
+
+                Text("\(court.city) · \(viewModel.distanceText(for: court)) away")
+                    .hooprFont(13)
+                    .foregroundStyle(Color.hooprSecondaryText)
+            }
+
+            Spacer(minLength: 8)
+
+            Button {
+                viewModel.toggleFavorite(court)
+            } label: {
+                Image(systemName: viewModel.isFavorite(court) ? "star.fill" : "star")
+                    .hooprFont(19)
+                    .foregroundStyle(
+                        viewModel.isFavorite(court) ? Color.hooprOrange : Color.hooprSecondaryText
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(viewModel.isFavorite(court) ? "Remove favorite" : "Add favorite")
+
+            Button {
+                dismissDetail()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .hooprFont(24)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Close")
+        }
+    }
+
+    /// One run at this court, with the button that acts on it.
+    ///
+    /// This is the only place either the map or the Runs tab performs a roster
+    /// action from — which is why the Now segment's rows carry no buttons of
+    /// their own and route here instead.
+    private func runRow(_ game: Game) -> some View {
+        let action = viewModel.action(for: game)
+        let isPending = viewModel.pendingGameId == game.id
+        let isBlocked = viewModel.pendingGameId != nil && !isPending
+
+        return HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(game.scheduledText())
+                    .hooprFont(14, weight: .semibold)
+                    .foregroundStyle(Color.hooprPrimaryText)
+                    .lineLimit(1)
+
+                Text(game.rosterText)
+                    .hooprFont(12)
+                    .foregroundStyle(Color.hooprSecondaryText)
+            }
+
+            Spacer(minLength: 8)
+
+            if action != .none {
+                Button {
+                    if action == .cancel {
+                        runPendingCancel = game
+                    } else {
+                        Task { await viewModel.perform(action, on: game) }
+                    }
+                } label: {
+                    Group {
+                        if isPending {
+                            ProgressView()
+                                .tint(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
+                        } else {
+                            Text(action.title)
+                                .hooprFont(13, weight: .semibold, maximumSize: 18)
+                        }
+                    }
+                    .foregroundStyle(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
+                    .padding(.horizontal, 14)
+                    .frame(height: 32)
+                    .background(action.isDestructive ? Color.hooprFill : Color.hooprOrange)
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(isPending || isBlocked)
+                .opacity(isBlocked ? 0.5 : 1)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardChrome(cornerRadius: 12)
+    }
+
+    private var noRunsToday: some View {
+        Text("No runs here today.")
+            .hooprFont(13)
+            .foregroundStyle(Color.hooprSecondaryText)
+    }
+
+    /// Start Run is primary and Directions secondary, reversing the old order.
+    ///
+    /// Getting there is a solved problem every phone already has an app for;
+    /// putting a run on the board is the thing only this app does, and the one
+    /// the cold-start problem depends on.
+    private func cardActions(court: Court, hasRuns: Bool) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                openDirections(to: court)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
+                        .hooprFont(14, weight: .semibold, maximumSize: 20)
+                    Text("Directions")
+                        .hooprFont(15, weight: .semibold, maximumSize: 22)
+                }
+                .foregroundStyle(Color.hooprPrimaryText)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(Color.hooprFill)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                startingRunAt = court
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus.circle.fill")
+                        .hooprFont(14, weight: .semibold, maximumSize: 20)
+                    Text(hasRuns ? "Add a run" : "Start Run")
+                        .hooprFont(15, weight: .semibold, maximumSize: 22)
+                        .lineLimit(1)
+                }
+                .foregroundStyle(Color.hooprOnBrand)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(Color.hooprOrange)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     /// Hands the court to Maps for routing. The app knows where its courts are
@@ -624,24 +984,6 @@ struct MapTab: View {
 
     // MARK: - Sheet position
 
-    /// Keeps the sheet inside its travel range while still following the finger,
-    /// so it can be neither flung off-screen nor dragged above its full height.
-    private func rubberBanded(_ offset: CGFloat) -> CGFloat {
-        if offset < 0 {
-            return -resistance(-offset)
-        }
-        if offset > mediumHeight {
-            return mediumHeight + resistance(offset - mediumHeight)
-        }
-        return offset
-    }
-
-    /// Overshoot that eases towards a hard limit instead of tracking 1:1.
-    private func resistance(_ overshoot: CGFloat) -> CGFloat {
-        let limit: CGFloat = 40
-        return limit * (1 - exp(-overshoot / limit))
-    }
-
     private func sheetDragGesture(fromHandle: Bool) -> some Gesture {
         DragGesture(minimumDistance: fromHandle ? 0 : 8)
             .onChanged { value in
@@ -653,7 +995,7 @@ struct MapTab: View {
                 sheetDrag = value.translation.height
             }
             .onEnded { value in
-                let target: Detent
+                let target: SheetDetent
 
                 if fromHandle, abs(value.translation.height) < tapSlop {
                     // Barely moved, so treat it as a tap on the handle: step
@@ -662,33 +1004,23 @@ struct MapTab: View {
                 } else {
                     // Project the fling so a quick flick settles the same way a
                     // long drag does.
-                    target = nextDetent(
+                    target = SheetGeometry.nextDetent(
                         from: sheetState.detent,
                         projecting: value.predictedEndTranslation.height
                     )
                 }
 
                 sheetDrag = 0
-                settle(to: target)
+                // While the keyboard is up `mediumHeight` is roughly 140pt and
+                // `.collapsed` would put the sheet off-screen behind it, with
+                // no way back except dismissing a keyboard the user can no
+                // longer see a field for. Search owns the sheet until it's
+                // dismissed.
+                settle(to: isSearchFocused && target == .collapsed ? .medium : target)
             }
     }
 
-    /// One detent per gesture, so a hard fling can't skip from expanded
-    /// straight off the bottom of the screen.
-    private func nextDetent(from detent: Detent, projecting travel: CGFloat) -> Detent {
-        switch detent {
-        case .expanded:
-            return travel > detentThreshold ? .medium : .expanded
-        case .medium:
-            if travel > detentThreshold { return .collapsed }
-            if travel < -detentThreshold { return .expanded }
-            return .medium
-        case .collapsed:
-            return travel < -detentThreshold ? .medium : .collapsed
-        }
-    }
-
-    private func settle(to detent: Detent) {
+    private func settle(to detent: SheetDetent) {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
             switch sheetState {
             case .rest:
@@ -709,7 +1041,7 @@ struct MapTab: View {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
             // Detail reads best at the medium detent — expanded leaves a card
             // stranded in whitespace.
-            let fallback: Detent = sheetState.detent == .collapsed ? .collapsed : .medium
+            let fallback: SheetDetent = sheetState.detent == .collapsed ? .collapsed : .medium
             sheetState = .detail(court: court, returningTo: fallback)
         }
     }
