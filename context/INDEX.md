@@ -65,6 +65,7 @@ ships, fold what's true into the entries above and strike it from the plan.
 | [`plans/FRIENDS.md`](plans/FRIENDS.md) | **Partly shipped** — the `friendships` backend (Phase 1), the Friends UI (Phase 2), and search, public profiles and the inbox (Phase 3) are built and folded into the entries above. The friends'-public-runs badge (Phase 4) is still a proposal. |
 | [`plans/SCALE_UP.md`](plans/SCALE_UP.md) | Proposed — the multi-city scaling roadmap: the global public-games query fix, court-dataset delivery for many cities, and the sequencing of every other pending feature/gap around them. |
 | [`plans/BACKLOG.md`](plans/BACKLOG.md) | Proposed — medium-to-large enhancement stories in four tracks: the Queue Up matchmaking feature, the friends system, UI depth, and correctness/standards. Its D1 records verified drift in the entries above. |
+| [`plans/APP_SHELL_AND_HOME.md`](plans/APP_SHELL_AND_HOME.md) | Proposed — move navigation to a bottom tab bar, add a Home tab, and give the map inline court search. Its §5 records the colour work a native tab bar forces. |
 
 ---
 
