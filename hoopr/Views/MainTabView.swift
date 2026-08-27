@@ -1,28 +1,37 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @State private var selectedTab = 0
+    /// The three top-level destinations. Named `Screen` rather than `Tab`
+    /// because `SwiftUI.Tab` is the builder used below and shadowing it here
+    /// would make the `TabView` unreadable.
+    private enum Screen: Hashable {
+        case home
+        case map
+        case runs
+    }
+
+    /// Home, not the map. The map answers "where can I hoop?", which is a
+    /// question you only have once you've decided to go out; Home answers
+    /// "am I signed up for something tonight?", which is the more common
+    /// reason to open the app at all.
+    @State private var selectedScreen: Screen = .home
     @State private var showProfile = false
+
+    /// A court handed to the map from Home's hot list. The map consumes it and
+    /// writes back `nil`, so tapping the same court twice selects it twice
+    /// rather than going inert after the first.
+    @State private var courtToShowOnMap: Court?
 
     @ObservedObject private var authService: AuthService
     @ObservedObject private var userProfileService: UserProfileService
     private let courtService: CourtService
     private let locationService: LocationService
     private let gameService: GameService
-    /// Observed, unlike the other services held here, because the header
-    /// itself reads it: the profile button carries a dot while a friend request
-    /// is unanswered, and a plain `let` wouldn't redraw when one arrives.
+    /// Observed, unlike the other services held here, because `ProfileButton`
+    /// reads it: the button carries a dot while a friend request is unanswered,
+    /// and a plain `let` wouldn't redraw when one arrives.
     @ObservedObject private var friendService: FriendService
     private let recentCourtsStore: RecentCourtsStore
-
-    /// Two tabs, not three: Friends moved into `ProfileView` as a pane, which
-    /// is what freed this slot. Adding the next one means adding a case here
-    /// and a branch in `content(headerHeight:)` — nothing else in the header is
-    /// written for a fixed count.
-    private let tabs: [(String, String)] = [
-        ("Court Map", "map"),
-        ("Local Runs", "calendar"),
-    ]
 
     init(
         authService: AuthService,
@@ -45,7 +54,8 @@ struct MainTabView: View {
     var body: some View {
         // The profile takes over the whole screen — it has its own header and
         // back button — so it replaces this interface rather than rendering
-        // inside it.
+        // inside it. That is also what satisfies "the profile button appears
+        // everywhere except the profile": there is no tab bar behind it.
         if showProfile {
             ProfileView(
                 authService: authService,
@@ -59,194 +69,76 @@ struct MainTabView: View {
             }
             .transition(.opacity)
         } else {
-            mainInterface
+            tabs
         }
     }
 
-    private var mainInterface: some View {
-        GeometryReader { geo in
-            let headerHeight = geo.size.height * 0.14
-
-            // The header floats *over* the content rather than stacking above
-            // it, so the map can run to every edge of the screen. The two list
-            // tabs get the header's height back as safe area, which lets their
-            // scroll content pass under the glass instead of starting below it.
-            ZStack(alignment: .top) {
-                content(headerHeight: headerHeight)
-
-                header
-                    .frame(height: headerHeight)
-                    .frame(maxWidth: .infinity)
-                    .background(alignment: .top) {
-                        // Extended past the top safe area so the glass carries
-                        // on under the status bar — otherwise the clock sits
-                        // directly on the map.
-                        //
-                        // `contentShape` is load-bearing, not decoration: the
-                        // bar's fill is clear, a clear fill doesn't hit-test,
-                        // and the map is now its ZStack sibling *underneath*
-                        // rather than a panel below it. Without this, every
-                        // tap and drag on the header reached MapKit and panned
-                        // the map — including taps on the tab pills.
-                        Rectangle()
-                            .fill(.clear)
-                            .glassEffect(.regular, in: .rect)
-                            .contentShape(Rectangle())
-                            .ignoresSafeArea(edges: .top)
+    /// A native `TabView`, not the hand-rolled glass header this replaced.
+    ///
+    /// The header was pinned to 14% of the screen and floated over the content,
+    /// which cost three things the system gives away: the pills were ~40pt tall
+    /// against Apple's 44pt floor, the greeting and the labels both had to
+    /// carry `minimumScaleFactor` to survive Dynamic Type, and the bar needed a
+    /// `contentShape` on a clear fill just so taps stopped falling through to
+    /// MapKit. A real tab bar is 44pt-compliant, Dynamic Type-aware,
+    /// VoiceOver-labelled and hit-tested by the system.
+    ///
+    /// It also keeps every tab's state alive once mounted, which is what the
+    /// old shell was faking with `.opacity`/`.allowsHitTesting` on a permanently
+    /// mounted `MapTab`.
+    private var tabs: some View {
+        TabView(selection: $selectedScreen) {
+            Tab("Home", systemImage: "house.fill", value: Screen.home) {
+                HomeTab(
+                    authService: authService,
+                    courtService: courtService,
+                    gameService: gameService,
+                    userProfileService: userProfileService,
+                    friendService: friendService,
+                    onOpenProfile: openProfile,
+                    onOpenRuns: { selectedScreen = .runs },
+                    onOpenMap: { court in
+                        courtToShowOnMap = court
+                        selectedScreen = .map
                     }
+                )
             }
-            .environment(\.floatingHeaderHeight, headerHeight)
-        }
-        .ignoresSafeArea(edges: .bottom)
-    }
 
-    private func content(headerHeight: CGFloat) -> some View {
-        ZStack {
-            MapTab(
-                courtService: courtService,
-                locationService: locationService,
-                userProfileService: userProfileService,
-                gameService: gameService,
-                recentCourtsStore: recentCourtsStore
-            )
-                .opacity(selectedTab == 0 ? 1 : 0)
-                .allowsHitTesting(selectedTab == 0)
+            Tab("Map", systemImage: "map.fill", value: Screen.map) {
+                MapTab(
+                    courtService: courtService,
+                    locationService: locationService,
+                    userProfileService: userProfileService,
+                    gameService: gameService,
+                    recentCourtsStore: recentCourtsStore,
+                    friendService: friendService,
+                    courtToSelect: $courtToShowOnMap,
+                    onOpenProfile: openProfile
+                )
+            }
 
-            if selectedTab == 1 {
+            Tab("Runs", systemImage: "calendar", value: Screen.runs) {
                 LocalRunsTab(
                     gameService: gameService,
                     courtService: courtService,
-                    userProfileService: userProfileService
-                )
-                .safeAreaPadding(.top, headerHeight)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Spacer()
-
-            HStack {
-                // The whole header is pinned to 14% of the screen below, so
-                // the type in it is capped and allowed to shrink rather than
-                // being clipped by its own bar.
-                Text("Let's go hoop \(Text(userName).fontWeight(.bold)).")
-                    .hooprFont(28, maximumSize: 34)
-                    .foregroundStyle(Color.hooprPrimaryText)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.7)
-
-                Spacer()
-
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showProfile = true
-                    }
-                } label: {
-                    Image(systemName: "person.crop.circle.fill")
-                        .hooprFont(32, maximumSize: 38)
-                        .foregroundStyle(Color.hooprSecondaryText)
-                        // The Friends pill used to carry this dot. Friends is a
-                        // pane of the profile now, so the button that opens the
-                        // profile is what says something is waiting inside it.
-                        //
-                        // Red, matching the inbox badge it leads to, and not
-                        // the brand orange: this header is already orange in
-                        // places, and a notification has to read as one thing
-                        // to deal with rather than as more brand.
-                        .overlay(alignment: .topTrailing) {
-                            if hasUnansweredRequests {
-                                Circle()
-                                    .fill(Color.hooprRed)
-                                    // A ring in the header's own colour, so the
-                                    // dot reads as sitting on the glyph rather
-                                    // than as part of it.
-                                    .stroke(Color.hooprBackground, lineWidth: 2)
-                                    .frame(width: 11, height: 11)
-                                    .offset(x: 1, y: -1)
-                            }
-                        }
-                }
-                .accessibilityLabel(
-                    hasUnansweredRequests ? "Profile, requests waiting" : "Profile"
+                    userProfileService: userProfileService,
+                    friendService: friendService,
+                    onOpenProfile: openProfile
                 )
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 12)
+        }
+        // Selected items take the brand orange; unselected ones stay in the
+        // system's grey. Worth knowing: this paints the brand as a *foreground*
+        // on a light ground, which is the pairing `GAPS.md` tracks as failing
+        // AA — see `ThemeContrastTests.testTabBarSelectionIsATrackedGap`.
+        .tint(Color.hooprOrange)
+    }
 
-            HStack(spacing: 6) {
-                ForEach(0..<tabs.count, id: \.self) { index in
-                    let isSelected = selectedTab == index
-
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            selectedTab = index
-                        }
-                    } label: {
-                        // The pills share one row inside the pinned
-                        // header, so these are capped tightly and scale down
-                        // before they'd truncate.
-                        HStack(spacing: 5) {
-                            Image(systemName: tabs[index].1)
-                                .hooprFont(12, weight: .medium, maximumSize: 15)
-                            Text(tabs[index].0)
-                                .hooprFont(12, weight: .semibold, maximumSize: 15)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                        }
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity)
-                        .foregroundStyle(
-                            isSelected ? Color.hooprOnBrand : Color.hooprPrimaryText
-                        )
-                        // The pills sit on glass now, so an unselected one is
-                        // clear glass rather than an opaque grey fill — which
-                        // over a moving map would read as a hole in the bar.
-                        .glassEffect(
-                            isSelected
-                                ? .regular.tint(Color.hooprOrange).interactive()
-                                : .clear.interactive(),
-                            in: .rect(cornerRadius: 12)
-                        )
-                    }
-                    .accessibilityLabel(tabs[index].0)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
+    private func openProfile() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showProfile = true
         }
     }
-
-    /// Reads the stored profile name. Falls back to a neutral greeting while
-    /// the first snapshot is in flight or before provisioning finishes.
-    private var userName: String {
-        userProfileService.currentProfile?.userName ?? "there"
-    }
-
-    /// Whether the profile button should carry a badge dot.
-    ///
-    /// Only *incoming* requests count — a request you sent isn't waiting on
-    /// you. Reading the service directly rather than through `FriendsViewModel`
-    /// keeps the dot alive while the profile is closed, which is the entire
-    /// reason it's here: an inbox you can only discover by already being inside
-    /// it isn't a notification.
-    private var hasUnansweredRequests: Bool {
-        !friendService.incomingRequests.isEmpty
-    }
-}
-
-/// How tall the header hovering over the content is.
-///
-/// The two list tabs get this back as safe-area padding, which `MainTabView`
-/// applies for them. The map tab can't: its whole point is that the map runs
-/// underneath the header, so only its *floating chrome* is inset — and that
-/// happens deep enough inside `MapTab` that threading it through as an
-/// initialiser argument would mean the shell dictating a private layout
-/// detail of one tab.
-extension EnvironmentValues {
-    @Entry var floatingHeaderHeight: CGFloat = 0
 }
 
 #Preview {

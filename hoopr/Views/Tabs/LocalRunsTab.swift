@@ -8,17 +8,28 @@ import SwiftUI
 struct LocalRunsTab: View {
     @StateObject private var viewModel: LocalRunsViewModel
 
-    /// Persisted rather than `@State`: this tab is unmounted whenever another
-    /// tab is selected (see `UI_SHELL.md`), so plain view state would reopen
-    /// both sections on every visit and quietly discard the choice.
+    /// Persisted rather than `@State`. This was written when a tab switch
+    /// unmounted the tab entirely and plain view state would reopen both
+    /// sections on every visit. Under a native `TabView` the tab stays mounted,
+    /// so `@State` would now survive a switch — but this still earns its keep
+    /// by carrying the choice across launches, which `@State` never did.
     @AppStorage("localRuns.queuedExpanded") private var isQueuedExpanded = true
     @AppStorage("localRuns.publicExpanded") private var isPublicExpanded = true
+
+    /// Observed because `ProfileButton` reads it for its badge dot.
+    @ObservedObject private var friendService: FriendService
+
+    private let onOpenProfile: () -> Void
 
     init(
         gameService: GameService,
         courtService: CourtService,
-        userProfileService: UserProfileService
+        userProfileService: UserProfileService,
+        friendService: FriendService,
+        onOpenProfile: @escaping () -> Void
     ) {
+        self.friendService = friendService
+        self.onOpenProfile = onOpenProfile
         _viewModel = StateObject(wrappedValue: LocalRunsViewModel(
             gameService: gameService,
             courtService: courtService,
@@ -29,6 +40,8 @@ struct LocalRunsTab: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
+                header
+
                 if let errorMessage = viewModel.errorMessage {
                     ErrorBanner(
                         message: errorMessage,
@@ -66,6 +79,27 @@ struct LocalRunsTab: View {
         }
         .background(Color.hooprBackground)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Header
+
+    /// This tab used to borrow the shell's floating header for both its title
+    /// and its profile button. With the tab bar at the bottom that header is
+    /// gone, so the tab names itself.
+    private var header: some View {
+        HStack(alignment: .center) {
+            Text("Runs")
+                .hooprFont(28, weight: .bold, maximumSize: 40)
+                .foregroundStyle(Color.hooprPrimaryText)
+
+            Spacer(minLength: 8)
+
+            ProfileButton(friendService: friendService, action: onOpenProfile)
+                .offset(x: 8)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
     }
 
     // MARK: - Sections
@@ -160,9 +194,11 @@ struct LocalRunsTab: View {
 
 #Preview {
     let authService = AuthService()
-    return LocalRunsTab(
+    LocalRunsTab(
         gameService: GameService(authService: authService),
         courtService: CourtService(),
-        userProfileService: UserProfileService(authService: authService)
+        userProfileService: UserProfileService(authService: authService),
+        friendService: FriendService(authService: authService),
+        onOpenProfile: {}
     )
 }

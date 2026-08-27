@@ -168,6 +168,44 @@ final class ThemeContrastTests: XCTestCase {
         )
     }
 
+    /// The tab bar's selected item, which became the **most prominent**
+    /// instance of the gap above when navigation moved to the bottom on
+    /// 2026-08-26.
+    ///
+    /// The old shell never hit this: its tab pills painted `hooprOrange` as a
+    /// *fill* with `hooprOnBrand` on top, which is the pairing
+    /// `testBrandButtonLabelClearsAA` pins at 6.61:1. A native tab bar inverts
+    /// that — `.tint(...)` colours the selected item's glyph **and** its label,
+    /// so the brand is now foreground on a near-white glass ground, at roughly
+    /// 10pt. That is normal text by WCAG's reckoning, so it needs 4.5:1 and
+    /// gets ~2.55:1.
+    ///
+    /// Shipped knowingly: an orange selected tab was an explicit product
+    /// decision, and the alternatives both cost something real. A monochrome
+    /// bar passes but drops the brand from the app's most-seen control;
+    /// `hooprDarkOrange` only reaches ~3.85:1, which clears the graphic floor
+    /// and still misses the text one. The genuine fix is the deepened
+    /// `hooprOrange`-as-text role the gap above already calls for — roughly
+    /// `#B4491E`, which measures ~5.4:1 on white.
+    ///
+    /// Asserted in the failing direction on purpose, exactly like the test
+    /// above: **this goes green the day the gap closes**, which is the signal
+    /// to replace it with a real assertion.
+    func testTabBarSelectionIsATrackedGap() throws {
+        let lightOnBackground = ratio(.hooprOrange, on: .hooprBackground, .light)
+        XCTAssertLessThan(
+            lightOnBackground, aaText,
+            """
+            hooprOrange now clears \(aaText):1 as a foreground on \
+            hooprBackground in light mode \
+            (\(String(format: "%.2f", Double(lightOnBackground))):1). If a \
+            readable brand role landed, point MainTabView's .tint at it, \
+            replace this test with a real assertion, and strike the gap from \
+            context/GAPS.md.
+            """
+        )
+    }
+
     // MARK: - Surface separation
 
     /// Cards must be distinguishable from the page — but in **dark mode only**.

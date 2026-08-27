@@ -1,6 +1,18 @@
 import SwiftUI
 import MapKit
 
+/// The sheet's two layout inputs, read together so one `onGeometryChange` can
+/// deliver both without either lagging a frame behind the other.
+///
+/// Declared outside `MapTab` and explicitly `nonisolated` because
+/// `onGeometryChange` requires a `Sendable` value: nested in the view — or
+/// left to this module's default main-actor isolation — its `Equatable`
+/// conformance is actor-isolated and can't satisfy that.
+private nonisolated struct SheetMetrics: Equatable {
+    var height: CGFloat
+    var bottomInset: CGFloat
+}
+
 struct MapTab: View {
     /// How far up the sheet is resting. `medium` is the default: enough list to
     /// be useful, enough map to stay oriented.
@@ -56,33 +68,59 @@ struct MapTab: View {
     /// that starts at the top.
     @State private var listScrollOffset: CGFloat = 0
 
-    /// The tab's own height, fed by `onGeometryChange`. The detents are
-    /// fractions of it. Seeded with a typical phone height so the first frame
-    /// renders a sensibly sized sheet before geometry lands; this also avoids
-    /// `UIScreen.main`, which is deprecated in iOS 26.
+    /// The height the sheet is allowed to use — the tab's own height *minus*
+    /// the tab bar. The detents are fractions of it. Seeded with a typical
+    /// phone height so the first frame renders a sensibly sized sheet before
+    /// geometry lands; this also avoids `UIScreen.main`, deprecated in iOS 26.
     @State private var containerHeight: CGFloat = 852
 
-    /// How far down the map's floating chrome has to start to clear the app's
-    /// header, which now hovers over the map rather than sitting above it.
-    @Environment(\.floatingHeaderHeight) private var floatingHeaderHeight
+    /// How far the tab bar reaches up from the bottom edge.
+    ///
+    /// Load-bearing, and not something the layout gets for free: `MapView`
+    /// ignores the safe area so the map can run under the bar, and that makes
+    /// the whole `ZStack` full-height. Without subtracting this the sheet is
+    /// sized and positioned against a screen that is taller than the one the
+    /// user can reach, and its last rows render underneath the tab bar.
+    @State private var tabBarInset: CGFloat = 0
+
+    /// A court handed in from Home's hot list. Consumed on arrival and written
+    /// back to `nil`, so selecting the same court twice works.
+    @Binding var courtToSelect: Court?
 
     /// Gap kept below the sheet's own content, and under the collapsed pill, so
     /// neither sits beneath the home indicator.
-    private let peekBottomInset: CGFloat = 28
+    ///
+    /// Smaller than it was: the tab bar now occupies the bottom of the screen
+    /// and the sheet is laid out above it, so this no longer has to clear the
+    /// home indicator on its own.
+    private let peekBottomInset: CGFloat = 12
     private let detentThreshold: CGFloat = 60
     /// Finger travel below which a handle drag counts as a tap instead.
     private let tapSlop: CGFloat = 6
 
     private let gameService: GameService
 
+    /// Observed because `ProfileButton` reads it for its badge dot.
+    @ObservedObject private var friendService: FriendService
+
+    /// Handed up rather than handled here — opening the profile replaces the
+    /// whole interface, which is the shell's call to make, not a tab's.
+    private let onOpenProfile: () -> Void
+
     init(
         courtService: CourtService,
         locationService: LocationService,
         userProfileService: UserProfileService,
         gameService: GameService,
-        recentCourtsStore: RecentCourtsStore
+        recentCourtsStore: RecentCourtsStore,
+        friendService: FriendService,
+        courtToSelect: Binding<Court?>,
+        onOpenProfile: @escaping () -> Void
     ) {
         self.gameService = gameService
+        self.friendService = friendService
+        self.onOpenProfile = onOpenProfile
+        _courtToSelect = courtToSelect
         _viewModel = StateObject(wrappedValue: FindAMatchViewModel(
             courtService: courtService,
             locationService: locationService,
@@ -147,10 +185,22 @@ struct MapTab: View {
 
             collapsedPeek
         }
-        .onGeometryChange(for: CGFloat.self) { proxy in
-            proxy.size.height
-        } action: { height in
-            if height > 0 { containerHeight = height }
+        .onGeometryChange(for: SheetMetrics.self) { proxy in
+            SheetMetrics(height: proxy.size.height, bottomInset: proxy.safeAreaInsets.bottom)
+        } action: { metrics in
+            tabBarInset = metrics.bottomInset
+
+            let usable = metrics.height - metrics.bottomInset
+            if usable > 0 { containerHeight = usable }
+        }
+        // A court arriving from Home's hot list. Cleared immediately so the
+        // same court can be sent again, and routed through the same
+        // `select(_:recenter:)` a list row uses rather than reaching into the
+        // sheet's state machine.
+        .onChange(of: courtToSelect) { _, court in
+            guard let court else { return }
+            courtToSelect = nil
+            select(court, recenter: true)
         }
         .sheet(item: $startingRunAt) { court in
             CreateGameSheet(
@@ -175,7 +225,18 @@ struct MapTab: View {
     /// height so the row stays pinned to the top of a `ZStack` that aligns
     /// its children to the bottom.
     private var mapOverlay: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .trailing, spacing: 10) {
+            // The profile button gets its own row rather than sharing one with
+            // the chips. Moving the tabs to the bottom freed the whole top of
+            // the map, so there's no longer a reason to crowd three controls
+            // into a single line — and the chips can use the full width.
+            ProfileButton(
+                friendService: friendService,
+                style: .glass,
+                action: onOpenProfile
+            )
+            .padding(.trailing, 14)
+
             HStack(spacing: 0) {
                 filterChips
 
@@ -185,10 +246,11 @@ struct MapTab: View {
 
             Spacer()
         }
-        // Clear the header hovering above, then the usual gap beneath it.
-        .padding(.top, floatingHeaderHeight + 10)
-        // Keep the chrome clear of the sheet, whatever height it's at.
-        .padding(.bottom, max(0, sheetHeight - sheetOffset))
+        // The map runs under the status bar; its chrome starts below it.
+        .padding(.top, 8)
+        // Keep the chrome clear of the sheet, whatever height it's at — and of
+        // the tab bar, which the sheet now sits on top of.
+        .padding(.bottom, max(0, sheetHeight - sheetOffset) + tabBarInset)
     }
 
     private var filterChips: some View {
@@ -272,14 +334,20 @@ struct MapTab: View {
                     .transition(.opacity)
             }
         }
+        // The content stops above the tab bar — a list you read can't run
+        // under it — but the surface behind it does not. The tab bar floats
+        // with transparent margins, so a sheet that ended where its content
+        // does would show a band of map between the two.
         .frame(height: sheetHeight, alignment: .top)
         .frame(maxWidth: .infinity)
-        .background(
+        .background(alignment: .top) {
             UnevenRoundedRectangle(topLeadingRadius: 22, topTrailingRadius: 22)
                 .fill(Color.hooprSurface)
                 .shadow(color: Color.hooprShadow(opacity: 0.08), radius: 12, x: 0, y: -4)
-        )
+                .frame(height: sheetHeight + tabBarInset)
+        }
         .offset(y: sheetOffset)
+        .padding(.bottom, tabBarInset)
     }
 
     /// All that's left once the sheet is dismissed — a compact tap target that
@@ -298,7 +366,7 @@ struct MapTab: View {
         .glassEffect(.regular.interactive(), in: .capsule)
         .contentShape(Capsule())
         .gesture(sheetDragGesture(fromHandle: true))
-        .padding(.bottom, peekBottomInset)
+        .padding(.bottom, peekBottomInset + tabBarInset)
         .opacity(peekOpacity)
         .allowsHitTesting(peekOpacity > 0.5)
     }
@@ -659,12 +727,17 @@ struct MapTab: View {
 }
 
 #Preview {
+    @Previewable @State var courtToSelect: Court?
     let authService = AuthService()
-    return MapTab(
+
+    MapTab(
         courtService: CourtService(),
         locationService: LocationService(),
         userProfileService: UserProfileService(authService: authService),
         gameService: GameService(authService: authService),
-        recentCourtsStore: RecentCourtsStore()
+        recentCourtsStore: RecentCourtsStore(),
+        friendService: FriendService(authService: authService),
+        courtToSelect: $courtToSelect,
+        onOpenProfile: {}
     )
 }
