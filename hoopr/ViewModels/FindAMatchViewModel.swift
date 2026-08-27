@@ -363,8 +363,11 @@ final class FindAMatchViewModel: ObservableObject {
 
         switch selectedTab {
         case .nearby:
+            // Names the radius actually in force rather than pointing at a
+            // "Search here" button the map has never had. `radiusMiles` is
+            // published for exactly this — see its note.
             return activeFilters.isEmpty
-                ? "Pan the map and tap Search here."
+                ? "Nothing within \(UserProfile.radiusText(radiusMiles)). Widen your radius in your profile."
                 : "Try removing a filter."
         case .favorites:
             return "Tap the star on any court to save it here."
