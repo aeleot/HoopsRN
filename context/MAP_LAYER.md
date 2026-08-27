@@ -3,7 +3,7 @@
 **Scope:** `hoopr/Views/MapView.swift`, `hoopr/Views/Tabs/MapTab.swift`,
 `hoopr/Views/Tabs/CourtRow.swift`, `hoopr/Views/Components/CourtBadges.swift`,
 `hoopr/Support/CourtHeat.swift`
-**Verified:** 2026-08-26 @ 8ad0041
+**Verified:** 2026-08-27 @ 61f2570
 
 The map tab and its bottom sheet — the densest interaction code in the app, and
 the part most likely to break subtly when edited. Read this before touching
@@ -279,6 +279,13 @@ subtracts it. This is load-bearing and easy to undo: `MapView` calls
 `.ignoresSafeArea()`, which makes the whole `ZStack` full-height, so without the
 subtraction the sheet is sized and positioned against a screen taller than the
 one the user can reach and its last rows render underneath the tab bar.
+
+The inset arrives from `HooprTabBar`, which the shell mounts with
+`.safeAreaInset(edge: .bottom)` rather than stacking over the content. That is
+what lets this file's arithmetic stay ignorant of who draws the bar: it reads
+`safeAreaInsets.bottom` and gets the truth whether that is the system's bar or
+the app's own shelf. Nothing here changed when the shelf replaced the system
+bar on 2026-08-27.
 
 `SheetMetrics` lives at file scope and is explicitly `nonisolated` because
 `onGeometryChange` needs a `Sendable` value — nested in the view, or left to the
