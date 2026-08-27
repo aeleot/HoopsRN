@@ -3,7 +3,7 @@
 **Scope:** `hoopr/Views/MapView.swift`, `hoopr/Views/Tabs/MapTab.swift`,
 `hoopr/Views/Tabs/CourtRow.swift`, `hoopr/Views/Components/CourtBadges.swift`,
 `hoopr/Support/CourtHeat.swift`
-**Verified:** 2026-08-21 @ a524a7f
+**Verified:** 2026-08-26 @ 8ad0041
 
 The map tab and its bottom sheet — the densest interaction code in the app, and
 the part most likely to break subtly when edited. Read this before touching
@@ -75,10 +75,12 @@ It's `setVisibleMapRect(_:edgePadding:)` without the Mercator-space padding
 maths, which `MapView` can't do anyway — it doesn't know the header or sheet
 heights.
 
-The 0.12 is sized against `MapTab`'s geometry: a ~0.14-screen-height header and
-a sheet at its medium detent (~⅓ of the screen) put the visible gap's centre
-around 40% down rather than 50%. Change either of those and this fraction is
-what stops matching.
+The 0.12 is sized against `MapTab`'s geometry: the chrome above and a sheet at
+its medium detent (~⅓ of the usable height) put the visible gap's centre around
+40% down rather than 50%. Change either of those and this fraction is what stops
+matching. It was tuned against a ~0.14-screen-height floating header that no
+longer exists; the sheet still dominates the calculation, so it was left alone
+when the shell moved — worth re-checking if the top chrome grows.
 
 ## Annotation diffing
 
@@ -270,6 +272,26 @@ Three accessors do the work, and mixing them up is the bug this shape invites:
 lands; `mediumHeight` is a third of it and `expandedHeight` 0.78 of it.
 `UIScreen.main` is deprecated on iOS 26 and is no longer read anywhere.
 
+**`containerHeight` is the usable height, not the full one.** The same
+`onGeometryChange` also reads `safeAreaInsets.bottom` into `tabBarInset` — both
+in one `SheetMetrics` value, so neither lags a frame behind the other — and
+subtracts it. This is load-bearing and easy to undo: `MapView` calls
+`.ignoresSafeArea()`, which makes the whole `ZStack` full-height, so without the
+subtraction the sheet is sized and positioned against a screen taller than the
+one the user can reach and its last rows render underneath the tab bar.
+
+`SheetMetrics` lives at file scope and is explicitly `nonisolated` because
+`onGeometryChange` needs a `Sendable` value — nested in the view, or left to the
+module's default main-actor isolation, its `Equatable` conformance is
+actor-isolated and won't compile.
+
+**The sheet's content stops above the tab bar; its surface does not.** The
+content frame stays `sheetHeight` and is lifted by `.padding(.bottom,
+tabBarInset)`, while the background is drawn `sheetHeight + tabBarInset` tall
+and top-anchored. The tab bar floats with transparent margins around it, so a
+sheet that ended where its content does would show a band of map between the
+two.
+
 Between medium and expanded the sheet **grows and shrinks** — `sheetHeight`
 tracks the finger, so the top edge moves and the bottom stays put. Only heading
 to or from `.collapsed` does it **offset** instead, leaving the screen entirely;
@@ -307,15 +329,24 @@ translucent; a list of courts is something you read, and reading it against a
 moving map is worse in every way than reading it against a surface.
 
 The map `.ignoresSafeArea()` — it *is* the screen, running under the status bar,
-the app's floating header and the home indicator. So `mapOverlay` insets itself
-by `floatingHeaderHeight` (an `@Environment` value published by the shell, see
-`UI_SHELL.md`) plus 10pt, and by `max(0, sheetHeight - sheetOffset)` at the
-bottom so the chrome stays clear of the sheet at any detent. The trailing
+the tab bar and the home indicator. `mapOverlay` insets itself by 8pt at the top
+(the old `floatingHeaderHeight` environment key is gone along with the header
+that published it) and by `max(0, sheetHeight - sheetOffset) + tabBarInset` at
+the bottom, so the chrome stays clear of both the sheet at any detent and the
+tab bar the sheet sits on. The trailing
 `Spacer` in that `VStack` is load-bearing: it holds the stack at full height so
 the row stays pinned to the top of a bottom-aligned `ZStack`.
 
 The recenter button is the **only map control left** — see the zoom-stack note
-above.
+above. The profile button sits on its own row above the filter chips, in
+`ProfileButton`'s `glass` style so it matches the recenter control; moving the
+tabs to the bottom freed the whole top of the map, so there is no longer a
+reason to crowd three controls into one line.
+
+`courtToSelect` is a `Court?` binding the shell writes when a Home hot-court row
+is tapped. `MapTab` consumes it in `.onChange`, clears it so the same court can
+be sent twice, and routes it through the same `select(_:recenter:)` a list row
+uses rather than reaching into the sheet's state machine.
 
 ## The court detail card
 
@@ -431,6 +462,9 @@ nearby-list row — already open this card, so one button serves both. See
   off-screen.
 - Sheet geometry derives from `containerHeight`, fed by `onGeometryChange`.
   Don't reintroduce `UIScreen.main` — it's deprecated on iOS 26.
+- `containerHeight` must stay net of `tabBarInset`. The map ignores the safe
+  area, so the `ZStack` is full-height and nothing else subtracts the tab bar
+  for you.
 - Distances are computed on `rebuild()`, not during scroll. The radius comes
   from the profile's `preferredRadius`, via `preferredRadiusMiles`.
 - The initial region, list distances, and the recenter target all read

@@ -130,6 +130,20 @@ it partly shipped; the general "Next steps" list below is everything else.
   `ThemeContrastTests.testBrandAsForegroundIsATrackedGap` pins the current
   failing state and **fails the moment the gap closes**, so it can't be
   forgotten. Add the real assertions in the same change that adds the role.
+
+  **Updated 2026-08-26 — the tab bar is now this gap's most prominent
+  instance.** Navigation moved to a native `TabView` whose selected item takes
+  `hooprOrange` via `.tint`, which colours the glyph *and* its ~10pt label. The
+  old shell's pills never hit this: they painted the brand as a *fill* with
+  `hooprOnBrand` on top, which passes at 6.61:1. In light mode the selected tab
+  label now reads *lighter* than the unselected ones, inverting the hierarchy it
+  exists to signal. Shipped as a deliberate product decision, with the numbers
+  known: `hooprDarkOrange` was measured as an alternative and reaches only
+  ~3.85:1 — it clears the graphic floor and still misses the text one — and a
+  monochrome bar passes but drops the brand from the app's most-seen control. A
+  starting value of roughly `#B4491E` measures ~5.4:1 on white and is the
+  cheapest honest fix. `ThemeContrastTests.testTabBarSelectionIsATrackedGap`
+  records it the same failing-direction way.
   *(Fixed on 2026-08-21: the same revert had left `hooprOnBrand` as white on
   that orange at 2.55:1 / 2.25:1, on every primary button. It is now black —
   8.24:1 / 9.33:1 — with `hooprOnRed` split out for the one label on a red
@@ -440,6 +454,9 @@ answer and would pay for itself the first time someone edits `hasOnly`.
   means holding the value as well as rendering it.
 - Give `hooprOrange` a readable companion role so it can be used as a
   foreground without failing AA in light mode — see **Accessibility** above.
+  **Raised in priority 2026-08-26:** the tab bar's selected item is now the
+  most-seen instance of this failure, and `MainTabView`'s `.tint` is the single
+  call site that would consume the new role first.
 - Rename `FindAMatchViewModel` to match `MapTab`. The view was renamed when the
   third tab became Friends; its view model wasn't, so the file backing the
   court map is still named for matchmaking.

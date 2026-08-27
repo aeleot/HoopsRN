@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr/hooprApp.swift`, `hoopr/Services/`, `hoopr/ViewModels/`,
 `hoopr/Support/FailureText.swift`, `hoopr/Support/PreferredRadiusPublisher.swift`
-**Verified:** 2026-08-21 @ a524a7f
+**Verified:** 2026-08-26 @ 8ad0041
 
 How the app is assembled: who owns what, what gets injected where, and the two
 orderings/boundaries that break the design if violated. Read this before
@@ -31,7 +31,8 @@ can be built with a stub.
 Seven view models are built from them, each `@StateObject` inside the view it
 backs: `RootViewModel` (from `AuthService`), `LoginViewModel` (`AuthService`),
 `FindAMatchViewModel` (`CourtService` + `LocationService` + `GameService` +
-`UserProfileService`), `ProfileViewModel`
+`UserProfileService`), `HomeViewModel` (`AuthService` + `CourtService` +
+`GameService` + `UserProfileService` + `FriendService`), `ProfileViewModel`
 (`AuthService` + `UserProfileService` + `CourtService`), `LocalRunsViewModel`
 (`GameService` + `CourtService` + `UserProfileService`), `FriendsViewModel`
 (`FriendService` + `UserProfileService` + `CourtService` — the last one only to

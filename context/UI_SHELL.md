@@ -2,10 +2,12 @@
 
 **Scope:** `hoopr/Views/RootView.swift`, `hoopr/Views/MainTabView.swift`,
 `hoopr/Views/LoginView.swift`, `hoopr/Views/Profile/`, `hoopr/Views/Games/`,
-`hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Views/Friends/`,
-`hoopr/Views/Components/ErrorBanner.swift`, `hoopr/Support/Theme.swift`,
+`hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Views/Tabs/HomeTab.swift`,
+`hoopr/ViewModels/HomeViewModel.swift`, `hoopr/Views/Friends/`,
+`hoopr/Views/Components/ErrorBanner.swift`,
+`hoopr/Views/Components/ProfileButton.swift`, `hoopr/Support/Theme.swift`,
 `hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`
-**Verified:** 2026-08-21 @ 6e2fe50
+**Verified:** 2026-08-26 @ 8ad0041
 
 Navigation structure and the visual conventions every screen follows. Read this
 before adding a screen, changing how one is presented, or picking a colour or a
@@ -15,15 +17,16 @@ font size.
 
 ## Navigation
 
-There is no `NavigationStack` at the top level and no system `TabView`. The
-whole shell is conditional rendering.
+The shell is a native `TabView` with a bottom tab bar. `RootView` above it is
+still conditional rendering; `ProfileView` below it still replaces rather than
+stacks.
 
 ```
 RootView                    switches on RootViewModel.destination
 ├── .launching → LaunchScreen
 ├── .login     → LoginView
 └── .main      → MainTabView
-                 ├── mainInterface (header + 2 pill tabs + content ZStack)
+                 ├── TabView (bottom bar) — Home · Map · Runs
                  └── ProfileView   (replaces the above entirely)
                      ├── top bar: back · handle-on-scroll · inbox
                      ├── Profile pane  (identity + field rows)
@@ -38,7 +41,9 @@ session is about to restore — `RootViewModel` holds there until
 **`ProfileView` replaces `MainTabView` rather than rendering inside it** — it
 owns its own header and back button, so presenting it as a sheet or pushing it
 into a stack would give it two. `MainTabView` holds a `showProfile` flag and
-swaps its entire body; `ProfileView` takes an `onBack` closure.
+swaps its entire body; `ProfileView` takes an `onBack` closure. That is also
+what makes the profile the one screen with no tab bar and no profile button:
+there is nothing behind it.
 
 Edit flows *within* the profile are `.sheet(item:)` bound to
 `ProfileViewModel.editingField`, so adding an editable field means adding an
@@ -55,59 +60,91 @@ is up.
 
 ## `MainTabView`
 
-- Header is a fixed `geo.size.height * 0.14` bar: greeting on the left, profile
-  button on the right, then a row of two pill tabs. Because its height is
-  pinned, its type is capped — see "Visual conventions".
+A native `TabView` with three `Tab` items — **Home** (`house.fill`), **Map**
+(`map.fill`), **Runs** (`calendar`) — selected through a private `Screen` enum.
+Named `Screen` and not `Tab` because `SwiftUI.Tab` is the builder it uses.
 
-**The header floats over the content rather than stacking above it.** The shell
-is a `ZStack(alignment: .top)`, not a `VStack`, so the map runs to every edge of
-the screen and passes underneath the header and the status bar. The header's
-background is clear glass extended past the top safe area, so the status bar
-sits on glass rather than directly on the map.
+**This replaced a hand-rolled floating glass header on 2026-08-26**, and the
+reasons are worth keeping because they are the argument against rebuilding one:
 
-Two consequences, both easy to undo by accident:
+- The old header was pinned to `geo.size.height * 0.14`. Its pills were ~40pt
+  tall against Apple's 44pt floor, and both the greeting and the pill labels
+  carried `minimumScaleFactor` — type shrinking to fit a fixed bar, which is
+  exactly what `BACKLOG.md` §C4 says to stop doing.
+- It needed `.contentShape(Rectangle())` on a clear fill purely so taps stopped
+  falling through to MapKit. A system tab bar is hit-tested by the system.
+- It needed a `\.floatingHeaderHeight` environment key to tell `MapTab` how far
+  to inset its chrome. That key is gone.
 
-- **`.contentShape(Rectangle())` on the header is load-bearing.** A clear fill
-  does not hit-test, and the map is now the header's ZStack *sibling
-  underneath* rather than a panel below it — so without an explicit hit shape
-  every tap and drag on the header reached MapKit and panned the map, tab pills
-  included. It's applied twice: on the header itself, and on the extended
-  background that covers the status bar.
-- **The two list tabs get the header's height back as `safeAreaPadding(.top:)`**,
-  applied by `MainTabView`. That's what keeps their content clear of the bar
-  while still letting it scroll underneath. `MapTab` deliberately does *not*
-  get this — the map is supposed to run under the header — so it reads
-  `\.floatingHeaderHeight` from the environment and insets only its own
-  floating chrome.
-- Greeting reads `userProfileService.currentProfile?.userName`, falling back to
-  `"there"` while the first snapshot is in flight.
-- Tabs: Court Map / Local Runs. **Friends used to be the third**, and moving it
-  into `ProfileView` as a pane is what freed the slot — the shell is written for
-  `tabs.count`, so the next one is a case here plus a branch in
-  `content(headerHeight:)`.
-- **The profile button carries the notification dot**, which the Friends pill
-  used to. Friends is inside the profile now, so the control that opens the
-  profile is what says something is waiting in it. The dot is `hooprRed`, not
-  the brand orange, matching the inbox badge it leads to — this header is
-  already orange in places, and a notification has to read as one thing to deal
-  with rather than as more brand. It reads `FriendService` directly rather than
-  a view model, which is what keeps the dot alive while the profile is closed —
-  an inbox you can only discover by already being inside it isn't a
-  notification.
-- Selected pill is glass tinted
-  `hooprOrange`; unselected is `.clear` glass. Neither is an opaque fill any
-  more — over a moving map an opaque grey pill reads as a hole punched in the
-  bar.
+**Tab state is the system's now.** The old shell kept `MapTab` permanently
+mounted behind `.opacity` + `.allowsHitTesting` to preserve map region and
+sheet state across switches. `TabView` retains tab content after first
+appearance, so that hack is gone and the behaviour is unchanged.
 
-**`MapTab` stays mounted** — it's always in the content `ZStack`, hidden
-with `.opacity` + `.allowsHitTesting`, while the other two tabs mount
-conditionally. This is deliberate: it preserves map region, zoom, and sheet
-state across tab switches. Rebuilding it on selection would reset the map to
-`initialRegion` every time. Any future tab with expensive or user-positioned
-state should follow the same pattern.
+**Selected tabs take `hooprOrange` via `.tint`; unselected stay in the system
+grey.** Know what this costs: `.tint` colours the selected item's glyph *and*
+its ~10pt label, which paints the brand as a **foreground** on a near-white
+glass ground. That is the AA gap `GAPS.md` tracks — roughly 2.55:1 against the
+4.5:1 floor — and the tab bar is now its most prominent instance. In light mode
+the selected label reads *lighter* than the unselected ones, inverting the
+hierarchy it is meant to signal. Shipped as a deliberate product decision;
+`ThemeContrastTests.testTabBarSelectionIsATrackedGap` records it in the failing
+direction and goes green the day a readable brand role lands.
 
-`.ignoresSafeArea(edges: .bottom)` on the shell plus `.clipped()` on the content
-is what lets the bottom sheet run to the screen edge.
+**The profile button appears on all three tabs and nowhere else.** It is a
+shared `ProfileButton` component (`Views/Components/`) with two styles: `plain`
+for Home and Runs, and `glass` for the map, where it matches the recenter
+control's 46pt glass circle. It owns the notification-dot rule — `hooprRed`, not
+brand orange, matching the inbox badge it leads to, and reading `FriendService`
+directly rather than a view model so the dot stays live while the profile is
+closed. An inbox you can only discover by already being inside it isn't a
+notification.
+
+Each tab now names itself, since there is no shared header to do it: Home
+carries the `"Let's go hoop <name>."` greeting the header used to, and Runs
+carries a plain `"Runs"` title.
+
+`courtToShowOnMap` is a `@State Court?` handed to `MapTab` as a binding. Home's
+hot-court rows write to it and switch tabs; `MapTab` consumes it and writes back
+`nil`, so the same court can be sent twice.
+## `HomeTab`
+
+The launch tab, added 2026-08-26. The app used to open on the map, which answers
+"where can I hoop?" — a question you only have once you've decided to go out. It
+can't answer "am I signed up for something tonight?", which is the more common
+reason to open the app, so that is what this screen leads with.
+
+Cards, in order — commitment, then opportunity:
+
+- **Next run** — the soonest run you're on. Read-only on purpose: `GameCard`
+  carries join/leave/cancel and the invite link, which are decisions that belong
+  on Runs, so Home draws its own compact card whose only action is to navigate
+  there. It reuses `LocalRunsViewModel.Listing` for the court join and distance
+  formatting, and mirrors `GameCard`'s badge priority (HOSTING → WAITLIST →
+  FULL) so a run reads the same on both screens. With nothing scheduled it
+  becomes a call to action pointing at the map.
+- **Hot right now** — the three courts with the most games today, dotted with
+  `CourtHeat.color(forGameCount:)` so a court's colour means the same thing here
+  as on the map. Tapping one opens the map with that court selected.
+- **Friend requests** — rendered only when there are incoming ones.
+
+**It reads nothing new.** Every value comes off listeners the app already keeps
+open: `GameService`'s two arrays, `CourtService.courts`, the profile snapshot,
+and `FriendService`. The hot list calls
+`FindAMatchViewModel.gameCountsByCourt(queued:published:)` directly — it is
+`nonisolated static` and pure, so Home shares the map's counting rule instead of
+restating it. No extra Firestore read, no rules change.
+
+**There is deliberately no stats card.** Nothing in the app records that a run
+happened — `Game.status` never reaches `.completed` and both game listeners are
+windowed to the future — so "runs this week" and a streak have no honest source
+yet. `plans/APP_SHELL_AND_HOME.md` §6.3 has the query that would provide one and
+the two things to be careful about when it does.
+
+`HomeViewModel.rankHotCourts` is `nonisolated static` and pure, pinned by
+`HomeViewModelTests`. Its tie-break on `displayName` is load-bearing: a
+`[String: Int]` has no stable iteration order, so without it the list reshuffles
+between rebuilds while showing identical numbers.
 
 ## `LocalRunsTab`
 
@@ -116,11 +153,11 @@ Games** (discoverable runs inside your `preferredRadius`) — over a single
 `ScrollView`. One scroll gesture stays in charge, and the two are read together
 anyway: "am I busy, and what else is on?"
 
-Section expansion is **`@AppStorage`, not `@State`**. This tab is unmounted
-whenever another tab is selected, so view state would reopen both sections on
-every visit and silently discard the choice. `MapTab` solves the same
-problem by staying mounted; that isn't available here without paying for a
-permanently live tab.
+Section expansion is **`@AppStorage`, not `@State`**. It was written when a tab
+switch unmounted this tab entirely and view state would reopen both sections on
+every visit. Under the native `TabView` the tab stays mounted, so `@State` would
+now survive a switch — but `@AppStorage` still earns its keep by carrying the
+choice across launches, which `@State` never did.
 
 Cards are `GameCard`, shared by both sections so a run reads identically
 wherever it appears — only the primary action differs (Join / Join waitlist /
@@ -435,13 +472,15 @@ outside `ProfileViewModel.EditableField`: nothing about it touches Firestore.
 - Top-level screen selection lives in `RootViewModel.destination`. Don't add a
   fourth presentation path around it.
 - `ProfileView` is presented in place of `MainTabView`, never inside it.
-- `MapTab` must stay mounted across tab switches; hide it with opacity,
-  don't unmount it.
-- `LocalRunsTab` *is* unmounted on tab switches, so anything the user chose
-  there belongs in `@AppStorage`, not `@State`. The Friends pane has the same
-  problem inside `ProfileView` — its views are rebuilt on every pane switch —
-  and solves it by keeping `FriendsViewModel` and every piece of pane state on
-  the screen instead.
+- Tab content keeps its state across switches, and that is `TabView`'s job now
+  rather than an opacity trick. Don't reintroduce a hand-rolled tab bar: the
+  system one is what supplies 44pt targets, Dynamic Type, VoiceOver and hit
+  testing over the map. The Friends pane still has the rebuild problem inside
+  `ProfileView` — its views are rebuilt on every pane switch — and solves it by
+  keeping `FriendsViewModel` and every piece of pane state on the screen.
+- The profile button appears on every tab and never on `ProfileView`. It is
+  `ProfileButton`, not a per-screen copy, because the badge rule belongs in one
+  place.
 - A list screen is built from the `LocalRunsTab` parts — collapsible section
   header, one shared card, one write in flight — **unless the screen's primary
   job is an action rather than a list**, which is the Friends exception: search

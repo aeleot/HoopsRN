@@ -3,7 +3,7 @@
 **Scope:** `hoopr.xcodeproj/`, `hooprTests/`, `hooprUITests/`,
 `hoopr/Assets.xcassets/`, `hoopr/GoogleService-Info.plist`, `.gitignore`,
 `tools/check_context_drift.py`
-**Verified:** 2026-08-21 @ a524a7f
+**Verified:** 2026-08-26 @ 8ad0041
 
 `Package.resolved` isn't listed separately — it lives under `hoopr.xcodeproj/`
 and is covered by it. (Anything backticked between the `Scope` and `Verified`
@@ -150,12 +150,13 @@ there is no scaffold left in `hooprTests/`.
 | `FriendsViewModelTests` | 16 | `looksLikeUserId`, search-stream `merged`, `relationship`. |
 | `ServiceFailureTests` | 15 | Backoff schedule, per-listener recovery, read/write messaging, `FirestoreFailure` classification. |
 | `FriendshipTests` | 10 | Decoding, the derived document ID, direction. |
-| `ThemeContrastTests` | 8 | Every colour pairing the UI actually draws, against WCAG AA. |
+| `ThemeContrastTests` | 9 | Every colour pairing the UI actually draws, against WCAG AA, plus the two tracked brand-as-foreground gaps asserted in the failing direction. |
 | `CourtHeatTests` | 10 | `CourtHeat.color(forGameCount:)`'s five stops, its ceiling and floor clamps, and the ramp's shape. |
 | `CourtTests` | 6 | `Court.displayName`. |
 | `CourtBadgesTests` | 6 | `amenities(for:limit:)` — that narrowing a row's badges never drops the "Restricted" caution. |
 | `FirestoreRulesParityTests` | 6 | The `status` derivation and the shared bounds, parsed out of `firestore.rules`. |
 | `FindAMatchViewModelTests` | 5 | `gameCountsByCourt` — the per-court/per-day join behind the map's heat colours. |
+| `HomeViewModelTests` | 10 | `rankHotCourts` — ordering, the `displayName` tie-break that keeps the Home list stable across rebuilds, zero/absent counts dropped, the limit, and unknown court ids ignored. |
 
 `UserProfileTests`, `GameTests` and
 `FriendshipTests` run through `Firestore.Decoder` — the same decoder the
