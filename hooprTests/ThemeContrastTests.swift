@@ -174,14 +174,11 @@ final class ThemeContrastTests: XCTestCase {
     ///
     /// The old shell never hit this: its tab pills painted `hooprOrange` as a
     /// *fill* with `hooprOnBrand` on top, which is the pairing
-    /// `testBrandButtonLabelClearsAA` pins at 6.61:1. The shelf inverts that —
-    /// `HooprTabBar` draws the selected item's glyph **and** its 11pt label in
-    /// the brand colour, on a `hooprSurface` ground. 11pt is normal text by
-    /// WCAG's reckoning, so it needs 4.5:1 and gets ~2.55:1.
-    ///
-    /// Measured against `hooprBackground` rather than `hooprSurface` because
-    /// the two are the same pure white in light mode, and `hooprBackground` is
-    /// the tighter of the pair in dark.
+    /// `testBrandButtonLabelClearsAA` pins at 6.61:1. A native tab bar inverts
+    /// that — `.tint(...)` colours the selected item's glyph **and** its label,
+    /// so the brand is now foreground on a near-white glass ground, at roughly
+    /// 10pt. That is normal text by WCAG's reckoning, so it needs 4.5:1 and
+    /// gets ~2.55:1.
     ///
     /// Shipped knowingly: an orange selected tab was an explicit product
     /// decision, and the alternatives both cost something real. A monochrome
@@ -202,9 +199,9 @@ final class ThemeContrastTests: XCTestCase {
             hooprOrange now clears \(aaText):1 as a foreground on \
             hooprBackground in light mode \
             (\(String(format: "%.2f", Double(lightOnBackground))):1). If a \
-            readable brand role landed, point HooprTabBar's selected colour at \
-            it, replace this test with a real assertion, and strike the gap \
-            from context/GAPS.md.
+            readable brand role landed, point MainTabView's .tint at it, \
+            replace this test with a real assertion, and strike the gap from \
+            context/GAPS.md.
             """
         )
     }

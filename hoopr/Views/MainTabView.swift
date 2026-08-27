@@ -1,14 +1,20 @@
 import SwiftUI
 
 struct MainTabView: View {
+    /// The three top-level destinations. Named `Screen` rather than `Tab`
+    /// because `SwiftUI.Tab` is the builder used below and shadowing it here
+    /// would make the `TabView` unreadable.
+    private enum Screen: Hashable {
+        case home
+        case map
+        case runs
+    }
+
     /// Home, not the map. The map answers "where can I hoop?", which is a
     /// question you only have once you've decided to go out; Home answers
     /// "am I signed up for something tonight?", which is the more common
     /// reason to open the app at all.
-    ///
-    /// The destination set itself lives on `HooprTab`, so the `TabView` here
-    /// and the shelf that draws it read the same list in the same order.
-    @State private var selectedScreen: HooprTab = .home
+    @State private var selectedScreen: Screen = .home
     @State private var showProfile = false
 
     /// A court handed to the map from Home's hot list. The map consumes it and
@@ -67,24 +73,22 @@ struct MainTabView: View {
         }
     }
 
-    /// A `TabView` for its content and its state retention, with the system's
-    /// bar hidden and `HooprTabBar` drawn in its place.
+    /// A native `TabView`, not the hand-rolled glass header this replaced.
     ///
-    /// **The split is deliberate.** `TabView` is what keeps every tab's state
-    /// alive once mounted — the map's region, zoom and sheet detent survive a
-    /// switch for free, which the pre-2026-08-26 shell was faking with
-    /// `.opacity` on a permanently mounted `MapTab`. That is worth keeping. But
-    /// iOS 26 draws its bar as a floating pill centred over the content, and a
-    /// shelf that reaches both screen edges is not something the platform
-    /// exposes a way to ask for, so the bar itself is hand-drawn. See
-    /// `HooprTabBar` for what that costs and how each piece is earned back.
+    /// The header was pinned to 14% of the screen and floated over the content,
+    /// which cost three things the system gives away: the pills were ~40pt tall
+    /// against Apple's 44pt floor, the greeting and the labels both had to
+    /// carry `minimumScaleFactor` to survive Dynamic Type, and the bar needed a
+    /// `contentShape` on a clear fill just so taps stopped falling through to
+    /// MapKit. A real tab bar is 44pt-compliant, Dynamic Type-aware,
+    /// VoiceOver-labelled and hit-tested by the system.
     ///
-    /// `.safeAreaInset` rather than a `ZStack`: the shelf has to *reserve* its
-    /// height, not float over the content. `MapTab` sizes its sheet from
-    /// `safeAreaInsets.bottom`, and this is what keeps that number honest.
+    /// It also keeps every tab's state alive once mounted, which is what the
+    /// old shell was faking with `.opacity`/`.allowsHitTesting` on a permanently
+    /// mounted `MapTab`.
     private var tabs: some View {
         TabView(selection: $selectedScreen) {
-            Tab(HooprTab.home.title, systemImage: HooprTab.home.symbol, value: HooprTab.home) {
+            Tab("Home", systemImage: "house.fill", value: Screen.home) {
                 HomeTab(
                     authService: authService,
                     courtService: courtService,
@@ -100,7 +104,7 @@ struct MainTabView: View {
                 )
             }
 
-            Tab(HooprTab.map.title, systemImage: HooprTab.map.symbol, value: HooprTab.map) {
+            Tab("Map", systemImage: "map.fill", value: Screen.map) {
                 MapTab(
                     courtService: courtService,
                     locationService: locationService,
@@ -113,7 +117,7 @@ struct MainTabView: View {
                 )
             }
 
-            Tab(HooprTab.runs.title, systemImage: HooprTab.runs.symbol, value: HooprTab.runs) {
+            Tab("Runs", systemImage: "calendar", value: Screen.runs) {
                 LocalRunsTab(
                     gameService: gameService,
                     courtService: courtService,
@@ -123,12 +127,11 @@ struct MainTabView: View {
                 )
             }
         }
-        // The system bar is hidden, not restyled — it cannot be made to span
-        // the screen. `HooprTabBar` below takes its place.
-        .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            HooprTabBar(selection: $selectedScreen)
-        }
+        // Selected items take the brand orange; unselected ones stay in the
+        // system's grey. Worth knowing: this paints the brand as a *foreground*
+        // on a light ground, which is the pairing `GAPS.md` tracks as failing
+        // AA — see `ThemeContrastTests.testTabBarSelectionIsATrackedGap`.
+        .tint(Color.hooprOrange)
     }
 
     private func openProfile() {
