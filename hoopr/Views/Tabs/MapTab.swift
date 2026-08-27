@@ -410,6 +410,14 @@ struct MapTab: View {
         }
         .offset(y: sheetOffset)
         .padding(.bottom, tabBarInset)
+        // As the sheet nears `.collapsed` it slides down far enough that its
+        // own top edge — the handle, the header — ends up sitting behind the
+        // tab bar rather than above it. The tab bar floats on glass, so
+        // without this the sliding content stayed visible through it right as
+        // `collapsedPeek` faded in over the same span. Fading the two
+        // opposite one another (`peekOpacity` here inverted) keeps exactly one
+        // of them on screen at a time.
+        .opacity(1 - peekOpacity)
     }
 
     /// All that's left once the sheet is dismissed — a compact tap target that
@@ -621,7 +629,7 @@ struct MapTab: View {
             LazyVStack(spacing: 0) {
                 content()
             }
-            .padding(.bottom, peekBottomInset + tabBarInset)
+            .padding(.bottom, peekBottomInset)
         }
         .scrollDisabled(sheetDrag != 0)
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
