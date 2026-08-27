@@ -34,23 +34,23 @@ final class CourtHeatTests: XCTestCase {
     /// rather than referencing the role (see the type's note on why), so this
     /// is the assertion that catches the two drifting apart silently.
     func testZeroGamesIsTheBrandOrange() {
-        XCTAssertEqual(hex(CourtHeat.color(forGameCount: 0)), "F79331")
+        XCTAssertEqual(hex(CourtHeat.color(forGameCount: 0)), "EE6730")
     }
 
     func testOneGameIsTheFirstOrangeStop() {
-        XCTAssertEqual(hex(CourtHeat.color(forGameCount: 1)), "EB7A29")
+        XCTAssertEqual(hex(CourtHeat.color(forGameCount: 1)), "E25528")
     }
 
     func testTwoGamesIsTheSecondOrangeStop() {
-        XCTAssertEqual(hex(CourtHeat.color(forGameCount: 2)), "DF6121")
+        XCTAssertEqual(hex(CourtHeat.color(forGameCount: 2)), "D74420")
     }
 
     func testThreeGamesIsTheThirdOrangeStop() {
-        XCTAssertEqual(hex(CourtHeat.color(forGameCount: 3)), "D24718")
+        XCTAssertEqual(hex(CourtHeat.color(forGameCount: 3)), "CB3218")
     }
 
     func testFourGamesIsTheReddishOrangeCeiling() {
-        XCTAssertEqual(hex(CourtHeat.color(forGameCount: 4)), "C62E10")
+        XCTAssertEqual(hex(CourtHeat.color(forGameCount: 4)), "BF2010")
     }
 
     /// The top stop is a ceiling, not a fourth-tier-only colour — a court

@@ -22,26 +22,26 @@ extension Color {
     /// The action colour. Slightly lifted in dark mode: the light-mode orange
     /// is tuned against white and reads muddy on a near-black surface.
     ///
-    /// **Softened on 2026-08-21** from a fully-saturated `rgb(255, 126, 0)` —
-    /// same hue (29.6°), same near-full value, saturation pulled from 100% to
-    /// 80%. The pure version read as harsh across the large fills it's used on
-    /// (primary buttons, selected pills, the map pins); this keeps the same
-    /// brand hue without the fully-saturated edge. Purely a taste change — the
-    /// black-on-orange contrast this file's `hooprOnBrand` note documents only
-    /// improved (9.17:1 / 10.24:1, up from 8.24:1 / 9.33:1), because a slightly
-    /// duller orange is also a slightly darker one. **Does not touch** the
-    /// separate AA failure tracked in `GAPS.md` — `hooprOrange` as a
-    /// *foreground* still fails in light mode, and stays failing here; that
-    /// needs a second, deliberately different, readable role, not a retune of
-    /// this one.
+    /// **Retuned on 2026-08-22** to `#EE6730` — a deliberately redder hue
+    /// (17.4°, down from 29.6°) for a warmer, more saturated brand mark. The
+    /// dark-mode lift keeps the same per-channel ratio the previous tuning
+    /// used (green ×1.102, blue ×1.612, red unchanged), so it stays "the same
+    /// colour, lifted" rather than a separately-eyeballed shade. `hooprOnBrand`
+    /// still clears AA comfortably against both (6.61:1 / 7.15:1), well above
+    /// the 4.5:1 floor `ThemeContrastTests` pins, though the redder, slightly
+    /// darker orange narrows that margin from the previous tuning's 9.17:1 /
+    /// 10.24:1. **Does not touch** the separate AA failure tracked in
+    /// `GAPS.md` — `hooprOrange` as a *foreground* still fails in light mode,
+    /// and stays failing here; that needs a second, deliberately different,
+    /// readable role, not a retune of this one.
     static let hooprOrange = Color.hoopr(
-        light: UIColor(red: 247 / 255, green: 147 / 255, blue: 49 / 255, alpha: 1),
-        dark: UIColor(red: 247 / 255, green: 162 / 255, blue: 79 / 255, alpha: 1)
+        light: UIColor(red: 238 / 255, green: 103 / 255, blue: 48 / 255, alpha: 1),
+        dark: UIColor(red: 238 / 255, green: 114 / 255, blue: 77 / 255, alpha: 1)
     )
 
     static let hooprDarkOrange = Color.hoopr(
-        light: UIColor(red: 223 / 255, green: 131 / 255, blue: 45 / 255, alpha: 1),
-        dark: UIColor(red: 247 / 255, green: 147 / 255, blue: 49 / 255, alpha: 1)
+        light: UIColor(red: 214 / 255, green: 93 / 255, blue: 43 / 255, alpha: 1),
+        dark: UIColor(red: 214 / 255, green: 103 / 255, blue: 69 / 255, alpha: 1)
     )
 
     /// Errors and destructive actions. The light-mode red fails contrast on a

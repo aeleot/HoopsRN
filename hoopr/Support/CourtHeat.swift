@@ -38,15 +38,21 @@ enum CourtHeat {
     ///
     /// The three middle stops are a straight linear RGB interpolation between
     /// the two ends, which lands them on roughly even perceived-brightness
-    /// steps (~19 points of luma apiece) and a hue walking 30° → 10°. Keep that
+    /// steps (~15 points of luma apiece) and a hue walking 17° → 5°. Keep that
     /// property if you retune: uneven steps read as "these two mean the same
     /// thing" even when the counts differ.
+    ///
+    /// **Retuned on 2026-08-22** alongside `hooprOrange`'s move to `#EE6730`.
+    /// The busiest stop was rederived at the same ratio to the new stop 0 that
+    /// the old ceiling held to the old stop 0 (R ×0.80, G ×0.31, B ×0.33), so
+    /// the ramp keeps darkening *and* reddening by the same proportions —
+    /// it just starts from a redder brand colour, so it ends redder too.
     private static let stops: [Color] = [
-        Color(red: 0xF7 / 255, green: 0x93 / 255, blue: 0x31 / 255), // F79331 — hooprOrange's light value, nothing today
-        Color(red: 0xEB / 255, green: 0x7A / 255, blue: 0x29 / 255), // EB7A29
-        Color(red: 0xDF / 255, green: 0x61 / 255, blue: 0x21 / 255), // DF6121
-        Color(red: 0xD2 / 255, green: 0x47 / 255, blue: 0x18 / 255), // D24718
-        Color(red: 0xC6 / 255, green: 0x2E / 255, blue: 0x10 / 255), // C62E10 — reddish orange, busiest tier
+        Color(red: 0xEE / 255, green: 0x67 / 255, blue: 0x30 / 255), // EE6730 — hooprOrange's light value, nothing today
+        Color(red: 0xE2 / 255, green: 0x55 / 255, blue: 0x28 / 255), // E25528
+        Color(red: 0xD7 / 255, green: 0x44 / 255, blue: 0x20 / 255), // D74420
+        Color(red: 0xCB / 255, green: 0x32 / 255, blue: 0x18 / 255), // CB3218
+        Color(red: 0xBF / 255, green: 0x20 / 255, blue: 0x10 / 255), // BF2010 — deep red, busiest tier
     ]
 
     /// The top tier a court can reach — four or more games today all read the
