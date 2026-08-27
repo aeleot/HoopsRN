@@ -5,10 +5,9 @@
 `hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Views/Tabs/HomeTab.swift`,
 `hoopr/ViewModels/HomeViewModel.swift`, `hoopr/Views/Friends/`,
 `hoopr/Views/Components/ErrorBanner.swift`,
-`hoopr/Views/Components/ProfileButton.swift`,
-`hoopr/Views/Components/HooprTabBar.swift`, `hoopr/Support/Theme.swift`,
+`hoopr/Views/Components/ProfileButton.swift`, `hoopr/Support/Theme.swift`,
 `hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`
-**Verified:** 2026-08-27 @ 61f2570
+**Verified:** 2026-08-26 @ 8ad0041
 
 Navigation structure and the visual conventions every screen follows. Read this
 before adding a screen, changing how one is presented, or picking a colour or a
@@ -61,42 +60,12 @@ is up.
 
 ## `MainTabView`
 
-A `TabView` with three `Tab` items, **its system bar hidden**
-(`.toolbar(.hidden, for: .tabBar)`) and `HooprTabBar` mounted in its place via
-`.safeAreaInset(edge: .bottom)`. The destination set lives on the `HooprTab`
-enum — **Home** (`house.fill`), **Map** (`map.fill`), **Runs** (`calendar`) —
-so the `TabView` and the shelf that draws it read the same list in the same
-order.
+A native `TabView` with three `Tab` items — **Home** (`house.fill`), **Map**
+(`map.fill`), **Runs** (`calendar`) — selected through a private `Screen` enum.
+Named `Screen` and not `Tab` because `SwiftUI.Tab` is the builder it uses.
 
-**Why the split, and not one or the other.** `TabView` is kept for its content
-and its state retention: the map's region, zoom and sheet detent survive a
-switch for free. The *bar* is hand-drawn because iOS 26 renders it as a
-floating Liquid Glass pill centred over the content, and a shelf spanning both
-screen edges is not something the platform exposes a way to ask for — the
-`UseFloatingTabBar` default was removed in iOS 26.4, and
-`UIDesignRequiresCompatibility` opts the whole app out of Liquid Glass and is
-scheduled for removal. Neither is a real option.
-
-`.safeAreaInset` and not a `ZStack` overlay: the shelf must **reserve** its
-height rather than float over the content. `MapTab` sizes its sheet from
-`safeAreaInsets.bottom`, and the inset is what keeps that number true — the map
-tab needed no change at all when the shelf replaced the system bar.
-
-**`HooprTabBar` has to earn back what the system bar gave**, and each piece is
-deliberate, not incidental: 44pt-floored cells (the target is the cell, not the
-glyph), Dynamic Type through `.hooprFont` with ceilings rather than fixed
-sizes, `accessibilityLabel` plus the `.isSelected` trait, and an opaque fill so
-taps cannot reach the map underneath — the failure the old floating header
-needed a `contentShape` on a clear fill to prevent.
-
-**Tab switching is instant.** The selection write is wrapped in a
-`Transaction` with `disablesAnimations`, and the items use an `InertButtonStyle`
-that has no press feedback at all — `.plain` still dims its label, which on a
-shelf reads as a second state competing with the orange.
-
-**This replaced a hand-rolled floating glass *header* on 2026-08-26**, and the
-reasons are worth keeping — they are the argument against putting navigation
-back at the top, which is a different question from who draws the bottom bar:
+**This replaced a hand-rolled floating glass header on 2026-08-26**, and the
+reasons are worth keeping because they are the argument against rebuilding one:
 
 - The old header was pinned to `geo.size.height * 0.14`. Its pills were ~40pt
   tall against Apple's 44pt floor, and both the greeting and the pill labels
@@ -105,16 +74,17 @@ back at the top, which is a different question from who draws the bottom bar:
 - It needed `.contentShape(Rectangle())` on a clear fill purely so taps stopped
   falling through to MapKit. A system tab bar is hit-tested by the system.
 - It needed a `\.floatingHeaderHeight` environment key to tell `MapTab` how far
-  to inset its chrome. That key is gone; `safeAreaInsets.bottom` replaced it.
+  to inset its chrome. That key is gone.
 
 **Tab state is the system's now.** The old shell kept `MapTab` permanently
 mounted behind `.opacity` + `.allowsHitTesting` to preserve map region and
 sheet state across switches. `TabView` retains tab content after first
 appearance, so that hack is gone and the behaviour is unchanged.
 
-**Selected tabs take `hooprOrange`; unselected take `hooprSecondaryText`.**
-Know what this costs: the shelf colours the selected item's glyph *and* its
-11pt label, which paints the brand as a **foreground** on `hooprSurface`. That is the AA gap `GAPS.md` tracks — roughly 2.55:1 against the
+**Selected tabs take `hooprOrange` via `.tint`; unselected stay in the system
+grey.** Know what this costs: `.tint` colours the selected item's glyph *and*
+its ~10pt label, which paints the brand as a **foreground** on a near-white
+glass ground. That is the AA gap `GAPS.md` tracks — roughly 2.55:1 against the
 4.5:1 floor — and the tab bar is now its most prominent instance. In light mode
 the selected label reads *lighter* than the unselected ones, inverting the
 hierarchy it is meant to signal. Shipped as a deliberate product decision;
@@ -502,14 +472,10 @@ outside `ProfileViewModel.EditableField`: nothing about it touches Firestore.
 - Top-level screen selection lives in `RootViewModel.destination`. Don't add a
   fourth presentation path around it.
 - `ProfileView` is presented in place of `MainTabView`, never inside it.
-- Tab content keeps its state across switches, and that is `TabView`'s job
-  rather than an opacity trick. Keep the `TabView` even though its bar is
-  hidden — it is doing the retention.
-- `HooprTabBar` is the *only* hand-drawn navigation chrome, and it exists
-  because the platform can't span the screen. Anything it draws must keep the
-  four things the system bar supplied — 44pt cells, scaling type, VoiceOver
-  labels with `.isSelected`, and an opaque fill. Adding a control there means
-  adding those with it. The Friends pane still has the rebuild problem inside
+- Tab content keeps its state across switches, and that is `TabView`'s job now
+  rather than an opacity trick. Don't reintroduce a hand-rolled tab bar: the
+  system one is what supplies 44pt targets, Dynamic Type, VoiceOver and hit
+  testing over the map. The Friends pane still has the rebuild problem inside
   `ProfileView` — its views are rebuilt on every pane switch — and solves it by
   keeping `FriendsViewModel` and every piece of pane state on the screen.
 - The profile button appears on every tab and never on `ProfileView`. It is

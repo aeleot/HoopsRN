@@ -132,10 +132,8 @@ it partly shipped; the general "Next steps" list below is everything else.
   forgotten. Add the real assertions in the same change that adds the role.
 
   **Updated 2026-08-26 — the tab bar is now this gap's most prominent
-  instance.** Navigation moved to a bottom tab bar whose selected item takes
-  `hooprOrange` on the glyph *and* its 11pt label. (Since 2026-08-27 that bar
-  is `HooprTabBar`, a full-width shelf the app draws itself; the colour
-  decision and its cost are unchanged.) The
+  instance.** Navigation moved to a native `TabView` whose selected item takes
+  `hooprOrange` via `.tint`, which colours the glyph *and* its ~10pt label. The
   old shell's pills never hit this: they painted the brand as a *fill* with
   `hooprOnBrand` on top, which passes at 6.61:1. In light mode the selected tab
   label now reads *lighter* than the unselected ones, inverting the hierarchy it
@@ -457,8 +455,8 @@ answer and would pay for itself the first time someone edits `hasOnly`.
 - Give `hooprOrange` a readable companion role so it can be used as a
   foreground without failing AA in light mode — see **Accessibility** above.
   **Raised in priority 2026-08-26:** the tab bar's selected item is now the
-  most-seen instance of this failure, and `HooprTabBar`'s selected colour is
-  the single call site that would consume the new role first.
+  most-seen instance of this failure, and `MainTabView`'s `.tint` is the single
+  call site that would consume the new role first.
 - Rename `FindAMatchViewModel` to match `MapTab`. The view was renamed when the
   third tab became Friends; its view model wasn't, so the file backing the
   court map is still named for matchmaking.
