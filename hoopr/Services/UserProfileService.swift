@@ -61,6 +61,9 @@ final class UserProfileService: ObservableObject {
         static let favoriteCourtIds = "favoriteCourtIds"
         static let createdAt = "createdAt"
         static let updatedAt = "updatedAt"
+        static let completedGameCount = "completedGameCount"
+        static let participationStreak = "participationStreak"
+        static let lastCompletedAt = "lastCompletedAt"
     }
 
     /// Bounds on the one-shot lookups. Neither applies to the profile listener,
@@ -390,6 +393,37 @@ final class UserProfileService: ObservableObject {
         } catch {
             let profileError = Self.mapped(error)
             report(profileError, whileDoing: "saving your favorites", context: .write)
+            throw profileError
+        }
+    }
+
+    /// Recalculates participation stats from the signed-in user's completed
+    /// games and writes them back to the profile — the single place that
+    /// computes or writes `completedGameCount`/`participationStreak`/
+    /// `lastCompletedAt`. `HomeViewModel` calls this whenever
+    /// `GameService.completedGames` delivers a new snapshot.
+    ///
+    /// `completedGames` is expected sorted `completedAt` descending, matching
+    /// how `GameService` queries them, so `lastCompletedAt` is simply its
+    /// first element.
+    ///
+    /// Silent on failure, like `writeSearchKey`: nothing the user did
+    /// triggered this write, so there's no action for an error banner to ask
+    /// them to retry — it just runs again on the next snapshot.
+    func refreshStats(for userId: String, using completedGames: [Game]) async throws {
+        do {
+            try await database.collection(Collection.users).document(userId).updateData([
+                Field.completedGameCount: completedGames.count,
+                Field.participationStreak: Game.calculateStreak(from: completedGames),
+                Field.lastCompletedAt: completedGames.first?.completedAt.map(Timestamp.init(date:))
+                    ?? FieldValue.delete(),
+                Field.updatedAt: FieldValue.serverTimestamp(),
+            ])
+        } catch {
+            let profileError = Self.mapped(error)
+            logger.error(
+                "Couldn't refresh stats: \(error.localizedDescription, privacy: .public)"
+            )
             throw profileError
         }
     }

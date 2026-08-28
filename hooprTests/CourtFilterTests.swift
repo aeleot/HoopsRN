@@ -42,7 +42,8 @@ final class CourtFilterTests: XCTestCase {
             playerIds: (0..<players).map { "player-\($0)" },
             queuedPlayerIds: [],
             createdAt: now,
-            updatedAt: now
+            updatedAt: now,
+            completedAt: nil
         )
     }
 

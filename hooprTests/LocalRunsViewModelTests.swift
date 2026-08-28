@@ -31,7 +31,8 @@ final class LocalRunsViewModelTests: XCTestCase {
             playerIds: players,
             queuedPlayerIds: waitlisted,
             createdAt: now,
-            updatedAt: now
+            updatedAt: now,
+            completedAt: nil
         )
     }
 

@@ -8,9 +8,11 @@ import SwiftUI
 /// reason to open the app at all, so that answer is what this screen leads
 /// with.
 ///
-/// Every card here reads state the app already holds. There is deliberately no
-/// stats card: nothing records that a run happened yet, so "runs this week"
-/// and a streak have no honest source. See `HomeViewModel`.
+/// The stats card is the one historical note on an otherwise forward-looking
+/// screen — participation stats sourced from the profile snapshot
+/// `HomeViewModel` already holds, not computed here. It's hidden entirely
+/// until `hasStats` is true, so a brand-new account sees the same screen it
+/// always has. See `HomeViewModel`.
 struct HomeTab: View {
     @StateObject private var viewModel: HomeViewModel
     @ObservedObject private var friendService: FriendService
@@ -49,6 +51,16 @@ struct HomeTab: View {
             VStack(alignment: .leading, spacing: 24) {
                 header
 
+                if viewModel.hasStats {
+                    section("Your Stats") {
+                        StatsCard(
+                            completedCount: viewModel.completedGameCount,
+                            participationStreak: viewModel.participationStreak,
+                            lastCompletedText: viewModel.lastCompletedText
+                        )
+                    }
+                }
+
                 section("Next run") {
                     if let listing = viewModel.nextRun {
                         nextRunCard(listing)
@@ -75,14 +87,26 @@ struct HomeTab: View {
     // MARK: - Header
 
     /// The greeting the floating header used to carry. It gets a full line
-    /// here instead of 14% of the screen minus a profile button, so it no
-    /// longer has to scale itself down to fit.
+    /// here instead of 14% of the screen minus a profile button.
+    ///
+    /// Pinned to one line and centered against `ProfileButton`, matching how
+    /// "Runs" centers against the same button on `LocalRunsTab`. `userName`
+    /// can run up to 50 characters (see `firestore.rules`), and there's no
+    /// scale factor that keeps a name that long both one line and legible at
+    /// this row's width — the two requirements are only reconcilable for
+    /// realistic names. `.minimumScaleFactor` shrinks the common case
+    /// smoothly and keeps the row's height (and therefore the button's
+    /// vertical position) constant regardless of name length, which is what
+    /// `.center` alignment needs to be stable; a name past what the floor can
+    /// absorb truncates rather than wrapping to a second line or shrinking to
+    /// illegibility — an accepted, rare edge case, not a bug.
     private var header: some View {
-        HStack(alignment: .top) {
-            Text("Let's go hoop \(Text(viewModel.greetingName).fontWeight(.bold)).")
+        HStack(alignment: .center) {
+            Text("Let's hoop \(Text(viewModel.greetingName).fontWeight(.bold)).")
                 .hooprFont(28, maximumSize: 40)
                 .foregroundStyle(Color.hooprPrimaryText)
-                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
 
             Spacer(minLength: 8)
 

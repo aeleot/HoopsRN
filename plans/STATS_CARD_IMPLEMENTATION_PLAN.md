@@ -38,16 +38,18 @@ This plan outlines all changes required to add a user stats card to the Hoopr ho
 
 ### Game Model
 
-Add two optional fields to track completion:
+Add one optional field to track completion:
 
 ```swift
 @Field(name: "completedAt") var completedAt: Timestamp?
-@Field(name: "winningTeamSize") var winningTeamSize: Int?
 ```
 
 **Semantics:**
 - `completedAt`: Timestamp when the game was marked complete. When non-nil, `status` must equal `.completed`.
-- `winningTeamSize`: Size of the winning team (optional metadata). Stored for future win/loss tracking.
+
+There's no way to record who won, so completion carries no outcome data — it
+means "the player attended," full stop. No `winningTeamSize` or other
+win/loss metadata is stored.
 
 **Status Values:** Add a new `.completed` case to `Game.Status` enum.
 
@@ -75,7 +77,7 @@ Add three optional fields to denormalize stats (computed once per game completio
 ### Collection Structure
 
 **games/** (existing)
-- New fields: `completedAt`, `status: "completed"`, `winningTeamSize`
+- New fields: `completedAt`, `status: "completed"`
 - New composite index (see below)
 
 **users/** (existing UserProfile documents)
@@ -89,7 +91,7 @@ Add three optional fields to denormalize stats (computed once per game completio
 
 **Path 2: Game Completion (new, host-only)**
 - Only the game host can mark a game complete
-- Write includes `completedAt`, `status: "completed"`, optional `winningTeamSize`
+- Write includes `completedAt`, `status: "completed"` — attendance only, no outcome data
 - Separate validation from roster changes
 
 **Path 3: Profile Stat Updates (new, service-only)**
@@ -320,7 +322,7 @@ func testStreakResetsAfterWeekWithoutGames() {
 ## 9. Implementation Sequence
 
 ### Phase 1: Schema & Firestore (1-2 days)
-1. Add `completedAt`, `winningTeamSize` to Game model
+1. Add `completedAt` to Game model
 2. Add `.completed` case to Game.Status enum
 3. Add `completedGameCount`, `participationStreak`, `lastCompletedAt` to UserProfile model
 4. Update Firestore rules with two separate update paths (roster changes vs. completion)
@@ -374,8 +376,8 @@ func testStreakResetsAfterWeekWithoutGames() {
 
 These extensions are out of scope but unblocked by this plan:
 
-1. **Completion UI** — Host-only button to mark game complete, with optional winning team picker
-2. **Win/Loss Tracking** — Add `winCount`, `lossCount` to UserProfile; update when game completes
+1. **Completion UI** — Host-only button to mark game complete
+2. **Win/Loss Tracking** — Not built here; the schema currently stores no outcome data at all. Would need its own fields on `Game`/`UserProfile` and its own rules path.
 3. **Leaderboards** — Query top users by completedGameCount or participationStreak
 4. **Weekly Digest** — Email or push with stats from the past week
 5. **Achievements** — Badges for milestones (5 runs, 4-week streak, etc.)
@@ -412,7 +414,7 @@ When this feature ships, update:
 
 Prioritized by implementation order:
 
-1. `hoopr/Models/Game.swift` — Add completedAt, winningTeamSize, .completed status
+1. `hoopr/Models/Game.swift` — Add completedAt, .completed status
 2. `hoopr/Models/UserProfile.swift` — Add completedGameCount, participationStreak, lastCompletedAt
 3. `firestore.rules` — Add two-path rule for game completion
 4. `firestore.indexes.json` — Add composite index for completed games query

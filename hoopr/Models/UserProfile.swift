@@ -64,6 +64,24 @@ nonisolated struct UserProfile: Identifiable, Sendable, Codable, Hashable {
 
     /// Server-assigned, refreshed on every write.
     let updatedAt: Date?
+
+    /// Total games completed, as player or host. Denormalized so the Home
+    /// stats card doesn't replay the owner's whole games history on every
+    /// launch — recalculated and written back by
+    /// `UserProfileService.refreshStats`. Optional because it's absent until
+    /// that first runs: every profile starts here, the same lazy-init the
+    /// rest of this file's optional fields already use, and a missing value
+    /// means 0, not "unknown."
+    var completedGameCount: Int?
+
+    /// Consecutive weeks with at least one completed game. Recalculated
+    /// alongside `completedGameCount`; optional for the same reason —
+    /// absent until the owner's first completion triggers a stats refresh.
+    var participationStreak: Int?
+
+    /// Timestamp of the owner's most recent game completion. Optional until
+    /// that first completion; feeds the stats card's "Last" column.
+    var lastCompletedAt: Date?
 }
 
 nonisolated extension UserProfile {

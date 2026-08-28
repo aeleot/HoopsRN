@@ -106,7 +106,10 @@ struct FriendRow<Trailing: View>: View {
         preferredRadius: nil,
         favoriteCourtIds: nil,
         createdAt: Date(),
-        updatedAt: Date()
+        updatedAt: Date(),
+        completedGameCount: nil,
+        participationStreak: nil,
+        lastCompletedAt: nil
     )
 
     return VStack(spacing: 10) {

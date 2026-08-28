@@ -200,7 +200,10 @@ final class FriendsViewModelTests: XCTestCase {
             preferredRadius: nil,
             favoriteCourtIds: nil,
             createdAt: nil,
-            updatedAt: nil
+            updatedAt: nil,
+            completedGameCount: nil,
+            participationStreak: nil,
+            lastCompletedAt: nil
         )
     }
 

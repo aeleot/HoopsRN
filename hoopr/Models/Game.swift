@@ -64,6 +64,15 @@ nonisolated struct Game: Identifiable, Sendable, Codable, Hashable {
 
     /// Server-assigned, refreshed on every write.
     let updatedAt: Date?
+
+    /// Server-assigned when the host marks the run complete. Non-nil implies
+    /// `status == .completed` — `firestore.rules`' completion path pins this
+    /// to `request.time` in the same write that sets `status`, so the two
+    /// can't drift the way `createdAt`/`updatedAt` can't. This is the only
+    /// signal a completion carries: there's no way to record who won, so
+    /// "completed" means "attended" — the player was on `playerIds` for a
+    /// run that happened — and nothing more.
+    let completedAt: Date?
 }
 
 // MARK: - Rules of the game
@@ -182,6 +191,68 @@ nonisolated extension Game {
     /// `date`. Shared by both listeners so their cutoffs can't disagree.
     static func visibilityCutoff(from date: Date = Date()) -> Date {
         date.addingTimeInterval(-visibilityGrace)
+    }
+}
+
+// MARK: - Participation stats
+
+nonisolated extension Game {
+    /// A single ISO week (Monday–Sunday, UTC) — how `calculateStreak` buckets
+    /// completions. Two runs completed in the same week collapse to one week
+    /// toward the streak; what counts is a week with *a* completion, not how
+    /// many.
+    private struct StreakWeek: Hashable {
+        let year: Int
+        let week: Int
+    }
+
+    /// UTC and Monday-first throughout, per the plan's own risk note on
+    /// timezone boundaries — a completion right at a week edge must land in
+    /// the same week no matter where the device reading it back is.
+    private static var streakCalendar: Calendar {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? TimeZone(secondsFromGMT: 0)!
+        return calendar
+    }
+
+    private static func streakWeek(for date: Date, calendar: Calendar) -> StreakWeek {
+        let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+        return StreakWeek(year: components.yearForWeekOfYear ?? 0, week: components.weekOfYear ?? 0)
+    }
+
+    /// Consecutive ISO weeks, walking back from `now`, with at least one
+    /// completed game in each — `UserProfileService.refreshStats`'
+    /// `participationStreak`.
+    ///
+    /// Stops at the first empty week, including the current one: a streak
+    /// that hasn't posted a completion yet *this* week reads as `0`, not as
+    /// "still holding last week's count." That's deliberate, not an
+    /// off-by-one — a player who played every week for a year still shows
+    /// `0` between Monday morning and their next run, the same way any
+    /// activity streak resets the moment its current period lapses.
+    ///
+    /// Pure and `nonisolated` so it's testable without Firestore, the same
+    /// shape `validate` and `status(playerCount:maxPlayers:)` already use —
+    /// `UserProfileService` is the only real caller, but the model is where
+    /// this codebase keeps logic a service depends on, not the service
+    /// itself.
+    nonisolated static func calculateStreak(from games: [Game], now: Date = Date()) -> Int {
+        let calendar = streakCalendar
+        let completedWeeks = Set(
+            games.compactMap(\.completedAt).map { streakWeek(for: $0, calendar: calendar) }
+        )
+        guard !completedWeeks.isEmpty else { return 0 }
+
+        var streak = 0
+        var cursor = now
+        while completedWeeks.contains(streakWeek(for: cursor, calendar: calendar)) {
+            streak += 1
+            guard let previousWeek = calendar.date(byAdding: .weekOfYear, value: -1, to: cursor) else {
+                break
+            }
+            cursor = previousWeek
+        }
+        return streak
     }
 }
 

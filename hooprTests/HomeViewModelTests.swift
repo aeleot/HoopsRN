@@ -160,4 +160,48 @@ final class HomeViewModelTests: XCTestCase {
     func testHotCourtLimitIsThree() {
         XCTAssertEqual(HomeViewModel.hotCourtLimit, 3)
     }
+
+    // MARK: - lastCompletedText
+
+    /// Same shape as the `rankHotCourts` tests above: pure function, no
+    /// service construction. Dates are computed off the real `Date()` rather
+    /// than hardcoded literals, because `lastCompletedText` resolves
+    /// "today"/"yesterday" via `Calendar.isDateInToday`/`isDateInYesterday`,
+    /// which compare against the actual current date regardless of the
+    /// `relativeTo` argument — see the note in the report-back for why that
+    /// parameter doesn't make the relative cases independently testable.
+    private func expectedMonthDay(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.setLocalizedDateFormatFromTemplate("MMMd")
+        return formatter.string(from: date)
+    }
+
+    /// The lazy-init / brand-new-account default.
+    func testNilDateReturnsEmDash() {
+        XCTAssertEqual(HomeViewModel.lastCompletedText(for: nil), "—")
+    }
+
+    func testTodayReturnsToday() {
+        XCTAssertEqual(HomeViewModel.lastCompletedText(for: Date()), "Today")
+    }
+
+    func testYesterdayReturnsYesterday() {
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
+        XCTAssertEqual(HomeViewModel.lastCompletedText(for: yesterday), "Yesterday")
+    }
+
+    /// The boundary between the two relative cases and the absolute fallback.
+    func testTwoDaysAgoReturnsFormattedDateNotTodayOrYesterday() {
+        let twoDaysAgo = Calendar.current.date(byAdding: .day, value: -2, to: Date())!
+        XCTAssertEqual(HomeViewModel.lastCompletedText(for: twoDaysAgo), expectedMonthDay(for: twoDaysAgo))
+    }
+
+    /// Pins the deliberate no-year simplification so it can't drift in silently.
+    func testOverAYearAgoStillOmitsTheYear() {
+        let overAYearAgo = Calendar.current.date(byAdding: .day, value: -400, to: Date())!
+        let text = HomeViewModel.lastCompletedText(for: overAYearAgo)
+
+        XCTAssertEqual(text, expectedMonthDay(for: overAYearAgo))
+        XCTAssertFalse(text.contains(String(Calendar.current.component(.year, from: overAYearAgo))))
+    }
 }

@@ -23,6 +23,13 @@ final class GameService: ObservableObject {
     /// radius filter is a client-side join — see `LocalRunsViewModel`.
     @Published private(set) var publicGames: [Game] = []
 
+    /// Runs the signed-in user played or hosted that have wrapped up, most
+    /// recent first. Independent of `queuedGames`/`publicGames` — those two
+    /// are windowed to the future, this one only ever looks back — and feeds
+    /// `UserProfileService.refreshStats` rather than anything rendered
+    /// directly from here.
+    @Published private(set) var completedGames: [Game] = []
+
     @Published private(set) var errorMessage: String?
 
     /// A listener died and a re-attach is pending. Mirrors `supervisor` so the
@@ -30,7 +37,8 @@ final class GameService: ObservableObject {
     /// an empty list is empty or broken.
     @Published private(set) var isRecovering = false
 
-    /// True once either listener has delivered a snapshot successfully.
+    /// True once any of the three listeners has delivered a snapshot
+    /// successfully.
     ///
     /// Distinguishes "there are no runs today" from "Firestore hasn't answered
     /// yet", which `@Published`'s replay-on-subscribe otherwise makes
@@ -52,6 +60,7 @@ final class GameService: ObservableObject {
     private enum ListenerKey {
         static let queued = "queued"
         static let published = "public"
+        static let completed = "completed"
     }
 
     /// Field names in one place so the write maps can't drift from `Game`'s
@@ -68,14 +77,19 @@ final class GameService: ObservableObject {
         static let queuedPlayerIds = "queuedPlayerIds"
         static let createdAt = "createdAt"
         static let updatedAt = "updatedAt"
+        static let completedAt = "completedAt"
     }
 
-    /// Caps on how much of each list is worth holding in memory. Both queries
-    /// are ordered by `scheduledTime`, so a cap trims the far future rather
-    /// than dropping something imminent.
+    /// Caps on how much of each list is worth holding in memory. The first
+    /// two queries are ordered by `scheduledTime`, so their caps trim the far
+    /// future rather than dropping something imminent; `completed` is ordered
+    /// by `completedAt` descending, so its cap trims ancient history instead —
+    /// generous enough that `completedGameCount` reads as a genuine lifetime
+    /// total for any realistically active player, not a windowed one.
     private enum Limit {
         static let queued = 50
         static let published = 100
+        static let completed = 500
     }
 
     /// Resolved lazily so the Firestore singleton is never touched before
@@ -84,6 +98,7 @@ final class GameService: ObservableObject {
 
     private var queuedListener: ListenerRegistration?
     private var publicListener: ListenerRegistration?
+    private var completedListener: ListenerRegistration?
     private var observedUID: String?
     private var cancellables = Set<AnyCancellable>()
 
@@ -123,6 +138,7 @@ final class GameService: ObservableObject {
     deinit {
         queuedListener?.remove()
         publicListener?.remove()
+        completedListener?.remove()
     }
 
     // MARK: - Session wiring
@@ -157,6 +173,7 @@ final class GameService: ObservableObject {
 
         queuedListener?.remove()
         publicListener?.remove()
+        completedListener?.remove()
 
         // Recomputed per attach rather than captured once at sign-in, so a
         // listener re-attached hours later doesn't query yesterday's window.
@@ -201,6 +218,30 @@ final class GameService: ObservableObject {
                     }
                 }
             }
+
+        // Unwindowed by time — only capped by `Limit.completed` — because
+        // `completedGameCount` is documented as a lifetime total, not a
+        // recent one. `participationStreak` only ever looks at the leading
+        // handful of weeks in this array anyway, so the cap doesn't cost it
+        // anything.
+        completedListener = database
+            .collection(Collection.games)
+            .whereField(Field.playerIds, arrayContains: uid)
+            .whereField(Field.status, isEqualTo: Game.Status.completed.rawValue)
+            .order(by: Field.completedAt, descending: true)
+            .limit(to: Limit.completed)
+            .addSnapshotListener { [weak self] snapshot, error in
+                Task { @MainActor in
+                    self?.handle(
+                        snapshot,
+                        error: error,
+                        listener: ListenerKey.completed,
+                        describing: "your completed runs"
+                    ) { service, games in
+                        service.completedGames = games
+                    }
+                }
+            }
     }
 
     private func stopObserving() {
@@ -210,9 +251,12 @@ final class GameService: ObservableObject {
         queuedListener = nil
         publicListener?.remove()
         publicListener = nil
+        completedListener?.remove()
+        completedListener = nil
         observedUID = nil
         queuedGames = []
         publicGames = []
+        completedGames = []
         // Signing out discards the snapshots, so the next session has to wait
         // for its own before deciding anything.
         hasLoadedGames = false

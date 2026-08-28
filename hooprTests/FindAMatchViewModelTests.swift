@@ -30,7 +30,8 @@ final class FindAMatchViewModelTests: XCTestCase {
             playerIds: ["host-uid"],
             queuedPlayerIds: [],
             createdAt: scheduledTime,
-            updatedAt: scheduledTime
+            updatedAt: scheduledTime,
+            completedAt: nil
         )
     }
 

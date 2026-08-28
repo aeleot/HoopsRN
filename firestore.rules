@@ -76,6 +76,34 @@ service cloud.firestore {
         && (!('favoriteCourtIds' in request.resource.data)
             || request.resource.data.favoriteCourtIds is list);
 
+      // Participation stats, recalculated and written back by the profile's
+      // own owner after their completed-games listener delivers a snapshot —
+      // see `UserProfileService.refreshStats`. A separate path from the
+      // profile-edit path above, the same way the two `games` update paths
+      // are separate, so a stats sync can't also smuggle in a `userName`
+      // change and vice versa.
+      //
+      // There's no backend here to recompute these server-side — no Cloud
+      // Function, no admin service account — so this is trusted the same way
+      // `userNameLower`'s self-backfill already is: a modified client could
+      // misreport its own stats, which is the same ceiling the rest of
+      // `users/{uid}` already accepts. "Service-only" describes the app's own
+      // logic writing these three fields as a unit, not a distinct identity.
+      allow update: if isOwner()
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['completedGameCount', 'participationStreak',
+                       'lastCompletedAt', 'updatedAt'])
+        && (!('completedGameCount' in request.resource.data)
+            || (request.resource.data.completedGameCount is int
+                && request.resource.data.completedGameCount >= 0))
+        && (!('participationStreak' in request.resource.data)
+            || (request.resource.data.participationStreak is int
+                && request.resource.data.participationStreak >= 0))
+        && (!('lastCompletedAt' in request.resource.data)
+            || request.resource.data.lastCompletedAt is timestamp);
+
       // Account deletion isn't a supported flow yet.
       allow delete: if false;
     }
@@ -178,6 +206,24 @@ service cloud.firestore {
         // Only a live run takes players, and it stays consistent afterwards.
         && resource.data.status in ['open', 'full']
         && statusMatchesRoster()
+        && incoming().updatedAt == request.time;
+
+      // Marking a run complete. Host-only, and a separate path from the
+      // roster changes above: this write only ever touches
+      // `completedAt`/`status`, the roster write only ever touches
+      // `playerIds`/`queuedPlayerIds`/`status`, and neither has to tolerate
+      // the other's fields. `completedAt` is pinned to `request.time` the
+      // same way `createdAt`/`updatedAt` are on create — enforced, not
+      // merely requested — so a completion can't be backdated to inflate a
+      // participation streak. There's no way to record who won, so this is
+      // the only signal a completion carries — attendance, nothing more.
+      allow update: if isSignedIn()
+        && resource.data.hostId == request.auth.uid
+        && resource.data.status != 'completed'
+        && incoming().diff(resource.data).affectedKeys()
+             .hasOnly(['completedAt', 'status', 'updatedAt'])
+        && incoming().status == 'completed'
+        && incoming().completedAt == request.time
         && incoming().updatedAt == request.time;
 
       // Cancelling is the host's alone. Unlike `users`, deletion is a

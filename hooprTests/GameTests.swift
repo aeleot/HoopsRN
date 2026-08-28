@@ -287,6 +287,85 @@ final class GameTests: XCTestCase {
         )
     }
 
+    // MARK: - Participation streak
+
+    private func streakCalendar() -> Calendar {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }
+
+    private func weeksAgo(_ n: Int, from now: Date) -> Date {
+        streakCalendar().date(byAdding: .weekOfYear, value: -n, to: now)!
+    }
+
+    private func completedGame(at date: Date) throws -> Game {
+        try decoder.decode(
+            Game.self,
+            from: storedDocument(overrides: [
+                "status": "completed",
+                "completedAt": Timestamp(date: date),
+            ])
+        )
+    }
+
+    func testStreakWithNoGamesIsZero() {
+        XCTAssertEqual(Game.calculateStreak(from: []), 0)
+    }
+
+    /// A game with no `completedAt` — never happens for a real completed run,
+    /// but the function shouldn't crash or miscount if it did.
+    func testStreakIgnoresGamesWithoutACompletionTimestamp() throws {
+        let now = Date(timeIntervalSince1970: 1_780_000_000)
+        let game = try decoder.decode(Game.self, from: storedDocument())
+
+        XCTAssertEqual(Game.calculateStreak(from: [game], now: now), 0)
+    }
+
+    func testStreakCountsACompletionInTheCurrentWeek() throws {
+        let now = Date(timeIntervalSince1970: 1_780_000_000)
+        let game = try completedGame(at: now)
+
+        XCTAssertEqual(Game.calculateStreak(from: [game], now: now), 1)
+    }
+
+    func testStreakCollapsesMultipleCompletionsInTheSameWeek() throws {
+        let now = Date(timeIntervalSince1970: 1_780_000_000)
+        let games = try [now, now.addingTimeInterval(3_600)].map { try completedGame(at: $0) }
+
+        XCTAssertEqual(Game.calculateStreak(from: games, now: now), 1)
+    }
+
+    func testStreakCountsConsecutiveWeeksBackFromNow() throws {
+        let now = Date(timeIntervalSince1970: 1_780_000_000)
+        let games = try (0...2).map { try completedGame(at: weeksAgo($0, from: now)) }
+
+        XCTAssertEqual(Game.calculateStreak(from: games, now: now), 3)
+    }
+
+    /// The rule that gives the streak its name: a run three weeks back can't
+    /// bridge a week with nothing in it.
+    func testStreakStopsAtTheFirstGapInWeeks() throws {
+        let now = Date(timeIntervalSince1970: 1_780_000_000)
+        // Weeks 0 and 1 have a completion; week 2 is skipped; week 3 does too.
+        let games = try [0, 1, 3].map { try completedGame(at: weeksAgo($0, from: now)) }
+
+        XCTAssertEqual(Game.calculateStreak(from: games, now: now), 2)
+    }
+
+    /// Mirrors the plan's own example: a streak that hasn't posted a
+    /// completion yet this week reads as `0`, even with a run last week and
+    /// the week before.
+    func testStreakResetsWhenTheCurrentWeekHasNoCompletion() throws {
+        let now = Date(timeIntervalSince1970: 1_780_000_000)
+        let games = try [1, 2].map { try completedGame(at: weeksAgo($0, from: now)) }
+
+        XCTAssertEqual(
+            Game.calculateStreak(from: games, now: now), 0,
+            "current week is empty, so the streak has already reset"
+        )
+    }
+
     // MARK: - Presentation
 
     func testScheduledTextIsRelativeForTodayAndTomorrow() throws {

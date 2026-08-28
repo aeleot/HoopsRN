@@ -104,8 +104,12 @@ closed. An inbox you can only discover by already being inside it isn't a
 notification.
 
 Each tab now names itself, since there is no shared header to do it: Home
-carries the `"Let's go hoop <name>."` greeting the header used to, and Runs
-carries a plain `"Runs"` title.
+carries the `"Let's hoop <name>."` greeting the header used to, and Runs
+carries a plain `"Runs"` title. Home's header row centers vertically against
+`ProfileButton`, matching Runs; the greeting is pinned to one line and shrinks
+(`.minimumScaleFactor`) rather than wrapping, so the button's position never
+depends on name length — a name past the 50-character ceiling truncates
+rather than wrapping or shrinking to illegibility.
 
 `courtToShowOnMap` is a `@State Court?` handed to `MapTab` as a binding. Home's
 hot-court rows write to it and switch tabs; `MapTab` consumes it and writes back

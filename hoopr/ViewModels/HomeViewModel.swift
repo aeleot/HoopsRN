@@ -4,16 +4,26 @@ import Foundation
 
 /// Backs the Home tab: what you're committed to, and where the action is.
 ///
-/// **Reads nothing new.** Every value here is derived from listeners the app
-/// already keeps open for the map and the runs list — `GameService`'s two game
-/// arrays, the bundled court dataset, the profile snapshot, and the friend
-/// graph. Home costs no extra Firestore read and needs no rules change, which
-/// is the whole reason it can ship before any history work exists.
+/// Every *displayed* value here is derived from listeners the app already
+/// keeps open for the map and the runs list — `GameService`'s game arrays,
+/// the bundled court dataset, the profile snapshot, and the friend graph —
+/// costing no extra Firestore read.
 ///
-/// What it deliberately does *not* show is anything historical. Nothing in the
-/// app records that a run happened — `Game.status` never reaches `.completed`
-/// and both game listeners are windowed to the future — so "runs this week"
-/// and a streak have no source yet and are not faked here.
+/// One write lives here too, and it's the exception to "just reshapes what's
+/// already published": whenever `GameService.completedGames` delivers a new
+/// snapshot, this recalculates participation stats and writes them back via
+/// `UserProfileService.refreshStats`. `HomeViewModel` is where both services
+/// are already held for the subscriptions below, so that's the trigger point
+/// rather than a new dependency between the two services themselves.
+/// Wraps the three profile fields the stats subscription cares about so
+/// `.removeDuplicates()` has something `Equatable` to compare — bare Swift
+/// tuples aren't.
+private struct ProfileStats: Equatable {
+    let count: Int
+    let streak: Int
+    let lastCompletedAt: Date?
+}
+
 @MainActor
 final class HomeViewModel: ObservableObject {
     /// A court with today's game count, ready for the "Hot right now" list.
@@ -47,6 +57,18 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var isHostingNextRun = false
     @Published private(set) var isWaitlistedOnNextRun = false
 
+    /// The one historical note on this screen — sourced from the profile
+    /// snapshot, not computed here. All three default to the "no history yet"
+    /// values (`0`/`0`/`"—"`) until the first `refreshStats` write lands, and
+    /// reset to them again on sign-out.
+    @Published private(set) var completedGameCount = 0
+    @Published private(set) var participationStreak = 0
+    @Published private(set) var lastCompletedText = "—"
+
+    /// Hides the stats card entirely for a brand-new account rather than
+    /// showing it with all-zero values.
+    var hasStats: Bool { completedGameCount > 0 }
+
     /// How many courts the hot list shows. Three fits above the fold beside
     /// the other cards; the ranking below is written to take any limit.
     static let hotCourtLimit = 3
@@ -55,6 +77,7 @@ final class HomeViewModel: ObservableObject {
 
     private let courtService: CourtService
     private let gameService: GameService
+    private let userProfileService: UserProfileService
     private var cancellables = Set<AnyCancellable>()
 
     /// Where distances are measured from, read from the same seam as every
@@ -77,6 +100,7 @@ final class HomeViewModel: ObservableObject {
     ) {
         self.courtService = courtService
         self.gameService = gameService
+        self.userProfileService = userProfileService
 
         authService.$currentUser
             .map(\.?.id)
@@ -93,6 +117,30 @@ final class HomeViewModel: ObservableObject {
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] name in self?.greetingName = name }
+            .store(in: &cancellables)
+
+        // Its own subscription rather than folded into the greeting sink
+        // above — stats are a separate concern. The `?? 0`/`nil` defaults
+        // are load-bearing: they cover both a pre-`refreshStats` profile
+        // (the Int fields are optional until that first write) and a
+        // sign-out, which sets `currentProfile` to `nil` and must reset
+        // this card to the same "no history" defaults rather than holding
+        // onto the previous account's numbers for a frame.
+        userProfileService.$currentProfile
+            .map { profile in
+                ProfileStats(
+                    count: profile?.completedGameCount ?? 0,
+                    streak: profile?.participationStreak ?? 0,
+                    lastCompletedAt: profile?.lastCompletedAt
+                )
+            }
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] stats in
+                self?.completedGameCount = stats.count
+                self?.participationStreak = stats.streak
+                self?.lastCompletedText = Self.lastCompletedText(for: stats.lastCompletedAt)
+            }
             .store(in: &cancellables)
 
         friendService.$incomingRequests
@@ -121,6 +169,23 @@ final class HomeViewModel: ObservableObject {
             .sink { [weak self] queued, published in
                 self?.rebuildNextRun(queued: queued)
                 self?.rebuildHotCourts(queued: queued, published: published)
+            }
+            .store(in: &cancellables)
+
+        // The one write in this file — see the type doc comment. Guarded on
+        // a non-empty snapshot so a brand-new account with zero completions
+        // never issues a write; `refreshStats` only has meaningful lazy-init
+        // work to do once there's at least one completed run.
+        gameService.$completedGames
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] completedGames in
+                guard let self, let uid = self.gameService.currentUserId, !completedGames.isEmpty else {
+                    return
+                }
+                Task {
+                    try? await self.userProfileService.refreshStats(for: uid, using: completedGames)
+                }
             }
             .store(in: &cancellables)
     }
@@ -158,6 +223,34 @@ final class HomeViewModel: ObservableObject {
             .prefix(limit)
             .map { $0 }
     }
+
+    // MARK: - Formatting
+
+    /// The stats card's "Last" column. `nonisolated static` and pure, same
+    /// shape as `rankHotCourts` above, so it's testable without constructing
+    /// a service.
+    ///
+    /// Uses `Calendar.current`, not the UTC/ISO-8601 calendar
+    /// `Game.calculateStreak` buckets weeks with — that one has to agree
+    /// across devices for a server-trusted count; this is displaying a single
+    /// date to the person looking at their own phone, the same reasoning
+    /// `Game.scheduledText(relativeTo:)` already uses `Calendar.current` for.
+    ///
+    /// Deliberately drops the year (`"MMMd"`) — a completion from last year
+    /// still reads as e.g. "Aug 15". A simplification, not an oversight.
+    nonisolated static func lastCompletedText(for date: Date?, relativeTo now: Date = Date()) -> String {
+        guard let date else { return "—" }
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return "Today" }
+        if calendar.isDateInYesterday(date) { return "Yesterday" }
+        return lastCompletedDateFormatter.string(from: date)
+    }
+
+    private static let lastCompletedDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.setLocalizedDateFormatFromTemplate("MMMd")
+        return formatter
+    }()
 
     // MARK: - Rebuilds
 

@@ -57,6 +57,21 @@ it partly shipped; the general "Next steps" list below is everything else.
 - **No host controls for `in_progress` / `completed`.** Both statuses are
   declared and neither is ever written; runs age out `Game.visibilityGrace`
   (3h) after tip-off instead.
+
+  **Updated 2026-08-28 — this now also stalls the Home stats card.** Phase 3
+  of `plans/STATS_CARD_IMPLEMENTATION_PLAN.md` (`StatsCard`, `HomeViewModel`'s
+  stats subscription) shipped 2026-08-28, uncommitted alongside Phases 1–2.
+  `HomeViewModel` only calls `UserProfileService.refreshStats` when
+  `GameService.completedGames` publishes a non-empty snapshot, and that
+  listener queries `status == "completed"` — the status this entry says is
+  never written. So `completedGameCount` stays absent and `hasStats` stays
+  false for every account, new or existing, until something marks a game
+  complete. The only way to see the card today is hand-editing
+  `completedGameCount` / `participationStreak` / `lastCompletedAt` directly on
+  a `users/{uid}` document. The plan's own §14 names this as an external
+  dependency it assumes gets built separately, and confirms neither Phase 4
+  (testing/validation) nor Phase 5 (docs) closes it — the completion UI is
+  listed under §11 Future Work, unscheduled.
 - Game cards show court, time, roster, distance and capacity only. Player
   names, avatars, and any per-run detail screen are unbuilt. Names would need a
   read across `users` and a privacy decision, not just a UI.
@@ -120,7 +135,8 @@ it partly shipped; the general "Next steps" list below is everything else.
   dark. Affected: `ProfileRow`'s leading symbols, `PlayerAvatar`'s initials
   (genuinely text), `CourtRow`'s filled star, `GameCard`'s and `MapTab`'s
   basketball glyphs, the map's recenter glyph, `ProfileIdentityBlock`'s avatar
-  ring.
+  ring, and (added 2026-08-28) `StatsCard`'s three stat icons
+  (basketball/flame/clock).
   *(`hooprOrange` was softened — desaturated, same hue — on 2026-08-21 as a
   pure taste change, unrelated to this gap and not meant to address it. It
   moved these ratios slightly further under the floor, from 2.55 / 2.34, because
