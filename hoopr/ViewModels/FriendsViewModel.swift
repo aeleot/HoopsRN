@@ -208,7 +208,7 @@ final class FriendsViewModel: ObservableObject {
         /// is deliberately loose on both sides — this only decides whether to
         /// *also* try an exact lookup, and an over-eager guess costs one
         /// document read while an under-eager one loses the feature.
-        static let userIdLength = 20...128
+        nonisolated static let userIdLength = 20...128
     }
 
     // MARK: - Init

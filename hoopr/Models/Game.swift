@@ -6,7 +6,7 @@ import Foundation
 /// Firestore has exactly one owner. Deliberately free of Firebase types, like
 /// `Court` and `UserProfile`: `GameService` owns all encoding and writes
 /// explicit field maps so server timestamps stay server-assigned.
-struct Game: Identifiable, Sendable, Codable, Hashable {
+nonisolated struct Game: Identifiable, Sendable, Codable, Hashable {
     /// Lifecycle of a run. `open` and `full` are **derived** from the roster
     /// rather than chosen — `firestore.rules` rejects a status that disagrees
     /// with `playerIds.count` against `maxPlayers`, so the two can't drift.
@@ -68,7 +68,7 @@ struct Game: Identifiable, Sendable, Codable, Hashable {
 
 // MARK: - Rules of the game
 
-extension Game {
+nonisolated extension Game {
     /// Ten is 5-on-5, the default a pickup run is organized around.
     static let defaultMaxPlayers = 10
 
@@ -187,7 +187,7 @@ extension Game {
 
 // MARK: - Presentation helpers
 
-extension Game {
+nonisolated extension Game {
     /// e.g. "4 / 10 players". Kept on the model rather than in a view so the
     /// queued and public cards can't render the roster two different ways.
     var rosterText: String {

@@ -30,6 +30,18 @@ final class GameService: ObservableObject {
     /// an empty list is empty or broken.
     @Published private(set) var isRecovering = false
 
+    /// True once either listener has delivered a snapshot successfully.
+    ///
+    /// Distinguishes "there are no runs today" from "Firestore hasn't answered
+    /// yet", which `@Published`'s replay-on-subscribe otherwise makes
+    /// indistinguishable: both read as an empty array. The map picks its
+    /// opening segment on this rather than on `onAppear`, where the answer is
+    /// always the empty one.
+    ///
+    /// Set only on the success path in `handle(_:error:listener:describing:)`,
+    /// so a listener that failed never claims to have loaded.
+    @Published private(set) var hasLoadedGames = false
+
     private enum Collection {
         static let games = "games"
     }
@@ -201,6 +213,9 @@ final class GameService: ObservableObject {
         observedUID = nil
         queuedGames = []
         publicGames = []
+        // Signing out discards the snapshots, so the next session has to wait
+        // for its own before deciding anything.
+        hasLoadedGames = false
         clearError()
     }
 
@@ -231,6 +246,9 @@ final class GameService: ObservableObject {
         isRecovering = supervisor.isRecovering
 
         assign(self, Self.decoded(snapshot))
+        // After `assign`, and only on this path: a listener that errored
+        // returned above, so an outage can never look like a loaded empty list.
+        hasLoadedGames = true
 
         // Only once *both* listeners are healthy. Clearing on this snapshot
         // alone would wipe the banner explaining why the other list is empty.

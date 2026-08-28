@@ -38,15 +38,7 @@ struct GameCard: View {
             }
         }
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.hooprSurface)
-                .shadow(color: Color.hooprShadow(opacity: 0.06), radius: 8, x: 0, y: 2)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.hooprBorder, lineWidth: 1)
-        )
+        .cardChrome()
         .confirmationDialog(
             "Cancel this run?",
             isPresented: $isConfirmingCancel,

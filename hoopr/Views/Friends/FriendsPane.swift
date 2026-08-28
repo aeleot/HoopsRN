@@ -43,46 +43,16 @@ struct FriendsSearchField: View {
     var isSearchFocused: FocusState<Bool>.Binding
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .hooprFont(15, weight: .medium, maximumSize: 20)
-                .foregroundStyle(Color.hooprSecondaryText)
-
-            TextField("Search by name or user ID", text: $viewModel.searchQuery)
-                .hooprFont(16, maximumSize: 22)
-                .foregroundStyle(Color.hooprPrimaryText)
-                .focused(isSearchFocused)
-                .autocorrectionDisabled()
-                .submitLabel(.search)
-                #if os(iOS) || os(visionOS)
-                // A user ID is case-sensitive and a name search is
-                // case-insensitive, so autocapitalising either one only ever
-                // gets in the way.
-                .textInputAutocapitalization(.never)
-                #endif
-
-            if !viewModel.searchQuery.isEmpty {
-                Button {
-                    viewModel.clearSearch()
-                    isSearchFocused.wrappedValue = true
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .hooprFont(15, maximumSize: 20)
-                        .foregroundStyle(Color.hooprSecondaryText)
-                }
-                .accessibilityLabel("Clear search")
-            }
-        }
-        .padding(.horizontal, 14)
-        .frame(height: 46)
-        .background(Color.hooprFill)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(
-                    isSearchFocused.wrappedValue ? Color.hooprOrange : Color.hooprBorder,
-                    lineWidth: 1
-                )
+        HooprSearchField(
+            text: $viewModel.searchQuery,
+            placeholder: "Search by name or user ID",
+            isFocused: isSearchFocused,
+            // A user ID is case-sensitive and a name search is
+            // case-insensitive, so autocapitalising either one only ever gets
+            // in the way.
+            capitalization: .never,
+            // Clearing here drops the results too, not just the string.
+            onClear: { viewModel.clearSearch() }
         )
     }
 }

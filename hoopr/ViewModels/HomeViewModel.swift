@@ -58,9 +58,13 @@ final class HomeViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     /// Where distances are measured from, read from the same seam as every
-    /// other distance in the app — point `homeLocation` at the device and this
-    /// follows with the rest.
-    private let searchOrigin: CLLocationCoordinate2D
+    /// other distance in the app.
+    ///
+    /// Computed per read rather than captured at init: the anchor follows the
+    /// device now, and a stored copy would freeze Home at Durham while the
+    /// map's distances moved — two screens disagreeing about how far away the
+    /// same court is.
+    private var searchOrigin: CLLocationCoordinate2D { LocationService.homeLocation }
 
     private var currentUserId: String?
 
@@ -73,7 +77,6 @@ final class HomeViewModel: ObservableObject {
     ) {
         self.courtService = courtService
         self.gameService = gameService
-        self.searchOrigin = LocationService.homeLocation
 
         authService.$currentUser
             .map(\.?.id)

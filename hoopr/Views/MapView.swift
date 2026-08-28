@@ -58,6 +58,20 @@ final class CourtMarkerView: MKAnnotationView {
     private let ring = UIView()
     private let disc = UIView()
     private let glyph = UIImageView()
+    private let countLabel = UILabel()
+
+    /// The count a pin draws, exact through 9.
+    ///
+    /// Deliberately *not* capped at 4 to match `CourtHeat`'s ramp. The colour
+    /// ceilings there because that's where it runs out of luma to distinguish
+    /// with — but the number is a different channel carrying a precise datum,
+    /// and truncating it to match a limitation of the colour would discard the
+    /// very information the badge exists to show. `HomeTab` caps at "4+" for
+    /// the opposite and correct reason: the only other signal on that row *is*
+    /// the colour dot beside it.
+    static func countText(_ gameCount: Int) -> String {
+        gameCount > 9 ? "9+" : "\(gameCount)"
+    }
 
     override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
         super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
@@ -95,6 +109,22 @@ final class CourtMarkerView: MKAnnotationView {
             withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
         )
         disc.addSubview(glyph)
+
+        // Same role the glyph uses — black, the only foreground that clears AA
+        // against every stop of the heat ramp.
+        countLabel.textColor = UIColor(Color.hooprOnBrand)
+        countLabel.textAlignment = .center
+        // Fixed size rather than Dynamic Type, the same deliberate exception
+        // `PlayerAvatar`'s initial takes: this is sized as a fraction of a
+        // fixed shape, and a numeral that outgrew its disc would be less
+        // legible, not more. The accessibility answer for a pin is the
+        // VoiceOver label set in `configureAsCourt`.
+        countLabel.font = .systemFont(ofSize: 12, weight: .bold)
+        countLabel.adjustsFontSizeToFitWidth = true
+        countLabel.minimumScaleFactor = 0.7
+        countLabel.isUserInteractionEnabled = false
+        countLabel.isHidden = true
+        disc.addSubview(countLabel)
     }
 
     @available(*, unavailable)
@@ -105,27 +135,65 @@ final class CourtMarkerView: MKAnnotationView {
     override func prepareForReuse() {
         super.prepareForReuse()
         transform = .identity
+        // Both, or a recycled view carries the previous court's badge into a
+        // quiet one.
+        countLabel.text = nil
+        countLabel.isHidden = true
+        glyph.isHidden = false
     }
 
     /// - Parameters:
     ///   - color: The disc fill. Callers pass `CourtHeat.color(forGameCount:)`
     ///     for that court, bridged to `UIColor` — selection no longer swaps the
     ///     tint (see the type-level note on why).
+    ///   - gameCount: Runs scheduled at this court today. A court with any
+    ///     shows the number in place of the glyph; a quiet one keeps the glyph.
+    ///     This is the pin's primary signal — the heat ramp reinforces it, but
+    ///     five stops ~15 luma points apart is not something a reader can
+    ///     decode into a quantity, and there is no legend to help them.
     ///   - isSelected: Still drives the scale-up and collision priority. A
     ///     selected pin outranking its neighbours is what stops MapKit hiding
     ///     it when markers collide; that signal is independent of colour, so
     ///     it survives the heat map without conflating "selected" with "busy".
-    func configureAsCourt(color: UIColor, isSelected: Bool) {
+    func configureAsCourt(color: UIColor, gameCount: Int, isSelected: Bool) {
         layOut()
 
         disc.backgroundColor = color
+
+        // Both branches assign both views unconditionally. A recycled view that
+        // only touched the branch it landed in would keep whatever the previous
+        // annotation left behind.
+        let isActive = gameCount > 0
+        countLabel.text = isActive ? Self.countText(gameCount) : nil
+        countLabel.isHidden = !isActive
+        glyph.isHidden = isActive
+
+        countLabel.frame = disc.bounds
         glyph.frame = disc.bounds
 
-        displayPriority = isSelected ? .required : .defaultHigh
-        zPriority = isSelected ? .max : .defaultUnselected
+        // Priority, not size, is what makes a busy court win a collision.
+        // MapKit resolves collisions during its own layout pass, *before*
+        // `updateUIView`'s restyle loop mutates these views — so a pin that
+        // grew when its first run was booked would keep its old footprint
+        // until the next region change. `displayPriority` is re-read on the
+        // next collision pass without needing a re-layout. It also keeps the
+        // documented reason the disc shrank to 27pt intact.
+        displayPriority = isSelected
+            ? .required
+            : (isActive ? .defaultHigh : .defaultLow)
+        zPriority = isSelected
+            ? .max
+            : (isActive ? .defaultSelected : .defaultUnselected)
         transform = isSelected
             ? CGAffineTransform(scaleX: 1.25, y: 1.25)
             : .identity
+
+        // Overrides the annotation's `title`, which alone would read out the
+        // court name and say nothing about why this pin looks different.
+        let name = (annotation as? CourtAnnotation)?.court.displayName ?? ""
+        accessibilityLabel = isActive
+            ? "\(name), \(gameCount) \(gameCount == 1 ? "run" : "runs") today"
+            : name
     }
 
     private func layOut() {
@@ -270,6 +338,7 @@ struct MapView: UIViewRepresentable {
             else { continue }
             markerView.configureAsCourt(
                 color: heatColor(for: court.court),
+                gameCount: gameCountByCourtID[court.court.id] ?? 0,
                 isSelected: court.court.id == selectedCourtID
             )
         }
@@ -312,6 +381,7 @@ struct MapView: UIViewRepresentable {
             view.annotation = court
             view.configureAsCourt(
                 color: parent.heatColor(for: court.court),
+                gameCount: parent.gameCountByCourtID[court.court.id] ?? 0,
                 isSelected: court.court.id == parent.selectedCourtID
             )
             return view

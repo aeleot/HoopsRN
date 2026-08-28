@@ -35,7 +35,11 @@ final class LocalRunsViewModel: ObservableObject {
     }
 
     /// What the primary button on a card does, given who's looking at it.
-    enum Action: Equatable {
+    ///
+    /// `nonisolated` because `action(for:currentUserId:)` is: a pure rule that
+    /// returns an actor-isolated type can't actually be used from a nonisolated
+    /// caller, which is the whole point of extracting it.
+    nonisolated enum Action: Equatable {
         case join
         case joinWaitlist
         case leave
@@ -201,9 +205,21 @@ final class LocalRunsViewModel: ObservableObject {
     }
 
     func action(for listing: Listing) -> Action {
-        let game = listing.game
-        let uid = currentUserId
+        Self.action(for: listing.game, currentUserId: currentUserId)
+    }
 
+    /// What the primary button does, given who's looking at the run.
+    ///
+    /// `nonisolated static` and pure so the map's court card can resolve the
+    /// same rule without a second copy — two screens offering different buttons
+    /// for the same run would be a real bug, and the previous shape made that
+    /// only avoidable by discipline. Being pure is also what finally makes it
+    /// testable; `GAPS.md` listed it as uncovered.
+    ///
+    /// Order matters. Hosting outranks membership because a host is always on
+    /// their own roster, so checking `hasPlayer` first would offer them "Leave"
+    /// for a run only they can cancel.
+    nonisolated static func action(for game: Game, currentUserId uid: String?) -> Action {
         if game.isHost(uid) { return .cancel }
         if game.hasPlayer(uid) || game.hasWaitlisted(uid) { return .leave }
         return game.isFull ? .joinWaitlist : .join

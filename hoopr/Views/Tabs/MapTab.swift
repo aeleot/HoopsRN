@@ -35,13 +35,14 @@ struct MapTab: View {
     /// geometry lands; this also avoids `UIScreen.main`, deprecated in iOS 26.
     @State private var containerHeight: CGFloat = 852
 
-    /// How far the tab bar reaches up from the bottom edge.
-    ///
-    /// Load-bearing, and not something the layout gets for free: `MapView`
-    /// ignores the safe area so the map can run under the bar, and that makes
-    /// the whole `ZStack` full-height. Without subtracting this the sheet is
-    /// sized and positioned against a screen that is taller than the one the
-    /// user can reach, and its last rows render underneath the tab bar.
+    /// The unsafe band `onGeometryChange` reports at the bottom of this tab's
+    /// own frame — which is already laid out net of the tab bar, the same as
+    /// every other tab's content. At rest this is a few points of residual
+    /// margin; once the keyboard is up it's the keyboard's height. It feeds
+    /// `containerHeight` and the chrome that has to clear the keyboard
+    /// (`mapOverlay`, `recenterButton`) — it is not what positions the sheet
+    /// or the collapsed pill against the tab bar, since the frame's own
+    /// bottom edge already is that position.
     @State private var tabBarInset: CGFloat = 0
 
     /// A court handed in from Home's hot list. Consumed on arrival and written
@@ -148,9 +149,19 @@ struct MapTab: View {
                     dismissDetail()
                 }
             )
-            // The map is the screen, not a panel on it — it runs under the
-            // status bar, the floating header, and the home indicator.
-            .ignoresSafeArea()
+            // The map runs under the status bar and the floating chrome — but
+            // *not* under the tab bar. Stopping it at the container's bottom
+            // edge is what leaves the bar sitting on this tab's own surface
+            // (below) instead of on moving map, which is how Home and Runs get
+            // a solid bar and why theirs never flickers: nothing about it is
+            // computed from a gesture.
+            //
+            // `.keyboard` stays ignored on every edge. The map is not laid out
+            // around the keyboard — only the chrome is — and a map that
+            // resized itself each time the search field took focus would lurch
+            // under the user's thumb.
+            .ignoresSafeArea(.container, edges: [.top, .horizontal])
+            .ignoresSafeArea(.keyboard)
 
             mapOverlay
 
@@ -160,6 +171,13 @@ struct MapTab: View {
 
             collapsedPeek
         }
+        // The ground the tab bar reads against. The map stops at the bar's top
+        // edge (above), so this is what fills the band the bar floats in —
+        // always there, never animated, exactly the way the Runs tab's own
+        // background is what makes its bar solid. `hooprSurface` rather than
+        // `hooprBackground` because in dark mode the band continues the sheet
+        // resting on it; in light mode the two are the same white.
+        .background(Color.hooprSurface.ignoresSafeArea())
         .onGeometryChange(for: SheetMetrics.self) { proxy in
             SheetMetrics(height: proxy.size.height, bottomInset: proxy.safeAreaInsets.bottom)
         } action: { metrics in
@@ -296,11 +314,7 @@ struct MapTab: View {
                 onClear: { viewModel.clearSearch() }
             )
 
-            ProfileButton(
-                friendService: friendService,
-                style: .glass,
-                action: onOpenProfile
-            )
+            ProfileButton(friendService: friendService, action: onOpenProfile)
         }
         .padding(.horizontal, 14)
     }
@@ -332,9 +346,11 @@ struct MapTab: View {
     /// sharing the chip row.
     ///
     /// Recenter is a frequent, casual tap; the top of a 6.7" phone is the part
-    /// you can't reach one-handed. Sitting just above the sheet puts it in the
-    /// thumb zone and matches where every other map app keeps it — and it
-    /// hands the chips back the ~60pt of width it was taking.
+    /// you can't reach one-handed. Resting directly above the tab bar — the
+    /// same low baseline `collapsedPeek` sits on — puts it in the thumb zone
+    /// and matches where every other map app keeps it, rather than floating
+    /// it wherever the sheet's *default* detent happens to put it. It hands
+    /// the chips back the ~60pt of width it was taking, too.
     ///
     /// There used to be a `+`/`−` pair with a vertical slider between them. It
     /// occupied a 44×180pt column of the map to duplicate a pinch every user
@@ -365,7 +381,16 @@ struct MapTab: View {
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.trailing, 14)
-        .padding(.bottom, max(0, sheetHeight - sheetOffset) + tabBarInset + peekBottomInset)
+        // No `tabBarInset` here, deliberately — this tab's own frame is
+        // already laid out net of the tab bar (see `body`), so the container's
+        // bottom edge *is* the tab bar's top edge. `peekBottomInset` alone —
+        // the same constant `collapsedPeek` rests on — is what puts the
+        // button on that same low baseline. `sheetHeight - sheetOffset` is
+        // the only thing that then lifts it: zero at `.collapsed`, so it sits
+        // right there next to the peek pill, and it grows exactly as fast as
+        // the sheet rises, so the gap above the sheet's own top edge never
+        // opens past that same `peekBottomInset`.
+        .padding(.bottom, max(0, sheetHeight - sheetOffset) + peekBottomInset)
         .opacity(isHidden ? 0 : 1)
         .allowsHitTesting(!isHidden)
         .animation(.easeInOut(duration: 0.2), value: isHidden)
@@ -381,35 +406,47 @@ struct MapTab: View {
     /// something you read, and reading it against a moving map is worse in
     /// every way than reading it against a surface.
     private var sheet: some View {
-        Group {
-            // Search outranks both: focusing the field is an explicit request
-            // for it, and it would be strange for a detail card opened earlier
-            // to keep the surface while the user is typing.
-            if isSearchFocused || viewModel.hasSearchQuery {
-                searchPane
-                    .transition(.opacity)
-            } else if let court = sheetState.selectedCourt {
-                courtCard(court: court)
-                    .transition(.opacity)
-            } else {
-                courtList
-                    .transition(.opacity)
-            }
-        }
-        // The content stops above the tab bar — a list you read can't run
-        // under it — but the surface behind it does not. The tab bar floats
-        // with transparent margins, so a sheet that ended where its content
-        // does would show a band of map between the two.
-        .frame(height: sheetHeight, alignment: .top)
-        .frame(maxWidth: .infinity)
-        .background(alignment: .top) {
+        ZStack(alignment: .top) {
+            // A standalone layer, not a `.background` on the conditional
+            // content below: the three panes are swapped by a transition, and
+            // backing whichever one is currently in gives the surface that
+            // transition too — the corner radius and shadow crossfading along
+            // with the rows. A fixed sibling stays put while the contents
+            // change over it.
+            //
+            // It stops at this tab's bottom edge, where the tab bar's
+            // reserved space begins. Below that the band belongs to the
+            // tab's own background (see `body`), which is the same
+            // `hooprSurface`, so the two read as one surface.
             UnevenRoundedRectangle(topLeadingRadius: 22, topTrailingRadius: 22)
                 .fill(Color.hooprSurface)
                 .shadow(color: Color.hooprShadow(opacity: 0.08), radius: 12, x: 0, y: -4)
-                .frame(height: sheetHeight + tabBarInset)
+                .frame(height: sheetHeight)
+
+            // Search outranks both: focusing the field is an explicit request
+            // for it, and it would be strange for a detail card opened earlier
+            // to keep the surface while the user is typing.
+            Group {
+                if isSearchFocused || viewModel.hasSearchQuery {
+                    searchPane
+                        .transition(.opacity)
+                } else if let court = sheetState.selectedCourt {
+                    courtCard(court: court)
+                        .transition(.opacity)
+                } else {
+                    courtList
+                        .transition(.opacity)
+                }
+            }
+            // The container's own bottom edge already sits flush with the
+            // tab bar — the ZStack is laid out net of the bar's reserved
+            // space, the same way it is for every other tab — so the content
+            // needs no extra padding to reach it. `tabBarInset` is for the
+            // keyboard, not this.
+            .frame(height: sheetHeight, alignment: .top)
         }
+        .frame(maxWidth: .infinity)
         .offset(y: sheetOffset)
-        .padding(.bottom, tabBarInset)
         // As the sheet nears `.collapsed` it slides down far enough that its
         // own top edge — the handle, the header — ends up sitting behind the
         // tab bar rather than above it. The tab bar floats on glass, so
@@ -436,7 +473,10 @@ struct MapTab: View {
         .glassEffect(.regular.interactive(), in: .capsule)
         .contentShape(Capsule())
         .gesture(sheetDragGesture(fromHandle: true))
-        .padding(.bottom, peekBottomInset + tabBarInset)
+        // The container's bottom edge already sits flush with the tab bar —
+        // see `sheet` — so this only needs its own small resting gap, the
+        // same `peekBottomInset` the sheet's content keeps above the fold.
+        .padding(.bottom, peekBottomInset)
         .opacity(peekOpacity)
         .allowsHitTesting(peekOpacity > 0.5)
     }

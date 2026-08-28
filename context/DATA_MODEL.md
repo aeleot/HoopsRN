@@ -1,8 +1,8 @@
 # hoopsRN — Data Model
 
 **Scope:** `hoopr/Models/`, `hoopr/Support/Distance.swift`,
-`hoopr/Support/InviteLink.swift`
-**Verified:** 2026-08-21 @ 9a81cc2
+`hoopr/Support/InviteLink.swift`, `hoopr/Support/CourtSearch.swift`
+**Verified:** 2026-08-27 @ 37aaf7a
 
 The domain types and the contracts attached to them. Read this before
 changing a field, adding one, or deciding how something gets persisted. The
@@ -29,10 +29,23 @@ hotel-attached courts as private, so the tag alone would classify them as
 playable. Current distribution: 172 public, 32 school, 10 restricted.
 
 `hoops`, `surface`, `isLit`, `isCovered` are optional because OSM tags them
-inconsistently — most rows are `null`. All five attribute fields (`access`
-included) are now read: `CourtFilter` filters on `isLit`, `hoops` and `access`,
-and `CourtBadges` renders all five on the list row and the map's detail card.
-Absent means unknown, so nothing is inferred and no placeholder badge is shown.
+inconsistently — most rows are `null`. `CourtBadges` renders all five on the
+list row and the map's detail card. Absent means unknown, so nothing is inferred
+and no placeholder badge is shown.
+
+**`CourtFilter` no longer reads any of them except `access`.** It filtered on
+`isLit` and `hoops` until 2026-08-27, and that sparsity made the filters
+destructive rather than merely weak: `isLit` is `null` for 193 of 214 courts and
+an absent tag is excluded, so one tap hid 95% of the map. The chips are now
+activity predicates — "Games today", "Open spots", and "Open to all" (`access`,
+the one attribute field the dataset populates well at 172/214). They take a
+`CourtActivity`, because whether anyone is playing is a join between bundled
+geography and Firestore that `Court` cannot answer alone.
+
+`CourtActivity` is that joined half: today's runs at one court, with `.quiet`
+for a court with nothing on. Having a total value rather than an optional is
+what keeps every filter predicate total — the absent-tag third state that made
+the amenity filters dangerous has no equivalent here.
 
 `displayName` is `name` with the words "basketball court" stripped and the
 leftover whitespace collapsed. **Every one of the 214 courts in the dataset is

@@ -1,9 +1,11 @@
 # hoopsRN — Map Layer
 
 **Scope:** `hoopr/Views/MapView.swift`, `hoopr/Views/Tabs/MapTab.swift`,
-`hoopr/Views/Tabs/CourtRow.swift`, `hoopr/Views/Components/CourtBadges.swift`,
-`hoopr/Support/CourtHeat.swift`
-**Verified:** 2026-08-26 @ 8ad0041
+`hoopr/Views/Tabs/CourtRow.swift`, `hoopr/Views/Tabs/CourtGameRow.swift`,
+`hoopr/Views/Tabs/SheetGeometry.swift`,
+`hoopr/Views/Components/CourtBadges.swift`, `hoopr/Support/CourtHeat.swift`,
+`hoopr/Support/CourtSearch.swift`
+**Verified:** 2026-08-27 @ 37aaf7a
 
 The map tab and its bottom sheet — the densest interaction code in the app, and
 the part most likely to break subtly when edited. Read this before touching
@@ -337,11 +339,25 @@ tab bar the sheet sits on. The trailing
 `Spacer` in that `VStack` is load-bearing: it holds the stack at full height so
 the row stays pinned to the top of a bottom-aligned `ZStack`.
 
-The recenter button is the **only map control left** — see the zoom-stack note
-above. The profile button sits on its own row above the filter chips, in
-`ProfileButton`'s `glass` style so it matches the recenter control; moving the
-tabs to the bottom freed the whole top of the map, so there is no longer a
-reason to crowd three controls into one line.
+The chrome is **two rows**: a search field with the profile button inline, then
+the filter chips. It was three — the profile button had a row to itself — and
+folding it into the search row is what pays for the field. Note the honest
+arithmetic: the new chrome is ~106pt against the old ~110pt, so this buys about
+4pt. It is **not** reclaimed map, and shouldn't be described as such; what
+changes is that the top row stops being decoration and becomes the screen's
+primary control.
+
+The recenter button is still the **only map control** — see the zoom-stack note
+above — but it no longer shares the chip row. It floats bottom-right, just above
+the sheet, because it is a frequent casual tap and the top of a large phone is
+the part you cannot reach one-handed. Moving it also hands the chips back the
+~60pt of width it was occupying. It hides at `.expanded` and while searching;
+see **Invariants**.
+
+The search field is `HooprSearchField` in its `glass` ground — the same
+component Friends and the home-court picker use on `hooprFill`. Focusing it
+raises the sheet to `.expanded` and swaps the sheet's contents for results;
+**Recent** lives there as the empty state rather than as a segment.
 
 `courtToSelect` is a `Court?` binding the shell writes when a Home hot-court row
 is tapped. `MapTab` consumes it in `.onChange`, clears it so the same court can
@@ -428,16 +444,33 @@ figure — a map pin never had a `NearbyCourt` — so it calls
 `distanceText(for:)`, one `CLLocation.distance(from:)` against the same origin.
 That's safe per render; the whole-dataset sort is not.
 
-**Distances and the recenter button both use the hardcoded Durham location, not
-the device's.** `FindAMatchViewModel.homeLocation` forwards to
-`LocationService.homeLocation` (35.9940, −78.8986) — the app-wide anchor the
-Local Runs radius filter also reads, so swapping it for a profile-owned value
-moves every distance in the app at once. `recenterTarget()`
-requests location permission on the first tap only — so MapKit can draw the blue
-user dot — but returns the hardcoded point regardless, which is why the map no
-longer blocks on a permission prompt. Swapping `homeLocation` for a profile-owned
-value is the intended future change; the initial region, every list distance, and
-the recenter target all read it, so the pipeline follows with no other edits.
+**Distances follow the device.** `FindAMatchViewModel.homeLocation` forwards to
+`LocationService.homeLocation`, which returns the last accepted fix and falls
+back to Durham (35.9940, −78.8986) until one lands or if permission is denied.
+A new fix replaces the anchor only once it is `significantMove` (100m) from the
+last, so GPS jitter doesn't re-sort four surfaces to say the same thing —
+distances render to a tenth of a mile, so anything smaller is invisible churn.
+
+That anchor is the one every distance in the app reads, including the Local Runs
+radius filter and Home's hot list, which is what stops two screens disagreeing
+about how far away the same court is. `HomeViewModel` reads it *per rebuild*
+rather than capturing it at init for exactly that reason.
+
+`recenterTarget()` still doesn't block on the permission prompt — asking and then
+waiting would leave the map motionless under a finger that just tapped a button.
+It moves to whatever anchor is current and the fix, if granted, arrives through
+`$coordinate` a moment later. It also restarts updates when permission is already
+granted, since a session that never saw an authorization *change* never triggered
+the delegate.
+
+`MapView.initialRegion` is read only in `makeUIView`, so a fix arriving after the
+map exists cannot reach it that way. `initialFix` is the one-shot that does:
+`MapTab` turns it into a single `RecenterTrigger` — and therefore through
+`biasedNorth(_:)` — guarded so it never fires over an active selection.
+
+**Coverage consequence:** the dataset is six Triangle cities. Now that location
+is real, a user outside it sees an empty map rather than a Durham one. That is
+correct behaviour exposing a data-coverage gap, not a location bug.
 
 `FindAMatchViewModel.select(_:)` records the court as recently viewed; the
 sheet's own `select(_:recenter:)` does the visible work.
@@ -457,19 +490,35 @@ nearby-list row — already open this card, so one button serves both. See
 - Annotations are diffed by `court.id`. Never `removeAnnotations(mapView.annotations)`.
 - Every `setRegion` goes through `biasedNorth(_:)`. Centring on the raw region
   puts the target under the sheet.
-- A `.detail` state renders at `.medium` regardless of the detent it restores
-  to. Reading `detent` where `displayDetent` belongs renders the card
-  off-screen.
+- A `.detail` state never renders `.collapsed` — that is the bug `displayDetent`
+  exists for. It otherwise keeps the detent it will restore to, so tapping a
+  court from a full-height list doesn't shrink the sheet under the reader's
+  thumb. `MapTabDetentTests` pins both halves.
+- The sheet's arithmetic lives in `SheetGeometry.swift`, alongside `SheetDetent`
+  and `SheetState` — all `nonisolated`. Keep it pure — that is the only reason the detent machine is testable
+  at all, after a long stretch with no coverage.
 - Sheet geometry derives from `containerHeight`, fed by `onGeometryChange`.
   Don't reintroduce `UIScreen.main` — it's deprecated on iOS 26.
 - `containerHeight` must stay net of `tabBarInset`. The map ignores the safe
   area, so the `ZStack` is full-height and nothing else subtracts the tab bar
   for you.
+- **The keyboard lands in the bottom safe area, which means it feeds
+  `tabBarInset` and shrinks every detent.** That is load-bearing and correct —
+  the sheet lifts above the keyboard for free — so do **not** add
+  `.ignoresSafeArea(.keyboard)`. Two consequences are handled deliberately: the
+  chip row is dropped while the search field is focused (at ~95pt of chrome room
+  two rows do not fit), and a downward fling cannot settle to `.collapsed` while
+  focused, which would otherwise hide the sheet behind a live keyboard.
+- The recenter button is hidden at `.expanded` and while searching. Its inset
+  would place it on top of the filter chips, and at that detent the visible map
+  is a sliver.
 - Distances are computed on `rebuild()`, not during scroll. The radius comes
   from the profile's `preferredRadius`, via `preferredRadiusMiles`.
 - The initial region, list distances, and the recenter target all read
   `FindAMatchViewModel.homeLocation`, which forwards to
-  `LocationService.homeLocation`. Keep the single anchor.
+  `LocationService.homeLocation`. Keep the single anchor. It follows the device
+  now; `initialFix` is the one-shot that moves the map to the first fix, and it
+  must never fire over an active selection.
 - **`viewFor` never sets `clusteringIdentifier`.** That is the whole mechanism
   keeping the map unclustered — one visible pin is always exactly one court.
   Setting it reintroduces numbered group discs and the count-vs-colour
@@ -479,6 +528,17 @@ nearby-list row — already open this card, so one button serves both. See
   `updateUIView`'s restyle loop must keep re-running `configureAsCourt` over
   the on-screen annotations — a loop that skips it silently stops recolouring
   pins the moment counts change without an annotation being added or removed.
+- **A pin's *number* is the primary activity signal; the colour reinforces it.**
+  `configureAsCourt` sets the count label and the glyph unconditionally on both
+  branches, or a recycled view carries the previous court's badge. The disc
+  stays 27pt: MapKit resolves collisions before the restyle loop runs, so a pin
+  that grew when its first run was booked would keep its old footprint until the
+  next region change. Activity is expressed through `displayPriority` instead,
+  which *is* re-read on the next collision pass — so a busy court outranks a
+  quiet neighbour when their circles collide.
+- The count is exact through 9 then `9+`, deliberately outliving `CourtHeat`'s
+  cap of 4. The colour ceilings because it runs out of luma; the number doesn't,
+  and truncating it to match would discard what the badge exists to show.
 
 ## See also
 

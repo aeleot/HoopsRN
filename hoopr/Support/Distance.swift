@@ -5,7 +5,7 @@ import CoreLocation
 /// The nearby-courts list and the local-runs list both measure from the same
 /// origin and render the same "1.2 mi" string; without this they'd each carry
 /// their own copy of the conversion factor and the format rule.
-enum Distance {
+nonisolated enum Distance {
     static let metersPerMile: CLLocationDistance = 1_609.344
 
     static func miles(_ meters: CLLocationDistance) -> Double {

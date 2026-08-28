@@ -18,7 +18,7 @@ import Foundation
 /// `UserProfileService` owns all encoding: it writes explicit field maps so
 /// server timestamps stay server-assigned and `createdAt` is never clobbered
 /// by a later update. Don't hand this struct to `setData(from:)`.
-struct UserProfile: Identifiable, Sendable, Codable, Hashable {
+nonisolated struct UserProfile: Identifiable, Sendable, Codable, Hashable {
     /// Firebase Auth uid. Also the Firestore document ID, so a profile is
     /// addressable without a query.
     let id: String
@@ -66,7 +66,7 @@ struct UserProfile: Identifiable, Sendable, Codable, Hashable {
     let updatedAt: Date?
 }
 
-extension UserProfile {
+nonisolated extension UserProfile {
     /// Applied when no preference is stored — provisioning doesn't write one,
     /// matching how `homeCourtId` stays absent until it's set.
     static let defaultPreferredRadius: Double = 5

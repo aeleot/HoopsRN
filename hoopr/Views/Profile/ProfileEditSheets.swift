@@ -84,10 +84,6 @@ struct HomeCourtPickerSheet: View {
     let onSelect: (String?) -> Void
     let onCancel: () -> Void
 
-    /// Enough to scroll through without rendering the whole dataset for a
-    /// one-letter query.
-    private static let maximumSuggestions = 25
-
     @State private var query = ""
     @FocusState private var isSearchFocused: Bool
 
@@ -95,20 +91,11 @@ struct HomeCourtPickerSheet: View {
         query.trimmingCharacters(in: .whitespaces)
     }
 
-    /// Name matches rank above city matches, so typing a court's name doesn't
-    /// bury it under everything in the same town.
+    /// Shared with the map's search — see `CourtSearch`, which also explains
+    /// why both of a court's name spellings are searched rather than just the
+    /// stored one.
     private var suggestions: [Court] {
-        guard !trimmedQuery.isEmpty else { return [] }
-
-        let nameMatches = courts.filter {
-            $0.name.localizedCaseInsensitiveContains(trimmedQuery)
-        }
-        let cityOnlyMatches = courts.filter {
-            !$0.name.localizedCaseInsensitiveContains(trimmedQuery)
-                && $0.city.localizedCaseInsensitiveContains(trimmedQuery)
-        }
-
-        return Array((nameMatches + cityOnlyMatches).prefix(Self.maximumSuggestions))
+        CourtSearch.matches(courts, query: trimmedQuery)
     }
 
     var body: some View {
@@ -154,40 +141,12 @@ struct HomeCourtPickerSheet: View {
     }
 
     private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .hooprFont(15, weight: .medium, maximumSize: 20)
-                .foregroundStyle(Color.hooprSecondaryText)
-
-            TextField("Search for your court", text: $query)
-                .hooprFont(16, maximumSize: 22)
-                .foregroundStyle(Color.hooprPrimaryText)
-                .focused($isSearchFocused)
-                .autocorrectionDisabled()
-                .submitLabel(.search)
-                #if os(iOS) || os(visionOS)
-                .textInputAutocapitalization(.words)
-                #endif
-
-            if !query.isEmpty {
-                Button {
-                    query = ""
-                    isSearchFocused = true
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .hooprFont(15, maximumSize: 20)
-                        .foregroundStyle(Color.hooprSecondaryText)
-                }
-                .accessibilityLabel("Clear search")
-            }
-        }
-        .padding(.horizontal, 14)
-        .frame(height: 48)
-        .background(Color.hooprFill)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(isSearchFocused ? Color.hooprOrange : Color.hooprBorder, lineWidth: 1)
+        HooprSearchField(
+            text: $query,
+            placeholder: "Search for your court",
+            isFocused: $isSearchFocused,
+            height: 48,
+            capitalization: .words
         )
         .padding(.horizontal, 20)
         .padding(.vertical, 16)

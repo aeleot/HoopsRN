@@ -1,7 +1,7 @@
 import Foundation
 import CoreLocation
 
-struct Court: Identifiable, Sendable, Codable, Hashable {
+nonisolated struct Court: Identifiable, Sendable, Codable, Hashable {
     /// How reachable a court actually is. OSM rarely tags apartment and hotel
     /// courts as private, so this is derived when the dataset is built.
     enum Access: String, Sendable, Codable {
@@ -58,7 +58,7 @@ struct Court: Identifiable, Sendable, Codable, Hashable {
 
 /// Versioned envelope around the bundled dataset. The version lets a future
 /// CDN-hosted copy be compared against the bundled one without parsing courts.
-struct CourtDataset: Sendable, Codable {
+nonisolated struct CourtDataset: Sendable, Codable {
     let version: Int
     let generated: String
     let attribution: String

@@ -5,9 +5,12 @@
 `hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Views/Tabs/HomeTab.swift`,
 `hoopr/ViewModels/HomeViewModel.swift`, `hoopr/Views/Friends/`,
 `hoopr/Views/Components/ErrorBanner.swift`,
-`hoopr/Views/Components/ProfileButton.swift`, `hoopr/Support/Theme.swift`,
+`hoopr/Views/Components/ProfileButton.swift`,
+`hoopr/Views/Components/HooprSearchField.swift`,
+`hoopr/Views/Components/CardChrome.swift`,
+`hoopr/Views/Components/GlassChip.swift`, `hoopr/Support/Theme.swift`,
 `hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`
-**Verified:** 2026-08-26 @ 8ad0041
+**Verified:** 2026-08-27 @ 37aaf7a
 
 Navigation structure and the visual conventions every screen follows. Read this
 before adding a screen, changing how one is presented, or picking a colour or a

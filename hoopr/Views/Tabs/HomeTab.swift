@@ -362,23 +362,5 @@ struct HomeTab: View {
     }
 }
 
-/// The card recipe the app already draws by hand in `GameCard`, `FriendRow`
-/// and `ProfileRow` — surface, hairline, soft lift.
-///
-/// Extracted here because Home needs it in four places and a fourth
-/// hand-rolled copy is where a design system starts drifting. The existing
-/// three are left alone deliberately: folding them in is a refactor with its
-/// own diff, not something to smuggle into a new screen.
-private extension View {
-    func cardChrome(cornerRadius: CGFloat = 16) -> some View {
-        background(
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(Color.hooprSurface)
-                .shadow(color: Color.hooprShadow(opacity: 0.06), radius: 8, x: 0, y: 2)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .stroke(Color.hooprBorder, lineWidth: 1)
-        )
-    }
-}
+// `cardChrome(cornerRadius:)` now lives in `Views/Components/CardChrome.swift`,
+// shared with `GameCard` and the map's court card.

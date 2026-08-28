@@ -11,7 +11,7 @@ import Foundation
 /// Deliberately free of Firebase types, like `Game` and `UserProfile`:
 /// `FriendService` owns all encoding and writes explicit field maps so server
 /// timestamps stay server-assigned. Don't hand this struct to `setData(from:)`.
-struct Friendship: Identifiable, Sendable, Codable, Hashable {
+nonisolated struct Friendship: Identifiable, Sendable, Codable, Hashable {
     /// Only two values are ever stored. Declining, cancelling, and unfriending
     /// all *delete* the document instead of adding a third status, matching the
     /// absence-never-null convention `games` and `users` already follow.
@@ -39,7 +39,7 @@ struct Friendship: Identifiable, Sendable, Codable, Hashable {
     let updatedAt: Date?
 }
 
-extension Friendship {
+nonisolated extension Friendship {
     /// `"{uidA}_{uidB}"` — the Firestore document ID.
     ///
     /// **Computed, not stored**, which is where this departs from `Game.id`.
@@ -88,7 +88,7 @@ extension Friendship {
 /// Domain-level failures for the `friendships` collection. `FriendService`
 /// translates Firestore's errors into these so no Firestore type escapes the
 /// service layer, mirroring `GameError` and `UserProfileError`.
-enum FriendError: Error, Equatable {
+nonisolated enum FriendError: Error, Equatable {
     case notSignedIn
     /// The uid being friended is the signed-in user's own. Caught client-side;
     /// the rules reject it too, but as `permission-denied`.

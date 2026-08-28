@@ -69,10 +69,15 @@ it partly shipped; the general "Next steps" list below is everything else.
   email is Firebase's default template with the project's name on it. Both are
   console/config work rather than code. The app is also never told when the
   link is used, so nothing in it reflects "password last changed".
-- Distances and the recenter target are anchored to a hardcoded Durham point
-  (`LocationService.homeLocation`), not the device's location. Device location
-  is requested on the first recenter tap only, so MapKit can draw the blue dot.
-  `LocationService.userLocation` is published but **never consumed**.
+- ~~Distances and the recenter target are anchored to a hardcoded Durham
+  point.~~ **Closed 2026-08-27.** `LocationService` publishes `coordinate` and
+  `homeLocation` now follows the device, adopting a fix only once it is
+  `significantMove` (100m) from the last — so the map, both nearby lists, the
+  detail card's distance and Home's hot courts all measure from where the user
+  actually is. Durham remains the fallback until a fix lands or if permission is
+  denied. **New consequence worth knowing:** the dataset is six Triangle cities,
+  so a user outside it now correctly sees an empty map rather than a wrong one.
+  That's a coverage problem, not a location one.
 
 **Reliability**
 
@@ -159,8 +164,13 @@ it partly shipped; the general "Next steps" list below is everything else.
   palette commit, which had bundled `Court.displayName` into the same change;
   `da44193` restored the property and most callers but missed these two. Both
   now use `displayName`.
-  *(The home-court picker's **search** still matches over the full `name` —
-  deliberate, a wider haystack rather than a violation.)*
+  *(The home-court picker's search matched only the full `name`. Called
+  deliberate here — "a wider haystack" — which was half right: it is a wider
+  haystack for some queries and a **narrower** one for others, because
+  `displayName` collapses the boilerplate. "Park #2" matches the stripped name
+  and misses the stored one; "basketball" does the reverse. **Closed
+  2026-08-27:** `CourtSearch` matches both fields and is shared with the map's
+  search field.)*
 
 **Code quality**
 
@@ -216,10 +226,9 @@ either copy of a shared constant moves alone; `ServiceFailureTests` covers the
 re-attach schedule, per-listener recovery, and the read/write split in the error
 messages.
 
-Untested and worth it: `RootViewModel`'s gating rule, `MapTab`'s detent
-transitions and the `displayDetent` rule that keeps a detail card on screen,
+Untested and worth it: `RootViewModel`'s gating rule,
 `FindAMatchViewModel`'s nearby filtering and ordering,
-`LocalRunsViewModel.action(for:)` and its radius/dedupe filtering,
+`LocalRunsViewModel`'s radius/dedupe filtering,
 `FriendsViewModel`'s profile-resolution cache (including the
 name-that-never-resolves case), the four
 `mapped(_:)` error translations, and — most valuable and hardest — what the
@@ -230,6 +239,12 @@ re-run by anything. There is no emulator setup in the repo.
 `hooprUITests/LaunchTests.swift` is Xcode scaffold. (`hooprTests/hooprTests.swift`
 and the second UI test file, named here until 2026-08-15, are gone.)
 `Court.displayName` moved out of this list on 2026-08-21 — `CourtTests` covers it.
+`MapTab`'s detent transitions and the `displayDetent` rule moved out on
+2026-08-27: the arithmetic was lifted into a file-scope `SheetGeometry` and
+`MapTabDetentTests` pins one-detent-per-gesture, the rubber-band bound, the
+keyboard-shrunk clamp, and the rule that a detail card never renders collapsed.
+`LocalRunsViewModel.action(for:)` moved out the same day — it became a pure
+`static` shared with the map's court card, covered by `LocalRunsViewModelTests`.
 
 The UI test target currently fails to launch its runner
 (`hooprUITests.xctrunner`, `RequestDenied` from SpringBoard), so `xcodebuild
@@ -448,8 +463,8 @@ answer and would pay for itself the first time someone edits `hasOnly`.
 
 ### 7. Smaller, self-contained
 
-- Consume `LocationService.userLocation` so distances follow the device;
-  `homeLocation` is the single seam and every distance follows it.
+- ~~Consume the device location so distances follow it.~~ **Done 2026-08-27**
+  — `homeLocation` was indeed the single seam; every distance followed it.
 - Display the ODbL attribution — `CourtService` discards it today, so this
   means holding the value as well as rendering it.
 - Give `hooprOrange` a readable companion role so it can be used as a
