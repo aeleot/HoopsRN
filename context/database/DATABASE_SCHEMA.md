@@ -1,22 +1,38 @@
 # hoopsRN — Database Schema
 
-**Scope:** `firestore.rules`, `firestore.indexes.json`, `firebase.json`, `.firebaserc`
-**Verified:** 2026-08-21 @ 9a81cc2
+**Scope:** `firestore.rules`, `firestore.indexes.json`, `firebase.json`, `.firebaserc`, `firestore-tests/`
+**Verified:** 2026-08-29 @ 513a3d5
 
-What's stored server-side and what a client may write. Three collections are
-live: `users` (one owner per document), `games` (the first shared, multi-user
-state), and `friendships` (one document per *pair* of people, written by either
-of them). Datastore is Cloud Firestore (Native mode), project `hoopsrn-4f1e9`,
-region `nam5`. Rules live in `firestore.rules` at the repo root and are deployed
-via the Firebase CLI.
+What's stored server-side and what a client may write. Six collections are live:
+`users` (one owner per document), `games` (the first shared, multi-user state),
+`friendships` (one document per *pair* of people, written by either of them),
+`squads` (a team, written by its leader and by each member for their own
+membership), `squadInvites` (structurally `friendships`, one document per
+squad-and-person pair), and `matchTickets` (a squad's standing offer to play, and
+the only document here whose contested write belongs to *another* squad).
+Datastore is Cloud Firestore (Native mode), project `hoopsrn-4f1e9`, region
+`nam5`. Rules live in `firestore.rules` at the repo root and are deployed via the
+Firebase CLI.
 
 Firebase Auth already provides *identity* (uid, email). The collections below
 are app-owned data layered on top of that identity, never a replacement for it.
 
-The three are a progression in **who may write a document**, and each one's
-rules are worth reading in that order: `users` has exactly one author;
-`games` has many, each confined to their own lane of a shared document;
-`friendships` has two, with asymmetric authority spent in a single move.
+The six are a progression in **who may write a document**, and each one's rules
+are worth reading in that order: `users` has exactly one author; `games` has
+many, each confined to their own lane of a shared document; `friendships` has
+two, with asymmetric authority spent in a single move; `squads` has a leader plus
+every member acting only on their own membership; `squadInvites` returns to
+asymmetric authority, spent in one move and answered by a write to a *different*
+collection; and `matchTickets` breaks the pattern entirely — it is written by
+somebody who doesn't own it, and correctness rests on Firestore's concurrency
+guarantee rather than on any rule.
+
+**A dry-run is not a test.** `firebase deploy --dry-run` proves this file
+compiles. Whether a write is actually refused is evaluated in `firestore-tests/`
+against the Firestore emulator (`npm run test:rules`), which is also where the
+claim race is run. `hooprTests/FirestoreRulesParityTests` is the third leg: it
+parses the rules as *text* and fails when a bound mirrored into Swift drifts from
+its copy here.
 
 For how this is wired into the app at runtime, see `USER_PROFILE_WORKFLOW.md`.
 
@@ -415,6 +431,338 @@ the app already holds.
 
 ---
 
+## `squads`
+
+A named team that queues together for season matches — the third piece of shared,
+multi-user state, and the **first whose subject is a group** rather than a person
+or a pair.
+
+That shift is what makes squad-vs-squad play legal under the existing security
+model. Every other collection here enforces "a client may only ever write its own
+membership," and a match commits three people to a game. It doesn't violate the
+rule, because **a match names squad IDs, not player uids**: a leader commits their
+squad by writing one identifier they already own, and the rules verify leadership
+with a single `get()`. Nobody's uid is written by anybody else anywhere in
+Seasons. See `../plans/SEASONS.md` §0.3.
+
+**Document ID is Firestore-generated**, with `id` mirroring it, following `games`.
+
+| field | type | required | mutable | notes |
+|---|---|---|---|---|
+| `id` | string | yes | no | Mirrors the document ID. |
+| `name` | string | yes | yes | 3–24 chars. Bounds mirrored in `Squad.nameLengthRange` and pinned by `FirestoreRulesParityTests`. |
+| `nameLower` | string | yes | yes | Lowercased mirror, derived through `Squad.searchKey(_:)` and written in the same field map — the `userNameLower` convention, but **required from the first write** rather than backfilled, because this collection had no rows predating it. |
+| `leaderId` | string | yes | no | uid. Always present in `memberIds`, enforced server-side. |
+| `memberIds` | array\<string\> | yes | yes | Leader included. Bounded by the format's roster ceiling. Only ever changed by the self-join and self-leave paths, one uid at a time. |
+| `format` | string | yes | no | `3v3` today. Allowlisted in the rules; `1v1` and `5v5` exist in `SquadFormat` and are refused at create. |
+| `iconKey` | string | yes | yes | SF Symbol name from a 12-entry allowlist. |
+| `colorKey` | string | yes | yes | Palette *key*, never a colour — resolved by `Theme.swift` so the crest stays appearance-aware. A stored hex would bypass that entirely. |
+| `region` | string | yes | no | The matchmaking pool key. `Court.city` today; see below. |
+| `createdAt` | timestamp | yes | no | Server-assigned. |
+| `updatedAt` | timestamp | yes | yes | Server-assigned, refreshed on every write. |
+
+### No `wins` / `losses` / `gamesPlayed`
+
+**Deliberate, and the single biggest integrity decision in Seasons.** It departs
+from `users.completedGameCount`, which `../GAPS.md` already records as
+self-reported and forgeable.
+
+A stored counter on a document you control is a number you can type. A squad's
+record is instead **derived** — `seasonGames where squadIds array-contains
+{squadId} and status == "confirmed"`, counted client-side by `result`. That is
+arithmetic over documents *two different leaders had to agree on*. There is
+nothing to forge and no cache to reconcile, and disputed or cancelled games are
+structurally excluded because they never reach `confirmed`.
+
+Cost: one extra query to show an opponent's record. At tens of squads per city
+that is nothing. Revisit only if a standings screen makes it hurt, and then add
+the cache as an explicitly-untrusted display field, the way `completedGameCount`
+already is.
+
+### Readable by any signed-in account
+
+**Like `users`, unlike `friendships`** — and this is a real privacy decision
+rather than an oversight, so it is recorded rather than left to be discovered.
+
+An opponent has to render your crest and name on a match card, and season play is
+public by design: records, standings and an opponent's history are the point of
+the feature. A participants-only read rule would make the feature's central
+screen impossible.
+
+**The create rule's key allowlist is what keeps that safe.** It is exactly the
+argument `users` makes: without it a modified client could store anything it
+liked — an email, a phone number — on a document every signed-in account can
+read, and Firestore has no field-level read ACLs. Anything private about a squad
+would belong in a leader-only subcollection, never here.
+
+### Three separate update paths
+
+The same split `users` draws between profile edits and stats, and `games` draws
+between roster changes and completion. One write can never smuggle in another
+path's fields: a leader's rename can't also change the roster, and a join can't
+also change the name.
+
+1. **Leader edit** — `name`, `nameLower`, `iconKey`, `colorKey`, `updatedAt`.
+   `memberIds` is absent from the allowlist, so this path cannot change who is on
+   the squad no matter what it ships alongside.
+2. **Self-join** — the `memberIds` diff is exactly the caller's own uid, added,
+   gated on `exists()` of the matching `squadInvites` document and bounded by the
+   format's ceiling.
+3. **Self-leave** — the mirror image, and closed to the leader.
+
+**The no-duplicates check is not optional.** `memberIds.toSet().size() ==
+memberIds.size()` is what stops `['leader','me','me','me','me','me']` — six list
+entries, two set entries — from reading as a single addition to the set
+comparison, letting one member consume every seat and lock the squad to full. It
+is the same hole the `games` rule documents, and the reason a set diff is only a
+faithful proxy for a stored list when the list has no duplicates. Exercised in
+`firestore-tests/squads.test.mjs`; a rules dry-run cannot reach it.
+
+A leader cannot leave. **Disbanding is their exit**, the way cancelling is a
+`games` host's — so there is one answer to "what happens to the squad when the
+person who made it goes."
+
+### `region` is a placeholder with a named successor
+
+`Court.city` for v1: the bundled dataset is six Triangle cities and `city` is on
+every court. Verified 2026-08-28 — 214 courts, six cities, no empty or `null`
+value, casing consistent. **Re-run that check if `courts.json` is regenerated**;
+`tools/build_courts.py` and `tools/fetch_city_courts.py` both invalidate it.
+
+A bad region key would silently partition the matchmaking pool into groups that
+can never see each other — a failure with no error message. `../plans/SCALE_UP.md`
+S1.1 defines the real region key; when it ships, `region` becomes that key and the
+pool query is unchanged. The rules deliberately bound it only as a non-empty
+string: mirroring a length for a value already scheduled to change would pin down
+the one part of the field that isn't decided.
+
+### Access
+
+- **Read:** any signed-in user. See above.
+- **Create:** the leader only, as a squad of exactly themselves, with an
+  allowlisted format, icon and colour and both timestamps at `request.time`. A
+  roster at creation would mean writing other people's uids.
+- **Update:** three disjoint paths, above.
+- **Delete:** the leader only.
+
+### Indexes
+
+**None.** The listener is a single `memberIds array-contains` filter with no
+`order(by:)`; sorting happens client-side on a list a handful of rows long. Same
+trade `friendships` makes, and the reason this collection leaves
+`firestore.indexes.json` untouched.
+
+---
+
+## `squadInvites`
+
+A leader's standing offer for one person to join one squad. **Structurally
+`friendships`**: one document per pair, ID derived from its own content, so a
+duplicate is impossible rather than merely deduplicated.
+
+**Document ID is `{squadId}_{uid}`**, and the rules recompute it from the
+document's own fields and reject anything else.
+
+| field | type | required | mutable | notes |
+|---|---|---|---|---|
+| `squadId` | string | yes | no | |
+| `uid` | string | yes | no | The invitee. |
+| `invitedBy` | string | yes | no | The leader, `== request.auth.uid` at create. |
+| `createdAt` | timestamp | yes | no | Server-assigned. |
+
+The authority is asymmetric and spent in one move: the leader creates it, and the
+only thing the invitee ever does to *this* document is delete it. **Accepting is a
+write to the squad, not to here** — which is the whole reason a squad can gain a
+member without anyone writing somebody else's uid.
+
+There is no `status` field. Revoking, declining, and consuming an accepted invite
+are all the same operation (delete): absence, never null, exactly as
+`friendships` handles decline/cancel/unfriend.
+
+### The friendship gate
+
+Creating an invite requires an **accepted** friendship between inviter and
+invitee, checked with an `exists()` plus a `get()` on the ordered pair ID
+computed the same way `Friendship.id(for:_:)` computes it.
+
+It costs four lines and it is the difference between "squads are built from your
+friends" and "anyone can spam invites at strangers" — which is a live gap on
+friend requests themselves (`../GAPS.md`), deliberately not repeated here. A
+*pending* request is not enough; all three states are asserted in
+`firestore-tests/squads.test.mjs`.
+
+### Where an invite is answered
+
+**On the Seasons tab**, in an incoming-invites section above the squad list —
+not on any of `../plans/SEASONS.md` §5's numbered screens, which is why it is
+worth stating.
+
+The plan's screen list never names a place to accept, and without one a roster
+could never gain a second member: the self-join rule exists for exactly this
+moment, and a squad would be permanently a team of one. `SquadViewModel` joins
+`squadInvites` to `SquadService.fetchSquad(id:)` for the name and crest, because
+the squads listener only carries squads you are already on.
+
+### Access
+
+- **Read:** the invitee or the inviting leader. Both client listeners filter on
+  one of those two fields against the caller's own uid, so neither ever asks for
+  a document this rule doesn't already admit.
+- **Create:** the squad's leader only, to an accepted friend, with a matching
+  document ID.
+- **Update:** `if false`. Immutable — there is nothing here to change.
+- **Delete:** either participant.
+
+A second invite to the same person writes the same document ID, falls through to
+`allow update: if false`, and is refused. `SquadService.invite` reads the
+document back and treats that specific refusal as success, the same move
+`FriendService.sendRequest` makes: a duplicate tap from a stale screen is not a
+failure.
+
+### Indexes
+
+**None.** Two single-field equality listeners (`uid ==`, `invitedBy ==`), no
+ordering.
+
+---
+
+## `matchTickets`
+
+A squad's standing offer to play — the matchmaking pool.
+
+**Document ID is the squad ID**, which structurally enforces one live ticket per
+squad. There is no duplicate-entry logic to write because there is nowhere to put
+a second row, the same trick `friendships/{pair}` uses.
+
+This is the one collection here **written by somebody who doesn't own the
+document**: the *claim* is another squad's leader taking a ticket out of the
+pool. Firestore serializing contested single-document transactions is what makes
+exactly one of them win, and that guarantee is the entire matchmaker — there is
+no server to pair squads (`../plans/SEASONS.md` §0.1), so matchmaking is pull
+with a lock rather than push.
+
+| field | type | required | mutable | notes |
+|---|---|---|---|---|
+| `squadId` | string | yes | no | Mirrors the document ID. |
+| `leaderId` | string | yes | no | The only account that may create or delete it. |
+| `squadName` | string | yes | no | Denormalized for the pool UI. Pinned to the squad document at create. |
+| `memberIds` | array\<string\> | yes | no | Denormalized so the no-shared-players rule is arithmetic on two tickets rather than two more reads. **Pinned to the squad document** — the load-bearing one: a client free to write its own copy could match against a squad it shares players with. |
+| `format` | string | yes | no | Equality filter on the pool query. Pinned. |
+| `region` | string | yes | no | Equality filter on the pool query. Pinned. |
+| `courtIds` | array\<string\> | yes | no | Acceptable courts, 1–8, **ordered by preference**. No duplicates: a preference order can't rank a court against itself. |
+| `windowStart` / `windowEnd` | timestamp | yes | no | When they can play. Client-supplied, rules-bounded — `windowEnd > windowStart`, `windowEnd > request.time`, and `windowStart` inside the same 30-day ceiling `games` puts on a run. |
+| `wins` / `losses` | int | yes | no | Denormalized **at queue time** for opponent ranking. Display and scoring only — never the record of truth. Derived from confirmed `seasonGames` by the caller; see `squads` above. |
+| `status` | string | yes | yes | `open` \| `claimed` \| `matched`. |
+| `claimedBy` | string? | no | yes | The squad that won the claim race. Absent until then; set only by the claim. |
+| `claimedAt` | timestamp? | no | yes | Server-assigned. Drives stale-claim recovery. |
+| `matchedGameId` | string? | no | yes | The handoff to the waiting squad. Written by the `matched` transition. |
+| `createdAt` | timestamp | yes | no | Server-assigned. **Ticket age is what drives relaxation.** |
+| `expiresAt` | timestamp | yes | no | Client-supplied, rules-bounded to 15 minutes–24 hours, and queried against — an expired ticket leaves the pool without anything having to delete it. |
+
+### There is deliberately no `updatedAt`
+
+**A resolved conflict between two halves of the plan, recorded as a resolution
+rather than just an outcome.** `../plans/SEASONS.md` §1.3's field table omits
+`updatedAt`; §2.2's rules snippet lists it inside the claim's `affectedKeys()`.
+Both cannot be right.
+
+**The field table won.** `claimedAt` already *is* this document's "when did this
+change" stamp, and the claim is the ticket's only mutation — so an `updatedAt`
+would be a second name for the same instant, and adding it would mean widening
+the claim's `affectedKeys()` allowlist, which is the one place it should stay
+narrow. A ticket is ephemeral; it has no edit history worth keeping.
+
+If a later phase makes an `updatedAt` genuinely useful, **reopen that
+deliberately** — change the field table, the allowlist and this paragraph
+together. Do not let it drift back in as an incidental field on some other write.
+
+### The claim, and the 90-second stale window
+
+```
+runTransaction:
+  read matchTickets/{A}
+  guard status == 'open'  OR  (status == 'claimed' AND claimedAt < now - 90s)
+  guard expiresAt > now
+  guard MatchRules still produces a candidate      ← re-checked inside the txn
+  write status = 'claimed', claimedBy = B, claimedAt = <server>
+```
+
+The re-check inside is not redundant with the scan outside: a listener snapshot
+is a push of what *was* true, and Firestore's guarantee is about the document
+being written. Every loser re-reads a now-`claimed` ticket and fails the guard.
+**Losing is expected, not exceptional, and is never surfaced to the user** —
+`ClaimPolicy.isUserFacing` is a pure function so that stays tested.
+
+A claimer can die *after* winning the claim and before writing the game.
+**`staleClaim = 90s`** is the recovery, and it is enforced in four places that
+must agree: `MatchRules.staleClaim`, `MatchTicket.isClaimable` (the scanner), the
+waiting squad's UI (which reverts to "searching" rather than showing a match that
+never arrived), and the rules' re-claim clause. `FirestoreRulesParityTests` pins
+the first three against the *text* of the fourth;
+`firestore-tests/match-tickets.test.mjs` evaluates the deployed rule from both
+sides of the boundary — 91 seconds re-claimable, 89 not. A griefer who claims
+tickets and never creates games costs the pool 90 seconds per ticket and nothing
+else.
+
+`claimedAt` is **pinned to `request.time`**, not requested. A claim a client
+could backdate would look fresh forever and wedge the ticket.
+
+### Record proximity is a gate, not only a score
+
+Another place the plan reads two ways, resolved here. §2.1 lists record proximity
+only under *soft* rules — signals weighted into a score. But the same section's
+relaxation paragraph names "the record-proximity tolerance" as something
+relaxation widens, and a tolerance nothing enforces is not a tolerance.
+
+**It is implemented as a gate**, deliberately generous: win percentages may be
+0.35 apart at relaxation 0, and fully open at relaxation 1. So it changes *when*
+an uneven match happens, never *whether* — the reading that leaves both sentences
+true. It is also weighted into the score, at 0.35, so among legal matches the
+closer record still ranks higher.
+
+This is the hook a real skill rating (Elo / TrueSkill) plugs into later —
+`../plans/SEASONS.md` §7 names it as a Phase 8 once there is a corpus of
+confirmed games.
+
+### Not part of `presence/{uid}`
+
+`../plans/BACKLOG.md` A2 proposes `queueEntries/{uid}` for solo Queue Up and
+flags that it overlaps `checkins/{uid}`, calling for a unified `presence/{uid}`.
+**That unification stands for the two player-level ephemerals. `matchTickets` is
+not part of it**, and the reason is recorded here so nobody folds them together
+to save a rules block: its subject is a squad rather than a person, its lifecycle
+is a two-party negotiation rather than a self-declaration, and its ID space is
+squad IDs. Two different subjects in one collection is a worse trade than two
+rules blocks.
+
+### Access
+
+- **Read:** any signed-in account, like `squads` — because that is what a pool
+  *is*. Every queued client watches the same one and the winner of a
+  one-document race gets the match. The pool query filters on region, format,
+  status and expiry, all of which the read rule already admits.
+- **Create:** the squad's leader only, with the four denormalized fields pinned
+  to the `squads` document and `status == 'open'`. `claimedBy`, `claimedAt` and
+  `matchedGameId` are absent at create — absence, never null.
+- **Update (claim):** any leader of a *different* squad, on an open or stale
+  ticket, touching only `status`, `claimedBy` and `claimedAt`. Authorized by one
+  `get()` against `squads/{claimedBy}`.
+- **Delete:** the leader only. A delete rather than a status — absence, never
+  null, the same move `friendships` makes. An abandoned ticket also ages out on
+  `expiresAt` without anyone removing it.
+
+### Indexes
+
+One composite, on `(region ASC, format ASC, status ASC, expiresAt ASC)` — the
+pool query.
+
+**`status in ['open', 'claimed']`, not `== 'open'`.** A query filtered to open
+alone would hide every stale claim from the scanner, making the recovery above
+unreachable — and nothing would report it, because a ticket wedged by a claimer
+that crashed simply never appears in anybody's pool.
+
+---
+
 ## Invariants
 
 - Each collection's document ID is fixed by its own rule and never client-chosen
@@ -435,6 +783,21 @@ the app already holds.
   Private per-user data belongs in an owner-only subcollection.
 - `id`, `createdAt` are write-once, enforced server-side. So are
   `uidA`, `uidB` and `requestedBy` on a friendship.
+- A squad's record is **never stored**. `wins`/`losses` on a `matchTicket` are a
+  queue-time display copy; the record of truth is a query over confirmed
+  `seasonGames`. Never write one onto `squads`.
+- `matchTickets` carries **no `updatedAt`** — `claimedAt` is its change stamp, and
+  the claim is its only mutation. Reopen that deliberately or not at all.
+- A squad's roster changes one uid at a time, and only the caller's own — with a
+  no-duplicates check, without which a set diff is not a faithful proxy for a
+  stored list.
+- A squad's leader can never be removed, themselves included. Disbanding is their
+  exit.
+- `squads` and `matchTickets` are world-readable to signed-in accounts, so the
+  same rule `users` follows applies: **nothing private goes in them**, and the
+  create rules' key allowlists are what enforce it.
+- `staleClaim = 90s` appears in four places — two Swift constants, the waiting
+  UI, and the rules. They must agree; two different tests exist to make sure.
 - Every new editable field needs both a service write method and a rules
   redeploy. One without the other is a silent failure.
 - Absent, never null. Clearing a field deletes it, and a status that would mean
@@ -450,3 +813,7 @@ the app already holds.
 - `../BUILD_AND_CONFIG.md` — the Firebase CLI surface and deploy command.
 - `../plans/FRIENDS.md` — why `friendships` is shaped this way, and the UI
   phases still unbuilt on top of it.
+- `../plans/SEASONS.md` — why `squads`, `squadInvites` and `matchTickets` are
+  shaped this way, the matchmaker's design, and the phases still unbuilt.
+- `../../firestore-tests/README.md` — the emulator suite that evaluates these
+  rules, and why a dry-run isn't one.
