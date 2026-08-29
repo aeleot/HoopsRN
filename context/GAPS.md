@@ -417,13 +417,19 @@ one composite index, costs more reads); or move retirement server-side with a
 scheduled Cloud Function writing `status: "completed"` — which is also what
 unblocks step 1.
 
-### 2. Rules coverage, via the Firebase emulator
+### 2. ~~Rules coverage, via the Firebase emulator~~ — done 2026-08-29
 
-`FirestoreRulesParityTests` keeps the *shared constants* honest, but nothing
-tests what the rules actually permit. The emulator (`firebase emulators:exec`)
-plus `@firebase/rules-unit-testing` would let the membership diff, the
-read rule, and the host-only delete be asserted directly — the checks that
-carry the real security weight. Needs a Node test target, not a Swift one.
+`firestore-tests/` (`npm run test:rules`) evaluates the deployed ruleset
+against the Firestore emulator: the membership diffs, the read rules, the
+duplicate-roster hole, and the Seasons claim race are all asserted directly
+now, on `@firebase/rules-unit-testing` and node's built-in test runner. See
+`firestore-tests/README.md`. `FirestoreRulesParityTests` still keeps the
+*shared constants* honest — the two are complements, not substitutes.
+
+Not extended to `games`/`friendships`/`users` yet — everything written so far
+covers Seasons, because that was the phase that needed it. Backfilling
+coverage for the original three collections is still open, at lower value now
+that the harness itself is the expensive part and it already exists.
 
 ### 3. Waitlist promotion — needs a Cloud Function
 

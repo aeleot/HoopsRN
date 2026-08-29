@@ -660,6 +660,28 @@ final class MatchmakingService: ObservableObject {
         }
     }
 
+    /// Gives up on a won claim that didn't turn into a game, and resumes
+    /// scanning.
+    ///
+    /// **Called by the view model when `SeasonGameService.createGame` fails
+    /// after a claim was won** — a network blip, or the home squad renaming
+    /// itself out from under its own ticket's denormalized `squadName` while
+    /// queued. `wonClaim` is this service's only "stop looking" signal, and
+    /// nothing else clears it; a claim that never became a game would
+    /// otherwise leave `scheduleScan()`'s `wonClaim == nil` guard permanently
+    /// false, freezing the search with no error and no retry.
+    ///
+    /// Safe to resume immediately rather than backing off: the ticket we just
+    /// failed to convert is marked `claimed` by us and won't be
+    /// `isClaimable(at:)` again for up to 90 seconds, so an immediate re-scan
+    /// looks for a *different* candidate rather than retrying the one that
+    /// just failed.
+    func releaseWonClaim() {
+        guard wonClaim != nil else { return }
+        wonClaim = nil
+        scheduleScan()
+    }
+
     /// Leaves the queue. The leader's alone, enforced server-side.
     ///
     /// A delete rather than a status: absence, never null, the same move

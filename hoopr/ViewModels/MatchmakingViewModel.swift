@@ -298,14 +298,27 @@ final class MatchmakingViewModel: ObservableObject {
 
             logger.notice("Finalized a match against \(homeTicket.squadId, privacy: .public)")
         } catch {
-            // The claim was won and the game was refused — the state moved
-            // underneath us, most likely a stale claim somebody else recovered.
-            // The ticket stays in the pool and the search continues; the
-            // service's own error reporting decides whether this is worth
-            // saying.
+            // The claim was won and the game was refused. Reachable in more
+            // than one way — a network blip, or the home squad's leader
+            // renaming their squad while queued: `homeTicket.squadName` is
+            // denormalized once at queue time with no refresh path, so a
+            // rename desyncs it from `squads/{homeSquadId}.name`, and the
+            // create rule's equality check refuses the write.
+            //
+            // **Releasing the claim is what keeps this from wedging the
+            // search.** `MatchmakingService.wonClaim` is the scan loop's
+            // "stop looking, we have one" signal, and nothing else ever
+            // clears it — so a claim that never became a game would leave
+            // `scheduleScan()`'s `wonClaim == nil` guard permanently false,
+            // freezing this client's search with no error and no retry. A
+            // claim that can't be turned into a game is not meaningfully
+            // different from one that was never won, so it gets the same
+            // treatment `ClaimPolicy` gives every other lost race: quiet, and
+            // the search keeps going.
             logger.error(
                 "Won a claim but couldn't create the match: \(String(describing: error), privacy: .public)"
             )
+            matchmakingService.releaseWonClaim()
         }
     }
 
