@@ -1,7 +1,7 @@
 # hoopsRN — Database Schema
 
 **Scope:** `firestore.rules`, `firestore.indexes.json`, `firebase.json`, `.firebaserc`, `firestore-tests/`
-**Verified:** 2026-08-29 @ e4966bd
+**Verified:** 2026-08-29 @ 9d6e3f8
 
 What's stored server-side and what a client may write. Seven collections are
 live:
