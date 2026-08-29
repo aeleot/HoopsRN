@@ -87,6 +87,65 @@ extension Color {
     /// dark-mode failure behind a name that promised something else.
     static let hooprOnRed = Color.hoopr(light: .white, dark: UIColor(white: 0, alpha: 1))
 
+    // MARK: - Squad crests
+
+    /// Content drawn *on top of* a squad's crest fill — the SF Symbol at the
+    /// centre of the disc.
+    ///
+    /// **Black, and a role of its own rather than a reuse of `hooprOnBrand`.**
+    /// The two happen to resolve to the same value today and are answering
+    /// different questions: `hooprOnBrand` reads on the one brand orange, this
+    /// one reads on eight palette fills chosen independently of it. Borrowing
+    /// the brand role is exactly the mistake the inbox badge made before
+    /// `hooprOnRed` existed — it passed by luck, under a name that promised
+    /// something else, and hid a failure until someone measured it.
+    ///
+    /// Fixed rather than dynamic for the same reason `hooprOnBrand` is: every
+    /// crest fill below is a *light* colour in both appearances, so the glyph
+    /// that reads on it stays dark. `ThemeContrastTests` measures all eight
+    /// against this at the 4.5:1 text floor — stricter than the 3:1 a glyph
+    /// needs, so a squad initial or a record could be dropped into the disc
+    /// later without re-litigating the palette.
+    static let hooprOnCrest = Color.black
+
+    /// The fill behind a squad's crest glyph, for a `Squad.colorKey`.
+    ///
+    /// Keys, not colours, are what `squads` stores — a stored hex would bypass
+    /// this table and with it the whole appearance-aware mechanism. The rules
+    /// allowlist the same eight keys, and `FirestoreRulesParityTests` fails if
+    /// the two lists drift.
+    ///
+    /// An unrecognised key resolves to the default rather than to a neutral
+    /// fill: `hooprFill` is dark in dark mode, and a black glyph on it would be
+    /// the one unreadable crest in the app. A drifted document renders as the
+    /// wrong colour, which is visible and harmless; it never renders as
+    /// nothing.
+    static func hooprSquad(_ colorKey: String) -> Color {
+        squadPalette[colorKey] ?? squadPalette[Squad.defaultColorKey] ?? hooprOrange
+    }
+
+    /// The eight crest fills, each light enough in both appearances that
+    /// `hooprOnCrest` clears AA on it — measured, not eyeballed; see
+    /// `ThemeContrastTests.testEverySquadCrestFillCarriesItsGlyph`.
+    ///
+    /// Dark-mode values are the light ones lifted 12% toward white, the same
+    /// "same colour, lifted" move `hooprOrange` makes: a fill tuned against
+    /// white reads muddy on a near-black page.
+    private static let squadPalette: [String: Color] = [
+        "orange": hoopr(light: rgb(242, 121, 47),  dark: rgb(244, 137, 72)),
+        "red":    hoopr(light: rgb(242, 85, 75),   dark: rgb(244, 105, 97)),
+        "pink":   hoopr(light: rgb(242, 114, 168), dark: rgb(244, 131, 178)),
+        "purple": hoopr(light: rgb(185, 140, 240), dark: rgb(193, 154, 242)),
+        "blue":   hoopr(light: rgb(95, 170, 245),  dark: rgb(114, 180, 246)),
+        "teal":   hoopr(light: rgb(69, 199, 192),  dark: rgb(91, 206, 200)),
+        "green":  hoopr(light: rgb(99, 201, 122),  dark: rgb(118, 207, 138)),
+        "gold":   hoopr(light: rgb(240, 194, 48),  dark: rgb(242, 201, 73)),
+    ]
+
+    private static func rgb(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat) -> UIColor {
+        UIColor(red: red / 255, green: green / 255, blue: blue / 255, alpha: 1)
+    }
+
     // MARK: - Surfaces
 
     /// The page behind everything. Pure black in dark mode, matching

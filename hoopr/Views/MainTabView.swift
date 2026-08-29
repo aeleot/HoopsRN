@@ -1,13 +1,14 @@
 import SwiftUI
 
 struct MainTabView: View {
-    /// The three top-level destinations. Named `Screen` rather than `Tab`
+    /// The four top-level destinations. Named `Screen` rather than `Tab`
     /// because `SwiftUI.Tab` is the builder used below and shadowing it here
     /// would make the `TabView` unreadable.
     private enum Screen: Hashable {
         case home
         case map
         case runs
+        case seasons
     }
 
     /// Home, not the map. The map answers "where can I hoop?", which is a
@@ -31,6 +32,7 @@ struct MainTabView: View {
     /// reads it: the button carries a dot while a friend request is unanswered,
     /// and a plain `let` wouldn't redraw when one arrives.
     @ObservedObject private var friendService: FriendService
+    private let squadService: SquadService
     private let recentCourtsStore: RecentCourtsStore
 
     init(
@@ -40,6 +42,7 @@ struct MainTabView: View {
         userProfileService: UserProfileService,
         gameService: GameService,
         friendService: FriendService,
+        squadService: SquadService,
         recentCourtsStore: RecentCourtsStore
     ) {
         self.authService = authService
@@ -48,6 +51,7 @@ struct MainTabView: View {
         self.userProfileService = userProfileService
         self.gameService = gameService
         self.friendService = friendService
+        self.squadService = squadService
         self.recentCourtsStore = recentCourtsStore
     }
 
@@ -126,6 +130,28 @@ struct MainTabView: View {
                     onOpenProfile: openProfile
                 )
             }
+
+            // Fourth, and the practical ceiling. The label was measured before
+            // it was fixed, per the plan's §5: rendered at `.accessibility3`,
+            // "Seasons" is 42pt wide in the 80pt slot a four-tab bar gives it
+            // on a 320pt screen. It keeps the noun the feature is actually
+            // called rather than being shortened to "Squad" pre-emptively.
+            //
+            // The reason there's room is worth knowing — `UITabBar` clamps its
+            // own content size category at XXL and shows the large-content HUD
+            // at accessibility sizes instead of growing the titles, so these
+            // labels stay at 10pt however large the reader's text is. That's
+            // UIKit's behaviour, not ours, so `TabBarLabelTests` asserts the
+            // outcome (every label fits) rather than the clamp.
+            Tab("Seasons", systemImage: "trophy.fill", value: Screen.seasons) {
+                SeasonsTab(
+                    squadService: squadService,
+                    friendService: friendService,
+                    userProfileService: userProfileService,
+                    courtService: courtService,
+                    onOpenProfile: openProfile
+                )
+            }
         }
         // Selected items take the brand orange; unselected ones stay in the
         // system's grey. Worth knowing: this paints the brand as a *foreground*
@@ -150,6 +176,7 @@ struct MainTabView: View {
         userProfileService: UserProfileService(authService: authService),
         gameService: GameService(authService: authService),
         friendService: FriendService(authService: authService),
+        squadService: SquadService(authService: authService),
         recentCourtsStore: RecentCourtsStore()
     )
 }

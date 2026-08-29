@@ -333,6 +333,40 @@ final class SquadService: ObservableObject {
         sentInvites.filter { $0.squadId == squadId }
     }
 
+    /// A one-off read of a squad the signed-in user is **not** on.
+    ///
+    /// The listener only carries squads you're a member of, and an invite
+    /// names one you aren't — so "Rim Reapers invited you" needs a read the
+    /// listener can't provide. Legal because `squads` is readable by any
+    /// signed-in account, which is the same reason an opponent can render your
+    /// crest; see the read rule's comment.
+    ///
+    /// Returns `nil` for a squad that was disbanded between the invite landing
+    /// and this call, which is a real race — the invite outlives the squad by
+    /// however long it takes the leader's delete to reach the invitee.
+    func fetchSquad(id squadId: String) async throws -> Squad? {
+        guard observedUID != nil else { throw SquadError.notSignedIn }
+
+        do {
+            let snapshot = try await database
+                .collection(Collection.squads)
+                .document(squadId)
+                .getDocument()
+            guard snapshot.exists else { return nil }
+            return try snapshot.data(as: Squad.self)
+        } catch let decodingError as DecodingError {
+            // A drifted document, not a failed read. Skipped rather than
+            // surfaced, matching `decoded(_:as:)` — one bad row shouldn't take
+            // a screen down.
+            logger.error(
+                "Skipping squad \(squadId, privacy: .public): \(decodingError.localizedDescription, privacy: .public)"
+            )
+            return nil
+        } catch {
+            throw Self.mapped(error)
+        }
+    }
+
     // MARK: - Writes
 
     /// Creates a squad with the signed-in user as its leader and only member.

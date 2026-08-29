@@ -113,6 +113,67 @@ final class ThemeContrastTests: XCTestCase {
         assertContrast(.hooprOnRed, on: .hooprRed, atLeast: aaText, "badge count on red fill")
     }
 
+    // MARK: - Squad crests
+
+    /// **Every squad palette colour, in both appearances, in the same commit
+    /// that introduces them.**
+    ///
+    /// Eight new colours used as fills behind a glyph is exactly the shape that
+    /// grows a gap list by eight entries in one stroke — `GAPS.md` already
+    /// carries one entry for `hooprOrange` as a foreground, and that one is
+    /// there because the pairing was never measured before it shipped. These
+    /// were measured first: the fills are light in both appearances by
+    /// construction, which is what lets `hooprOnCrest` be a fixed dark colour
+    /// rather than one that has to invert.
+    ///
+    /// Held to the 4.5:1 **text** floor, not the 3:1 graphic one a glyph would
+    /// need. The extra margin is deliberate — a squad initial or a record
+    /// inside the disc is an obvious next step, and re-litigating eight colours
+    /// at that point is worse than clearing the higher bar now.
+    func testEverySquadCrestFillCarriesItsGlyph() {
+        for key in Squad.colorKeys {
+            assertContrast(
+                .hooprOnCrest,
+                on: .hooprSquad(key),
+                atLeast: aaText,
+                "crest glyph on the '\(key)' fill"
+            )
+        }
+    }
+
+    /// The fallback for a colour key the app doesn't know — a hand-edited
+    /// document, or a palette entry removed after squads were created with it.
+    ///
+    /// It resolves to a *palette* colour rather than to `hooprFill`, which is
+    /// dark in dark mode and would make the unknown-key crest the one
+    /// unreadable one in the app. Asserted rather than assumed, because the
+    /// fallback is the branch nothing on screen exercises.
+    func testAnUnknownCrestKeyStillProducesAReadableFill() {
+        assertContrast(
+            .hooprOnCrest,
+            on: .hooprSquad("chartreuse"),
+            atLeast: aaText,
+            "crest glyph on the fallback fill"
+        )
+    }
+
+    /// Eight fills that read as eight teams. Not a WCAG rule — it's the
+    /// property that makes a crest identify a squad at a glance, and two
+    /// palette entries that resolve to the same colour would silently halve
+    /// the picker.
+    func testSquadPaletteColoursAreDistinct() {
+        let resolved = Squad.colorKeys.map { key in
+            UIColor(Color.hooprSquad(key))
+                .resolvedColor(with: UITraitCollection(userInterfaceStyle: .light))
+                .description
+        }
+
+        XCTAssertEqual(
+            Set(resolved).count, Squad.colorKeys.count,
+            "Two squad palette keys resolve to the same colour, so two squads can't be told apart by their crest."
+        )
+    }
+
     // MARK: - Text on surfaces
 
     func testPrimaryTextOnEverySurfaceItIsDrawnOn() {

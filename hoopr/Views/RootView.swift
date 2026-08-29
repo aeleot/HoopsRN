@@ -11,6 +11,7 @@ struct RootView: View {
     private let userProfileService: UserProfileService
     private let gameService: GameService
     private let friendService: FriendService
+    private let squadService: SquadService
     private let recentCourtsStore: RecentCourtsStore
 
     init(
@@ -20,6 +21,7 @@ struct RootView: View {
         userProfileService: UserProfileService,
         gameService: GameService,
         friendService: FriendService,
+        squadService: SquadService,
         recentCourtsStore: RecentCourtsStore
     ) {
         self.authService = authService
@@ -28,6 +30,7 @@ struct RootView: View {
         self.userProfileService = userProfileService
         self.gameService = gameService
         self.friendService = friendService
+        self.squadService = squadService
         self.recentCourtsStore = recentCourtsStore
         _viewModel = StateObject(wrappedValue: RootViewModel(authService: authService))
     }
@@ -48,6 +51,7 @@ struct RootView: View {
                     userProfileService: userProfileService,
                     gameService: gameService,
                     friendService: friendService,
+                    squadService: squadService,
                     recentCourtsStore: recentCourtsStore
                 )
                 .transition(.opacity)
@@ -81,6 +85,7 @@ private struct LaunchScreen: View {
         userProfileService: UserProfileService(authService: authService),
         gameService: GameService(authService: authService),
         friendService: FriendService(authService: authService),
+        squadService: SquadService(authService: authService),
         recentCourtsStore: RecentCourtsStore()
     )
 }
