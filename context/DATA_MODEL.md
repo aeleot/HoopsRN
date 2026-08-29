@@ -209,6 +209,126 @@ like the rest; `FriendService` owns all encoding.
 (`notSignedIn`, `permissionDenied`, `indexRequired`, `network`, `unknown`), and
 adds `cannotFriendSelf` and `requestNotFound`.
 
+## `Squad`, `SquadFormat` and `SquadError`
+
+A team, at `squads/{squadId}`. Firebase-free like the rest; `SquadService` owns
+all encoding.
+
+- **No `wins` / `losses` / `gamesPlayed`, deliberately.** This is the biggest
+  integrity decision in the app and a conscious departure from
+  `UserProfile.completedGameCount`. A stored counter on a document you control
+  is a number you can type; a record derived from confirmed `seasonGames` is
+  arithmetic over documents two different leaders had to agree on. See
+  `SeasonGame` below.
+- **`nameLower` mirrors `UserProfile.userNameLower`** and is written in the same
+  field map as `name`. Never one without the other.
+- **`iconKey` and `colorKey` are keys, not values.** A stored hex would bypass
+  `Color.hooprSquad(_:)` and with it the appearance-aware mechanism. Both
+  allowlists are mirrored in the rules and pinned by
+  `FirestoreRulesParityTests`; an unrecognised key resolves to the default
+  rather than to a neutral fill, because `hooprFill` is dark in dark mode and a
+  black glyph on it would be the one unreadable crest in the app.
+- **`format` carries `3v3` from day one** even though nothing else is offered,
+  so adding 1v1 or 5v5 is an allowlist entry and a roster bound rather than a
+  migration. `SquadFormat` owns `maxRoster` and `duration`.
+- **`leaderId` is always in `memberIds`.** The leader can never be removed,
+  themselves included — disbanding is their exit, the same shape a `games`
+  host's cancel takes.
+
+`SquadError` mirrors the others where the meanings match, and adds
+`missingRegion` — returned when no court is near enough to name a region from,
+because a *guessed* region is worse than none: it partitions the matchmaking
+pool into groups that can never see each other, with no error anywhere to
+explain why nobody ever matches.
+
+## `SquadInvite`
+
+One document per squad-and-person pair, at `squadInvites/{squadId}_{uid}` —
+structurally `Friendship`, and for the same reason: an ID derived from its own
+content makes a duplicate impossible rather than merely deduplicated.
+
+- **`id(for:_:)` mirrors `Friendship.id(for:_:)`**, and unlike it is *not*
+  order-independent: the pair is a squad and a person, not two peers.
+- Declining, revoking and consuming an accepted invite are all **deletes** — the
+  same absence-never-null move `friendships` makes.
+
+## `MatchTicket`, `MatchRules` and `MatchCandidate`
+
+A squad's standing offer to play, at `matchTickets/{squadId}` — **the document ID
+is the squad ID**, which structurally enforces one live ticket per squad. There
+is no duplicate-entry logic because there is nowhere to put a second row.
+
+- **`MatchRules` is a pure function over two tickets**, a court lookup, an
+  anchor and `now`. This is the heart of matchmaking and the one piece whose
+  correctness cannot be checked by looking at a screen: a subtly wrong score
+  produces a *plausible* match, not a visible bug. It gets real coverage only
+  because it takes plain values and returns a `MatchCandidate?`.
+- **Hard rules reject, soft rules score.** Disjoint `memberIds` is the one most
+  likely to be quietly dropped — a person cannot play themselves — and is
+  checked in `MatchRules` *and* `SeasonGame.validate`.
+- **`relaxation` is derived from ticket age**, in `0...1`, and widens the court
+  radius, the record-proximity tolerance and the window slack. It never widens
+  the hard rules. The searching UI reads it directly rather than a timer that
+  happens to agree, so "Widening the search" is true *because* the standards
+  really are.
+- **Record proximity is a gate, not only a score** — 0.35 apart at relaxation 0,
+  fully open at 1 — so it changes *when* an uneven match happens, never
+  *whether*. This is the hook a skill rating would plug into.
+- **`staleClaim = 90s` appears in four places** that must agree: this model, the
+  scanner, the waiting UI, and the rules. Two tests exist to make sure.
+- **`wins`/`losses` are denormalized at queue time for ranking only** — display
+  and scoring, never the record of truth. `winPercentage` reads an unplayed
+  squad as `0.5`, not as one that loses everything, which is what stops every
+  new squad being ranked against the worst opponents in the pool.
+
+## `SeasonGame` and `SeasonGameError`
+
+A scheduled squad-vs-squad match, at `seasonGames/{gameId}`, and **the document a
+squad's record is derived from.** Distinct from `Game` and deliberately not a
+variant of it: a run has a host and a roster of individuals, a match has two
+squads and a result two leaders had to agree on. Folding them together would
+give one model where half the fields are always absent.
+
+- **It names squad IDs, not player uids**, which is what makes squad play legal
+  under a rules model where a client may only ever write its own membership. The
+  away leader writes one identifier they already own, and the rules verify the
+  rest against the home squad's own ticket.
+- **The record is a query, not a field.** `record(for:in:)` and
+  `form(for:in:limit:)` count confirmed matches by `result`; disputed and
+  cancelled ones are structurally excluded because they never reach `confirmed`.
+  Both were written before anything could populate them, deliberately — a
+  ticket that hardcoded zeros would have kept reading zero after reporting
+  shipped, with nothing failing to say so.
+- **`reportOutcome` is derived, never chosen**, and is the client's copy of an
+  expression `firestore.rules` also evaluates — the same relationship
+  `Game.status` has, and the same consequence if the two drift. Two reports
+  agreeing is `confirmed` with a `result` equal to both; disagreeing is
+  `disputed` with none; one report settles nothing.
+- **Each report field is owned by one leader.** `reportField(for:)` answers
+  which, off the denormalized leader IDs — which are verified against `squads`
+  at create and immutable after, because every later write trusts them for free.
+- **`isReportable` excludes `confirmed`.** A leader able to re-report a settled
+  match could turn their own loss back into a dispute unilaterally, which is
+  weaker than the standard mutual confirmation claims to meet. `disputed` *is*
+  reportable, because re-entering a report is the designed way out of one.
+- **Scores are cosmetic** and never read by the record.
+
+`SeasonGameError` mirrors the others where the meanings match, and adds
+`sameSquad`, `sharedPlayer`, `courtNotOffered`, `timeOutsideWindow`,
+`claimExpired`, `notLeader`, `notScheduled`, `notPlayed` and `unknownWinner`.
+
+## `SeasonGameNotifications`
+
+**The pure half of game-day reminders**: which notifications a match needs, when
+they fire, their identifiers and their copy, as a function of a `SeasonGame` and
+a `now`. `NotificationService` executes the returned plan and decides nothing.
+
+Identifiers are `seasonGame:{id}:{kind}` precisely so a reschedule or a
+cancellation **removes and replaces** rather than duplicating. Every decision —
+including "this match already started, schedule nothing" — is here rather than
+in the service, because a notification that fires at the wrong hour is not
+something a screen can show you.
+
 ## `InviteLink`
 
 One definition of `hoopsrn://game/{id}`, the URL a host sends to reach an
@@ -249,7 +369,17 @@ copy of the conversion factor.
 - `preferredRadius` is read through `effectivePreferredRadius` / `validRadius`,
   never directly. Stored rows are not guaranteed to be in range.
 - `Game.status` is derived on both sides of the wire. Changing the client
-  helper without the matching rules expression breaks every write.
+  helper without the matching rules expression breaks every write. The same is
+  true of `SeasonGame.reportOutcome` and `derivedResultHolds()`.
+- A squad's record is **never stored**. `wins`/`losses` on a `MatchTicket` are a
+  queue-time display copy; the record of truth is a query over confirmed
+  `seasonGames`. Never add one to `Squad`.
+- `MatchRules` takes plain values and touches no service. Its bugs are
+  plausible-looking rather than visible, which is exactly why it has to stay
+  testable without Firestore.
+- `staleClaim` agrees in four places. Moving one moves all four.
+- A squad's crest is stored as an allowlisted **key**, never a colour. A stored
+  hex bypasses the appearance-aware palette.
 - A `Friendship`'s direction and document ID are computed from stored fields,
   never stored themselves. Adding either as a field would create a second copy
   that can disagree with the first.

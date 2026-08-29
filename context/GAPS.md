@@ -37,6 +37,27 @@ it partly shipped; the general "Next steps" list below is everything else.
   and the same Blaze-plan requirement `plans/SEASONS.md` §0.1 and §7 already
   name for server-side matchmaking. Nothing client-side closes this; it's the
   local-notifications design's known ceiling, not a bug in it.
+- **The live two-person confirm/dispute flow has never been exercised, and
+  Seasons should not be read as verified end to end.** Mutual confirmation's
+  entire subject is *two different people agreeing or disagreeing with each
+  other*, which no single-client test can reach. What **is** verified:
+  `firestore-tests/results.test.mjs` evaluates the real ruleset against two
+  distinct authenticated leaders — agreement confirms, disagreement disputes,
+  neither leader can write the other's report or manufacture an agreement
+  alone, and a disputed match is resolved by re-reporting — and `SeasonGameTests`
+  covers the derivation those rules mirror. What is **not**: no two real
+  accounts have ever queued, matched, played and reported to each other on
+  device, so `ResultView`'s own rendering and the live listener hand-off between
+  two phones are unseen. This is a deferred manual test, not a known defect;
+  it closes with a two-account pass, and nothing in the code can close it.
+- **An opponent's crest costs one extra read per match card.** `seasonGames`
+  denormalizes squad *names* so history survives a disbanded squad, but not
+  `iconKey`/`colorKey`, so `MatchmakingViewModel` and `ResultViewModel` each
+  fetch the opponent squad to draw a crest. Accepted deliberately over
+  denormalizing two more fields onto every match: a crest is decoration, a
+  failed read falls back to a redacted placeholder, and the alternative is two
+  more copies that can drift from `squads`. Worth revisiting only if a standings
+  screen ever renders many crests at once.
 - **No blocking, reporting, or rate limiting on friend requests.** Anyone
   signed in can search for anyone and send them a request; declining (which
   deletes the edge) is the only recourse, and nothing stops the same person

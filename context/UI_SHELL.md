@@ -8,7 +8,8 @@
 `hoopr/Views/Components/ProfileButton.swift`,
 `hoopr/Views/Components/HooprSearchField.swift`,
 `hoopr/Views/Components/CardChrome.swift`,
-`hoopr/Views/Components/GlassChip.swift`, `hoopr/Support/Theme.swift`,
+`hoopr/Views/Components/GlassChip.swift`, `hoopr/Views/Seasons/`,
+`hoopr/Support/Theme.swift`,
 `hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`
 **Verified:** 2026-08-27 @ 37aaf7a
 
@@ -29,7 +30,7 @@ RootView                    switches on RootViewModel.destination
 ├── .launching → LaunchScreen
 ├── .login     → LoginView
 └── .main      → MainTabView
-                 ├── TabView (bottom bar) — Home · Map · Runs
+                 ├── TabView (bottom bar) — Home · Map · Runs · Seasons
                  └── ProfileView   (replaces the above entirely)
                      ├── top bar: back · handle-on-scroll · inbox
                      ├── Profile pane  (identity + field rows)
@@ -63,9 +64,20 @@ is up.
 
 ## `MainTabView`
 
-A native `TabView` with three `Tab` items — **Home** (`house.fill`), **Map**
-(`map.fill`), **Runs** (`calendar`) — selected through a private `Screen` enum.
-Named `Screen` and not `Tab` because `SwiftUI.Tab` is the builder it uses.
+A native `TabView` with four `Tab` items — **Home** (`house.fill`), **Map**
+(`map.fill`), **Runs** (`calendar`), **Seasons** (`trophy.fill`) — selected
+through a private `Screen` enum. Named `Screen` and not `Tab` because
+`SwiftUI.Tab` is the builder it uses.
+
+**Four is the practical ceiling, and the fourth label was decided by
+measurement.** `TabBarLabelTests` renders all four at `.accessibility3` and
+asserts "Seasons" is the widest and still fits its share of a 320pt bar — which
+is what settled "Seasons" over the shorter "Squad". The measurement turned up
+something worth keeping: `UITabBar` **clamps its own content size category**, so
+at accessibility sizes the labels render at ~10pt and the system offers the
+large-content-viewer HUD instead of growing them. That clamp is UIKit's, not
+ours, so the test asserts the outcome rather than the clamp. A fifth tab, or a
+longer label, fails there instead of on somebody's phone.
 
 **This replaced a hand-rolled floating glass header on 2026-08-26**, and the
 reasons are worth keeping because they are the argument against rebuilding one:
@@ -94,7 +106,7 @@ hierarchy it is meant to signal. Shipped as a deliberate product decision;
 `ThemeContrastTests.testTabBarSelectionIsATrackedGap` records it in the failing
 direction and goes green the day a readable brand role lands.
 
-**The profile button appears on all three tabs and nowhere else.** It is a
+**The profile button appears on all four tabs and nowhere else.** It is a
 shared `ProfileButton` component (`Views/Components/`) with two styles: `plain`
 for Home and Runs, and `glass` for the map, where it matches the recenter
 control's 46pt glass circle. It owns the notification-dot rule — `hooprRed`, not
@@ -181,6 +193,58 @@ the run's `hoopsrn://game/{id}` link, shown in full with a tap that copies it.
 Host-only: an invite-only run is the host's to hand out. **The link doesn't
 resolve yet** — nothing registers the scheme and nothing handles an incoming
 URL, so it's a string to send while the receiving half is built (`GAPS.md` §4).
+
+## `SeasonsTab`
+
+The fourth tab: squads, matchmaking, and the record that comes out of them. One
+`NavigationStack` over a scroll view, with two sheets and three pushes.
+
+**Screens 5, 6 and 8's "waiting" are *states*, not destinations.** Squad home
+has one card that matters right now — *find a match*, *searching*, or *next
+match* — and `MatchmakingCard` swaps its contents in place rather than pushing.
+Making them separate screens would mean navigating between three views that
+differ by one sentence.
+
+| Surface | File | Presentation |
+|---|---|---|
+| No squad — hero empty state | `SeasonsTab` | inline |
+| Squad home — crest, record, form, the one live card, roster | `SeasonsTab` | inline |
+| Create squad | `CreateSquadSheet` | `sheet(item:)` |
+| Queue up — window chips and court multi-select | `QueueSheet` | `sheet(item:)` |
+| Searching · match found | `MatchmakingCard` | states of squad home |
+| Game day — countdown, court, both rosters, arrival | `GameDayView` | push |
+| Result — who won, and what the two reports say | `ResultView` | push |
+| Squad detail — record, form, history, roster, controls | `SquadDetailView` | push |
+
+Pushes carry the `SeasonGame` **value**, not an ID to look back up — it is
+already `Hashable` and already in hand at every call site. The stack and its
+`Route` enum belong to `SeasonsTab`, so `GameDayView` and `SquadDetailView` take
+an `onOpenResult` closure rather than reaching for the path, the same way
+`MatchmakingCard` takes `onOpenGameDay`.
+
+**Squad invites are answered here**, on the tab — not one of the plan's numbered
+screens, and necessary: a leader can invite from squad detail, but without
+somewhere to *accept*, a roster could never gain a second member, which is the
+only thing the self-join rule exists for.
+
+**The `seasonGames` listener is pointed from this tab**, at every squad the user
+is on rather than only the primary one — screen 9's history reads off the same
+listener, so a secondary squad's detail view would otherwise show an empty
+season. See `ARCHITECTURE.md`'s session-scoped listeners.
+
+### Reporting a result
+
+Screen 8 renders three states off `SeasonGame.reportOutcome`, and **a
+disagreement is a designed outcome rather than a failure**: "Results don't
+match" is a card explaining that nobody's record moves until the two leaders
+agree, not an error banner. Whoever was wrong reports again — the same write
+path, called a second time.
+
+The two crest buttons are the only place a `SquadCrest` is not decorative, so
+they carry explicit labels naming the squad and the action. Reachable from game
+day once tip-off has passed, and from any history row — which matters because
+game day stops rendering a match three hours after tip-off, and a result
+reported the next morning would otherwise have nowhere to go.
 
 ## Friends — a pane of `ProfileView`
 
@@ -456,6 +520,32 @@ keeps a light-only value from creeping back in.
 | `hooprPrimaryText` | Titles, values, primary labels. |
 | `hooprSecondaryText` | Labels, captions, unselected tab text. |
 | `hooprShadow(opacity:)` | Card and sheet shadows. Takes the *light-mode* opacity and deepens it in dark mode. |
+| `hooprOnCrest` | The glyph at the centre of a squad crest. **Black, and a role of its own rather than a reuse of `hooprOnBrand`** — the two resolve alike today but answer different questions, and borrowing the brand role is exactly the mistake the inbox badge made before `hooprOnRed` existed: it passed by luck, under a name that promised something else. |
+| `hooprSquad(_:)` | The eight crest fills, by allowlisted key. Every one is light enough in both appearances that `hooprOnCrest` clears the 4.5:1 *text* floor on it — stricter than the 3:1 a glyph needs, so an initial or a record could be dropped into the disc later without re-litigating the palette. |
+
+### The crest and the form guide
+
+`SquadCrest` is **one view with a size parameter, not five drawings**. Five named
+sizes (`hero` 64, `card` 44, `row` 32, `pool` 24, `inline` 20) and every
+proportion inside — glyph, hairline — derives from that one number, so a new size
+can't disagree with the others. Its glyph deliberately keeps
+`.font(.system(size:))` rather than `hooprFont`: it is locked inside a frame that
+can't grow, and a name always sits beside it, so it never needs to scale.
+
+**The crest is `accessibilityHidden` almost everywhere, on purpose** — it is
+rendered beside the squad's name, and announcing it too would read the squad
+twice. Two exceptions earn a label: `CreateSquadSheet`'s preview, the one crest
+that is *feedback* rather than decoration, and the result screen's two winner
+buttons, where the crest is the control. Where a crest carries the meaning alone
+— the match card's crest-vs-crest row — the **row** gets the label, not the
+crest.
+
+`FormGuide` renders the last five results as W/L pills and `NeutralResultPill`
+covers everything that isn't a result. Both are fixed-diameter circles, which is
+precisely the case `maximumSize` exists for: `ResultPillMetrics` holds the
+diameter and the cap together, and `SeasonsAccessibilityTests` measures them
+against each other. The neutral pill shipped uncapped once and its glyph rendered
+taller than its own circle.
 
 Type goes through `.hooprFont(_:weight:maximumSize:)` in
 `Support/Typography.swift`, never `.font(.system(size:))`. The design's literal
@@ -527,6 +617,19 @@ outside `ProfileViewModel.EditableField`: nothing about it touches Firestore.
   fails and is tracked in `GAPS.md`.
 - A court is rendered through `Court.displayName`, never `name`. The stored name
   repeats "Basketball Court" in an app where everything is one.
+- Text locked in a frame that can't grow carries `maximumSize`; text that can
+  reflow doesn't. **Never `minimumScaleFactor`** — a hand-rolled header full of
+  it is what the native tab bar was adopted to stop needing. Where a row of
+  chips stops fitting, `ViewThatFits` takes a column instead of squeezing them:
+  the queue sheet's three time chips broke mid-word at `.accessibility3` until
+  it did.
+- A decorative glyph is `accessibilityHidden` **only** while the thing it stands
+  for is named beside it. When a glyph carries meaning alone, label the element
+  that contains it — a label on a hidden view is silent, and the hidden view is
+  usually right.
+- An empty list gets a sentence saying why it's empty, and "nothing here yet"
+  is a different sentence from "this failed to load". `hasLoadedGames` /
+  `hasLoadedSquads` exist so the two can be told apart.
 
 ## See also
 

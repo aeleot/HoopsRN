@@ -13,7 +13,7 @@ object is constructed.
 
 ## Ownership and injection
 
-`hooprApp` owns seven services as `@StateObject` for the process lifetime and
+`hooprApp` owns eleven services as `@StateObject` for the process lifetime and
 passes them down as plain `let`s. There is no `@EnvironmentObject` anywhere —
 every view model takes its dependencies through its initializer, so any of them
 can be built with a stub.
@@ -27,8 +27,12 @@ can be built with a stub.
 | `GameService` | `queuedGames: [Game]`, `publicGames: [Game]`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns two session-scoped query listeners and a `ListenerSupervisor` that keys their health separately. |
 | `FriendService` | `friends: [Friendship]`, `incomingRequests: [Friendship]`, `outgoingRequests: [Friendship]`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Two session-scoped query listeners (`uidA == me`, `uidB == me`) merged client-side, and a `ListenerSupervisor` keying their health separately. |
 | `RecentCourtsStore` | `recentCourtIds: [String]` | `UserDefaults`-backed; deliberately on-device. |
+| `SquadService` | `squads: [Squad]`, `incomingInvites`/`sentInvites: [SquadInvite]`, `errorMessage`, `isRecovering`, `hasLoadedSquads` | `@MainActor`. Subscribes to `AuthService` itself. **Owns two collections** — `squads` and `squadInvites` — justified because a `squadInvite` has no independent existence: it is created against a squad, consumed by a write to that same squad, and deleted in the same breath. |
+| `MatchmakingService` | `myTicket: MatchTicket?`, `pool: [MatchTicket]`, `wonClaim: MatchCandidate?`, `isBackingOff: Bool` | `@MainActor`. Owns `matchTickets`, the pool listener, and **the one contested write in the app** — the claim transaction. Its retry is about contention, not network health, and is deliberately separate from the supervisor's. |
+| `SeasonGameService` | `games: [SeasonGame]`, `errorMessage`, `isRecovering`, `hasLoadedGames` | `@MainActor`. Owns `seasonGames`. A `seasonGame` earns its own service where a `squadInvite` didn't: it outlives both tickets, has its own listener, and is what a squad's record is derived from. |
+| `NotificationService` | `authorizationStatus: UNAuthorizationStatus?` | The only file in the app importing `UserNotifications`. **Executes a plan and decides nothing** — see the vendor boundary below. |
 
-Seven view models are built from them, each `@StateObject` inside the view it
+Twelve view models are built from them, each `@StateObject` inside the view it
 backs: `RootViewModel` (from `AuthService`), `LoginViewModel` (`AuthService`),
 `FindAMatchViewModel` (`CourtService` + `LocationService` + `GameService` +
 `UserProfileService`), `HomeViewModel` (`AuthService` + `CourtService` +
@@ -36,11 +40,18 @@ backs: `RootViewModel` (from `AuthService`), `LoginViewModel` (`AuthService`),
 (`AuthService` + `UserProfileService` + `CourtService`), `LocalRunsViewModel`
 (`GameService` + `CourtService` + `UserProfileService`), `FriendsViewModel`
 (`FriendService` + `UserProfileService` + `CourtService` — the last one only to
-name a home court on another player's profile), and `CreateGameViewModel`
+name a home court on another player's profile), `CreateGameViewModel`
 (`GameService`, plus the `Court` the form was opened from — the one view model
-built per-presentation rather than per-screen, inside `CreateGameSheet`).
+built per-presentation rather than per-screen, inside `CreateGameSheet`),
+`SquadViewModel` (`SquadService` + `FriendService` + `UserProfileService` +
+`CourtService`), `MatchmakingViewModel` (`MatchmakingService` +
+`SeasonGameService` + `CourtService` + `SquadService` + `NotificationService`),
+`GameDayViewModel` and `ResultViewModel` (both `SeasonGameService` +
+`SquadService`, the latter two built per-presentation from the value being
+pushed).
 
-`LocalRunsViewModel`, `FriendsViewModel` and `FindAMatchViewModel` are where
+`LocalRunsViewModel`, `FriendsViewModel`, `FindAMatchViewModel`,
+`SquadViewModel`, `GameDayViewModel` and `ResultViewModel` are where
 **cross-collection joins live**. A service owns one collection and never
 learns about another's: `LocalRunsViewModel` joins runs to the bundled court
 dataset for its distance filter, `FriendsViewModel` joins friendship uids to
@@ -48,8 +59,29 @@ profiles for their names, and `FindAMatchViewModel` joins `GameService`'s
 `queuedGames` + `publicGames` to the court dataset to colour the map's pins by
 how busy each court is today — see `MAP_LAYER.md`'s `CourtHeat` section, and
 `gameCountsByCourt`'s doc comment for why summing those two arrays needs a
-dedup. Pushing any of these down into a service would give one collection's
-owner a dependency on another's.
+dedup. On the Seasons side, `SquadViewModel` joins `squadInvites` to
+`friendships` for the invite picker (the join that makes it a view model at
+all), and `GameDayViewModel`/`ResultViewModel` join a match to both squads'
+rosters and crests. Pushing any of these down into a service would give one
+collection's owner a dependency on another's.
+
+### The one deliberate exception: a write *sequence* in a view model
+
+`MatchmakingViewModel` holds the claim → create → mark-matched sequence, and
+that is more than a join — it is a cross-collection **write sequence**, which
+this document otherwise puts nowhere.
+
+It lives there because the alternative is worse. `MatchmakingService` owns
+`matchTickets` and `SeasonGameService` owns `seasonGames`; services here have no
+references to each other, and nothing about the sequence needs them to. One
+object holding both and calling them in order costs a house-rule asterisk. One
+service reaching into another would cost the house rule itself.
+
+The **order** inside it is load-bearing: the game is written first, because it is
+the durable thing and the tickets are bookkeeping. A client that dies after the
+game and before the tickets leaves a game both squads can still see, and each
+squad's own client closes its own ticket off its own `seasonGames` listener. The
+reverse order would take two squads out of the pool with nothing to show them.
 
 `RootViewModel` is a separate type from `RootView` specifically so the
 launching/login/main gating rule can be tested without rendering.
@@ -69,8 +101,16 @@ init() {
     _userProfileService = StateObject(wrappedValue: UserProfileService(authService: authService))
     _gameService = StateObject(wrappedValue: GameService(authService: authService))
     _friendService = StateObject(wrappedValue: FriendService(authService: authService))
+    _squadService = StateObject(wrappedValue: SquadService(authService: authService))
+    _matchmakingService = StateObject(wrappedValue: MatchmakingService(authService: authService))
+    _seasonGameService = StateObject(wrappedValue: SeasonGameService(authService: authService))
 }
 ```
+
+Every service that subscribes to `AuthService` is built here, in `init()`, for
+the same reason the first three were. `CourtService`, `LocationService`,
+`RecentCourtsStore` and `NotificationService` don't, so they stay property
+initializers.
 
 Three things are load-bearing here:
 
@@ -104,8 +144,21 @@ the service layer", which still holds.)*
 | `Services/UserProfileService.swift` | `FirebaseFirestore` | `users` | `UserProfile`, `UserProfileError` |
 | `Services/GameService.swift` | `FirebaseFirestore` | `games` | `Game`, `GameError` |
 | `Services/FriendService.swift` | `FirebaseFirestore` | `friendships` | `Friendship`, `FriendError` |
+| `Services/SquadService.swift` | `FirebaseFirestore` | `squads`, `squadInvites` | `Squad`, `SquadInvite`, `SquadError` |
+| `Services/MatchmakingService.swift` | `FirebaseFirestore` | `matchTickets` | `MatchTicket`, `MatchCandidate`, `MatchTicketError` |
+| `Services/SeasonGameService.swift` | `FirebaseFirestore` | `seasonGames` | `SeasonGame`, `SeasonGameError` |
+| `Services/NotificationService.swift` | `UserNotifications` | scheduled local notifications | `UNAuthorizationStatus` only |
 | `Services/FirestoreFailure.swift` | `FirebaseFirestore` | *(nothing)* | `FirestoreFailure`, the shared classification |
-| `Services/ListenerSupervisor.swift` | *(none)* | listener re-attach + `FailureContext` | both, to the three Firestore services |
+| `Services/ListenerSupervisor.swift` | *(none)* | listener re-attach + `FailureContext` | both, to the six Firestore services |
+
+**`UserNotifications` is a second vendor, and gets the same treatment.**
+`NotificationService` is the only file that imports it, and it *executes* a plan
+rather than making one: which notifications a match needs, when they fire, their
+identifiers and their copy are all decided by
+`SeasonGameNotifications.plan(for:opponentName:courtName:)`, a pure static over a
+`SeasonGame`. A method that both decided and scheduled would be untestable here,
+which is the whole reason the split exists — a notification that fires at the
+wrong hour is not something a screen can show you.
 
 `hooprApp.swift` imports `FirebaseCore` for the one `configure()` call.
 `hooprTests/UserProfileTests.swift` imports `FirebaseFirestore` deliberately —
@@ -140,8 +193,35 @@ its own call site:
   `userProfileService.$currentProfile` itself, so isolation is unchanged and the
   fallback rule has one home.
 
+- **`Support/Typography.swift`'s `HooprFontMetrics`** — the size arithmetic
+  behind `hooprFont`, pulled out of the private `ScaledSystemFont` modifier so
+  the one question the type ramp can get wrong (*does this still fit the frame
+  it's locked into?*) can be asked without hosting a view.
+  `SeasonsAccessibilityTests` asks it of every fixed-size badge, and the answer
+  is only worth anything because it runs the same code the modifier does rather
+  than a second copy of the curve.
+
 Both are `nonisolated` (the project defaults to `MainActor` isolation) so the
 error mappers and tests can reach them off the main actor.
+
+### Derivations mirrored across the wire
+
+A third kind of duplication is deliberate and cannot be removed: logic that
+exists **once in Swift and once in `firestore.rules`**, because the client has to
+predict what the server will accept and the server cannot run Swift. These are
+kept honest by tests that read the rules file as text, and they must move
+together:
+
+| Swift | Rules | What breaks if they drift |
+|---|---|---|
+| `Game.status(playerCount:maxPlayers:)` | the `games` status expression | A run reads `full` locally and `open` server-side. |
+| `SeasonGame.reportOutcome` | `derivedResultHolds()` on `seasonGames` | A result the client shows as confirmed that the server considers disputed. |
+| `MatchRules.staleClaim` | the 90-second re-claim window | A ticket the scanner thinks is claimable and the rules refuse. |
+| `Squad`/`MatchTicket` bounds and allowlists | their create rules | `permission-denied` on a write the form said was fine. |
+
+`FirestoreRulesParityTests` parses `firestore.rules` from the source tree and
+fails when a mirrored constant moves on only one side. It is **not** a rules
+evaluator, and says so in its own doc comment — `firestore-tests/` is.
 
 ---
 
@@ -157,6 +237,20 @@ separate listeners on the same document.
 The `observedUID` guard is why that listener doesn't churn: Firebase re-emits
 the same user on token refresh, and `handleAuthChange` returns early when the
 uid is unchanged.
+
+**Two Seasons listeners are session-scoped but not self-driving**, and the
+difference is worth naming. `SeasonGameService.observe(squadIds:)` and
+`MatchmakingService.startSearching(...)` both need to know *which squads are
+mine*, which is `squads`' business — and a service here never learns about
+another's collection. So they are pointed by a view: `SeasonsTab` calls
+`observe(squadIds:)` with every squad the user is on, and `MatchmakingViewModel`
+starts the pool listener for the squad its card is showing.
+
+`seasonGames` uses `array-contains-any` rather than `array-contains` precisely
+because the tab passes *all* of them — a person on two squads gets both from one
+query, and screen 9's history works for a squad that isn't the primary one. The
+ceiling is Firestore's ten, named in `SeasonGameService.Limit.observedSquads`
+rather than left as a silent truncation.
 
 `ProfileViewModel` mirrors `userProfileService.$errorMessage` as well as
 handling its own throws, so failures the service raises on its own (profile
@@ -230,6 +324,19 @@ came from can, which is what `FailureContext` carries:
   `assign(to:on: self)`, which would retain `self` through its own cancellable
   set. `ProfileViewModel`, `LocalRunsViewModel` and `RootViewModel` each say so
   in a comment; there are no remaining holdouts.
+- **No service holds a reference to another service.** Cross-collection work is
+  a view model's job — joins as a rule, and the claim → create → mark-matched
+  sequence as the one named exception above.
+- `UserNotifications` is imported only by `NotificationService`, and that service
+  makes no decisions. Every choice about what to schedule belongs in
+  `SeasonGameNotifications`, where it can be tested.
+- A contested write goes through a **transaction**, not a read-then-write. The
+  claim, `GameService.mutateRoster`, `SquadService.mutateRoster` and
+  `SeasonGameService.reportResult` all read inside the transaction because the
+  listener's copy can be stale — which is precisely the race each of them
+  exists to close.
+- Anything mirrored into `firestore.rules` moves on both sides in the same
+  commit, and gains a parity test if it doesn't have one.
 
 ## See also
 

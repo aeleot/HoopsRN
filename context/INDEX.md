@@ -66,7 +66,7 @@ ships, fold what's true into the entries above and strike it from the plan.
 | [`plans/SCALE_UP.md`](plans/SCALE_UP.md) | Proposed — the multi-city scaling roadmap: the global public-games query fix, court-dataset delivery for many cities, and the sequencing of every other pending feature/gap around them. |
 | [`plans/BACKLOG.md`](plans/BACKLOG.md) | Proposed — medium-to-large enhancement stories in four tracks: the Queue Up matchmaking feature, the friends system, UI depth, and correctness/standards. Its D1 records verified drift in the entries above. |
 | [`plans/APP_SHELL_AND_HOME.md`](plans/APP_SHELL_AND_HOME.md) | Proposed — move navigation to a bottom tab bar, add a Home tab, and give the map inline court search. Its §5 records the colour work a native tab bar forces. |
-| [`plans/SEASONS.md`](plans/SEASONS.md) | Proposed — the Seasons tab: squads, client-side squad-vs-squad matchmaking, and mutually-confirmed W‑L records. Its §0 records why there is no server-side matchmaker and why GameKit isn't the transport. |
+| [`plans/SEASONS.md`](plans/SEASONS.md) | **Shipped** — the Seasons tab: squads, client-side squad-vs-squad matchmaking, and mutually-confirmed W‑L records. All eight phases are built and folded into the entries above; §6 records where each went. Kept for its §0 (why there is no server-side matchmaker, and why GameKit isn't the transport), §7 (what's deliberately out of reach) and §8 (live risks). |
 
 ---
 

@@ -188,6 +188,20 @@ to put a second row.
 > unify is now. Whichever way it goes, record it in
 > `database/DATABASE_SCHEMA.md` with the reasoning, and update
 > `plans/LIVE_HEADCOUNT.md` to match.
+>
+> **Partly resolved by Seasons, 2026-08-29.** A third ephemeral collection has
+> since shipped — `matchTickets`, a squad's standing offer to play — and it is
+> deliberately **not** part of this unification. `plans/SEASONS.md` §1.3 settled
+> that and `database/DATABASE_SCHEMA.md`'s `matchTickets` section records the
+> reasoning: its subject is a squad rather than a person, its lifecycle is a
+> two-party negotiation rather than a self-declaration, and its ID space is
+> squad IDs. Folding a squad ticket into a per-user presence document would put
+> two different subjects in one collection to save a rules block.
+>
+> **The decision above is still open**, and still this story's to make: it is
+> about `queueEntries/{uid}` and `checkins/{uid}`, both of which are per-person
+> and both of which are still unbuilt. `matchTickets` is simply not a third
+> candidate, and is named here so nobody has to wonder whether it was forgotten.
 
 *Acceptance criteria:*
 - The decision above is recorded in the schema doc before implementation

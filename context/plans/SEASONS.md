@@ -1,15 +1,25 @@
 # Plan — Seasons: squads, matchmaking, and recorded results
 
-**Status:** proposed, not started
-**Drafted:** 2026-08-28
+**Status:** **shipped.** All eight phases (0 through 7) are built, tested and
+folded into the dictionary. See §6.
+**Drafted:** 2026-08-28 · **Completed:** 2026-08-29
 **Touches:** `hoopr/Models/`, `hoopr/Services/`, `hoopr/ViewModels/`,
 `hoopr/Views/Seasons/`, `hoopr/Views/MainTabView.swift`, `firestore.rules`,
-`firestore.indexes.json`, `hooprTests/`
+`firestore.indexes.json`, `hooprTests/`, `firestore-tests/`
 
 > `context/plans/` is not a dictionary entry and carries no `Scope`/`Verified`
 > stamp. A plan describes work that hasn't happened; the dictionary describes
 > code that has. When a phase below ships, fold what's true into the dictionary
 > entries it names and strike it from here.
+
+> **What survives here, and why.** §6's phase list is struck — that was progress
+> tracking, and the work is done. §0 through §5 are kept as the **design
+> record**: the arguments that produced the schema, not a description of it.
+> Each now opens with a pointer to the dictionary entry that owns what actually
+> shipped, and where the two disagree **the dictionary is right** — it describes
+> code, this describes an intention. §7 and §8 are kept whole: they name
+> permanent boundaries and live risks, which are not phase progress and which
+> nothing else carries forward.
 
 A fourth tab where a player forms a **squad**, queues it for a **3v3 match**
 against another squad, meets them at a court, and records who won — so a squad
@@ -115,6 +125,11 @@ That is the load-bearing idea. Everything below is consequence.
 ---
 
 ## 1. Data model
+
+> **Shipped.** What is actually stored, and what a client may write, is in
+> `database/DATABASE_SCHEMA.md`; the Swift types are in `DATA_MODEL.md`. Read
+> those first — this section is the reasoning that produced them.
+
 
 Three new collections. All follow house convention: the document ID is
 mirrored into an `id` field, no Firebase type escapes the service layer,
@@ -249,6 +264,12 @@ deliberate privacy decision and differs from `games`, which is gated on
 ---
 
 ## 2. The matchmaker
+
+> **Shipped.** `MatchRules` and `MatchTicket` are described in `DATA_MODEL.md`;
+> the `matchTickets` rules, the claim and the stale window are in
+> `database/DATABASE_SCHEMA.md`. The claim race is *evaluated* in
+> `firestore-tests/claim-race.test.mjs`.
+
 
 ### 2.1 The rule set — a pure function
 
@@ -420,6 +441,12 @@ feature will actually see, this is over-engineering insurance, not a hot path.
 
 ## 3. Results, and why a record is trustworthy
 
+> **Shipped.** The reporting rules, the derived status and the record query are
+> in `database/DATABASE_SCHEMA.md` under "Reporting"; `SeasonGame` is in
+> `DATA_MODEL.md`. Evaluated against two authenticated leaders in
+> `firestore-tests/results.test.mjs`.
+
+
 `GAPS.md` records the current ceiling honestly: `completedGameCount` is
 self-reported, and "a modified client could misreport its own stats." A
 competitive record cannot inherit that ceiling unchanged — the whole point of
@@ -453,6 +480,11 @@ excluded because they never reach `confirmed`.
 
 ## 4. Game day without push notifications
 
+> **Shipped.** `SeasonGameNotifications` is in `DATA_MODEL.md`, the vendor
+> boundary around `UserNotifications` in `ARCHITECTURE.md`, and arrival in
+> `database/DATABASE_SCHEMA.md`. The named limitation is in `GAPS.md`.
+
+
 The brief asks for a one-hour warning. There is no FCM (not linked) and no
 Cloud Function to send from, so a true push is out of reach on the Spark plan.
 
@@ -485,6 +517,11 @@ court.
 ---
 
 ## 5. Interface
+
+> **Shipped.** The tab, its screens, the crest and the form guide are in
+> `UI_SHELL.md` — including the tab-label decision, which was settled by
+> measurement in `TabBarLabelTests`.
+
 
 A fourth tab, `trophy.fill`, after Runs. Everything below is built on the
 existing system — `cardChrome()`, `hooprFont`, Theme colour *roles*, sheets
@@ -535,90 +572,31 @@ possible way to make a record feel like a season rather than two integers.
 
 ---
 
-## 6. Phases
+## 6. Phases — ~~all shipped~~
 
-Each phase is shippable and leaves the app working.
+~~Each phase is shippable and leaves the app working.~~ **All eight shipped
+between 2026-08-28 and 2026-08-29.** The phase-by-phase breakdown is struck per
+the note at the top of this file; what each one produced now lives in the
+dictionary.
 
-### Phase 0 — Spike and decisions · ½–1 day
+| Phase | Shipped | Folded into |
+|---|---|---|
+| ~~0 — Spike and decisions~~ | `dd90da7` | `database/DATABASE_SCHEMA.md`, `BUILD_AND_CONFIG.md` (the emulator) |
+| ~~1 — Squads backend~~ | `54ff8a8` | `database/DATABASE_SCHEMA.md` (`squads`, `squadInvites`), `DATA_MODEL.md` |
+| ~~2 — Squads UI~~ | `d6bca0e` | `UI_SHELL.md` (`SeasonsTab`, the crest) |
+| ~~3 — Matchmaking core~~ | `a4be2d0` | `DATA_MODEL.md` (`MatchTicket`, `MatchRules`) |
+| ~~3.5 — Close the emulator gate~~ | `dd90da7` | `BUILD_AND_CONFIG.md` (the rules suite) |
+| ~~4 — Season games~~ | `e4966bd` | `database/DATABASE_SCHEMA.md` (`seasonGames`), `UI_SHELL.md` |
+| ~~5 — Game day~~ | `9d6e3f8` | `DATA_MODEL.md` (`SeasonGameNotifications`), `ARCHITECTURE.md` (the second vendor) |
+| ~~6 — Results and record~~ | `9ff5968` | `database/DATABASE_SCHEMA.md` (Reporting), `DATA_MODEL.md` (`reportOutcome`) |
+| ~~7 — Polish and fold-in~~ | `79969fe` + this | all five entries above |
 
-Nothing else starts until this is done, because two of them can invalidate
-design choices above.
-
-- Run the claim transaction and its rules against the **Firestore emulator**
-  with two concurrent clients. Prove exactly one wins.
-- Confirm rules `get()` against `squads` behaves inside a transaction commit.
-- Decide `getAfter()` in or out (§2.4) on evidence, not preference.
-- Confirm `Court.city` is a usable region key for every court in the dataset
-  (no empty strings, consistent casing).
-- Write the decisions into `database/DATABASE_SCHEMA.md` **before** code.
-
-### Phase 1 — Squads backend
-
-`Squad` and `SquadInvite` models; `SquadService` on the `UserProfileService`
-pattern (own `AuthService` subscription, `ListenerSupervisor`, `SquadError`
-enum, no Firestore types escaping); rules for all three squad paths; the
-`friendships` `exists()` guard; indexes; `FirestoreRulesParityTests` extended
-to cover the new mirrored bounds (name length, roster size, format allowlist).
-
-*Done when:* a squad can be created, invited to, joined, left, and disbanded
-from tests, with no UI.
-
-### Phase 2 — Squads UI
-
-The Seasons tab, screens 1–3 and 9. `SquadViewModel` joining `SquadService` to
-`FriendService` for the invite picker — a cross-collection join, so it lives in
-the view model, per `ARCHITECTURE.md`. `SquadCrest`, the icon/colour
-allowlists, and their contrast tests.
-
-*Done when:* a user can form a squad with friends and see it. No matchmaking
-yet — the tab says so.
-
-### Phase 3 — Matchmaking core
-
-`MatchTicket`; `MatchRules` as a pure function with **the heaviest test suite
-in this plan** — hard rules, soft-rule ordering, relaxation over time, window
-arithmetic across midnight, empty-pool, self-match, stale claims. All of it
-runs without Firestore.
-
-Then `MatchmakingService`: the pool listener, the scan, the claim transaction,
-jitter and backoff.
-
-*Done when:* two simulator instances queue and one claims the other, verified
-in the emulator. Still no game document.
-
-### Phase 4 — Season games
-
-`SeasonGame`; game creation on a won claim; the
-`squadIds array-contains` listener; screens 4–6; leader cancellation.
-
-*Done when:* the brief's flow works end to end up to game day — two squads
-queue, match, and both see the same scheduled game with the ability to cancel.
-
-### Phase 5 — Game day
-
-Local notifications with their permission moment; `arrivedPlayerIds` and its
-rules; screen 7 with live cross-squad arrival.
-
-*Done when:* a scheduled game notifies at T−60 and both squads can see each
-other arrive.
-
-### Phase 6 — Results and record
-
-Reports, mutual confirmation, the disputed state; the derived-record query;
-history on screen 9; the form guide.
-
-*Done when:* a completed game moves both squads' records, and a disagreement
-moves neither.
-
-### Phase 7 — Polish and fold-in
-
-Empty states, VoiceOver labels on the crest and form guide, Dynamic Type at
-`.accessibility3`, the tab-label decision. Then fold this plan into
-`ARCHITECTURE.md`, `DATA_MODEL.md`, `database/DATABASE_SCHEMA.md`, `UI_SHELL.md`
-and `BUILD_AND_CONFIG.md`, strike the shipped phases here, update
-`plans/BACKLOG.md` A2 per §1.3, and run `python3 tools/check_context_drift.py`.
-
----
+**The one thing this plan asked for that was never verified**: the live
+two-person confirm/dispute flow. The rules are evaluated against two distinct
+authenticated leaders in `firestore-tests/results.test.mjs` and the derivation is
+covered in `SeasonGameTests`, but no two real accounts have ever reported a
+result to each other. Recorded in `GAPS.md`; do not read "shipped" as "verified
+end to end".
 
 ## 7. Explicitly out of reach for v1
 

@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr.xcodeproj/`, `hooprTests/`, `hooprUITests/`,
 `hoopr/Assets.xcassets/`, `hoopr/GoogleService-Info.plist`, `.gitignore`,
-`tools/check_context_drift.py`
+`tools/check_context_drift.py`, `package.json`, `package-lock.json`
 **Verified:** 2026-08-27 @ 37aaf7a
 
 `Package.resolved` isn't listed separately — it lives under `hoopr.xcodeproj/`
@@ -76,6 +76,31 @@ swallows.
 
 `GoogleService-Info.plist` is committed at `hoopr/GoogleService-Info.plist`.
 
+**`UserNotifications` needs no dependency and no project change.** It is a
+system framework and auto-links; local notifications need no APNs token, which
+is why `AppDelegate` still registers nothing. Real push would need FCM
+(unlinked) plus a Cloud Function — see `GAPS.md`.
+
+### The JavaScript half
+
+`package.json` at the repo root exists for **one** purpose: running
+`firestore.rules` against the Firestore emulator. The iOS app is the product;
+this is test tooling.
+
+Three dev dependencies and nothing else — `firebase-tools` (the emulator),
+`firebase` (the client SDK the tests drive), and `@firebase/rules-unit-testing`
+(which loads the ruleset off disk and mints authenticated contexts). The runner
+is Node's built-in `node:test`, **deliberately**: this repository has no
+JavaScript test culture to match, and a second test framework is a second thing
+to keep working.
+
+`node_modules/` is gitignored and already contained 27 unrelated packages before
+any of this — `axios` and its transitives, belonging to
+`location-decoder-script/`, which declares them in its own `package.json`.
+Somebody ran `npm install` from the repo root. Left alone they are harmless;
+deleted, that script needs its own `npm install` in its own directory.
+`firestore-tests/README.md` says so, so nobody deletes the wrong thing.
+
 ## Assets
 
 `Assets.xcassets` holds only `AppIcon.appiconset` (14 declared slots, **no
@@ -120,9 +145,9 @@ Firebase console is not:
 
 ```
 .firebaserc              → default project: hoopsrn-4f1e9
-firebase.json            → points at the rules and indexes files
+firebase.json            → rules, indexes, and the Firestore emulator on 8080
 firestore.rules          → security rules (source of truth)
-firestore.indexes.json   → composite indexes: two, both for `games`
+firestore.indexes.json   → composite indexes: six, across three collections
 ```
 
 Any rules or index change must be deployed:
@@ -137,26 +162,102 @@ project — worth running before any deploy.
 Until deployed, writes fail with `permission-denied` and the app shows "Not
 allowed to save yet." A newly created database denies everything.
 
+**`singleProjectMode` is off in `firebase.json`, deliberately.** `node --test`
+runs the rules files in parallel processes against one shared emulator, so with
+a single project ID one file's `clearFirestore()` deletes another file's
+fixtures mid-run — surfacing as a rules `Null value error` on a document seeded
+a moment earlier, which reads as a rules bug and isn't one. A project per test
+file makes them independent of the runner's concurrency.
+
+### A dry-run is not a test
+
+This is the distinction the whole rules suite exists for.
+`firebase deploy --dry-run` proves the file **compiles**. It cannot evaluate
+whether a write is allowed, and every `allow` in `firestore.rules` had only ever
+been *read* until `firestore-tests/` existed.
+
+That stopped being tolerable at `matchTickets`, whose claim is a contested
+single-document transaction between two squads' leaders — the one place
+correctness depends on Firestore's concurrency guarantees rather than on
+anybody's code. It matters again at `seasonGames`' reporting rules, whose entire
+subject is two different people agreeing or disagreeing: a property no
+single-client test can exercise.
+
+```bash
+npm install        # once
+npm run test:rules # starts the emulator, runs every *.test.mjs, shuts it down
+npm run emulators  # or: keep one running while you iterate
+```
+
+Needs a JDK (`brew install openjdk`). The suite **fails loudly** when no
+emulator answers rather than skipping, because a rules suite that reports green
+for a ruleset it never evaluated is worse than no rules suite at all.
+
 ## Tests
 
-**120 test methods across eleven suites**, from a green
-`-only-testing:hooprTests` run on 2026-08-21. All of them carry real coverage;
-there is no scaffold left in `hooprTests/`.
+There are **two** suites, in two languages, and neither can do the other's job.
+
+- **`hooprTests` — 428 test methods across 27 suites**, from a green
+  `-only-testing:hooprTests` run on 2026-08-29. All of them carry real coverage;
+  there is no scaffold left in `hooprTests/`.
+- **`firestore-tests/` — 92 tests**, run by `npm run test:rules` against the
+  Firestore emulator. This is the only place `firestore.rules` is *evaluated*
+  rather than read; see "A dry-run is not a test" above.
+
+**Every Swift test targets a `nonisolated static` pure function.** No test in
+the suite instantiates a service, and there are no service stubs anywhere in
+`hooprTests/`. That is a design constraint, not an accident: logic that can't be
+reached as a pure function is, in this project, untestable — which is why
+`MatchRules` is a free function over two structs rather than a method on
+`MatchmakingService`, and why `SeasonGameNotifications` decides what to schedule
+while `NotificationService` merely schedules it.
+
+Two suites are the deliberate exceptions, and both measure UIKit rather than
+logic: `TabBarLabelTests` renders a real tab bar, and `ThemeContrastTests`
+resolves real colours. A third measurement style would be one too many.
 
 | Suite | Cases | Guards |
 |---|---|---|
-| `GameTests` | 21 | Decoding, derived status, form validation, roster membership, visibility, presentation, the invite-link string, distance. |
+| `SeasonGameTests` | 47 | The derived record and form guide, the report derivation and what a report write contains, who may report and when, create-time validation mirroring the rules, and the queue windows. |
+| `MatchRulesTests` | 46 | The pure matchmaker: every hard rule rejecting in isolation, soft-rule ordering, relaxation over time, window arithmetic across midnight and DST, stale claims, empty pool, self-match. |
+| `SquadTests` | 31 | Decoding, name and roster bounds, leadership, the icon/colour allowlists. |
+| `GameTests` | 28 | Decoding, derived status, form validation, roster membership, visibility, presentation, the invite-link string, distance. |
+| `MatchTicketTests` | 20 | Ticket validation, claimability, the stale-claim window, `winPercentage`'s unplayed midpoint. |
+| `FirestoreRulesParityTests` | 19 | Every bound mirrored between Swift and `firestore.rules`, parsed out of the rules file as text. |
+| `FindAMatchViewModelTests` | 18 | `gameCountsByCourt` — the per-court/per-day join behind the map's heat colours. |
 | `UserProfileTests` | 17 | Decoding, the radius coercion ladder, name validation. |
+| `SquadViewModelTests` | 17 | `invitableUids`, the roster sort, and the region derivation. |
+| `ServiceFailureTests` | 17 | Backoff schedule, per-listener recovery, read/write messaging, `FirestoreFailure` classification. |
+| `MapTabDetentTests` | 17 | The bottom sheet's detent transitions. |
 | `FriendsViewModelTests` | 16 | `looksLikeUserId`, search-stream `merged`, `relationship`. |
-| `ServiceFailureTests` | 15 | Backoff schedule, per-listener recovery, read/write messaging, `FirestoreFailure` classification. |
+| `HomeViewModelTests` | 15 | `rankHotCourts` — ordering, the `displayName` tie-break, zero/absent counts dropped, the limit, unknown court ids ignored. |
+| `SeasonGameNotificationsTests` | 13 | The scheduling plan: three reminders for a future match, none for one already started, stable identifiers across a reschedule. |
+| `ClaimPolicyTests` | 13 | Jitter, the three-attempt bound, and the backoff poll. |
+| `ThemeContrastTests` | 12 | Every colour pairing the UI actually draws, against WCAG AA — including all eight crest fills against `hooprOnCrest` — plus the tracked brand-as-foreground gaps asserted in the failing direction. |
+| `CourtSearchTests` | 11 | Court name matching and ranking. |
 | `FriendshipTests` | 10 | Decoding, the derived document ID, direction. |
-| `ThemeContrastTests` | 9 | Every colour pairing the UI actually draws, against WCAG AA, plus the two tracked brand-as-foreground gaps asserted in the failing direction. |
-| `CourtHeatTests` | 10 | `CourtHeat.color(forGameCount:)`'s five stops, its ceiling and floor clamps, and the ramp's shape. |
+| `CourtHeatTests` | 10 | `CourtHeat.color(forGameCount:)`'s five stops, its clamps, and the ramp's shape. |
+| `CourtFilterTests` | 10 | The court filter predicates. |
+| `SeasonsAccessibilityTests` | 8 | Dynamic Type behind the Seasons tab: that a fixed-diameter pill keeps its glyph inside its own circle at every content size, and that the cap making that true is load-bearing. |
+| `LocalRunsViewModelTests` | 8 | The distance filter and the runs join. |
+| `LocationServiceTests` | 6 | The home-location anchor. |
 | `CourtTests` | 6 | `Court.displayName`. |
 | `CourtBadgesTests` | 6 | `amenities(for:limit:)` — that narrowing a row's badges never drops the "Restricted" caution. |
-| `FirestoreRulesParityTests` | 6 | The `status` derivation and the shared bounds, parsed out of `firestore.rules`. |
-| `FindAMatchViewModelTests` | 5 | `gameCountsByCourt` — the per-court/per-day join behind the map's heat colours. |
-| `HomeViewModelTests` | 10 | `rankHotCourts` — ordering, the `displayName` tie-break that keeps the Home list stable across rebuilds, zero/absent counts dropped, the limit, and unknown court ids ignored. |
+| `CourtMarkerTests` | 4 | Marker count formatting and truncation. |
+| `TabBarLabelTests` | 3 | That four tab labels fit the narrowest bar at `.accessibility3` — the evidence behind "Seasons" over "Squad". |
+
+### The rules suite
+
+`firestore-tests/` covers what only an emulator can:
+
+| File | Guards |
+|---|---|
+| `claim-race.test.mjs` | Two concurrent clients race one ticket, repeatedly. **Exactly one wins** — the guarantee `SEASONS.md` §2.2 and the whole matchmaker rest on. A race that passes once passed by luck. |
+| `squads.test.mjs` | The three squad update paths in isolation, the self-join uid diff, the duplicate-roster hole, the invite friendship gate. |
+| `match-tickets.test.mjs` | Ticket bounds, the claim transition, and stale re-claim at 89 vs 91 seconds. |
+| `season-games.test.mjs` | What authorizes naming another squad, the court/window pinning, the forged-leader refusal, and the `matched` transition's two writers. |
+| `arrival.test.mjs` | Self-add only, no undo, no duplicates, refused once a match leaves `scheduled`. |
+| `results.test.mjs` | Mutual confirmation, evaluated with **two distinct authenticated leaders** — agreement confirms, disagreement disputes, a leader cannot write the other's report or manufacture an agreement alone, and a disputed match is resolved by re-reporting. |
 
 `UserProfileTests`, `GameTests` and
 `FriendshipTests` run through `Firestore.Decoder` — the same decoder the
@@ -234,6 +335,19 @@ round-trip named here until 2026-08-21 is gone — so are the functions.)
   `project.pbxproj` build settings — there is no Info.plist to edit.
 - New Firebase products must be added as SPM product dependencies *and* used
   only behind the vendor boundary (`ARCHITECTURE.md`).
+- **Never hand-edit `project.pbxproj` to add a file.** The project is
+  `objectVersion = 77` with `PBXFileSystemSynchronizedRootGroup`: any `.swift`
+  file under `hoopr/` or `hooprTests/` is picked up automatically, and system
+  frameworks auto-link. Editing it corrupts a synchronized group and the project
+  stops opening.
+- **Run the Swift suite with `-only-testing:hooprTests`, always.** Without it
+  the UI test runner fails to launch (`RequestDenied` from SpringBoard) and
+  masks real unit failures — a green-looking run that proved nothing.
+- A rules or index change is not verified by a dry-run. Run `npm run test:rules`
+  before claiming a rule works.
+- A new mirrored bound gets a `FirestoreRulesParityTests` case in the same
+  commit. A mismatch surfaces as `permission-denied` at runtime, not as a
+  compile error.
 
 ## See also
 
