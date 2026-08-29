@@ -11,11 +11,18 @@ struct MatchmakingCard: View {
 
     private let squad: Squad
     private let onQueue: () -> Void
+    private let onOpenGameDay: (SeasonGame) -> Void
 
-    init(viewModel: MatchmakingViewModel, squad: Squad, onQueue: @escaping () -> Void) {
+    init(
+        viewModel: MatchmakingViewModel,
+        squad: Squad,
+        onQueue: @escaping () -> Void,
+        onOpenGameDay: @escaping (SeasonGame) -> Void
+    ) {
         self.viewModel = viewModel
         self.squad = squad
         self.onQueue = onQueue
+        self.onOpenGameDay = onOpenGameDay
     }
 
     var body: some View {
@@ -137,58 +144,77 @@ struct MatchmakingCard: View {
     @ViewBuilder
     private func matchState(_ game: SeasonGame) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Next match")
-                .hooprFont(13, weight: .semibold)
-                .foregroundStyle(Color.hooprSecondaryText)
-                .textCase(.uppercase)
+            // The whole card body opens game day — screen 7 — except the
+            // cancel control below, which stays its own un-nested button so
+            // cancelling never also navigates.
+            Button {
+                onOpenGameDay(game)
+            } label: {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Text("Next match")
+                            .hooprFont(13, weight: .semibold)
+                            .foregroundStyle(Color.hooprSecondaryText)
+                            .textCase(.uppercase)
 
-            HStack(spacing: 12) {
-                SquadCrest(squad: squad, size: SquadCrest.Size.card)
+                        Spacer(minLength: 0)
 
-                Text("vs")
-                    .hooprFont(14, weight: .semibold)
-                    .foregroundStyle(Color.hooprSecondaryText)
+                        Image(systemName: "chevron.right")
+                            .hooprFont(12, weight: .semibold)
+                            .foregroundStyle(Color.hooprSecondaryText)
+                    }
 
-                // The opponent's crest keys aren't on the game document —
-                // names are denormalized so history survives a disbanded squad,
-                // but the crest is not. A neutral placeholder rather than a
-                // fetch: one more read per match card, for decoration, isn't
-                // worth it before Phase 7's polish pass.
-                SquadCrest(
-                    iconKey: "shield.fill",
-                    colorKey: "blue",
-                    size: SquadCrest.Size.card
-                )
+                    HStack(spacing: 12) {
+                        SquadCrest(squad: squad, size: SquadCrest.Size.card)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(game.opponentName(of: squad.id) ?? "Opponent")
-                        .hooprFont(17, weight: .semibold)
-                        .foregroundStyle(Color.hooprPrimaryText)
-                        .multilineTextAlignment(.leading)
+                        Text("vs")
+                            .hooprFont(14, weight: .semibold)
+                            .foregroundStyle(Color.hooprSecondaryText)
 
-                    Text(opponentRecordText)
-                        .hooprFont(13)
-                        .foregroundStyle(Color.hooprSecondaryText)
+                        // The opponent's crest keys aren't on the game
+                        // document — names are denormalized so history
+                        // survives a disbanded squad, but the crest is not. A
+                        // neutral placeholder rather than a fetch: one more
+                        // read per match card, for decoration, isn't worth it
+                        // before Phase 7's polish pass.
+                        SquadCrest(
+                            iconKey: "shield.fill",
+                            colorKey: "blue",
+                            size: SquadCrest.Size.card
+                        )
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(game.opponentName(of: squad.id) ?? "Opponent")
+                                .hooprFont(17, weight: .semibold)
+                                .foregroundStyle(Color.hooprPrimaryText)
+                                .multilineTextAlignment(.leading)
+
+                            Text(opponentRecordText)
+                                .hooprFont(13)
+                                .foregroundStyle(Color.hooprSecondaryText)
+                        }
+
+                        Spacer(minLength: 0)
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        detailRow(
+                            icon: "mappin.and.ellipse",
+                            text: viewModel.courtName(id: game.courtId)
+                        )
+                        detailRow(
+                            icon: "clock",
+                            text: game.scheduledTime.formatted(
+                                .dateTime.weekday(.wide).hour().minute()
+                            )
+                        )
+                        if game.isHome(squad.id) {
+                            detailRow(icon: "house", text: "Your court")
+                        }
+                    }
                 }
-
-                Spacer(minLength: 0)
             }
-
-            VStack(alignment: .leading, spacing: 6) {
-                detailRow(
-                    icon: "mappin.and.ellipse",
-                    text: viewModel.courtName(id: game.courtId)
-                )
-                detailRow(
-                    icon: "clock",
-                    text: game.scheduledTime.formatted(
-                        .dateTime.weekday(.wide).hour().minute()
-                    )
-                )
-                if game.isHome(squad.id) {
-                    detailRow(icon: "house", text: "Your court")
-                }
-            }
+            .buttonStyle(.plain)
 
             if !viewModel.duplicateGames.isEmpty {
                 // The window between a game landing and both tickets being

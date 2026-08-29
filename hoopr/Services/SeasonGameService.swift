@@ -400,6 +400,41 @@ final class SeasonGameService: ObservableObject {
         }
     }
 
+    /// Marks the signed-in user's own squad as arrived. Screen 7's "We're
+    /// here."
+    ///
+    /// Self-add only, enforced server-side: the diff is exactly the caller's
+    /// own uid, added, and never removed — there is no "un-arrive". Both
+    /// squads read the same array off the same listener, which is the moment
+    /// a squad sees they're first to the court.
+    ///
+    /// - Returns: `true` when the write changed something; `false` when the
+    ///   caller had already arrived, so the caller can stay quiet rather than
+    ///   reporting a failure.
+    @discardableResult
+    func markArrived(gameId: String) async throws -> Bool {
+        guard let uid = observedUID else { throw SeasonGameError.notSignedIn }
+        guard let existing = games.first(where: { $0.id == gameId }) else {
+            throw SeasonGameError.gameNotFound
+        }
+        guard !existing.hasArrived(uid) else { return false }
+
+        do {
+            try await database
+                .collection(Collection.seasonGames)
+                .document(gameId)
+                .updateData([
+                    Field.arrivedPlayerIds: FieldValue.arrayUnion([uid]),
+                ])
+            clearError()
+            return true
+        } catch {
+            let gameError = Self.mapped(error)
+            report(gameError, whileDoing: "marking your squad arrived", context: .write)
+            throw gameError
+        }
+    }
+
     // MARK: - Helpers
 
     private func clearError() {

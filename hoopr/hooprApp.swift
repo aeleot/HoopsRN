@@ -33,6 +33,7 @@ struct hooprApp: App {
     @StateObject private var squadService: SquadService
     @StateObject private var matchmakingService: MatchmakingService
     @StateObject private var seasonGameService: SeasonGameService
+    @StateObject private var notificationService = NotificationService()
 
     /// Applied at the window root so it reaches every screen *and* every sheet
     /// presented from one — a `preferredColorScheme` set further down would
@@ -70,6 +71,7 @@ struct hooprApp: App {
                 squadService: squadService,
                 matchmakingService: matchmakingService,
                 seasonGameService: seasonGameService,
+                notificationService: notificationService,
                 recentCourtsStore: recentCourtsStore
             )
             .preferredColorScheme(appearance.colorScheme)

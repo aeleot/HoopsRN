@@ -884,6 +884,34 @@ service cloud.firestore {
                 && incoming().cancelledBySquadId == resource.data.awaySquadId))
         && incoming().updatedAt == request.time;
 
+      // Arrival — self-add only, either squad. Screen 7's "We're here."
+      //
+      // The `games` self-only membership pattern verbatim: the diff is exactly
+      // the caller's own uid, added, and never removed — there is no "un-
+      // arrive", the same way marking a run `completed` has no undo. **The
+      // no-duplicates check is not optional**; the reason is documented on
+      // `squads` and hasn't changed — without it, a set diff reads a list of
+      // one uid repeated as no change at all.
+      //
+      // The caller has to be on one of the two rosters, which costs two
+      // `get()`s against `squads` — well inside the ten-access ceiling next to
+      // the create rule's three, and cheap because both are cached if this
+      // write ever needs them twice.
+      allow update: if isSignedIn()
+        && incoming().diff(resource.data).affectedKeys().hasOnly(['arrivedPlayerIds'])
+        && resource.data.status == 'scheduled'
+        && incoming().arrivedPlayerIds is list
+        && incoming().arrivedPlayerIds.toSet().size() == incoming().arrivedPlayerIds.size()
+        && incoming().arrivedPlayerIds.toSet()
+             .difference(resource.data.arrivedPlayerIds.toSet())
+             .hasOnly([request.auth.uid])
+        && resource.data.arrivedPlayerIds.toSet()
+             .difference(incoming().arrivedPlayerIds.toSet()).size() == 0
+        && !(request.auth.uid in resource.data.arrivedPlayerIds)
+        && incoming().arrivedPlayerIds.hasAll([request.auth.uid])
+        && (request.auth.uid in squad(resource.data.homeSquadId).memberIds
+            || request.auth.uid in squad(resource.data.awaySquadId).memberIds);
+
       // **No delete, ever.** A squad's record is a query over these documents,
       // so a deletable match is a forgeable record — which is the entire thing
       // the derived-record design exists to prevent. Cancelling is the exit,

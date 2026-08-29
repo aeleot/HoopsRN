@@ -83,12 +83,20 @@ final class MatchmakingViewModel: ObservableObject {
     private let seasonGameService: SeasonGameService
     private let courtService: CourtService
     private let squadService: SquadService
+    private let notificationService: NotificationService
 
     private var cancellables = Set<AnyCancellable>()
     private var tickTask: Task<Void, Never>?
 
     /// The squad this view model is currently speaking for.
     private var squad: Squad?
+
+    /// Matches already handed to `NotificationService` this session, so a
+    /// snapshot that fires for an unrelated reason — an opponent arriving,
+    /// say — doesn't re-request authorization and re-add the same three
+    /// requests on every tick. Scheduling *is* idempotent either way; this is
+    /// just what keeps it from being called needlessly often.
+    private var notifiedGameIds: Set<String> = []
 
     /// Guards the claim → create → mark sequence so a second `wonClaim` emission
     /// can't run it twice for the same claim.
@@ -102,12 +110,14 @@ final class MatchmakingViewModel: ObservableObject {
         matchmakingService: MatchmakingService,
         seasonGameService: SeasonGameService,
         courtService: CourtService,
-        squadService: SquadService
+        squadService: SquadService,
+        notificationService: NotificationService
     ) {
         self.matchmakingService = matchmakingService
         self.seasonGameService = seasonGameService
         self.courtService = courtService
         self.squadService = squadService
+        self.notificationService = notificationService
 
         courtService.$courts
             .receive(on: DispatchQueue.main)
@@ -253,14 +263,55 @@ final class MatchmakingViewModel: ObservableObject {
             }
 
             Task { await loadOpponentRecord(for: nextGame, mySquadId: squad.id) }
+            scheduleNotificationsIfNeeded(for: nextGame, mySquadId: squad.id)
         } else {
             opponentRecord = nil
         }
+
+        cancelNotificationsForCancelledMatches(squadId: squad.id)
     }
 
     private func loadOpponentRecord(for game: SeasonGame, mySquadId: String) async {
         guard let opponentId = game.opponentSquadId(of: mySquadId) else { return }
         opponentRecord = await seasonGameService.fetchRecord(for: opponentId)
+    }
+
+    // MARK: - Notifications
+
+    /// The permission moment: match found, not launch and not the game-day
+    /// screen. It's the first instant a notification is worth anything and
+    /// the first instant the user has just gained something — the only
+    /// leverage a permission prompt ever has.
+    ///
+    /// Every decision about *what* to schedule is `SeasonGameNotifications`'s;
+    /// this only resolves the two strings the pure function needs but has no
+    /// way to look up itself, and hands the result to the service.
+    private func scheduleNotificationsIfNeeded(for game: SeasonGame, mySquadId: String) {
+        guard game.status == .scheduled, !notifiedGameIds.contains(game.id) else { return }
+        notifiedGameIds.insert(game.id)
+
+        let opponentName = game.opponentName(of: mySquadId) ?? "your opponent"
+        let courtName = courtsById[game.courtId]?.displayName ?? "the court"
+
+        Task { [notificationService] in
+            let planned = SeasonGameNotifications.plan(
+                for: game,
+                opponentName: opponentName,
+                courtName: courtName
+            )
+            await notificationService.apply(planned, for: game.id)
+        }
+    }
+
+    /// A match this client scheduled notifications for may since have been
+    /// called off by either leader. A cancelled match should remind nobody of
+    /// anything, so its three identifiers are cleared the same session the
+    /// cancellation is seen.
+    private func cancelNotificationsForCancelledMatches(squadId: String) {
+        for game in seasonGameService.games(for: squadId) where game.status == .cancelled {
+            guard notifiedGameIds.remove(game.id) != nil else { continue }
+            notificationService.cancelAll(for: game.id)
+        }
     }
 
     // MARK: - The claim → create → mark sequence

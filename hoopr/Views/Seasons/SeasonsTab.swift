@@ -21,6 +21,15 @@ struct SeasonsTab: View {
     /// Observed because `ProfileButton` reads it for its badge dot.
     @ObservedObject private var friendService: FriendService
 
+    /// Stored rather than only threaded into the two view models above:
+    /// pushing screen 7 builds a fresh `GameDayViewModel` on demand, and that
+    /// join needs all four directly.
+    private let squadService: SquadService
+    private let seasonGameService: SeasonGameService
+    private let userProfileService: UserProfileService
+    private let courtService: CourtService
+    private let notificationService: NotificationService
+
     private let onOpenProfile: () -> Void
 
     /// Wrapped for `sheet(item:)` rather than presented with `isPresented` —
@@ -36,9 +45,18 @@ struct SeasonsTab: View {
         let squad: Squad
     }
 
+    /// Both pushes this stack makes. Screen 7 carries the match itself rather
+    /// than just its ID — `SeasonGame` is already `Hashable`, and the object is
+    /// already in hand at every call site that pushes it, so there's nothing to
+    /// look back up.
+    private enum Route: Hashable {
+        case squad(String)
+        case gameDay(mySquadId: String, game: SeasonGame)
+    }
+
     @State private var creating: CreateRoute?
     @State private var queueing: QueueRoute?
-    @State private var path: [String] = []
+    @State private var path: [Route] = []
 
     init(
         squadService: SquadService,
@@ -47,9 +65,15 @@ struct SeasonsTab: View {
         friendService: FriendService,
         userProfileService: UserProfileService,
         courtService: CourtService,
+        notificationService: NotificationService,
         onOpenProfile: @escaping () -> Void
     ) {
         self.friendService = friendService
+        self.squadService = squadService
+        self.seasonGameService = seasonGameService
+        self.userProfileService = userProfileService
+        self.courtService = courtService
+        self.notificationService = notificationService
         self.onOpenProfile = onOpenProfile
         _viewModel = StateObject(wrappedValue: SquadViewModel(
             squadService: squadService,
@@ -61,7 +85,8 @@ struct SeasonsTab: View {
             matchmakingService: matchmakingService,
             seasonGameService: seasonGameService,
             courtService: courtService,
-            squadService: squadService
+            squadService: squadService,
+            notificationService: notificationService
         ))
     }
 
@@ -98,8 +123,21 @@ struct SeasonsTab: View {
             }
             .background(Color.hooprBackground)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .navigationDestination(for: String.self) { squadId in
-                SquadDetailView(viewModel: viewModel, squadId: squadId)
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .squad(let squadId):
+                    SquadDetailView(viewModel: viewModel, squadId: squadId)
+                case .gameDay(let mySquadId, let game):
+                    GameDayView(
+                        game: game,
+                        mySquadId: mySquadId,
+                        seasonGameService: seasonGameService,
+                        squadService: squadService,
+                        userProfileService: userProfileService,
+                        notificationService: notificationService,
+                        courtService: courtService
+                    )
+                }
             }
             .sheet(item: $creating) { _ in
                 CreateSquadSheet(
@@ -201,15 +239,20 @@ struct SeasonsTab: View {
     private func squadHome(_ squad: Squad) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Button {
-                path.append(squad.id)
+                path.append(.squad(squad.id))
             } label: {
                 squadHeader(squad)
             }
             .buttonStyle(.plain)
 
-            MatchmakingCard(viewModel: matchmaking, squad: squad) {
-                queueing = QueueRoute(squad: squad)
-            }
+            MatchmakingCard(
+                viewModel: matchmaking,
+                squad: squad,
+                onQueue: { queueing = QueueRoute(squad: squad) },
+                onOpenGameDay: { game in
+                    path.append(.gameDay(mySquadId: squad.id, game: game))
+                }
+            )
             // Re-pointed whenever the primary squad changes, which is also the
             // first render — the view model no-ops on a repeat.
             .task(id: squad.id) { matchmaking.start(squad: squad) }
@@ -304,7 +347,7 @@ struct SeasonsTab: View {
 
             ForEach(viewModel.squads.filter { $0.id != primary.id }) { squad in
                 Button {
-                    path.append(squad.id)
+                    path.append(.squad(squad.id))
                 } label: {
                     HStack(spacing: 12) {
                         SquadCrest(squad: squad, size: SquadCrest.Size.row)

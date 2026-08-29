@@ -788,7 +788,7 @@ produce, and the one a squad's record is derived from.
 | `courtId` | string | yes | no | Must be in the home ticket's `courtIds`. |
 | `scheduledTime` | timestamp | yes | no | Must fall inside the home ticket's window, and be in the future. |
 | `status` | string | yes | yes | `scheduled` \| `cancelled` \| `confirmed` \| `disputed`. |
-| `arrivedPlayerIds` | array\<string\> | yes | yes | Self-add only, both squads in one array. `[]` at create. Phase 5. |
+| `arrivedPlayerIds` | array\<string\> | yes | yes | Self-add only, both squads in one array, one-directional. `[]` at create. |
 | `homeReport` / `awayReport` | string? | no | yes | The squad ID each leader says won. Each pinned to its own leader. Phase 6. |
 | `homeScore` / `awayScore` | int? | no | yes | Optional, cosmetic. Phase 6. |
 | `result` | string? | no | yes | The winning squad ID, written **only** when both reports agree. Phase 6. |
@@ -867,6 +867,26 @@ earliest-created one and a leader cancels the other. If it happens more than
 rarely, the jitter or the stale window is wrong — `SeasonGameService` logs it
 for that reason.
 
+### Arrival
+
+`arrivedPlayerIds` is the `games` self-only membership pattern verbatim, and
+one-directional — added, never removed, the same way marking a run `completed`
+has no undo. The caller must be on one of the two rosters, checked with two
+`get()`s against `squads` (cached alongside the create rule's three if a write
+ever needs both), and refused once the match leaves `scheduled`. The
+no-duplicates check is not optional here either, for the reason `squads`
+documents.
+
+Both squads read the same array off the same listener — the moment a squad
+sees they're first to the court.
+
+**Local notifications, not push.** `NotificationService` schedules the T-60,
+T-0 and T+90 reminders (plan §4) the moment a client's own listener sees a
+match land; there is no server to fire them for a client that never opens
+between the match being made and tip-off. Named in `../GAPS.md`, not fixed —
+real push needs FCM and a Cloud Function, the same Blaze-plan requirement the
+matchmaker itself is built around not having.
+
 ### The record is a query
 
 `seasonGames where squadIds array-contains {squadId} and status == 'confirmed'`,
@@ -887,6 +907,8 @@ with nothing failing to say so.
   `result`, the reports, the scores, `cancelledBySquadId` and `confirmedAt` are
   absent from the key allowlist, so a match cannot be born already won.
 - **Update (cancel):** either leader, from `scheduled` only, as their own squad.
+- **Update (arrival):** any member of either roster, self-add only, from
+  `scheduled` only. See "Arrival" above.
 - **Delete:** never.
 
 ### Indexes

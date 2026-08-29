@@ -35,6 +35,7 @@ struct MainTabView: View {
     private let squadService: SquadService
     private let matchmakingService: MatchmakingService
     private let seasonGameService: SeasonGameService
+    private let notificationService: NotificationService
     private let recentCourtsStore: RecentCourtsStore
 
     init(
@@ -47,6 +48,7 @@ struct MainTabView: View {
         squadService: SquadService,
         matchmakingService: MatchmakingService,
         seasonGameService: SeasonGameService,
+        notificationService: NotificationService,
         recentCourtsStore: RecentCourtsStore
     ) {
         self.authService = authService
@@ -58,6 +60,7 @@ struct MainTabView: View {
         self.squadService = squadService
         self.matchmakingService = matchmakingService
         self.seasonGameService = seasonGameService
+        self.notificationService = notificationService
         self.recentCourtsStore = recentCourtsStore
     }
 
@@ -157,6 +160,7 @@ struct MainTabView: View {
                     friendService: friendService,
                     userProfileService: userProfileService,
                     courtService: courtService,
+                    notificationService: notificationService,
                     onOpenProfile: openProfile
                 )
             }
@@ -187,6 +191,7 @@ struct MainTabView: View {
         squadService: SquadService(authService: authService),
         matchmakingService: MatchmakingService(authService: authService),
         seasonGameService: SeasonGameService(authService: authService),
+        notificationService: NotificationService(),
         recentCourtsStore: RecentCourtsStore()
     )
 }

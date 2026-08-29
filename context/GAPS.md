@@ -25,6 +25,18 @@ it partly shipped; the general "Next steps" list below is everything else.
   who hasn't is findable by user ID but not by name. Nothing more can be done
   about this from the client; a real backfill needs an admin-SDK script run
   against the project.
+- **A season game's notifications only get scheduled by a client that's
+  actually open.** `NotificationService` schedules the T-60/T-0/T+90 local
+  notifications for a match the moment `MatchmakingViewModel` sees it land —
+  but that's a client-side reaction to a Firestore snapshot, not a server
+  event. A squad member whose app never launches between the match being made
+  and tip-off never has those three requests scheduled on their device, and
+  finds out about the game only if a squad-mate's device happened to be open,
+  or by checking the tab themselves. Real push needs FCM (not linked) and a
+  Cloud Function triggered off the `seasonGames` write — the first-class fix,
+  and the same Blaze-plan requirement `plans/SEASONS.md` §0.1 and §7 already
+  name for server-side matchmaking. Nothing client-side closes this; it's the
+  local-notifications design's known ceiling, not a bug in it.
 - **No blocking, reporting, or rate limiting on friend requests.** Anyone
   signed in can search for anyone and send them a request; declining (which
   deletes the edge) is the only recourse, and nothing stops the same person
