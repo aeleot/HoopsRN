@@ -126,6 +126,14 @@ typo'd scope was reported CURRENT forever — which is exactly how
 `database/USER_PROFILE_WORKFLOW.md` sat two weeks stale with a code map
 pointing at a deleted file.
 
+**The directories it scans are listed explicitly in `entry_files()`, not
+walked** — `context/*.md`, plus `context/database/` and `context/gaps/`. Adding
+a subdirectory under `context/` therefore means adding a line to that function,
+and forgetting to is worse than a typo'd scope: every entry in the new folder is
+silently unchecked forever, with no `BROKEN SCOPE` line to say so, because the
+tool never learns the file exists. `INDEX.md` says this too, next to the
+`gaps/` description.
+
 It also folds `git status --porcelain`'s untracked files into every entry's
 diff, not just `git diff`'s tracked changes. `git diff <sha> -- <path>` only
 ever compares content git already knows about, so a brand-new file — created,

@@ -9,11 +9,17 @@ stamp (date + **commit sha**, never a branch name — a branch moves and the sta
 stops meaning anything). Scopes don't overlap, and together they cover every
 source path in the repo.
 
-Three entries own no paths and say so with `Scope: —`: `GAPS.md`,
-`PRODUCT_OVERVIEW.md`, and `database/USER_PROFILE_WORKFLOW.md`. All three are
-cross-cutting narratives over code other entries own, so they can't be diffed —
-the drift check lists them under "always revisit" and they're re-read by hand
-every pass.
+Four entries own no paths and say so with `Scope: —`: `GAPS.md`,
+`gaps/SEASONS.md`, `PRODUCT_OVERVIEW.md`, and
+`database/USER_PROFILE_WORKFLOW.md`. All four are cross-cutting narratives over
+code other entries own, so they can't be diffed — the drift check lists them
+under "always revisit" and they're re-read by hand every pass.
+
+`gaps/` holds per-feature gap files, one per feature large enough that its gaps
+would crowd `GAPS.md` out of readability. A gap belongs in exactly one of the
+two. **A new subdirectory under `context/` is invisible to
+`tools/check_context_drift.py` until it is added to that script's
+`entry_files()`** — the directories it scans are listed explicitly, not walked.
 
 ---
 
@@ -29,7 +35,8 @@ every pass.
 | [`COURT_DATASET.md`](COURT_DATASET.md) | Where courts come from and how to regenerate or extend them. | 2026-08-21 @ 9a81cc2 |
 | [`UI_SHELL.md`](UI_SHELL.md) | Navigation structure, the Local Runs tab, the profile and its Friends pane, run creation, and the visual conventions. | 2026-08-21 @ 9a81cc2 |
 | [`BUILD_AND_CONFIG.md`](BUILD_AND_CONFIG.md) | Project identity, dependencies, the Firebase CLI surface, repo tooling, real test coverage. | 2026-08-21 @ a524a7f |
-| [`GAPS.md`](GAPS.md) | What's unfinished, and where comments and docs contradict the code. | 2026-08-21 @ 9a81cc2 |
+| [`GAPS.md`](GAPS.md) | What's unfinished, and where comments and docs contradict the code — everything except a feature with its own file in `gaps/`. | 2026-08-21 @ 9a81cc2 |
+| [`gaps/SEASONS.md`](gaps/SEASONS.md) | Seasons' own gaps: what's unverified, the ways a played match can fail to reach a record, the named ceilings, and the costs taken on purpose. | 2026-08-29 @ 52680a6 |
 | [`PRODUCT_OVERVIEW.md`](PRODUCT_OVERVIEW.md) | **Business-facing.** What users can do today, what the app guarantees on security, accessibility and coverage, and what's planned. | 2026-08-21 @ a524a7f |
 
 ---
@@ -49,6 +56,7 @@ every pass.
 | a model field or an error case | `DATA_MODEL.md` |
 | build settings, dependencies, or tests | `BUILD_AND_CONFIG.md` |
 | anything at all, before trusting a code comment | `GAPS.md` |
+| squads, matchmaking, game day, or recorded results | `gaps/SEASONS.md` **first** — several Seasons behaviours are capped or unverified in ways the code doesn't show |
 | explaining the product to someone, or scoping a roadmap | `PRODUCT_OVERVIEW.md` |
 
 ---

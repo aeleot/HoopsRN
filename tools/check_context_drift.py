@@ -58,8 +58,15 @@ def parse_scope(raw):
 def entry_files():
     # INDEX.md carries no per-entry Scope/Verified stamp by design -- it's the
     # routing table, refreshed by hand at the end of a pass, not diffed.
+    #
+    # Subdirectories are listed explicitly rather than walked, so adding one
+    # means adding a line here. A folder this function doesn't know about is
+    # worse than a typo'd scope: every entry inside it is silently unchecked
+    # forever, which is the exact failure BUILD_AND_CONFIG.md's "validates that
+    # scope paths exist" note exists to prevent.
     files = sorted(p for p in CONTEXT_DIR.glob("*.md") if p.name != "INDEX.md")
-    files += sorted((CONTEXT_DIR / "database").glob("*.md"))
+    for subdirectory in ("database", "gaps"):
+        files += sorted((CONTEXT_DIR / subdirectory).glob("*.md"))
     return files
 
 

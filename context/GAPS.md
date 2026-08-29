@@ -8,6 +8,12 @@ next. Read this before trusting an inline comment, and before assuming a feature
 exists because a field or a tab does. Drift is recorded **here** rather than
 being reproduced in the entry that owns the code.
 
+**Feature-specific gaps live in `gaps/`**, one file per feature, and are not
+repeated here — `gaps/SEASONS.md` is the first. A feature earns its own file
+once it has enough surface that its gaps would crowd this list out of
+readability; until then it belongs below. Either way a gap is recorded in
+exactly one place, because a gap in two places is two gaps that drift.
+
 Dated **TODO** sections track a single feature's remaining work from the point
 it partly shipped; the general "Next steps" list below is everything else.
 
@@ -25,39 +31,14 @@ it partly shipped; the general "Next steps" list below is everything else.
   who hasn't is findable by user ID but not by name. Nothing more can be done
   about this from the client; a real backfill needs an admin-SDK script run
   against the project.
-- **A season game's notifications only get scheduled by a client that's
-  actually open.** `NotificationService` schedules the T-60/T-0/T+90 local
-  notifications for a match the moment `MatchmakingViewModel` sees it land —
-  but that's a client-side reaction to a Firestore snapshot, not a server
-  event. A squad member whose app never launches between the match being made
-  and tip-off never has those three requests scheduled on their device, and
-  finds out about the game only if a squad-mate's device happened to be open,
-  or by checking the tab themselves. Real push needs FCM (not linked) and a
-  Cloud Function triggered off the `seasonGames` write — the first-class fix,
-  and the same Blaze-plan requirement `plans/SEASONS.md` §0.1 and §7 already
-  name for server-side matchmaking. Nothing client-side closes this; it's the
-  local-notifications design's known ceiling, not a bug in it.
-- **The live two-person confirm/dispute flow has never been exercised, and
-  Seasons should not be read as verified end to end.** Mutual confirmation's
-  entire subject is *two different people agreeing or disagreeing with each
-  other*, which no single-client test can reach. What **is** verified:
-  `firestore-tests/results.test.mjs` evaluates the real ruleset against two
-  distinct authenticated leaders — agreement confirms, disagreement disputes,
-  neither leader can write the other's report or manufacture an agreement
-  alone, and a disputed match is resolved by re-reporting — and `SeasonGameTests`
-  covers the derivation those rules mirror. What is **not**: no two real
-  accounts have ever queued, matched, played and reported to each other on
-  device, so `ResultView`'s own rendering and the live listener hand-off between
-  two phones are unseen. This is a deferred manual test, not a known defect;
-  it closes with a two-account pass, and nothing in the code can close it.
-- **An opponent's crest costs one extra read per match card.** `seasonGames`
-  denormalizes squad *names* so history survives a disbanded squad, but not
-  `iconKey`/`colorKey`, so `MatchmakingViewModel` and `ResultViewModel` each
-  fetch the opponent squad to draw a crest. Accepted deliberately over
-  denormalizing two more fields onto every match: a crest is decoration, a
-  failed read falls back to a redacted placeholder, and the alternative is two
-  more copies that can drift from `squads`. Worth revisiting only if a standings
-  screen ever renders many crests at once.
+- **Seasons has its own gaps file.** Everything specific to squads,
+  matchmaking, game day and recorded results lives in
+  [`gaps/SEASONS.md`](gaps/SEASONS.md) — the unverified two-person confirm flow,
+  the ways a played match can fail to reach a record, the local-notification
+  ceiling, and the costs taken on purpose. It is not duplicated here; a feature
+  with three collections, its own rules surface and its own test suite earns a
+  file rather than a bullet, and one gap recorded in two places is two gaps that
+  drift.
 - **No blocking, reporting, or rate limiting on friend requests.** Anyone
   signed in can search for anyone and send them a request; declining (which
   deletes the edge) is the only recourse, and nothing stops the same person
