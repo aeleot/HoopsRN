@@ -16,8 +16,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | Run all unit tests | `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:hooprTests` |
 | Run a specific test suite | `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:hooprTests/GameTests` |
 | Dry-run Firebase rules/indexes | `npm install -g firebase-tools && firebase login && firebase deploy --only firestore:rules,firestore:indexes --dry-run` |
+| **Evaluate** the rules against the emulator | `npm install && npm run test:rules` |
 | Check if docs are stale | `python3 tools/check_context_drift.py` |
 | Regenerate court dataset | `python3 tools/build_courts.py` or `python3 tools/fetch_city_courts.py` |
+
+**A dry-run is not a test.** It compiles `firestore.rules` and proves nothing about whether a write is allowed. `npm run test:rules` starts the Firestore emulator and evaluates the real ruleset — the claim race, the membership diffs, the stale-claim window. It needs a JDK (`brew install openjdk`); see [`firestore-tests/README.md`](firestore-tests/README.md).
 
 **Important:** Don't run `xcodebuild test` without `-only-testing:hooprTests` — the UI test runner currently fails to launch (`RequestDenied` from SpringBoard), which masks real failures.
 
@@ -114,7 +117,7 @@ Until `firestore.rules` is deployed, writes fail with `permission-denied` — th
 `Big-Boss-LLC.hoopr` binds to the Firebase app `hoopsrn-4f1e9`. Changing it requires a new app in the Firebase console and a fresh `GoogleService-Info.plist` — it orphans existing installs.
 
 ### Tests are unit-focused, UI tests skip
-`hooprTests/` has 120 real test methods across 11 suites. `hooprUITests` fails to launch on this project (SpringBoard `RequestDenied`), so don't run it. The fixture data in test files is non-scaffolding — it's either real Firestore documents or realistic test doubles.
+`hooprTests/` has 360 real test methods across 24 suites. `hooprUITests` fails to launch on this project (SpringBoard `RequestDenied`), so don't run it. The fixture data in test files is non-scaffolding — it's either real Firestore documents or realistic test doubles.
 
 ## Token efficiency
 

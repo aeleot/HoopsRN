@@ -1,0 +1,19 @@
+{
+  "name": "hoopsrn-firestore-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Firestore security-rules test harness for hoopsRN. The iOS app is the product; this package exists only to run `firestore.rules` against the Firestore emulator, because a rules dry-run compiles a file and cannot evaluate a write. See firestore-tests/README.md.",
+  "scripts": {
+    "test:rules": "./firestore-tests/run.sh",
+    "emulators": "./firestore-tests/emulators.sh"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
+    "firebase": "^12.5.0",
+    "firebase-tools": "^15.5.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

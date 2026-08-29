@@ -581,11 +581,14 @@ service cloud.firestore {
     // transactions is what makes exactly one of them win. That guarantee is the
     // entire matchmaker — see `context/plans/SEASONS.md` §2.2.
     //
-    // > **Not yet exercised by any client.** `MatchmakingService` is not built:
-    // > the claim race has to be proven against the Firestore emulator with two
-    // > concurrent clients before anything is built on it, and no emulator is
-    // > wired into `firebase.json`. Deploying this block is harmless — nothing
-    // > writes here yet — but it is a design, not a verified result.
+    // > **Raced, not assumed.** `firestore-tests/claim-race.test.mjs` runs two
+    // > concurrent clients at one ticket against the Firestore emulator fifteen
+    // > times and asserts exactly one wins, with the loser taking a transaction
+    // > failure rather than leaving a half-written document. The stale-claim
+    // > boundary is checked from both sides there too — 91 seconds re-claimable,
+    // > 89 not — which is where the *deployed* copy of that constant finally
+    // > gets evaluated rather than merely parsed. Run it with
+    // > `npm run test:rules`.
     //
     // The `matched` transition (status + matchedGameId, written once the game
     // document exists) is deliberately absent: it belongs with `seasonGames` in

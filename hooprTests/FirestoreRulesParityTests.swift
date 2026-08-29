@@ -17,7 +17,12 @@ import XCTest
 ///
 /// What this is not: a rules evaluator. It doesn't prove the rules are correct,
 /// only that the two copies of these shared constants still say the same thing.
-/// Full rules coverage needs the Firebase emulator, which isn't wired up here.
+/// **That job now has a home**: `firestore-tests/` runs the real ruleset against
+/// the Firestore emulator — the claim race, the stale-claim boundary, the
+/// membership diffs — with `npm run test:rules`. The two are complements, not
+/// substitutes: the emulator can prove a write is refused but knows nothing
+/// about the Swift constants, and this file is the only thing that keeps the
+/// two copies of a bound from drifting apart.
 ///
 /// The file is read from the source tree via `#filePath` rather than a test
 /// bundle resource, so it checks the *real* `firestore.rules` — the one that

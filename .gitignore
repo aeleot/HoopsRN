@@ -12,3 +12,11 @@ node_modules/
 # untracked and a fresh clone re-resolved `upToNextMajorVersion` to whatever
 # was current that day. The per-user state under a workspace is already covered
 # by the `xcuserdata/` rule above, which matches at any depth.
+
+# Firebase emulator debug logs, written into the working directory by
+# `firebase emulators:exec`. Transient, and one per run.
+firestore-debug.log
+firebase-debug.log
+ui-debug.log
+database-debug.log
+pubsub-debug.log
