@@ -1,15 +1,18 @@
 # hoopsRN — Database Schema
 
 **Scope:** `firestore.rules`, `firestore.indexes.json`, `firebase.json`, `.firebaserc`, `firestore-tests/`
-**Verified:** 2026-08-29 @ 513a3d5
+**Verified:** 2026-08-29 @ 7c0aa0b
 
-What's stored server-side and what a client may write. Six collections are live:
+What's stored server-side and what a client may write. Seven collections are
+live:
 `users` (one owner per document), `games` (the first shared, multi-user state),
 `friendships` (one document per *pair* of people, written by either of them),
 `squads` (a team, written by its leader and by each member for their own
 membership), `squadInvites` (structurally `friendships`, one document per
-squad-and-person pair), and `matchTickets` (a squad's standing offer to play, and
-the only document here whose contested write belongs to *another* squad).
+squad-and-person pair), `matchTickets` (a squad's standing offer to play, and the only
+document here whose contested write belongs to *another* squad), and
+`seasonGames` (a scheduled match, and the documents a squad's record is derived
+from).
 Datastore is Cloud Firestore (Native mode), project `hoopsrn-4f1e9`, region
 `nam5`. Rules live in `firestore.rules` at the repo root and are deployed via the
 Firebase CLI.
@@ -17,15 +20,17 @@ Firebase CLI.
 Firebase Auth already provides *identity* (uid, email). The collections below
 are app-owned data layered on top of that identity, never a replacement for it.
 
-The six are a progression in **who may write a document**, and each one's rules
+The seven are a progression in **who may write a document**, and each one's rules
 are worth reading in that order: `users` has exactly one author; `games` has
 many, each confined to their own lane of a shared document; `friendships` has
 two, with asymmetric authority spent in a single move; `squads` has a leader plus
 every member acting only on their own membership; `squadInvites` returns to
 asymmetric authority, spent in one move and answered by a write to a *different*
-collection; and `matchTickets` breaks the pattern entirely — it is written by
+collection; `matchTickets` breaks the pattern entirely — it is written by
 somebody who doesn't own it, and correctness rests on Firestore's concurrency
-guarantee rather than on any rule.
+guarantee rather than on any rule; and `seasonGames` is written by one squad's
+leader about *both* squads, authorized by a claim the rules re-read rather than
+trust.
 
 **A dry-run is not a test.** `firebase deploy --dry-run` proves this file
 compiles. Whether a write is actually refused is evaluated in `firestore-tests/`
@@ -763,6 +768,135 @@ that crashed simply never appears in anybody's pool.
 
 ---
 
+## `seasonGames`
+
+A scheduled squad-vs-squad match — the document the whole feature exists to
+produce, and the one a squad's record is derived from.
+
+**Document ID is Firestore-generated**, with `id` mirroring it, following
+`games`.
+
+| field | type | required | mutable | notes |
+|---|---|---|---|---|
+| `id` | string | yes | no | Mirrors the document ID. |
+| `format` / `region` | string | yes | no | Copied from the home ticket and pinned to it. |
+| `homeSquadId` | string | yes | no | **The squad whose ticket was claimed** — so the court and window are theirs. |
+| `awaySquadId` | string | yes | no | The squad that won the claim and wrote this document. |
+| `squadIds` | array\<string\> | yes | no | `[home, away]`, in that order. The `array-contains` query field, and the reason one listener serves both squads. The rule pins the exact array, order included. |
+| `homeLeaderId` / `awayLeaderId` | string | yes | no | Denormalized, and **verified against `squads` at create**. See below. |
+| `homeSquadName` / `awaySquadName` | string | yes | no | Denormalized so history survives a disbanded squad. Verified against `squads` at create, so they can't be invented. |
+| `courtId` | string | yes | no | Must be in the home ticket's `courtIds`. |
+| `scheduledTime` | timestamp | yes | no | Must fall inside the home ticket's window, and be in the future. |
+| `status` | string | yes | yes | `scheduled` \| `cancelled` \| `confirmed` \| `disputed`. |
+| `arrivedPlayerIds` | array\<string\> | yes | yes | Self-add only, both squads in one array. `[]` at create. Phase 5. |
+| `homeReport` / `awayReport` | string? | no | yes | The squad ID each leader says won. Each pinned to its own leader. Phase 6. |
+| `homeScore` / `awayScore` | int? | no | yes | Optional, cosmetic. Phase 6. |
+| `result` | string? | no | yes | The winning squad ID, written **only** when both reports agree. Phase 6. |
+| `cancelledBySquadId` | string? | no | yes | Written by the cancelling leader, as their own squad. |
+| `createdBy` | string | yes | no | uid of the claiming leader. |
+| `createdAt` / `updatedAt` | timestamp | yes | — | Server-assigned. |
+| `confirmedAt` | timestamp? | no | yes | Phase 6. |
+
+### What authorizes naming another squad
+
+This is the document that makes squad play legal, so the question is worth
+answering directly: **a won claim, proved rather than asserted.** The create
+rule reads the home squad's ticket and requires `status == 'claimed'` *and*
+`claimedBy == awaySquadId`, with the caller being `awayLeaderId`. Only one squad
+could have won that race — Firestore serializes the contested transaction — so
+the authority traces back to a lock the home leader themselves created by
+queueing.
+
+Nobody's uid is written by anybody else. `homeLeaderId` is a **copy of a fact**
+verified against `squads/{homeSquadId}`, not an assertion about a person.
+
+### The denormalized leader IDs are why later writes are free
+
+Cancel costs **zero document accesses**, because both leader IDs are already on
+the document. Phase 6's reports will be the same. That is the entire payoff for
+denormalizing them — and exactly why they are verified once, at create, and
+immutable afterwards.
+
+A forged `homeLeaderId` would hand the away side the home leader's own write
+paths: their cancel, and later their report. That single condition in the create
+rule is what stands between the two.
+
+### What the rule costs
+
+**Three document accesses** — the home ticket, and both squads. Rules `get()`s
+against the same path within one evaluation are cached, so the repeated ticket
+reads are free. Three of the ten the platform allows.
+
+### Readable by any signed-in account
+
+Like `squads` and `matchTickets`, and unlike `games`, which gates on `isPublic`
+or roster membership. Season play is public by design and a squad's record is a
+query over these documents, so gating them would make records unreadable by the
+people a record is *for*.
+
+### No delete, ever
+
+A squad's record is a query over these documents, so **a deletable match is a
+forgeable record** — which is the whole thing the derived-record design exists
+to prevent. Cancelling is the exit, and it is an update rather than a delete
+because a cancelled match is still history both squads should see. A cancelled
+match is structurally excluded from the record because it never reaches
+`confirmed`.
+
+### The double-booking window, and how it closes
+
+`../plans/SEASONS.md` §2.3 covers a claimer that dies **before** writing the
+game: the claim goes stale after 90 seconds and the ticket returns to the pool.
+It does not cover a claimer that dies **after** writing the game and before
+marking the tickets `matched`. That ticket also goes stale, and its game already
+exists — so a third squad re-claims it and creates a second game against a squad
+that already has one.
+
+**The fix needs no new permission: each squad marks its own ticket `matched` off
+its own `seasonGames` listener.** A leader can always write their own ticket, so
+the home squad closes the window itself the moment the game lands, without
+anyone writing anyone else's document. The `matched` transition on
+`matchTickets` therefore admits two writers — the leader named in `claimedBy`
+(the fast path) and the ticket's own leader (the safe one) — and it is a
+separate `allow update` from the claim, the same one-write-one-path split
+`squads` uses.
+
+**Duplicate matches can still be created inside that window, and are not
+prevented in rules**, which cannot query. The client renders the
+earliest-created one and a leader cancels the other. If it happens more than
+rarely, the jitter or the stale window is wrong — `SeasonGameService` logs it
+for that reason.
+
+### The record is a query
+
+`seasonGames where squadIds array-contains {squadId} and status == 'confirmed'`,
+counted client-side by `result`. See `squads` above for why it is not a stored
+field. Until Phase 6 confirms anything the query returns nothing, and an
+unplayed squad reads as 0.5 rather than as a squad that loses everything —
+`SeasonGame.record(for:in:)` and `MatchTicket.winPercentage` agree on that.
+
+The derivation is written **now**, before it can return anything, precisely so a
+ticket doesn't hardcode zeros and then keep reading zero after Phase 6 ships
+with nothing failing to say so.
+
+### Access
+
+- **Read:** any signed-in user.
+- **Create:** the away leader, on a claim they won, with the court and time
+  drawn from the home ticket and both squads' leaders and names verified.
+  `result`, the reports, the scores, `cancelledBySquadId` and `confirmedAt` are
+  absent from the key allowlist, so a match cannot be born already won.
+- **Update (cancel):** either leader, from `scheduled` only, as their own squad.
+- **Delete:** never.
+
+### Indexes
+
+One composite, on `(squadIds CONTAINS, scheduledTime ASC)` — the listener, which
+uses `array-contains-any` so a person on more than one squad gets all their
+matches from one query. The same index serves `array-contains`.
+
+---
+
 ## Invariants
 
 - Each collection's document ID is fixed by its own rule and never client-chosen
@@ -796,6 +930,10 @@ that crashed simply never appears in anybody's pool.
 - `squads` and `matchTickets` are world-readable to signed-in accounts, so the
   same rule `users` follows applies: **nothing private goes in them**, and the
   create rules' key allowlists are what enforce it.
+- A `seasonGame` can never be deleted. A deletable match is a forgeable
+  record, and the record is a query over exactly these documents.
+- The leader IDs denormalized onto a `seasonGame` are verified against `squads`
+  at create and immutable after, because every later write trusts them for free.
 - `staleClaim = 90s` appears in four places — two Swift constants, the waiting
   UI, and the rules. They must agree; two different tests exist to make sure.
 - Every new editable field needs both a service write method and a rules

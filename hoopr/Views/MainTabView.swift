@@ -33,6 +33,8 @@ struct MainTabView: View {
     /// and a plain `let` wouldn't redraw when one arrives.
     @ObservedObject private var friendService: FriendService
     private let squadService: SquadService
+    private let matchmakingService: MatchmakingService
+    private let seasonGameService: SeasonGameService
     private let recentCourtsStore: RecentCourtsStore
 
     init(
@@ -43,6 +45,8 @@ struct MainTabView: View {
         gameService: GameService,
         friendService: FriendService,
         squadService: SquadService,
+        matchmakingService: MatchmakingService,
+        seasonGameService: SeasonGameService,
         recentCourtsStore: RecentCourtsStore
     ) {
         self.authService = authService
@@ -52,6 +56,8 @@ struct MainTabView: View {
         self.gameService = gameService
         self.friendService = friendService
         self.squadService = squadService
+        self.matchmakingService = matchmakingService
+        self.seasonGameService = seasonGameService
         self.recentCourtsStore = recentCourtsStore
     }
 
@@ -146,6 +152,8 @@ struct MainTabView: View {
             Tab("Seasons", systemImage: "trophy.fill", value: Screen.seasons) {
                 SeasonsTab(
                     squadService: squadService,
+                    matchmakingService: matchmakingService,
+                    seasonGameService: seasonGameService,
                     friendService: friendService,
                     userProfileService: userProfileService,
                     courtService: courtService,
@@ -177,6 +185,8 @@ struct MainTabView: View {
         gameService: GameService(authService: authService),
         friendService: FriendService(authService: authService),
         squadService: SquadService(authService: authService),
+        matchmakingService: MatchmakingService(authService: authService),
+        seasonGameService: SeasonGameService(authService: authService),
         recentCourtsStore: RecentCourtsStore()
     )
 }

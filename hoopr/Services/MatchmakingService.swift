@@ -90,6 +90,7 @@ final class MatchmakingService: ObservableObject {
         static let status = "status"
         static let claimedBy = "claimedBy"
         static let claimedAt = "claimedAt"
+        static let matchedGameId = "matchedGameId"
         static let createdAt = "createdAt"
         static let expiresAt = "expiresAt"
     }
@@ -608,6 +609,54 @@ final class MatchmakingService: ObservableObject {
             let ticketError = Self.mapped(error)
             report(ticketError, whileDoing: "joining the queue", context: .write)
             throw ticketError
+        }
+    }
+
+    /// Marks a ticket `matched`, pointing it at the game that was created.
+    ///
+    /// **Called for two different reasons, by two different clients.**
+    ///
+    /// 1. The squad that won the claim closes out both tickets right after
+    ///    writing the game. That is the fast path.
+    /// 2. The *home* squad marks **its own** ticket matched off its own
+    ///    `seasonGames` listener, the moment the game lands.
+    ///
+    /// The second one closes a window the plan doesn't cover. §2.3 handles a
+    /// claimer that dies *before* writing the game — the claim goes stale after
+    /// 90 seconds and the ticket returns to the pool. It says nothing about a
+    /// claimer that dies **after** writing the game and before marking the
+    /// tickets: that ticket also goes stale, and its game already exists, so a
+    /// third squad re-claims it and creates a second game against a squad that
+    /// already has one.
+    ///
+    /// A leader can always write their own ticket, so the home squad can shut
+    /// the window itself without anyone writing anyone else's document — which
+    /// is the only fix the security model admits. The rules accept both writers
+    /// for exactly this reason.
+    ///
+    /// Idempotent in effect: whichever client gets there second finds the
+    /// ticket already `matched`, the `claimed` → `matched` transition no longer
+    /// applies, and the refusal is swallowed. Two clients doing the same
+    /// necessary thing is not a failure.
+    func markMatched(squadId: String, gameId: String) async {
+        guard observedUID != nil else { return }
+
+        do {
+            try await database
+                .collection(Collection.matchTickets)
+                .document(squadId)
+                .updateData([
+                    Field.status: MatchTicket.Status.matched.rawValue,
+                    Field.matchedGameId: gameId,
+                ])
+            logger.debug("Marked ticket \(squadId, privacy: .public) matched")
+        } catch {
+            // Never surfaced. Either somebody else already did it — the common
+            // case, and the point of having two writers — or the ticket is gone,
+            // which is also fine: an unmarked ticket ages out on `expiresAt`.
+            logger.debug(
+                "Couldn't mark ticket \(squadId, privacy: .public) matched: \(error.localizedDescription, privacy: .public)"
+            )
         }
     }
 

@@ -31,6 +31,8 @@ struct hooprApp: App {
     @StateObject private var gameService: GameService
     @StateObject private var friendService: FriendService
     @StateObject private var squadService: SquadService
+    @StateObject private var matchmakingService: MatchmakingService
+    @StateObject private var seasonGameService: SeasonGameService
 
     /// Applied at the window root so it reaches every screen *and* every sheet
     /// presented from one — a `preferredColorScheme` set further down would
@@ -52,6 +54,8 @@ struct hooprApp: App {
         _gameService = StateObject(wrappedValue: GameService(authService: authService))
         _friendService = StateObject(wrappedValue: FriendService(authService: authService))
         _squadService = StateObject(wrappedValue: SquadService(authService: authService))
+        _matchmakingService = StateObject(wrappedValue: MatchmakingService(authService: authService))
+        _seasonGameService = StateObject(wrappedValue: SeasonGameService(authService: authService))
     }
 
     var body: some Scene {
@@ -64,6 +68,8 @@ struct hooprApp: App {
                 gameService: gameService,
                 friendService: friendService,
                 squadService: squadService,
+                matchmakingService: matchmakingService,
+                seasonGameService: seasonGameService,
                 recentCourtsStore: recentCourtsStore
             )
             .preferredColorScheme(appearance.colorScheme)

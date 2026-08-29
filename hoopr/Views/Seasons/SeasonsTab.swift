@@ -6,12 +6,17 @@ import SwiftUI
 /// explains what a season *is* before asking for anything; with a squad it's
 /// squad home — crest, record, roster, and the one card that matters right now.
 ///
-/// **The matchmaking card says out loud that matchmaking isn't built yet.** A
-/// disabled button with no explanation would read as a bug on the user's
-/// account rather than as a feature that hasn't shipped, and the honest version
-/// costs one sentence.
+/// **The matchmaking card carries screens 5 and 6 as states rather than
+/// destinations** — plan §5's screen 2 already describes this space as "next
+/// match, searching, or find a match", so `MatchmakingCard` swaps its contents
+/// in place instead of pushing anywhere.
 struct SeasonsTab: View {
     @StateObject private var viewModel: SquadViewModel
+
+    /// Holds `MatchmakingService` and `SeasonGameService` together and
+    /// sequences claim → create → mark matched across them. See its own doc
+    /// comment for why a write sequence lives in a view model.
+    @StateObject private var matchmaking: MatchmakingViewModel
 
     /// Observed because `ProfileButton` reads it for its badge dot.
     @ObservedObject private var friendService: FriendService
@@ -25,11 +30,20 @@ struct SeasonsTab: View {
         let id = "create-squad"
     }
 
+    /// Screen 4, presented with `sheet(item:)` like every other sheet here.
+    private struct QueueRoute: Identifiable {
+        let id = "queue"
+        let squad: Squad
+    }
+
     @State private var creating: CreateRoute?
+    @State private var queueing: QueueRoute?
     @State private var path: [String] = []
 
     init(
         squadService: SquadService,
+        matchmakingService: MatchmakingService,
+        seasonGameService: SeasonGameService,
         friendService: FriendService,
         userProfileService: UserProfileService,
         courtService: CourtService,
@@ -42,6 +56,12 @@ struct SeasonsTab: View {
             friendService: friendService,
             userProfileService: userProfileService,
             courtService: courtService
+        ))
+        _matchmaking = StateObject(wrappedValue: MatchmakingViewModel(
+            matchmakingService: matchmakingService,
+            seasonGameService: seasonGameService,
+            courtService: courtService,
+            squadService: squadService
         ))
     }
 
@@ -88,7 +108,22 @@ struct SeasonsTab: View {
                     onCancel: { creating = nil }
                 )
             }
+            .sheet(item: $queueing) { route in
+                QueueSheet(
+                    viewModel: matchmaking,
+                    squad: route.squad,
+                    onDismiss: { queueing = nil }
+                )
+            }
         }
+    }
+
+    /// The squad's record, read from the derived query rather than a stored
+    /// counter. Reads as "No games played yet" until Phase 6 confirms
+    /// something, and starts moving on its own the day it does.
+    private var recordText: String {
+        let record = matchmaking.myRecord
+        return record.isUnplayed ? "No games played yet" : "\(record.displayText) this season"
     }
 
     // MARK: - Header
@@ -172,7 +207,12 @@ struct SeasonsTab: View {
             }
             .buttonStyle(.plain)
 
-            matchmakingCard
+            MatchmakingCard(viewModel: matchmaking, squad: squad) {
+                queueing = QueueRoute(squad: squad)
+            }
+            // Re-pointed whenever the primary squad changes, which is also the
+            // first render — the view model no-ops on a repeat.
+            .task(id: squad.id) { matchmaking.start(squad: squad) }
 
             rosterCard(squad)
 
@@ -209,10 +249,11 @@ struct SeasonsTab: View {
                     .foregroundStyle(Color.hooprSecondaryText)
 
                 // The record is a *query* over confirmed games, not a stored
-                // counter (plan §1.1). There are no season games yet, so this
-                // says so rather than rendering a 0–0 that looks like a real
-                // result.
-                Text("No games played yet")
+                // counter (plan §1.1). Nothing reaches `confirmed` until
+                // Phase 6, so this reads "No games played yet" for now — but it
+                // reads it from the query, so it starts moving on its own the
+                // day results ship.
+                Text(recordText)
                     .hooprFont(13)
                     .foregroundStyle(Color.hooprSecondaryText)
             }
@@ -227,24 +268,6 @@ struct SeasonsTab: View {
         .cardChrome()
         .accessibilityElement(children: .combine)
         .accessibilityHint("Opens squad details")
-    }
-
-    /// The honest empty state the plan asks for: what this space is going to
-    /// hold, and that it doesn't hold it yet.
-    private var matchmakingCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Matchmaking is coming")
-                .hooprFont(16, weight: .semibold)
-                .foregroundStyle(Color.hooprPrimaryText)
-
-            Text("Queueing your squad against another one isn't built yet. For now, get your roster together — you'll be ready the day it lands.")
-                .hooprFont(14)
-                .foregroundStyle(Color.hooprSecondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .cardChrome()
     }
 
     private func rosterCard(_ squad: Squad) -> some View {

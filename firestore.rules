@@ -590,10 +590,9 @@ service cloud.firestore {
     // > gets evaluated rather than merely parsed. Run it with
     // > `npm run test:rules`.
     //
-    // The `matched` transition (status + matchedGameId, written once the game
-    // document exists) is deliberately absent: it belongs with `seasonGames` in
-    // the next phase, and a transition to a state nothing can create yet would
-    // be a rule nobody could satisfy.
+    // The `matched` transition is below, and it admits **two** writers — see
+    // the rule for why the second one is what closes a window the plan doesn't
+    // cover.
     //
     // MIRRORED IN SWIFT — the stale-claim window, the court-count bounds, and
     // the ticket lifetime. `hooprTests/FirestoreRulesParityTests` fails if
@@ -713,11 +712,184 @@ service cloud.firestore {
         // fresh forever and wedge the ticket.
         && incoming().claimedAt == request.time;
 
+      // **The `matched` transition — two writers, deliberately.**
+      //
+      // Kept a separate `allow update` from the claim above, the same
+      // one-write-one-path split `squads` uses: a claim can never smuggle in a
+      // `matchedGameId`, and a match can never re-claim.
+      //
+      // The obvious writer is the squad that won the claim, closing out its own
+      // handoff. The second writer is **this ticket's own leader**, and it
+      // exists to close a window `context/plans/SEASONS.md` §2.3 doesn't cover.
+      // §2.3 handles a claimer that dies *before* writing the game: the claim
+      // goes stale after 90 seconds and the ticket returns to the pool. It says
+      // nothing about a claimer that dies **after** writing the game and before
+      // marking the tickets matched — that ticket also goes stale, and its game
+      // already exists, so a third squad re-claims it and creates a second game
+      // against a squad that already has one.
+      //
+      // The fix that needs no new permission: each squad marks its **own**
+      // ticket matched off its own `seasonGames` listener. A leader can always
+      // write their own ticket, so the home squad closes the window itself the
+      // moment the game lands, without anyone writing anyone else's document.
+      // The away leader's write stays as the fast path; this is the one that
+      // makes it safe.
+      //
+      // The game has to actually exist and actually name this squad, or the
+      // transition would be a way to strand a ticket in a state no listener
+      // will ever move it out of. `exists()` before `get()`, because a get() on
+      // a missing document fails the whole rule as an error rather than a clean
+      // denial.
+      allow update: if isSignedIn()
+        && incoming().diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'matchedGameId'])
+        && resource.data.status == 'claimed'
+        && incoming().status == 'matched'
+        && incoming().matchedGameId is string
+        && exists(/databases/$(database)/documents/seasonGames/$(incoming().matchedGameId))
+        && get(/databases/$(database)/documents/seasonGames/$(incoming().matchedGameId))
+             .data.squadIds.hasAll([squadId])
+        // The ticket's own leader first, so the common path short-circuits
+        // before spending a document access on the claiming squad.
+        && (resource.data.leaderId == request.auth.uid
+            || get(/databases/$(database)/documents/squads/$(resource.data.claimedBy))
+                 .data.leaderId == request.auth.uid);
+
       // Leaving the queue. The leader's alone, and a delete rather than a
       // status: absence, never null, the same move `friendships` makes.
       // An abandoned ticket also ages out on `expiresAt` without anyone having
       // to remove it.
       allow delete: if isSignedIn() && resource.data.leaderId == request.auth.uid;
+    }
+
+    // A scheduled squad-vs-squad match — the document the whole feature exists
+    // to produce.
+    //
+    // **This is where naming another squad becomes legal.** Every other
+    // collection here enforces "a client may only ever write its own
+    // membership", and this document commits six people to a game. It doesn't
+    // break the rule, because it names *squad IDs*, not player uids: the away
+    // leader writes one identifier they already own, and everything about the
+    // home side is verified against the home squad's own ticket. Nobody's uid
+    // is written by anybody else anywhere in Seasons. See
+    // `context/plans/SEASONS.md` §0.3.
+    //
+    // **Readable by any signed-in user**, like `squads` and `matchTickets` and
+    // unlike `games`, which gates on `isPublic` or roster membership. Season
+    // play is public by design — records, standings and an opponent's history
+    // are the point of the feature, and a squad's W-L is a query over these
+    // documents. Recorded in `context/database/DATABASE_SCHEMA.md` as the
+    // deliberate privacy decision it is.
+    //
+    // **The denormalized leader IDs are the reason the later write paths are
+    // free.** Cancel costs zero document accesses because `homeLeaderId` and
+    // `awayLeaderId` are already on the document — which is exactly why they
+    // are verified against `squads` at create and immutable afterwards. A
+    // forged one would hand the away side the home leader's own write paths.
+    match /seasonGames/{gameId} {
+      function isSignedIn() { return request.auth != null; }
+      function incoming() { return request.resource.data; }
+
+      // The claimed ticket that authorizes this match. One access, cached
+      // across every use below.
+      function homeTicket() {
+        return get(/databases/$(database)/documents/matchTickets/$(incoming().homeSquadId)).data;
+      }
+
+      function squad(id) {
+        return get(/databases/$(database)/documents/squads/$(id)).data;
+      }
+
+      allow read: if isSignedIn();
+
+      // Three document accesses: the home ticket and both squads. Rules get()s
+      // against the same path within one evaluation are cached, so the repeated
+      // homeTicket() calls below cost nothing extra — three of the ten the
+      // platform allows.
+      allow create: if isSignedIn()
+        && incoming().keys().hasOnly(['id', 'format', 'region',
+                                      'homeSquadId', 'awaySquadId', 'squadIds',
+                                      'homeLeaderId', 'awayLeaderId',
+                                      'homeSquadName', 'awaySquadName',
+                                      'courtId', 'scheduledTime', 'status',
+                                      'arrivedPlayerIds', 'createdBy',
+                                      'createdAt', 'updatedAt'])
+        && incoming().keys().hasAll(['id', 'format', 'region',
+                                     'homeSquadId', 'awaySquadId', 'squadIds',
+                                     'homeLeaderId', 'awayLeaderId',
+                                     'homeSquadName', 'awaySquadName',
+                                     'courtId', 'scheduledTime', 'status',
+                                     'arrivedPlayerIds', 'createdBy',
+                                     'createdAt', 'updatedAt'])
+        // `result`, `homeReport`, `awayReport`, `homeScore`, `awayScore`,
+        // `cancelledBySquadId` and `confirmedAt` are absent from the allowlist,
+        // so a match cannot be born already won. Absence, never null.
+        && incoming().id == gameId
+        && incoming().createdBy == request.auth.uid
+        && incoming().awayLeaderId == request.auth.uid
+        && incoming().homeSquadId != incoming().awaySquadId
+        // Order matters: the array-contains query field is built as
+        // [home, away] and the rule pins that exact shape.
+        && incoming().squadIds == [incoming().homeSquadId, incoming().awaySquadId]
+
+        // **Proves the claim was won.** This is the condition that authorizes
+        // naming another squad at all: the home ticket says it is claimed, and
+        // says it is claimed by *us*. Only one squad could have won that race.
+        && homeTicket().status == 'claimed'
+        && homeTicket().claimedBy == incoming().awaySquadId
+
+        // The court and the time must be ones the home squad actually offered.
+        // Both clients derive these from the same pure function, but agreement
+        // is not the guarantee — this is. A modified client cannot schedule you
+        // somewhere you never said you would go, or at an hour you never said
+        // you were free.
+        && homeTicket().courtIds.hasAll([incoming().courtId])
+        && incoming().scheduledTime >= homeTicket().windowStart
+        && incoming().scheduledTime <= homeTicket().windowEnd
+        && incoming().scheduledTime > request.time
+        && incoming().format == homeTicket().format
+        && incoming().region == homeTicket().region
+
+        // Verified once, here, because every later write trusts them for free.
+        && squad(incoming().homeSquadId).leaderId == incoming().homeLeaderId
+        && squad(incoming().homeSquadId).name == incoming().homeSquadName
+        && squad(incoming().awaySquadId).leaderId == request.auth.uid
+        && squad(incoming().awaySquadId).name == incoming().awaySquadName
+
+        && incoming().status == 'scheduled'
+        && incoming().arrivedPlayerIds == []
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      // Cancellation — **either leader**, and only from `scheduled`.
+      //
+      // Zero document accesses: the leader IDs were verified at create and are
+      // immutable, so this reads them straight off the document. A leader may
+      // only cancel *as their own squad*, which is what keeps
+      // `cancelledBySquadId` an honest record of who called it off rather than
+      // a field either side can point at the other.
+      //
+      // A match nobody could call off would sit on both squads' home screens
+      // forever — the same argument `games` makes for cancellation. It is an
+      // update rather than a delete because a cancelled match is still history
+      // both squads should be able to see.
+      allow update: if isSignedIn()
+        && incoming().diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'cancelledBySquadId', 'updatedAt'])
+        && resource.data.status == 'scheduled'
+        && incoming().status == 'cancelled'
+        && ((request.auth.uid == resource.data.homeLeaderId
+             && incoming().cancelledBySquadId == resource.data.homeSquadId)
+            || (request.auth.uid == resource.data.awayLeaderId
+                && incoming().cancelledBySquadId == resource.data.awaySquadId))
+        && incoming().updatedAt == request.time;
+
+      // **No delete, ever.** A squad's record is a query over these documents,
+      // so a deletable match is a forgeable record — which is the entire thing
+      // the derived-record design exists to prevent. Cancelling is the exit,
+      // and a cancelled match is structurally excluded from the record because
+      // it never reaches `confirmed`.
+      allow delete: if false;
     }
   }
 }
