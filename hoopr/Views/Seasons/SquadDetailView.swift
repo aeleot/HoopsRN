@@ -236,21 +236,12 @@ struct SquadDetailView: View {
         case .confirmed:
             FormPill(outcome: .loss)
         case .disputed:
-            neutralBadge("!", label: "Results don't match")
+            NeutralResultPill(glyph: "!", label: "Results don't match")
         case .cancelled:
-            neutralBadge("–", label: "Cancelled")
+            NeutralResultPill(glyph: "–", label: "Cancelled")
         case .scheduled:
-            neutralBadge("·", label: "No result yet")
+            NeutralResultPill(glyph: "·", label: "No result yet")
         }
-    }
-
-    private func neutralBadge(_ glyph: String, label: String) -> some View {
-        Text(glyph)
-            .hooprFont(13, weight: .bold)
-            .foregroundStyle(Color.hooprSecondaryText)
-            .frame(width: 28, height: 28)
-            .background(Circle().fill(Color.hooprFill))
-            .accessibilityLabel(label)
     }
 
     // MARK: - Roster

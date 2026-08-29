@@ -172,19 +172,26 @@ struct MatchmakingCard: View {
                             .foregroundStyle(Color.hooprSecondaryText)
 
                         // The opponent's crest keys aren't on the game
-                        // document — names are denormalized so history
-                        // survives a disbanded squad, but the crest is not. A
-                        // neutral placeholder rather than a fetch: one more
-                        // read per match card, for decoration, isn't worth it
-                        // before Phase 7's polish pass.
-                        SquadCrest(
-                            iconKey: "shield.fill",
-                            colorKey: "blue",
-                            size: SquadCrest.Size.card
-                        )
+                        // document — names are denormalized so history survives
+                        // a disbanded squad, the icon and colour are not — so
+                        // the view model fetches the squad. Until it lands, a
+                        // redacted placeholder rather than a wrong crest: this
+                        // rendered a hardcoded shield in blue for every
+                        // opponent until Phase 7, which is a crest that lies
+                        // rather than one that hasn't arrived.
+                        if let opponent = viewModel.opponentSquad {
+                            SquadCrest(squad: opponent, size: SquadCrest.Size.card)
+                        } else {
+                            SquadCrest(
+                                iconKey: Squad.defaultIconKey,
+                                colorKey: Squad.defaultColorKey,
+                                size: SquadCrest.Size.card
+                            )
+                            .redacted(reason: .placeholder)
+                        }
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(game.opponentName(of: squad.id) ?? "Opponent")
+                            Text(opponentName(in: game))
                                 .hooprFont(17, weight: .semibold)
                                 .foregroundStyle(Color.hooprPrimaryText)
                                 .multilineTextAlignment(.leading)
@@ -196,6 +203,14 @@ struct MatchmakingCard: View {
 
                         Spacer(minLength: 0)
                     }
+                    // Both crests are decorative and hidden, so without this
+                    // the row announces only the opponent — the matchup is
+                    // carried entirely by two glyphs a screen reader can't see,
+                    // and "who is playing whom" never gets said.
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(
+                        "\(squad.name) versus \(opponentName(in: game)). \(opponentRecordText)"
+                    )
 
                     VStack(alignment: .leading, spacing: 6) {
                         detailRow(
@@ -238,6 +253,10 @@ struct MatchmakingCard: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    private func opponentName(in game: SeasonGame) -> String {
+        game.opponentName(of: squad.id) ?? "Opponent"
     }
 
     private var opponentRecordText: String {

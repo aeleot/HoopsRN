@@ -116,20 +116,33 @@ struct QueueSheet: View {
         VStack(alignment: .leading, spacing: 10) {
             sectionTitle("When")
 
-            HStack(spacing: 8) {
-                ForEach(QueueWindow.allCases) { option in
-                    chip(
-                        option.title,
-                        isSelected: window == option,
-                        // A chip whose window no longer holds a game disables
-                        // itself rather than offering something the rules would
-                        // refuse — "Tonight" at half past nine.
-                        isEnabled: option == .custom
-                            || option.window(format: squad.format, now: now) != nil
-                    ) {
-                        window = option
-                    }
-                }
+            // Three chips fit in a row at ordinary text sizes and stop fitting
+            // well before `.accessibility3`, where an `HStack` squeezes each
+            // into a third of the width and the words break mid-character —
+            // "Tomorrow evening" became four broken lines in a tall ellipse.
+            // `ViewThatFits` takes the row while it fits and the column when it
+            // doesn't, which is the reflow `Typography` asks for instead of a
+            // `minimumScaleFactor`.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { windowChips }
+                VStack(alignment: .leading, spacing: 8) { windowChips }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var windowChips: some View {
+        ForEach(QueueWindow.allCases) { option in
+            chip(
+                option.title,
+                isSelected: window == option,
+                // A chip whose window no longer holds a game disables
+                // itself rather than offering something the rules would
+                // refuse — "Tonight" at half past nine.
+                isEnabled: option == .custom
+                    || option.window(format: squad.format, now: now) != nil
+            ) {
+                window = option
             }
         }
     }
@@ -156,20 +169,36 @@ struct QueueSheet: View {
             }
 
             VStack(spacing: 0) {
-                ForEach(offeredCourtIds, id: \.self) { courtId in
-                    courtRow(courtId)
-                    if courtId != offeredCourtIds.last {
-                        Divider().overlay(Color.hooprBorder)
+                if offeredCourtIds.isEmpty {
+                    // The bundled dataset loads synchronously and holds 214
+                    // courts, so an empty list means it failed to load rather
+                    // than that nothing is nearby. A sentence, because an empty
+                    // card under a "Where" heading reads as a broken screen.
+                    Text("No courts loaded, so there's nowhere to offer. Reopen the app and try again.")
+                        .hooprFont(13)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                } else {
+                    ForEach(offeredCourtIds, id: \.self) { courtId in
+                        courtRow(courtId)
+                        if courtId != offeredCourtIds.last {
+                            Divider().overlay(Color.hooprBorder)
+                        }
                     }
                 }
             }
             .padding(.vertical, 4)
             .cardChrome()
 
-            Text("Ordered by preference — the first court you both accept is where you'll play.")
-                .hooprFont(12)
-                .foregroundStyle(Color.hooprSecondaryText)
-                .fixedSize(horizontal: false, vertical: true)
+            if !offeredCourtIds.isEmpty {
+                Text("Ordered by preference — the first court you both accept is where you'll play.")
+                    .hooprFont(12)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -229,6 +258,11 @@ struct QueueSheet: View {
                     isSelected ? Color.hooprOnBrand
                         : isEnabled ? Color.hooprPrimaryText : Color.hooprSecondaryText
                 )
+                // One line at its natural width, so `ViewThatFits` measures the
+                // chip the reader would actually get rather than a squeezed
+                // one — without this the row "fits" by breaking words.
+                .lineLimit(1)
+                .fixedSize()
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(

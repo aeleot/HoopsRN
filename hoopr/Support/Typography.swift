@@ -40,31 +40,25 @@ extension View {
     }
 }
 
-/// Resolves the scaled size against the environment's Dynamic Type setting.
+/// The size arithmetic behind `hooprFont`, as pure functions.
 ///
-/// A `ViewModifier` rather than a `Font`-returning helper because the scale
-/// factor is environment-dependent: reading `@Environment(\.dynamicTypeSize)`
-/// is what makes SwiftUI re-evaluate this when the reader changes their text
-/// size while the app is open.
-private struct ScaledSystemFont: ViewModifier {
-    let size: CGFloat
-    let weight: Font.Weight
-    let maximumSize: CGFloat?
-
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    func body(content: Content) -> some View {
-        content.font(.system(size: scaledSize, weight: weight))
-    }
-
-    private var scaledSize: CGFloat {
+/// Pulled out of the modifier below so the one question the type ramp can get
+/// wrong — *does this still fit the frame it's locked into?* — can be asked in a
+/// test without hosting a view. `SeasonsAccessibilityTests` asks it of every
+/// fixed-size badge in the app; the answer is only trustworthy because this is
+/// the same code the modifier runs, rather than a second copy of the curve.
+nonisolated enum HooprFontMetrics {
+    /// The point size `hooprFont(size, maximumSize:)` resolves to at `category`.
+    static func scaledSize(
+        _ size: CGFloat,
+        maximumSize: CGFloat? = nil,
+        at category: UIContentSizeCategory
+    ) -> CGFloat {
         // Passed explicitly rather than relying on `UITraitCollection.current`,
-        // which is only correct inside a UIKit update cycle — this modifier
-        // also runs from previews and from tests.
-        let traits = UITraitCollection(
-            preferredContentSizeCategory: Self.contentSizeCategory(for: dynamicTypeSize)
-        )
-        let scaled = UIFontMetrics(forTextStyle: Self.metricsStyle(for: size))
+        // which is only correct inside a UIKit update cycle — this also runs
+        // from previews and from tests.
+        let traits = UITraitCollection(preferredContentSizeCategory: category)
+        let scaled = UIFontMetrics(forTextStyle: metricsStyle(for: size))
             .scaledValue(for: size, compatibleWith: traits)
 
         guard let maximumSize else { return scaled }
@@ -75,7 +69,7 @@ private struct ScaledSystemFont: ViewModifier {
     /// curve matches what the system would apply to text of that size. Body and
     /// large sizes are deliberately scaled less aggressively by the metrics
     /// tables than captions are; borrowing the wrong style would undo that.
-    private static func metricsStyle(for size: CGFloat) -> UIFont.TextStyle {
+    static func metricsStyle(for size: CGFloat) -> UIFont.TextStyle {
         switch size {
         case ..<11.5:   return .caption2     // 11
         case ..<12.5:   return .caption1     // 12
@@ -93,9 +87,7 @@ private struct ScaledSystemFont: ViewModifier {
     /// SwiftUI's `DynamicTypeSize` doesn't bridge to `UIContentSizeCategory`
     /// with a documented initialiser, so the mapping is written out. It's the
     /// same eleven-step ladder in both types, accessibility sizes included.
-    private static func contentSizeCategory(
-        for size: DynamicTypeSize
-    ) -> UIContentSizeCategory {
+    static func contentSizeCategory(for size: DynamicTypeSize) -> UIContentSizeCategory {
         switch size {
         case .xSmall:                 return .extraSmall
         case .small:                  return .small
@@ -111,5 +103,32 @@ private struct ScaledSystemFont: ViewModifier {
         case .accessibility5:         return .accessibilityExtraExtraExtraLarge
         @unknown default:             return .large
         }
+    }
+}
+
+/// Resolves the scaled size against the environment's Dynamic Type setting.
+///
+/// A `ViewModifier` rather than a `Font`-returning helper because the scale
+/// factor is environment-dependent: reading `@Environment(\.dynamicTypeSize)`
+/// is what makes SwiftUI re-evaluate this when the reader changes their text
+/// size while the app is open. The arithmetic itself lives in
+/// `HooprFontMetrics`, so it can be tested without a view.
+private struct ScaledSystemFont: ViewModifier {
+    let size: CGFloat
+    let weight: Font.Weight
+    let maximumSize: CGFloat?
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: scaledSize, weight: weight))
+    }
+
+    private var scaledSize: CGFloat {
+        HooprFontMetrics.scaledSize(
+            size,
+            maximumSize: maximumSize,
+            at: HooprFontMetrics.contentSizeCategory(for: dynamicTypeSize)
+        )
     }
 }

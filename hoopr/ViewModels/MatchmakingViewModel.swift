@@ -37,6 +37,15 @@ final class MatchmakingViewModel: ObservableObject {
     /// down.
     @Published private(set) var opponentRecord: SeasonGame.Record?
 
+    /// The opponent squad, for their crest on the match card.
+    ///
+    /// A separate read because the crest keys aren't on the game document —
+    /// names are denormalized so history survives a disbanded squad, the icon
+    /// and colour are not. `nil` until the read lands, and on failure: a crest
+    /// is decoration on a match card, and a failed read of a decoration must
+    /// never take the card down.
+    @Published private(set) var opponentSquad: Squad?
+
     /// How many other squads are queued in the same pool right now. Screen 5.
     @Published private(set) var poolCount = 0
 
@@ -266,18 +275,31 @@ final class MatchmakingViewModel: ObservableObject {
                 }
             }
 
-            Task { await loadOpponentRecord(for: nextGame, mySquadId: squad.id) }
+            Task { await loadOpponent(for: nextGame, mySquadId: squad.id) }
             scheduleNotificationsIfNeeded(for: nextGame, mySquadId: squad.id)
         } else {
             opponentRecord = nil
+            opponentSquad = nil
         }
 
         cancelNotificationsForCancelledMatches(squadId: squad.id)
     }
 
-    private func loadOpponentRecord(for game: SeasonGame, mySquadId: String) async {
+    /// The opponent's record and crest, for the match card.
+    ///
+    /// Two reads rather than one because they come from different collections,
+    /// and both are decoration: neither failing may take the card down. The
+    /// squad read is the same one-off `squads` being world-readable exists to
+    /// allow, and `GameDayViewModel` and `ResultViewModel` resolve an opponent
+    /// the same way.
+    private func loadOpponent(for game: SeasonGame, mySquadId: String) async {
         guard let opponentId = game.opponentSquadId(of: mySquadId) else { return }
-        opponentRecord = await seasonGameService.fetchRecord(for: opponentId)
+
+        async let record = seasonGameService.fetchRecord(for: opponentId)
+        async let squad = squadService.fetchSquad(id: opponentId)
+
+        opponentRecord = await record
+        opponentSquad = try? await squad
     }
 
     // MARK: - Notifications

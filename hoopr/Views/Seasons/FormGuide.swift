@@ -29,16 +29,33 @@ struct FormGuide: View {
     }
 }
 
-/// One result. Sized to stay a circle rather than an ellipse as text grows,
-/// which is why the letter is the only thing that scales.
+/// The geometry both result pills share.
+///
+/// **The cap is load-bearing, not decoration.** A pill is a fixed-diameter
+/// circle, which is exactly the case `Typography` names as needing
+/// `maximumSize`: the frame can't grow, so uncapped text at the accessibility
+/// sizes renders outside its own circle. `SeasonsAccessibilityTests` measures
+/// these three numbers against each other and fails if a letter stops fitting —
+/// the neutral pill shipped uncapped in Phase 6 and that test is what found it.
+enum ResultPillMetrics {
+    static let diameter: CGFloat = 28
+    static let fontSize: CGFloat = 13
+    static let maximumFontSize: CGFloat = 17
+}
+
+/// One confirmed result. W or L, and nothing else means either.
 struct FormPill: View {
     let outcome: SeasonGame.Outcome
 
     var body: some View {
         Text(outcome.rawValue)
-            .hooprFont(13, weight: .bold, maximumSize: 17)
+            .hooprFont(
+                ResultPillMetrics.fontSize,
+                weight: .bold,
+                maximumSize: ResultPillMetrics.maximumFontSize
+            )
             .foregroundStyle(outcome == .win ? Color.hooprOnBrand : Color.hooprSecondaryText)
-            .frame(width: 28, height: 28)
+            .frame(width: ResultPillMetrics.diameter, height: ResultPillMetrics.diameter)
             .background(
                 Circle().fill(outcome == .win ? Color.hooprOrange : Color.hooprFill)
             )
@@ -46,10 +63,39 @@ struct FormPill: View {
     }
 }
 
+/// A match with no confirmed result — disputed, cancelled, or still waiting.
+///
+/// Deliberately *not* a W/L pill and deliberately not coloured like one: a match
+/// nobody confirmed is not a loss, and must never look like one at a glance. The
+/// glyph is a placeholder for a result rather than a result, so the spoken label
+/// carries the whole meaning.
+struct NeutralResultPill: View {
+    let glyph: String
+    let label: String
+
+    var body: some View {
+        Text(glyph)
+            .hooprFont(
+                ResultPillMetrics.fontSize,
+                weight: .bold,
+                maximumSize: ResultPillMetrics.maximumFontSize
+            )
+            .foregroundStyle(Color.hooprSecondaryText)
+            .frame(width: ResultPillMetrics.diameter, height: ResultPillMetrics.diameter)
+            .background(Circle().fill(Color.hooprFill))
+            .accessibilityLabel(label)
+    }
+}
+
 #Preview {
     VStack(alignment: .leading, spacing: 16) {
         FormGuide(form: [.win, .win, .loss, .win, .loss])
         FormGuide(form: [.loss])
+        HStack(spacing: 6) {
+            NeutralResultPill(glyph: "!", label: "Results don't match")
+            NeutralResultPill(glyph: "–", label: "Cancelled")
+            NeutralResultPill(glyph: "·", label: "No result yet")
+        }
     }
     .padding()
     .background(Color.hooprBackground)

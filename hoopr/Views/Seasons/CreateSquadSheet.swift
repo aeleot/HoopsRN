@@ -92,7 +92,13 @@ struct CreateSquadSheet: View {
     /// abstract swatch.
     private var preview: some View {
         HStack(spacing: 14) {
+            // The one crest in the app that isn't merely decorative: it is the
+            // only feedback that the two grids below did anything, and the
+            // grids announce their own selections one at a time rather than the
+            // pairing. Labelled rather than hidden for that reason alone.
             SquadCrest(iconKey: iconKey, colorKey: colorKey, size: SquadCrest.Size.hero)
+                .accessibilityHidden(false)
+                .accessibilityLabel("Crest: \(Self.iconName(iconKey)) in \(colorKey)")
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(Squad.normalizedName(name).isEmpty ? "Your squad" : Squad.normalizedName(name))
