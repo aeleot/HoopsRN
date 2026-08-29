@@ -26,7 +26,11 @@ final class SeasonGameTests: XCTestCase {
         result: String? = nil,
         scheduledOffset: TimeInterval = 3600,
         arrived: [String] = [],
-        createdOffset: TimeInterval? = nil
+        createdOffset: TimeInterval? = nil,
+        homeReport: String? = nil,
+        awayReport: String? = nil,
+        homeScore: Int? = nil,
+        awayScore: Int? = nil
     ) -> SeasonGame {
         SeasonGame(
             id: id,
@@ -43,16 +47,68 @@ final class SeasonGameTests: XCTestCase {
             scheduledTime: now.addingTimeInterval(scheduledOffset),
             status: status,
             arrivedPlayerIds: arrived,
-            homeReport: nil,
-            awayReport: nil,
-            homeScore: nil,
-            awayScore: nil,
+            homeReport: homeReport,
+            awayReport: awayReport,
+            homeScore: homeScore,
+            awayScore: awayScore,
             result: result,
             cancelledBySquadId: nil,
             createdBy: "leader-away",
             createdAt: createdOffset.map { now.addingTimeInterval($0) },
             updatedAt: nil,
             confirmedAt: nil
+        )
+    }
+
+    /// A match that has already been played, which is the only kind that can be
+    /// reported.
+    private func playedGame(
+        status: SeasonGame.Status = .scheduled,
+        result: String? = nil,
+        homeReport: String? = nil,
+        awayReport: String? = nil
+    ) -> SeasonGame {
+        game(
+            status: status,
+            result: result,
+            scheduledOffset: -3600,
+            homeReport: homeReport,
+            awayReport: awayReport
+        )
+    }
+
+    /// Applies a report write the way the transaction's `updateData` map does,
+    /// so a test can assert what the *document* reads as afterwards rather than
+    /// only what the write said.
+    private func applying(
+        _ write: SeasonGame.ReportWrite,
+        to match: SeasonGame
+    ) -> SeasonGame {
+        SeasonGame(
+            id: match.id,
+            format: match.format,
+            region: match.region,
+            homeSquadId: match.homeSquadId,
+            awaySquadId: match.awaySquadId,
+            squadIds: match.squadIds,
+            homeLeaderId: match.homeLeaderId,
+            awayLeaderId: match.awayLeaderId,
+            homeSquadName: match.homeSquadName,
+            awaySquadName: match.awaySquadName,
+            courtId: match.courtId,
+            scheduledTime: match.scheduledTime,
+            status: write.status,
+            arrivedPlayerIds: match.arrivedPlayerIds,
+            homeReport: write.field == .home ? write.winningSquadId : match.homeReport,
+            awayReport: write.field == .away ? write.winningSquadId : match.awayReport,
+            homeScore: write.homeScore ?? match.homeScore,
+            awayScore: write.awayScore ?? match.awayScore,
+            result: write.result,
+            cancelledBySquadId: match.cancelledBySquadId,
+            createdBy: match.createdBy,
+            createdAt: match.createdAt,
+            updatedAt: now,
+            confirmedAt: write.confirms ? now : match.confirmedAt
         )
     }
 
@@ -241,6 +297,299 @@ final class SeasonGameTests: XCTestCase {
         XCTAssertEqual(match.ledSquadId(for: "leader-home"), "squad-home")
         XCTAssertEqual(match.ledSquadId(for: "leader-away"), "squad-away")
         XCTAssertNil(match.ledSquadId(for: "member-away"))
+    }
+
+    // MARK: - The report derivation
+    //
+    // This is the arithmetic mutual confirmation is made of, and the rules
+    // compute it identically from the same two fields — so these tests are
+    // pinning both copies at once. `firestore-tests/results.test.mjs` is where
+    // the server half is evaluated against two distinct authenticated leaders.
+
+    func testOneReportSettlesNothing() {
+        XCTAssertEqual(SeasonGame.outcome(homeReport: nil, awayReport: nil), .awaitingReport)
+        XCTAssertEqual(
+            SeasonGame.outcome(homeReport: "squad-home", awayReport: nil),
+            .awaitingReport
+        )
+        XCTAssertEqual(
+            SeasonGame.outcome(homeReport: nil, awayReport: "squad-home"),
+            .awaitingReport
+        )
+    }
+
+    func testTwoReportsAgreeingConfirmTheWinner() {
+        XCTAssertEqual(
+            SeasonGame.outcome(homeReport: "squad-home", awayReport: "squad-home"),
+            .confirmed("squad-home")
+        )
+        XCTAssertEqual(
+            SeasonGame.outcome(homeReport: "squad-away", awayReport: "squad-away"),
+            .confirmed("squad-away")
+        )
+    }
+
+    func testTwoReportsDisagreeingDisputeAndNameNoWinner() {
+        let outcome = SeasonGame.outcome(homeReport: "squad-home", awayReport: "squad-away")
+
+        XCTAssertEqual(outcome, .disputed)
+        // The field the record query reads. A disputed match counts for nobody
+        // precisely because this stays nil.
+        XCTAssertNil(outcome.result)
+        XCTAssertEqual(outcome.status, .disputed)
+    }
+
+    func testEachOutcomeCarriesTheStatusTheRulesDerive() {
+        XCTAssertEqual(SeasonGame.ReportOutcome.awaitingReport.status, .scheduled)
+        XCTAssertEqual(SeasonGame.ReportOutcome.disputed.status, .disputed)
+        XCTAssertEqual(SeasonGame.ReportOutcome.confirmed("squad-home").status, .confirmed)
+
+        XCTAssertNil(SeasonGame.ReportOutcome.awaitingReport.result)
+        XCTAssertNil(SeasonGame.ReportOutcome.disputed.result)
+        XCTAssertEqual(SeasonGame.ReportOutcome.confirmed("squad-home").result, "squad-home")
+    }
+
+    // MARK: - What a report write contains
+
+    func testTheFirstReportCarriesNoResult() {
+        let write = SeasonGame.reportWrite(
+            field: .home,
+            winner: "squad-home",
+            homeScore: nil,
+            awayScore: nil,
+            standingHomeReport: nil,
+            standingAwayReport: nil
+        )
+
+        XCTAssertEqual(write.status, .scheduled)
+        XCTAssertNil(write.result, "one leader saying so is not mutual confirmation")
+        XCTAssertFalse(write.confirms)
+    }
+
+    func testTheSecondAgreeingReportIsTheOneThatConfirms() {
+        // The prompt's Phase 6 test case #2, as pure logic: the write that
+        // completes a matching pair also lands the result, in the same commit.
+        let write = SeasonGame.reportWrite(
+            field: .away,
+            winner: "squad-home",
+            homeScore: nil,
+            awayScore: nil,
+            standingHomeReport: "squad-home",
+            standingAwayReport: nil
+        )
+
+        XCTAssertEqual(write.status, .confirmed)
+        XCTAssertEqual(write.result, "squad-home")
+        XCTAssertTrue(write.confirms)
+    }
+
+    func testTheSecondDisagreeingReportDisputesAndNamesNobody() {
+        let write = SeasonGame.reportWrite(
+            field: .away,
+            winner: "squad-away",
+            homeScore: nil,
+            awayScore: nil,
+            standingHomeReport: "squad-home",
+            standingAwayReport: nil
+        )
+
+        XCTAssertEqual(write.status, .disputed)
+        XCTAssertNil(write.result)
+    }
+
+    func testAReportWriteOnlyEverMovesItsOwnField() {
+        // The pinning, as data: a home write leaves the away report exactly
+        // where it was, whatever it says. The rules enforce the same thing by
+        // leaving the other key out of `affectedKeys().hasOnly`.
+        let match = playedGame(status: .disputed, homeReport: "squad-home", awayReport: "squad-away")
+
+        let write = SeasonGame.reportWrite(
+            field: .home,
+            winner: "squad-away",
+            homeScore: nil,
+            awayScore: nil,
+            standingHomeReport: match.homeReport,
+            standingAwayReport: match.awayReport
+        )
+
+        let after = applying(write, to: match)
+        XCTAssertEqual(after.homeReport, "squad-away")
+        XCTAssertEqual(after.awayReport, "squad-away", "the other leader's report is untouched")
+    }
+
+    func testADisputedMatchIsResolvedByReReportingToAgree() {
+        // The prompt's Phase 6 test case #3, and §3's own stated recovery path.
+        // Re-reporting is the same write path called again, not a second
+        // feature — if it weren't, a disputed match could never leave `disputed`.
+        let disputed = playedGame(
+            status: .disputed,
+            homeReport: "squad-home",
+            awayReport: "squad-away"
+        )
+
+        XCTAssertTrue(disputed.isReportable)
+
+        let write = SeasonGame.reportWrite(
+            field: .home,
+            winner: "squad-away",
+            homeScore: nil,
+            awayScore: nil,
+            standingHomeReport: disputed.homeReport,
+            standingAwayReport: disputed.awayReport
+        )
+
+        let resolved = applying(write, to: disputed)
+        XCTAssertEqual(resolved.status, .confirmed)
+        XCTAssertEqual(resolved.result, "squad-away")
+        XCTAssertNotNil(resolved.confirmedAt)
+    }
+
+    func testAConfirmedResultMovesBothSquadsRecords() {
+        // The other half of test case #2: the derivation Phase 4 wrote against
+        // an empty set now returns something, without either function changing.
+        let played = playedGame()
+
+        let first = applying(
+            SeasonGame.reportWrite(
+                field: .home, winner: "squad-home",
+                homeScore: nil, awayScore: nil,
+                standingHomeReport: nil, standingAwayReport: nil
+            ),
+            to: played
+        )
+        let confirmed = applying(
+            SeasonGame.reportWrite(
+                field: .away, winner: "squad-home",
+                homeScore: nil, awayScore: nil,
+                standingHomeReport: first.homeReport, standingAwayReport: first.awayReport
+            ),
+            to: first
+        )
+
+        XCTAssertEqual(SeasonGame.record(for: "squad-home", in: [confirmed]).wins, 1)
+        XCTAssertEqual(SeasonGame.record(for: "squad-away", in: [confirmed]).losses, 1)
+        XCTAssertEqual(SeasonGame.form(for: "squad-home", in: [confirmed]), [.win])
+        XCTAssertEqual(SeasonGame.form(for: "squad-away", in: [confirmed]), [.loss])
+    }
+
+    func testADisagreementMovesNeitherSquadsRecord() {
+        let played = playedGame()
+
+        let first = applying(
+            SeasonGame.reportWrite(
+                field: .home, winner: "squad-home",
+                homeScore: nil, awayScore: nil,
+                standingHomeReport: nil, standingAwayReport: nil
+            ),
+            to: played
+        )
+        let disputed = applying(
+            SeasonGame.reportWrite(
+                field: .away, winner: "squad-away",
+                homeScore: nil, awayScore: nil,
+                standingHomeReport: first.homeReport, standingAwayReport: first.awayReport
+            ),
+            to: first
+        )
+
+        XCTAssertTrue(SeasonGame.record(for: "squad-home", in: [disputed]).isUnplayed)
+        XCTAssertTrue(SeasonGame.record(for: "squad-away", in: [disputed]).isUnplayed)
+        XCTAssertTrue(SeasonGame.form(for: "squad-home", in: [disputed]).isEmpty)
+    }
+
+    func testAScoreRidesAlongAndNeverBecomesTheResult() {
+        let write = SeasonGame.reportWrite(
+            field: .home,
+            winner: "squad-home",
+            homeScore: 21,
+            awayScore: 18,
+            standingHomeReport: nil,
+            standingAwayReport: nil
+        )
+
+        XCTAssertEqual(write.homeScore, 21)
+        XCTAssertEqual(write.awayScore, 18)
+        // Cosmetic, per plan §1.5 — a score of 21–18 is not a claim about who
+        // won, and the record never reads it.
+        XCTAssertNil(write.result)
+    }
+
+    // MARK: - Who may report, and when
+
+    func testEachLeaderOwnsExactlyOneReportField() {
+        let match = playedGame()
+
+        XCTAssertEqual(match.reportField(for: "leader-home"), .home)
+        XCTAssertEqual(match.reportField(for: "leader-away"), .away)
+        XCTAssertNil(match.reportField(for: "member-home"))
+
+        // The raw values are the Firestore field names the rules pin.
+        XCTAssertEqual(SeasonGame.ReportField.home.rawValue, "homeReport")
+        XCTAssertEqual(SeasonGame.ReportField.away.rawValue, "awayReport")
+    }
+
+    func testAReportIsReadBackFromItsOwnLeadersPointOfView() {
+        let match = playedGame(homeReport: "squad-home", awayReport: "squad-away")
+
+        XCTAssertEqual(match.report(by: "leader-home"), "squad-home")
+        XCTAssertEqual(match.opponentReport(by: "leader-home"), "squad-away")
+        XCTAssertEqual(match.report(by: "leader-away"), "squad-away")
+        XCTAssertEqual(match.opponentReport(by: "leader-away"), "squad-home")
+        XCTAssertNil(match.report(by: "member-away"))
+    }
+
+    func testBothLeadersMayReportAPlayedMatchAndNobodyElseMay() {
+        let match = playedGame()
+
+        XCTAssertTrue(match.canReport(uid: "leader-home", at: now))
+        XCTAssertTrue(match.canReport(uid: "leader-away", at: now))
+        XCTAssertFalse(match.canReport(uid: "member-home", at: now))
+        XCTAssertFalse(match.canReport(uid: "stranger", at: now))
+    }
+
+    func testAMatchCannotBeReportedBeforeItIsPlayed() {
+        // Plan §3's "after `scheduledTime`", which the rules enforce as
+        // `request.time >= scheduledTime` rather than assume.
+        let upcoming = game(scheduledOffset: 3600)
+
+        XCTAssertFalse(upcoming.canReport(uid: "leader-home", at: now))
+        XCTAssertEqual(
+            upcoming.validateReport(winner: "squad-home", by: "leader-home", now: now),
+            .notPlayed
+        )
+    }
+
+    func testADisputedMatchIsStillReportableButAConfirmedOneIsNot() {
+        XCTAssertTrue(playedGame(status: .disputed).isReportable)
+        XCTAssertTrue(playedGame(status: .scheduled).isReportable)
+
+        // Agreement is not unilaterally revocable: a leader able to re-report a
+        // match both sides settled could turn their own loss back into a
+        // dispute, which is weaker than the standard §3 claims to meet.
+        XCTAssertFalse(playedGame(status: .confirmed, result: "squad-away").isReportable)
+        XCTAssertFalse(playedGame(status: .cancelled).isReportable)
+    }
+
+    func testValidateReportNamesTheFirstProblem() {
+        let match = playedGame()
+
+        XCTAssertNil(match.validateReport(winner: "squad-home", by: "leader-home", now: now))
+        XCTAssertNil(match.validateReport(winner: "squad-away", by: "leader-home", now: now),
+                     "a leader may report a win for the other squad")
+
+        XCTAssertEqual(
+            match.validateReport(winner: "squad-home", by: "member-home", now: now),
+            .notLeader
+        )
+        XCTAssertEqual(
+            match.validateReport(winner: "squad-elsewhere", by: "leader-home", now: now),
+            .unknownWinner
+        )
+        XCTAssertEqual(
+            playedGame(status: .confirmed, result: "squad-home")
+                .validateReport(winner: "squad-home", by: "leader-home", now: now),
+            .notScheduled
+        )
     }
 
     // MARK: - Validation, mirroring the create rule

@@ -45,13 +45,14 @@ struct SeasonsTab: View {
         let squad: Squad
     }
 
-    /// Both pushes this stack makes. Screen 7 carries the match itself rather
-    /// than just its ID — `SeasonGame` is already `Hashable`, and the object is
-    /// already in hand at every call site that pushes it, so there's nothing to
-    /// look back up.
+    /// Every push this stack makes. Screens 7 and 8 carry the match itself
+    /// rather than just its ID — `SeasonGame` is already `Hashable`, and the
+    /// object is already in hand at every call site that pushes it, so there's
+    /// nothing to look back up.
     private enum Route: Hashable {
         case squad(String)
         case gameDay(mySquadId: String, game: SeasonGame)
+        case result(mySquadId: String, game: SeasonGame)
     }
 
     @State private var creating: CreateRoute?
@@ -123,10 +124,24 @@ struct SeasonsTab: View {
             }
             .background(Color.hooprBackground)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Every squad the user is on, not just the primary one: screen 9's
+            // history reads off this listener, and a secondary squad's detail
+            // view would otherwise render an empty season rather than its own.
+            // `array-contains-any` serves up to ten squads from one query.
+            .task(id: viewModel.squads.map(\.id)) {
+                seasonGameService.observe(squadIds: viewModel.squads.map(\.id))
+            }
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .squad(let squadId):
-                    SquadDetailView(viewModel: viewModel, squadId: squadId)
+                    SquadDetailView(
+                        viewModel: viewModel,
+                        squadId: squadId,
+                        seasonGameService: seasonGameService,
+                        onOpenResult: { game in
+                            path.append(.result(mySquadId: squadId, game: game))
+                        }
+                    )
                 case .gameDay(let mySquadId, let game):
                     GameDayView(
                         game: game,
@@ -135,7 +150,17 @@ struct SeasonsTab: View {
                         squadService: squadService,
                         userProfileService: userProfileService,
                         notificationService: notificationService,
-                        courtService: courtService
+                        courtService: courtService,
+                        onOpenResult: { played in
+                            path.append(.result(mySquadId: mySquadId, game: played))
+                        }
+                    )
+                case .result(let mySquadId, let game):
+                    ResultView(
+                        game: game,
+                        mySquadId: mySquadId,
+                        seasonGameService: seasonGameService,
+                        squadService: squadService
                     )
                 }
             }
@@ -292,13 +317,14 @@ struct SeasonsTab: View {
                     .foregroundStyle(Color.hooprSecondaryText)
 
                 // The record is a *query* over confirmed games, not a stored
-                // counter (plan §1.1). Nothing reaches `confirmed` until
-                // Phase 6, so this reads "No games played yet" for now — but it
-                // reads it from the query, so it starts moving on its own the
-                // day results ship.
+                // counter (plan §1.1), so it moves the moment two leaders
+                // agree on a result with nothing to invalidate.
                 Text(recordText)
                     .hooprFont(13)
                     .foregroundStyle(Color.hooprSecondaryText)
+
+                FormGuide(form: matchmaking.myForm)
+                    .padding(.top, 2)
             }
 
             Spacer(minLength: 0)

@@ -10,6 +10,11 @@ import SwiftUI
 struct GameDayView: View {
     @StateObject private var viewModel: GameDayViewModel
 
+    /// Screen 8. Passed in rather than pushed from here because the stack — and
+    /// its `Route` — belong to `SeasonsTab`, the same way `MatchmakingCard`
+    /// takes `onOpenGameDay`.
+    private let onOpenResult: (SeasonGame) -> Void
+
     init(
         game: SeasonGame,
         mySquadId: String,
@@ -17,8 +22,10 @@ struct GameDayView: View {
         squadService: SquadService,
         userProfileService: UserProfileService,
         notificationService: NotificationService,
-        courtService: CourtService
+        courtService: CourtService,
+        onOpenResult: @escaping (SeasonGame) -> Void
     ) {
+        self.onOpenResult = onOpenResult
         _viewModel = StateObject(wrappedValue: GameDayViewModel(
             game: game,
             mySquadId: mySquadId,
@@ -57,6 +64,10 @@ struct GameDayView: View {
 
                 if viewModel.game.status == .scheduled {
                     arrivedButton
+                }
+
+                if viewModel.canOpenResult {
+                    resultButton
                 }
 
                 if viewModel.canCancel {
@@ -199,6 +210,28 @@ struct GameDayView: View {
         }
         .buttonStyle(.plain)
         .disabled(viewModel.hasArrived || viewModel.isMarkingArrived)
+    }
+
+    /// Where §4's T+90 notification — "How'd it go? Record the result." —
+    /// actually lands. Phase 5 shipped that copy before this screen existed;
+    /// this is the tap-through it was always pointing at.
+    private var resultButton: some View {
+        Button {
+            onOpenResult(viewModel.game)
+        } label: {
+            HStack {
+                Image(systemName: "trophy")
+                Text(viewModel.resultButtonTitle)
+                    .hooprFont(16, weight: .semibold)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .hooprFont(13, weight: .semibold)
+            }
+            .foregroundStyle(Color.hooprPrimaryText)
+            .padding(16)
+            .cardChrome()
+        }
+        .buttonStyle(.plain)
     }
 
     private var cancelButton: some View {

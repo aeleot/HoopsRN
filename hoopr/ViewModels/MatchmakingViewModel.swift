@@ -194,11 +194,15 @@ final class MatchmakingViewModel: ObservableObject {
 
     // MARK: - Lifecycle
 
-    /// Points this view model at a squad and starts both listeners.
+    /// Points this view model at a squad and starts the pool listener.
+    ///
+    /// The `seasonGames` listener is **not** started here. It watches every
+    /// squad the user is on rather than just this one, which is the tab's
+    /// business to know — screen 9's history reads off the same listener for a
+    /// squad this view model isn't pointed at.
     func start(squad: Squad) {
         self.squad = squad
 
-        seasonGameService.observe(squadIds: [squad.id])
         matchmakingService.startSearching(
             squadId: squad.id,
             region: squad.region,

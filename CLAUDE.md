@@ -131,7 +131,7 @@ Until `firestore.rules` is deployed, writes fail with `permission-denied` — th
 `Big-Boss-LLC.hoopr` binds to the Firebase app `hoopsrn-4f1e9`. Changing it requires a new app in the Firebase console and a fresh `GoogleService-Info.plist` — it orphans existing installs.
 
 ### Tests are unit-focused, UI tests skip
-`hooprTests/` has 360 real test methods across 24 suites. `hooprUITests` fails to launch on this project (SpringBoard `RequestDenied`), so don't run it. The fixture data in test files is non-scaffolding — it's either real Firestore documents or realistic test doubles.
+`hooprTests/` has 420 real test methods across 26 suites. `hooprUITests` fails to launch on this project (SpringBoard `RequestDenied`), so don't run it. The fixture data in test files is non-scaffolding — it's either real Firestore documents or realistic test doubles.
 
 ## Token efficiency
 

@@ -81,6 +81,20 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "seasonGames",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "squadIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

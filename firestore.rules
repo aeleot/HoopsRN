@@ -800,6 +800,78 @@ service cloud.firestore {
         return get(/databases/$(database)/documents/squads/$(id)).data;
       }
 
+      // MARK: Reporting helpers — plan §3's mutual confirmation, as predicates.
+
+      // A report names one of the two squads in this match. `homeSquadId` and
+      // `awaySquadId` are read off `resource` rather than `request` because the
+      // report path can't touch them, so they are the same two either way — and
+      // reading the stored ones is what makes that obvious.
+      function namesASquadInThisMatch(report) {
+        return report == resource.data.homeSquadId
+          || report == resource.data.awaySquadId;
+      }
+
+      // Absent is legitimate: it's how a leader clears their own report on the
+      // way to re-entering it, which is §3's stated way out of a dispute.
+      function homeReportIsWellFormed() {
+        return !('homeReport' in incoming())
+          || namesASquadInThisMatch(incoming().homeReport);
+      }
+
+      function awayReportIsWellFormed() {
+        return !('awayReport' in incoming())
+          || namesASquadInThisMatch(incoming().awayReport);
+      }
+
+      function bothReported() {
+        return 'homeReport' in incoming() && 'awayReport' in incoming();
+      }
+
+      function reportsAgree() {
+        return bothReported() && incoming().homeReport == incoming().awayReport;
+      }
+
+      // **`status` is derived from the two reports, never chosen**, the same
+      // principle `games`' open/full and `matchTickets`' pool states follow.
+      //
+      // And `result` is only ever a value **both stored reports name**. Both
+      // comparisons read `incoming()`, i.e. the document as it will be after
+      // this write — so a client that sets `result` to a winner its own report
+      // doesn't name, or claims an agreement the other leader never made, is
+      // refused rather than believed. That single pair of comparisons is what
+      // makes forging a win take two colluding squads instead of one client.
+      function derivedResultHolds() {
+        return reportsAgree()
+          ? (incoming().status == 'confirmed'
+             && incoming().result == incoming().homeReport
+             && incoming().result == incoming().awayReport
+             && incoming().confirmedAt == request.time)
+          : (incoming().status == (bothReported() ? 'disputed' : 'scheduled')
+             && !('result' in incoming())
+             && !('confirmedAt' in incoming()));
+      }
+
+      // MIRRORED IN SWIFT — `SeasonGame.reportOutcome`. The client derives the
+      // same three states from the same two fields, which is what lets a report
+      // be checked before it's sent.
+
+      // The keys one leader's report write may move: **their own report**, plus
+      // the derived fields the very same write lands when it completes a
+      // matching pair. The *other* leader's report is absent from the list, and
+      // that absence is the whole pinning — the same "a client may only ever
+      // write its own lane" principle `games` and `squads` build on, applied to
+      // a report instead of a roster slot.
+      //
+      // `hasAll` is what stops this path being a general-purpose write on
+      // somebody else's match: without it, a bare `updatedAt` bump would be a
+      // legal "report" that moved no report at all.
+      function movesOnlyOwnReport(field) {
+        return incoming().diff(resource.data).affectedKeys()
+                 .hasOnly([field, 'homeScore', 'awayScore',
+                           'result', 'status', 'confirmedAt', 'updatedAt'])
+          && incoming().diff(resource.data).affectedKeys().hasAll([field]);
+      }
+
       allow read: if isSignedIn();
 
       // Three document accesses: the home ticket and both squads. Rules get()s
@@ -911,6 +983,53 @@ service cloud.firestore {
         && incoming().arrivedPlayerIds.hasAll([request.auth.uid])
         && (request.auth.uid in squad(resource.data.homeSquadId).memberIds
             || request.auth.uid in squad(resource.data.awaySquadId).memberIds);
+
+      // Reporting — plan §3's mutual confirmation, and the reason a squad's
+      // record is worth believing without a server to keep it honest.
+      //
+      // A third `allow update`, separate from cancel and arrival, following the
+      // same one-write-one-path split those two already establish: a report can
+      // never smuggle in a cancellation, and an arrival can never smuggle in a
+      // result.
+      //
+      // **Zero document accesses**, like cancel. Both leader IDs were verified
+      // against `squads` at create and are immutable, so the pinning below
+      // reads them straight off the document — which is the entire payoff for
+      // denormalizing them, and exactly why a forged one is refused at create.
+      //
+      // **Re-reporting is this same path, called again.** §3's stated way out
+      // of a disagreement is a leader clearing their own report and re-entering
+      // it, so `disputed` is a reportable starting state and an existing report
+      // may be overwritten or cleared. A rule that only permitted absent →
+      // present would leave a disputed match disputed forever, with the
+      // design's own recovery path unreachable.
+      //
+      // **`confirmed` is deliberately not reportable.** A leader able to
+      // re-report a match both sides already agreed on could turn their own
+      // loss back into a dispute unilaterally — strictly weaker than the
+      // rec-league scoresheet standard §3 claims to meet, and not something the
+      // recovery path needs. `cancelled` is out for the same reason it is out
+      // of every other path here: a called-off match has no result.
+      allow update: if isSignedIn()
+        && (resource.data.status == 'scheduled' || resource.data.status == 'disputed')
+        // A match cannot be reported before it has been played. Plan §3's
+        // "after `scheduledTime`", enforced rather than assumed.
+        && request.time >= resource.data.scheduledTime
+        // Each report field is pinned to its own leader, in both directions.
+        && ((request.auth.uid == resource.data.homeLeaderId
+             && movesOnlyOwnReport('homeReport'))
+            || (request.auth.uid == resource.data.awayLeaderId
+                && movesOnlyOwnReport('awayReport')))
+        && homeReportIsWellFormed()
+        && awayReportIsWellFormed()
+        // Cosmetic and explicitly not part of the record — the scoresheet
+        // beside the result, never the result itself.
+        && (!('homeScore' in incoming())
+            || (incoming().homeScore is int && incoming().homeScore >= 0))
+        && (!('awayScore' in incoming())
+            || (incoming().awayScore is int && incoming().awayScore >= 0))
+        && derivedResultHolds()
+        && incoming().updatedAt == request.time;
 
       // **No delete, ever.** A squad's record is a query over these documents,
       // so a deletable match is a forgeable record — which is the entire thing

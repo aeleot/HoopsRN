@@ -67,10 +67,36 @@ final class SeasonGameService: ObservableObject {
         static let status = "status"
         static let arrivedPlayerIds = "arrivedPlayerIds"
         static let cancelledBySquadId = "cancelledBySquadId"
+        static let homeReport = "homeReport"
+        static let awayReport = "awayReport"
+        static let homeScore = "homeScore"
+        static let awayScore = "awayScore"
         static let result = "result"
         static let createdBy = "createdBy"
         static let createdAt = "createdAt"
         static let updatedAt = "updatedAt"
+        static let confirmedAt = "confirmedAt"
+    }
+
+    /// Carried out of the report transaction as a raw string, because
+    /// `runTransaction` hands back `Any?` — `GameService.mutateRoster`'s idiom.
+    private enum ReportTransaction: String {
+        case missing
+        case notLeader
+        case settled
+        case notPlayed
+        case unknownWinner
+        case awaitingReport
+        case disputed
+        case confirmed
+
+        init(_ outcome: SeasonGame.ReportOutcome) {
+            switch outcome {
+            case .awaitingReport: self = .awaitingReport
+            case .disputed:       self = .disputed
+            case .confirmed:      self = .confirmed
+            }
+        }
     }
 
     private enum Limit {
@@ -435,6 +461,142 @@ final class SeasonGameService: ObservableObject {
         }
     }
 
+    /// Records this leader's own report of who won — screen 8's two crest
+    /// buttons — and, when it completes a matching pair, confirms the match in
+    /// the same commit.
+    ///
+    /// **A transaction, and the race is the whole reason.** A plain
+    /// `updateData` writing only the caller's own field leaves a real hole:
+    /// two leaders reporting within moments of each other each read "no report
+    /// yet" from their own client's cache, each write only their own field, and
+    /// neither write ever runs the do-these-agree check against the state that
+    /// actually landed. Both reports end up stored, `result` never gets set, and
+    /// nothing fails to say so. A transaction reads the document at commit time
+    /// and retries against the winner's committed state, so the second report
+    /// always sees the first — the same way every other contested
+    /// single-document write here is handled. See `GameService.mutateRoster`
+    /// for the shape, and `MatchmakingService`'s claim for the precedent.
+    ///
+    /// The standing reports are read **inside** the transaction rather than off
+    /// this service's listener, which is the difference the whole method exists
+    /// for: the listener's copy can be seconds stale, and the transaction's own
+    /// read is the only view guaranteed current.
+    ///
+    /// - Returns: what the match reads as once the write lands — awaiting the
+    ///   other leader, disputed, or confirmed.
+    @discardableResult
+    func reportResult(
+        gameId: String,
+        winningSquadId: String,
+        homeScore: Int? = nil,
+        awayScore: Int? = nil
+    ) async throws -> SeasonGame.ReportOutcome {
+        guard let uid = observedUID else { throw SeasonGameError.notSignedIn }
+
+        let reference = database.collection(Collection.seasonGames).document(gameId)
+
+        do {
+            let raw = try await database.runTransaction { transaction, errorPointer in
+                let snapshot: DocumentSnapshot
+                do {
+                    snapshot = try transaction.getDocument(reference)
+                } catch let fetchError as NSError {
+                    // Setting the pointer makes `runTransaction` throw, so the
+                    // value returned here is never inspected.
+                    errorPointer?.pointee = fetchError
+                    return nil
+                }
+
+                guard let data = snapshot.data(),
+                      let homeSquadId = data[Field.homeSquadId] as? String,
+                      let awaySquadId = data[Field.awaySquadId] as? String,
+                      let homeLeaderId = data[Field.homeLeaderId] as? String,
+                      let awayLeaderId = data[Field.awayLeaderId] as? String,
+                      let rawStatus = data[Field.status] as? String,
+                      let status = SeasonGame.Status(rawValue: rawStatus),
+                      let scheduledTime = (data[Field.scheduledTime] as? Timestamp)?.dateValue()
+                else {
+                    return ReportTransaction.missing.rawValue
+                }
+
+                let field: SeasonGame.ReportField
+                if uid == homeLeaderId {
+                    field = .home
+                } else if uid == awayLeaderId {
+                    field = .away
+                } else {
+                    return ReportTransaction.notLeader.rawValue
+                }
+
+                // The same three preconditions the rule checks, against the
+                // state the rule will see rather than the one the screen was
+                // drawn from.
+                guard status == .scheduled || status == .disputed else {
+                    return ReportTransaction.settled.rawValue
+                }
+                guard Date() >= scheduledTime else {
+                    return ReportTransaction.notPlayed.rawValue
+                }
+                guard winningSquadId == homeSquadId || winningSquadId == awaySquadId else {
+                    return ReportTransaction.unknownWinner.rawValue
+                }
+
+                let write = SeasonGame.reportWrite(
+                    field: field,
+                    winner: winningSquadId,
+                    homeScore: homeScore,
+                    awayScore: awayScore,
+                    standingHomeReport: data[Field.homeReport] as? String,
+                    standingAwayReport: data[Field.awayReport] as? String
+                )
+
+                var fields: [String: Any] = [
+                    field.rawValue: winningSquadId,
+                    // Derived from the two reports, never chosen — the rules
+                    // recompute it from the same pair and refuse anything else.
+                    Field.status: write.status.rawValue,
+                    Field.updatedAt: FieldValue.serverTimestamp(),
+                ]
+
+                if let result = write.result {
+                    fields[Field.result] = result
+                    fields[Field.confirmedAt] = FieldValue.serverTimestamp()
+                }
+                if let homeScore { fields[Field.homeScore] = homeScore }
+                if let awayScore { fields[Field.awayScore] = awayScore }
+
+                transaction.updateData(fields, forDocument: reference)
+
+                return ReportTransaction(write.outcome).rawValue
+            }
+
+            switch ReportTransaction(rawValue: raw as? String ?? "") {
+            case .missing:       throw SeasonGameError.gameNotFound
+            case .notLeader:     throw SeasonGameError.notLeader
+            case .settled:       throw SeasonGameError.notScheduled
+            case .notPlayed:     throw SeasonGameError.notPlayed
+            case .unknownWinner: throw SeasonGameError.unknownWinner
+            case .disputed:
+                clearError()
+                return .disputed
+            case .confirmed:
+                clearError()
+                logger.notice("Match \(gameId, privacy: .public) confirmed by both leaders")
+                return .confirmed(winningSquadId)
+            case .awaitingReport, .none:
+                clearError()
+                return .awaitingReport
+            }
+        } catch let gameError as SeasonGameError {
+            report(gameError, whileDoing: "recording the result", context: .write)
+            throw gameError
+        } catch {
+            let gameError = Self.mapped(error)
+            report(gameError, whileDoing: "recording the result", context: .write)
+            throw gameError
+        }
+    }
+
     // MARK: - Helpers
 
     private func clearError() {
@@ -485,6 +647,10 @@ final class SeasonGameService: ObservableObject {
             return "Only a squad's leader can do that."
         case .notScheduled:
             return "That match has already been settled."
+        case .notPlayed:
+            return "You can record the result once the game has started."
+        case .unknownWinner:
+            return "That squad isn't in this match."
         case .permissionDenied:
             switch context {
             case .load:

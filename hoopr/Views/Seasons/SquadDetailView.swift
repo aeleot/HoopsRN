@@ -2,18 +2,26 @@ import SwiftUI
 
 /// Squad detail — plan §5, screen 9.
 ///
-/// Record, roster, leader controls, and the invite picker. Game history and the
-/// form guide are Phase 6's; the space they'll occupy says so rather than
-/// rendering an empty list that looks broken.
+/// Record, form guide, full game history, roster, leader controls, and the
+/// invite picker.
 ///
 /// Takes the tab's `SquadViewModel` rather than building its own. The squad is
 /// looked up by ID on every render for the same reason `FriendsViewModel`'s
 /// rows are re-derived from live state: a member joining or the leader
 /// disbanding has to reach this screen, and a squad captured at push time
-/// would freeze both.
+/// would freeze both. The record is the same idea one collection over — it is a
+/// *query* over confirmed matches, so it moves the moment a result is
+/// confirmed, with nothing to invalidate.
 struct SquadDetailView: View {
     @ObservedObject var viewModel: SquadViewModel
     let squadId: String
+
+    /// The matches this squad has played. Observed so a result confirmed from
+    /// screen 8 moves the record here without a re-push.
+    @ObservedObject var seasonGameService: SeasonGameService
+
+    /// Screen 8, for a match still waiting on this squad's report.
+    let onOpenResult: (SeasonGame) -> Void
 
     @Environment(\.dismiss) private var dismiss
 
@@ -33,6 +41,7 @@ struct SquadDetailView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     crestHeader(squad)
                     recordCard
+                    historyCard
                     rosterCard(squad)
 
                     if isLeader {
@@ -82,28 +91,166 @@ struct SquadDetailView: View {
         .cardChrome()
     }
 
-    /// The record is derived from confirmed `seasonGames` (plan §1.1), and
-    /// there aren't any yet — so this names what will fill it instead of
-    /// showing two zeros that look like a played season.
+    // MARK: - Record and form
+
+    private var record: SeasonGame.Record { seasonGameService.record(for: squadId) }
+
+    private var form: [SeasonGame.Outcome] { seasonGameService.form(for: squadId) }
+
+    /// The record, derived from confirmed `seasonGames` (plan §1.1) rather than
+    /// stored on the squad. Two integers and the last five results — the
+    /// cheapest way to make a record feel like a season.
     private var recordCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("Record")
                 .hooprFont(13, weight: .semibold)
                 .foregroundStyle(Color.hooprSecondaryText)
                 .textCase(.uppercase)
 
-            Text("No games played yet")
-                .hooprFont(16, weight: .semibold)
-                .foregroundStyle(Color.hooprPrimaryText)
+            if record.isUnplayed {
+                Text("No games played yet")
+                    .hooprFont(16, weight: .semibold)
+                    .foregroundStyle(Color.hooprPrimaryText)
 
-            Text("A squad's W‑L comes from games both leaders confirmed, so it starts once matchmaking ships.")
-                .hooprFont(13)
-                .foregroundStyle(Color.hooprSecondaryText)
-                .fixedSize(horizontal: false, vertical: true)
+                Text("A squad's W‑L comes from games both leaders confirmed, so it starts with your first result.")
+                    .hooprFont(13)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text(record.displayText)
+                    .hooprFont(28, weight: .bold)
+                    .foregroundStyle(Color.hooprPrimaryText)
+                    .monospacedDigit()
+
+                FormGuide(form: form)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .cardChrome()
+    }
+
+    // MARK: - History
+
+    /// Every match this squad has, most recent first — the plan's "full game
+    /// history".
+    ///
+    /// Not filtered to confirmed results: a disputed match and a cancelled one
+    /// are both things a squad needs to see, and a match still waiting on this
+    /// squad's report is the row that carries the way to record it.
+    private var history: [SeasonGame] {
+        seasonGameService.games(for: squadId)
+            .sorted { $0.scheduledTime > $1.scheduledTime }
+    }
+
+    private var historyCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Game history")
+                .hooprFont(13, weight: .semibold)
+                .foregroundStyle(Color.hooprSecondaryText)
+                .textCase(.uppercase)
+
+            if history.isEmpty {
+                // A sentence rather than a blank list. Nothing has failed —
+                // this squad simply hasn't played yet, which is a different
+                // thing from a history that wouldn't load.
+                Text(
+                    seasonGameService.hasLoadedGames
+                        ? "No matches yet. Queue up and your results will collect here."
+                        : "Loading your matches…"
+                )
+                .hooprFont(13)
+                .foregroundStyle(Color.hooprSecondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+            } else {
+                ForEach(history) { game in
+                    historyRow(game)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .cardChrome()
+    }
+
+    @ViewBuilder
+    private func historyRow(_ game: SeasonGame) -> some View {
+        Button {
+            onOpenResult(game)
+        } label: {
+            HStack(spacing: 12) {
+                outcomeBadge(game)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(game.opponentName(of: squadId) ?? "Opponent")
+                        .hooprFont(15, weight: .semibold)
+                        .foregroundStyle(Color.hooprPrimaryText)
+                        .multilineTextAlignment(.leading)
+
+                    Text(historyDetail(game))
+                        .hooprFont(12)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                }
+
+                Spacer(minLength: 8)
+
+                if game.status != .cancelled {
+                    Image(systemName: "chevron.right")
+                        .hooprFont(12, weight: .semibold)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(game.status == .cancelled)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func historyDetail(_ game: SeasonGame) -> String {
+        let date = game.scheduledTime.formatted(.dateTime.month(.abbreviated).day())
+
+        switch game.status {
+        case .cancelled:
+            return "\(date) · Cancelled"
+        case .disputed:
+            return "\(date) · Results don't match"
+        case .confirmed:
+            guard let home = game.homeScore, let away = game.awayScore else { return date }
+            let mine = game.isHome(squadId) ? home : away
+            let theirs = game.isHome(squadId) ? away : home
+            return "\(date) · \(mine)–\(theirs)"
+        case .scheduled:
+            return game.scheduledTime > Date()
+                ? "\(date) · Scheduled"
+                : "\(date) · Result not in yet"
+        }
+    }
+
+    /// W and L read as a result; everything else needs a word, because a match
+    /// nobody confirmed is not a loss and must never look like one.
+    @ViewBuilder
+    private func outcomeBadge(_ game: SeasonGame) -> some View {
+        switch game.status {
+        case .confirmed where game.result == squadId:
+            FormPill(outcome: .win)
+        case .confirmed:
+            FormPill(outcome: .loss)
+        case .disputed:
+            neutralBadge("!", label: "Results don't match")
+        case .cancelled:
+            neutralBadge("–", label: "Cancelled")
+        case .scheduled:
+            neutralBadge("·", label: "No result yet")
+        }
+    }
+
+    private func neutralBadge(_ glyph: String, label: String) -> some View {
+        Text(glyph)
+            .hooprFont(13, weight: .bold)
+            .foregroundStyle(Color.hooprSecondaryText)
+            .frame(width: 28, height: 28)
+            .background(Circle().fill(Color.hooprFill))
+            .accessibilityLabel(label)
     }
 
     // MARK: - Roster

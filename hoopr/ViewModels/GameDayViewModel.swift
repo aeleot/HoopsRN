@@ -83,6 +83,25 @@ final class GameDayViewModel: ObservableObject {
         return game.hasArrived(uid)
     }
 
+    /// Whether the result screen is worth offering yet.
+    ///
+    /// Shown to anybody on either roster, not only the two leaders: a member
+    /// can't report, but they can see where the result stands, and hiding the
+    /// screen from them would make a confirmed match invisible to the people who
+    /// played it. Gated on tip-off having passed, which is the same condition
+    /// the rules enforce.
+    var canOpenResult: Bool {
+        game.status != .cancelled && Date() >= game.scheduledTime
+    }
+
+    var resultButtonTitle: String {
+        switch game.reportOutcome {
+        case .confirmed:      return "See the result"
+        case .disputed:       return "Results don't match"
+        case .awaitingReport: return "Record the result"
+        }
+    }
+
     /// Not an error state: a denial is a legitimate, permanent choice, stated
     /// once rather than nagged about. `nil` while the OS hasn't answered yet,
     /// which reads the same as "on" — nothing to warn about until it's

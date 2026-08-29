@@ -242,6 +242,178 @@ nonisolated extension SeasonGame {
     }
 }
 
+// MARK: - Reporting, and why a record is trustworthy
+
+nonisolated extension SeasonGame {
+    /// Which of the two report fields a leader owns.
+    ///
+    /// The raw value is the Firestore field name because that is the only thing
+    /// this type is ever used for — picking one of two keys in a write map, and
+    /// naming which lane the rules will hold the caller to.
+    enum ReportField: String, Sendable, Equatable {
+        case home = "homeReport"
+        case away = "awayReport"
+    }
+
+    /// What a pair of reports means.
+    ///
+    /// **Derived, never chosen** — the same principle `Game.status` follows, and
+    /// the rules compute this identically. The client deriving it too is what
+    /// lets a report write be checked before it is sent, and what makes a
+    /// `permission-denied` on one mean the state moved rather than the rules
+    /// disagreeing.
+    enum ReportOutcome: Sendable, Equatable {
+        /// Fewer than two reports in. The match stays `scheduled`.
+        case awaitingReport
+        /// Both leaders reported, and named different winners. Counts for
+        /// nobody, and either of them may re-report to resolve it.
+        case disputed
+        /// Both leaders reported the same winner. Carries the winning squad ID.
+        case confirmed(String)
+
+        var status: Status {
+            switch self {
+            case .awaitingReport: return .scheduled
+            case .disputed:       return .disputed
+            case .confirmed:      return .confirmed
+            }
+        }
+
+        /// The winning squad ID, and `nil` for every state that isn't a
+        /// confirmed one — which is exactly the rule the record query reads.
+        var result: String? {
+            guard case .confirmed(let squadId) = self else { return nil }
+            return squadId
+        }
+    }
+
+    /// The two reports, resolved.
+    ///
+    /// This is the whole of §3's mutual confirmation as arithmetic: agreement
+    /// confirms, disagreement disputes, and one report on its own settles
+    /// nothing. Forging a win takes two colluding squads rather than one lying
+    /// client — not cryptographic integrity, and the plan doesn't claim it is.
+    static func outcome(homeReport: String?, awayReport: String?) -> ReportOutcome {
+        guard let homeReport, let awayReport else { return .awaitingReport }
+        return homeReport == awayReport ? .confirmed(homeReport) : .disputed
+    }
+
+    var reportOutcome: ReportOutcome {
+        Self.outcome(homeReport: homeReport, awayReport: awayReport)
+    }
+
+    /// The statuses a report may be written from.
+    ///
+    /// `disputed` is here because §3's stated way out of a disagreement is a
+    /// leader re-entering their own report — a rule that only permitted
+    /// *absent → present* would make the design's own recovery path
+    /// unreachable.
+    ///
+    /// `confirmed` is deliberately **not** here. A leader able to re-report a
+    /// match both sides already agreed on could turn their own loss back into a
+    /// dispute unilaterally, which is weaker than the rec-league scoresheet
+    /// standard §3 claims to meet.
+    var isReportable: Bool {
+        status == .scheduled || status == .disputed
+    }
+
+    /// Which report field `uid` owns here, if either. The rules pin the same
+    /// pairing off the denormalized leader IDs.
+    func reportField(for uid: String) -> ReportField? {
+        if uid == homeLeaderId { return .home }
+        if uid == awayLeaderId { return .away }
+        return nil
+    }
+
+    /// What `uid` has already said won, if they've reported.
+    func report(by uid: String) -> String? {
+        switch reportField(for: uid) {
+        case .home: return homeReport
+        case .away: return awayReport
+        case nil:   return nil
+        }
+    }
+
+    /// The other leader's standing report, from `uid`'s point of view.
+    func opponentReport(by uid: String) -> String? {
+        switch reportField(for: uid) {
+        case .home: return awayReport
+        case .away: return homeReport
+        case nil:   return nil
+        }
+    }
+
+    /// Whether `uid` may report on this match right now.
+    ///
+    /// Mirrors the rule's own three preconditions, including the `now` one:
+    /// a match cannot be reported before it has been played, which the rules
+    /// check as `request.time >= scheduledTime`.
+    func canReport(uid: String, at now: Date) -> Bool {
+        isReportable && reportField(for: uid) != nil && now >= scheduledTime
+    }
+
+    /// Everything about a report the client can check before writing it,
+    /// mirroring the reporting rule one condition at a time — the shape
+    /// `validate(homeTicket:...)` above already uses.
+    ///
+    /// - Returns: the first problem found, or `nil` when the report is valid.
+    func validateReport(
+        winner winningSquadId: String,
+        by uid: String,
+        now: Date = Date()
+    ) -> SeasonGameError? {
+        guard reportField(for: uid) != nil else { return .notLeader }
+        guard isReportable else { return .notScheduled }
+        guard now >= scheduledTime else { return .notPlayed }
+        guard includes(squadId: winningSquadId) else { return .unknownWinner }
+        return nil
+    }
+
+    /// The document state a report write produces.
+    ///
+    /// Pure, and takes the two standing reports rather than reading them off
+    /// `self`, because the transaction that performs the write reads them from
+    /// its own snapshot — the only view of the document guaranteed current. The
+    /// stale copy on `self` is what the race in the plain-write shape is made
+    /// of.
+    static func reportWrite(
+        field: ReportField,
+        winner winningSquadId: String,
+        homeScore: Int?,
+        awayScore: Int?,
+        standingHomeReport: String?,
+        standingAwayReport: String?
+    ) -> ReportWrite {
+        let home = field == .home ? winningSquadId : standingHomeReport
+        let away = field == .away ? winningSquadId : standingAwayReport
+
+        return ReportWrite(
+            field: field,
+            winningSquadId: winningSquadId,
+            homeScore: homeScore,
+            awayScore: awayScore,
+            outcome: outcome(homeReport: home, awayReport: away)
+        )
+    }
+
+    /// One leader's report, and what the document reads as once it lands.
+    struct ReportWrite: Sendable, Equatable {
+        let field: ReportField
+        let winningSquadId: String
+        let homeScore: Int?
+        let awayScore: Int?
+        let outcome: ReportOutcome
+
+        var status: Status { outcome.status }
+
+        /// Set only when this write completes a matching pair — which is the
+        /// only circumstance the rules accept a `result` at all.
+        var result: String? { outcome.result }
+
+        var confirms: Bool { outcome.result != nil }
+    }
+}
+
 // MARK: - Creating a match
 
 nonisolated extension SeasonGame {
@@ -319,6 +491,11 @@ nonisolated enum SeasonGameError: Error, Equatable {
     case notLeader
     /// The match is already cancelled, confirmed or disputed.
     case notScheduled
+    /// Tip-off hasn't happened yet — a match can't be reported before it's
+    /// played, and the rules refuse it too.
+    case notPlayed
+    /// The squad named as the winner isn't in this match.
+    case unknownWinner
     case permissionDenied
     case indexRequired
     case network

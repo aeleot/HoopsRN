@@ -789,13 +789,13 @@ produce, and the one a squad's record is derived from.
 | `scheduledTime` | timestamp | yes | no | Must fall inside the home ticket's window, and be in the future. |
 | `status` | string | yes | yes | `scheduled` \| `cancelled` \| `confirmed` \| `disputed`. |
 | `arrivedPlayerIds` | array\<string\> | yes | yes | Self-add only, both squads in one array, one-directional. `[]` at create. |
-| `homeReport` / `awayReport` | string? | no | yes | The squad ID each leader says won. Each pinned to its own leader. Phase 6. |
-| `homeScore` / `awayScore` | int? | no | yes | Optional, cosmetic. Phase 6. |
-| `result` | string? | no | yes | The winning squad ID, written **only** when both reports agree. Phase 6. |
+| `homeReport` / `awayReport` | string? | no | yes | The squad ID each leader says won. **Each pinned to its own leader**, in both directions. May be overwritten or cleared — that is how a dispute is resolved. |
+| `homeScore` / `awayScore` | int? | no | yes | Optional and cosmetic. Set by whichever leader is reporting; never read by the record. |
+| `result` | string? | no | yes | The winning squad ID, written **only** when both reports agree, and only equal to both of them. |
 | `cancelledBySquadId` | string? | no | yes | Written by the cancelling leader, as their own squad. |
 | `createdBy` | string | yes | no | uid of the claiming leader. |
 | `createdAt` / `updatedAt` | timestamp | yes | — | Server-assigned. |
-| `confirmedAt` | timestamp? | no | yes | Phase 6. |
+| `confirmedAt` | timestamp? | no | yes | Server-assigned, and only on the write that confirms. |
 
 ### What authorizes naming another squad
 
@@ -887,17 +887,71 @@ between the match being made and tip-off. Named in `../GAPS.md`, not fixed —
 real push needs FCM and a Cloud Function, the same Blaze-plan requirement the
 matchmaker itself is built around not having.
 
+### Reporting, and why a record is trustworthy
+
+`../GAPS.md` records the ceiling the rest of the app accepts:
+`completedGameCount` is self-reported, and a modified client could misreport its
+own stats. A competitive record cannot inherit that unchanged, because the whole
+point of the number is that **other people believe it**.
+
+**Mutual confirmation** raises the ceiling as far as a serverless design allows,
+and it is three rules:
+
+1. Each leader writes **only their own** report field — `homeReport` for
+   `homeLeaderId`, `awayReport` for `awayLeaderId`, pinned in both directions.
+   The other leader's key is simply absent from that caller's
+   `affectedKeys().hasOnly` list, which is the same "a client may only ever
+   write its own lane" principle `games` and `squads` build on, applied to a
+   report instead of a roster slot.
+2. **`status` is derived from the two reports, never chosen.** Both in and
+   agreeing is `confirmed`; both in and disagreeing is `disputed`; one in leaves
+   the match `scheduled`. `result` is only accepted when it equals *both* stored
+   reports, and `confirmedAt` is pinned to `request.time` on that same write —
+   so a client claiming an agreement the other leader never made is refused
+   rather than believed.
+3. A disagreement is a **designed outcome, not an error**. A disputed match
+   counts for nobody, and either leader may overwrite or clear their own report
+   and enter it again, which is how a dispute gets resolved — by two people
+   talking, which is what actually happens at a court.
+
+So forging a win takes two colluding squads rather than one lying client. That
+is not cryptographic integrity and this schema does not claim it is; it is the
+standard a rec-league scoresheet meets.
+
+**Reportable from `scheduled` and `disputed` only.** `confirmed` is deliberately
+excluded: a leader able to re-report a match both sides already settled could
+turn their own loss back into a dispute unilaterally, which is *weaker* than the
+scoresheet standard above and is not what the recovery path in point 3 needs.
+`cancelled` is excluded because a called-off match has no result.
+
+**Not before tip-off.** The rule requires `request.time >= scheduledTime` — a
+match cannot be reported before it has been played.
+
+**The write is a transaction, and the race is the reason.** A plain update
+writing only the caller's own field leaves a hole: two leaders reporting within
+moments of each other each read "no report yet" from their own client's cache,
+each write only their own field, and neither write ever runs the do-these-agree
+check against the state that actually landed — both reports stored, `result`
+never set, nothing failing to say so. `SeasonGameService.reportResult` reads the
+document inside a transaction and lets Firestore's retry serialize the pair, the
+same way every other contested single-document write here is handled. See
+`GameService.mutateRoster` for the shape.
+
+`firestore-tests/results.test.mjs` evaluates all of this against **two distinct
+authenticated leaders**, which is the only way to test a rule whose entire
+subject is two different people agreeing or disagreeing.
+
 ### The record is a query
 
 `seasonGames where squadIds array-contains {squadId} and status == 'confirmed'`,
 counted client-side by `result`. See `squads` above for why it is not a stored
-field. Until Phase 6 confirms anything the query returns nothing, and an
-unplayed squad reads as 0.5 rather than as a squad that loses everything —
-`SeasonGame.record(for:in:)` and `MatchTicket.winPercentage` agree on that.
+field. An unplayed squad reads as 0.5 rather than as a squad that loses
+everything — `SeasonGame.record(for:in:)` and `MatchTicket.winPercentage` agree
+on that.
 
-The derivation is written **now**, before it can return anything, precisely so a
-ticket doesn't hardcode zeros and then keep reading zero after Phase 6 ships
-with nothing failing to say so.
+Disputed and cancelled matches are **structurally excluded** because they never
+reach `confirmed`, which is also why the reporting rule may never write
+`cancelled` and the cancel rule may never write `confirmed`.
 
 ### Access
 
@@ -909,13 +963,23 @@ with nothing failing to say so.
 - **Update (cancel):** either leader, from `scheduled` only, as their own squad.
 - **Update (arrival):** any member of either roster, self-add only, from
   `scheduled` only. See "Arrival" above.
+- **Update (report):** either leader, **their own report field only**, from
+  `scheduled` or `disputed`, and only after `scheduledTime`. Costs zero document
+  accesses. See "Reporting" above.
 - **Delete:** never.
 
 ### Indexes
 
-One composite, on `(squadIds CONTAINS, scheduledTime ASC)` — the listener, which
-uses `array-contains-any` so a person on more than one squad gets all their
-matches from one query. The same index serves `array-contains`.
+Two composites:
+
+- `(squadIds CONTAINS, scheduledTime ASC)` — the listener, which uses
+  `array-contains-any` so a person on more than one squad gets all their matches
+  from one query. The same index serves `array-contains`.
+- `(squadIds CONTAINS, status ASC)` — `SeasonGameService.fetchRecord(for:)`, the
+  one-off read of **another** squad's record. An `array-contains` combined with
+  an equality on a second field needs its own composite; without it the read
+  fails `failed-precondition` and an opponent's record renders as 0–0 with only
+  a log line to say why.
 
 ---
 
@@ -954,6 +1018,12 @@ matches from one query. The same index serves `array-contains`.
   create rules' key allowlists are what enforce it.
 - A `seasonGame` can never be deleted. A deletable match is a forgeable
   record, and the record is a query over exactly these documents.
+- A `seasonGame`'s `status` is derived from its two reports, never chosen —
+  agreement is `confirmed`, disagreement is `disputed`, one report is still
+  `scheduled` — and `result` is only ever a value **both** stored reports name.
+  Each report field is writable by its own leader alone. Mirrored in
+  `SeasonGame.reportOutcome`; the two copies must stay identical, the same way
+  `Game.status` and its rules expression must.
 - The leader IDs denormalized onto a `seasonGame` are verified against `squads`
   at create and immutable after, because every later write trusts them for free.
 - `staleClaim = 90s` appears in four places — two Swift constants, the waiting
