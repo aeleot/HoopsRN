@@ -357,6 +357,159 @@ final class FirestoreRulesParityTests: XCTestCase {
         XCTAssertEqual(Friendship.id(for: "zzz", "aaa"), "aaa_zzz")
     }
 
+    // MARK: - Match tickets
+
+    /// **The three-places constant.** `MatchRules.staleClaim` governs the
+    /// scanner, this rule's re-claim clause, and the waiting squad's UI, and
+    /// the plan says so explicitly because a divergence here is invisible: a
+    /// client would claim a ticket the server then refuses, and the user would
+    /// see `permission-denied` on a perfectly reasonable action.
+    func testStaleClaimWindowMatchesSwift() throws {
+        let body = try functionBody("claimHasGoneStale")
+        let seconds = try XCTUnwrap(
+            numbers(#"duration\.value\((\d+),\s*'s'\)"#, in: body).first,
+            "Couldn't find the stale-claim window in claimHasGoneStale()"
+        )
+
+        XCTAssertEqual(
+            seconds, MatchRules.staleClaim,
+            "firestore.rules lets a claim be retaken after \(Int(seconds))s; MatchRules.staleClaim is \(Int(MatchRules.staleClaim))s"
+        )
+
+        // The comparison has to be strictly greater-than, matching
+        // `MatchTicket.isClaimable`. A `>=` here and a `>` there disagree on
+        // exactly one second, which is the kind of divergence that shows up
+        // once a week and never reproduces.
+        XCTAssertTrue(
+            body.contains("request.time > resource.data.claimedAt"),
+            "claimHasGoneStale() no longer compares strictly; MatchTicket.isClaimable does: \(body)"
+        )
+    }
+
+    /// `MatchTicket.courtCountRange` in Swift, `isValidCourtSelection()` in the
+    /// rules.
+    func testCourtCountBoundsMatchSwift() throws {
+        let body = try functionBody("isValidCourtSelection")
+        let lower = try XCTUnwrap(
+            numbers(#"size\(\)\s*>=\s*(\d+)"#, in: body).first,
+            "Couldn't find the minimum court count in isValidCourtSelection()"
+        )
+        let upper = try XCTUnwrap(
+            numbers(#"size\(\)\s*<=\s*(\d+)"#, in: body).first,
+            "Couldn't find the maximum court count in isValidCourtSelection()"
+        )
+
+        XCTAssertEqual(
+            Int(lower), MatchTicket.courtCountRange.lowerBound,
+            "firestore.rules requires >= \(Int(lower)) courts; MatchTicket.courtCountRange starts at \(MatchTicket.courtCountRange.lowerBound)"
+        )
+        XCTAssertEqual(
+            Int(upper), MatchTicket.courtCountRange.upperBound,
+            "firestore.rules allows <= \(Int(upper)) courts; MatchTicket.courtCountRange ends at \(MatchTicket.courtCountRange.upperBound)"
+        )
+
+        // The no-duplicates check, which `MatchTicket.validate` mirrors. Without
+        // it a repeated court would skew the intersection the match rules take.
+        XCTAssertTrue(
+            body.contains("toSet().size()"),
+            "isValidCourtSelection() no longer rejects duplicate courts; MatchTicket.validate does: \(body)"
+        )
+    }
+
+    /// `MatchTicket.lifetimeRange` in Swift, `isValidLifetime()` in the rules.
+    /// The two are written in different units on purpose — minutes and hours
+    /// there, seconds here — so this converts rather than string-matching.
+    func testTicketLifetimeBoundsMatchSwift() throws {
+        let body = try functionBody("isValidLifetime")
+        let minutes = try XCTUnwrap(
+            numbers(#"duration\.value\((\d+),\s*'m'\)"#, in: body).first,
+            "Couldn't find the minimum ticket lifetime in isValidLifetime()"
+        )
+        let hours = try XCTUnwrap(
+            numbers(#"duration\.value\((\d+),\s*'h'\)"#, in: body).first,
+            "Couldn't find the maximum ticket lifetime in isValidLifetime()"
+        )
+
+        XCTAssertEqual(
+            minutes * 60, MatchTicket.lifetimeRange.lowerBound,
+            "firestore.rules requires a ticket to live at least \(Int(minutes))m; MatchTicket.lifetimeRange starts at \(Int(MatchTicket.lifetimeRange.lowerBound / 60))m"
+        )
+        XCTAssertEqual(
+            hours * 3_600, MatchTicket.lifetimeRange.upperBound,
+            "firestore.rules caps a ticket at \(Int(hours))h; MatchTicket.lifetimeRange ends at \(Int(MatchTicket.lifetimeRange.upperBound / 3_600))h"
+        )
+    }
+
+    /// Every ticket status the rules name has to be one the model declares. A
+    /// typo'd `'opne'` would reject every queue attempt with no clue why.
+    func testTicketStatusesInTheRulesAreDeclared() throws {
+        let block = try matchBlock("matchTickets")
+        let statuses = Set(strings(#"status\s*==\s*'(\w+)'"#, in: block))
+
+        XCTAssertFalse(statuses.isEmpty, "Couldn't find any status comparison in the matchTickets rules")
+        for raw in statuses {
+            XCTAssertNotNil(
+                MatchTicket.Status(rawValue: raw),
+                "firestore.rules compares matchTickets status to '\(raw)', which MatchTicket.Status doesn't declare"
+            )
+        }
+    }
+
+    /// The claim is the one write in this app made by somebody who doesn't own
+    /// the document, so the two things that authorize it are worth pinning
+    /// literally: the caller must lead the *claiming* squad, and a squad can't
+    /// take itself out of the pool.
+    func testTheClaimRuleStillProvesLeadershipOfTheClaimingSquad() throws {
+        let block = try matchBlock("matchTickets")
+
+        XCTAssertTrue(
+            block.contains("squads/$(incoming().claimedBy)"),
+            "The claim rule no longer checks that the caller leads the squad named in claimedBy."
+        )
+        XCTAssertTrue(
+            block.contains("incoming().claimedBy != squadId"),
+            "The claim rule no longer stops a squad claiming its own ticket."
+        )
+    }
+
+    /// The denormalized fields on a ticket are pinned to the squad document
+    /// rather than trusted. `memberIds` is the one that matters: it's what the
+    /// no-shared-players rule reads, so a client free to write its own copy
+    /// could match against a squad it shares players with.
+    func testTicketDenormalizedFieldsArePinnedToTheSquad() throws {
+        let block = try matchBlock("matchTickets")
+
+        for field in ["memberIds", "squadName", "format", "region"] {
+            XCTAssertTrue(
+                block.contains("incoming().\(field) == squad()."),
+                "The matchTickets create rule no longer pins `\(field)` to the squad document."
+            )
+        }
+    }
+
+    // MARK: - Indexes
+
+    /// The pool query is `region == · format == · status in · expiresAt >`, and
+    /// Firestore needs a composite index for it. A missing one surfaces as
+    /// `failed-precondition`, which the services map to `.indexRequired` — a
+    /// clear error, but only after somebody hits it.
+    func testThePoolQueryHasItsCompositeIndex() throws {
+        let indexes = try Self.indexes()
+        let pool = indexes.first { index in
+            index["collectionGroup"] as? String == "matchTickets"
+        }
+
+        let fields = try XCTUnwrap(
+            (pool?["fields"] as? [[String: Any]])?.compactMap { $0["fieldPath"] as? String },
+            "firestore.indexes.json has no matchTickets index; the pool query needs one."
+        )
+
+        XCTAssertEqual(
+            fields, ["region", "format", "status", "expiresAt"],
+            "The matchTickets index doesn't match the pool query's shape."
+        )
+    }
+
     // MARK: - Parsing helpers
 
     private func firstMatch(_ pattern: String) -> [String]? {
@@ -428,5 +581,53 @@ final class FirestoreRulesParityTests: XCTestCase {
             .compactMap { match in
                 Range(match.range(at: 1), in: text).map { String(text[$0]) }
             }
+    }
+
+    /// The body of a `match /collection/{id} { ... }` block, so a pattern can be
+    /// scoped to one collection. Brace-counted rather than regexed: these
+    /// blocks nest, which is exactly what `functionBody`'s simpler match can't
+    /// handle.
+    private func matchBlock(_ collection: String) throws -> String {
+        let needle = "match /\(collection)/"
+        let start = try XCTUnwrap(
+            rules.range(of: needle),
+            "Couldn't find `match /\(collection)/...` in firestore.rules"
+        )
+
+        // The block's opening brace is the *last* one on the match line, not
+        // the first after the path: `match /matchTickets/{squadId} {` opens a
+        // brace for its path parameter first, and counting from that one
+        // returns `{squadId}` and nothing else.
+        let lineEnd = rules[start.lowerBound...].firstIndex(of: "\n") ?? rules.endIndex
+        guard let open = rules[start.lowerBound..<lineEnd].lastIndex(of: "{") else {
+            throw XCTSkip("Malformed match block for \(collection)")
+        }
+
+        var depth = 0
+        var index = open
+        while index < rules.endIndex {
+            if rules[index] == "{" { depth += 1 }
+            if rules[index] == "}" {
+                depth -= 1
+                if depth == 0 {
+                    return String(rules[open...index])
+                }
+            }
+            index = rules.index(after: index)
+        }
+        throw XCTSkip("Unbalanced braces in the \(collection) match block")
+    }
+
+    /// `firestore.indexes.json`, read from the source tree the same way the
+    /// rules are — the deployed file, not a copy.
+    private static func indexes() throws -> [[String: Any]] {
+        let file = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("firestore.indexes.json")
+
+        let data = try Data(contentsOf: file)
+        let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        return parsed?["indexes"] as? [[String: Any]] ?? []
     }
 }

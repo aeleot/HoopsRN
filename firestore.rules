@@ -2,17 +2,21 @@ rules_version = '2';
 
 // hoopsRN Firestore security rules.
 //
-// Five collections: `users` (one owner per document), `games` (the first
+// Six collections: `users` (one owner per document), `games` (the first
 // shared, multi-user state in the app), `friendships` (one document per pair
 // of people, written by either of them), `squads` (a team, written by its
 // leader and by each member for their own membership), and `squadInvites`
-// (one document per squad-and-person pair, structurally `friendships`). See
+// (one document per squad-and-person pair, structurally `friendships`), and
+// `matchTickets` (a squad's standing offer to play, and the only document
+// here whose contested write is another squad's). See
 // `context/database/DATABASE_SCHEMA.md`.
 //
 // SEVERAL VALUES HERE ARE MIRRORED IN SWIFT — the roster bounds, the
 // scheduling window, the radius range, the `userName` length, the derivation
-// of `status` from the roster, and on `squads` the name length, the roster
-// ceiling per format, the format allowlist and the icon/colour allowlists.
+// of `status` from the roster, on `squads` the name length, the roster
+// ceiling per format, the format allowlist and the icon/colour allowlists, and
+// on `matchTickets` the stale-claim window, the court-count bounds and the
+// ticket lifetime.
 // `hooprTests/FirestoreRulesParityTests` parses this file and fails if either
 // copy moves without the other. Change a bound here and change it there; a
 // mismatch doesn't show up as a logic error, it shows up as
@@ -562,6 +566,155 @@ service cloud.firestore {
       allow delete: if isSignedIn()
         && (resource.data.uid == request.auth.uid
             || resource.data.invitedBy == request.auth.uid);
+    }
+
+    // A squad's standing offer to play — the matchmaking pool.
+    //
+    // **The document ID is the squad ID**, which structurally enforces one live
+    // ticket per squad. There is no duplicate-entry logic to write because
+    // there is nowhere to put a second row, the same trick `friendships/{pair}`
+    // uses.
+    //
+    // This is the one collection here written by somebody who doesn't own the
+    // document: the **claim** is another squad's leader taking a ticket out of
+    // the pool, and Firestore serializing contested single-document
+    // transactions is what makes exactly one of them win. That guarantee is the
+    // entire matchmaker — see `context/plans/SEASONS.md` §2.2.
+    //
+    // > **Not yet exercised by any client.** `MatchmakingService` is not built:
+    // > the claim race has to be proven against the Firestore emulator with two
+    // > concurrent clients before anything is built on it, and no emulator is
+    // > wired into `firebase.json`. Deploying this block is harmless — nothing
+    // > writes here yet — but it is a design, not a verified result.
+    //
+    // The `matched` transition (status + matchedGameId, written once the game
+    // document exists) is deliberately absent: it belongs with `seasonGames` in
+    // the next phase, and a transition to a state nothing can create yet would
+    // be a rule nobody could satisfy.
+    //
+    // MIRRORED IN SWIFT — the stale-claim window, the court-count bounds, and
+    // the ticket lifetime. `hooprTests/FirestoreRulesParityTests` fails if
+    // either copy moves without the other.
+    match /matchTickets/{squadId} {
+      function isSignedIn() { return request.auth != null; }
+      function incoming() { return request.resource.data; }
+
+      // The squad this ticket speaks for. One access, cached across every use
+      // below, so pinning four denormalized fields to it costs nothing extra.
+      function squad() {
+        return get(/databases/$(database)/documents/squads/$(squadId)).data;
+      }
+
+      // MIRRORED IN SWIFT — `MatchTicket.courtCountRange`. One court is a squad
+      // that only plays at home; eight is where a preference list stops being a
+      // preference.
+      function isValidCourtSelection(courtIds) {
+        return courtIds is list
+          && courtIds.size() >= 1
+          && courtIds.size() <= 8
+          // No repeats: a preference order can't rank a court against itself,
+          // and a duplicate would skew the intersection the match rules take.
+          && courtIds.toSet().size() == courtIds.size();
+      }
+
+      // MIRRORED IN SWIFT — `MatchTicket.lifetimeRange`. Below the floor a
+      // ticket expires before anyone can see it; above the ceiling the pool
+      // fills with squads who queued yesterday and went home.
+      function isValidLifetime(expiresAt) {
+        return expiresAt is timestamp
+          && expiresAt >= request.time + duration.value(15, 'm')
+          && expiresAt <= request.time + duration.value(24, 'h');
+      }
+
+      // MIRRORED IN SWIFT — `MatchRules.staleClaim`. **Enforced in three places
+      // that must agree**: here, `MatchTicket.isClaimable` (the scanner), and
+      // the waiting squad's own UI, which reverts to "searching" rather than
+      // showing a match that never arrived.
+      //
+      // This is what makes the two-step claim-then-create design safe without
+      // `getAfter()`: a claimer who crashes between winning the claim and
+      // writing the game costs the pool ninety seconds and nothing else.
+      function claimHasGoneStale() {
+        return resource.data.status == 'claimed'
+          && request.time > resource.data.claimedAt + duration.value(90, 's');
+      }
+
+      // The pool is readable by any signed-in account, like `squads`, because
+      // that is what a pool *is* — every queued client watches the same one and
+      // the winner of a one-document race gets the match. The pool query
+      // filters on region, format, status and expiry, all of which this rule
+      // already admits.
+      allow read: if isSignedIn();
+
+      // Only a squad's leader queues it, and the four denormalized fields are
+      // **pinned to the squad document** rather than trusted.
+      //
+      // `memberIds` is the load-bearing one: it's what the no-shared-players
+      // rule reads, so a client free to write its own copy could match against
+      // a squad it shares players with — a person playing themselves, which is
+      // the rule most worth enforcing on the server rather than hoping about.
+      allow create: if isSignedIn()
+        && incoming().keys().hasOnly(['squadId', 'leaderId', 'squadName',
+                                      'memberIds', 'format', 'region',
+                                      'courtIds', 'windowStart', 'windowEnd',
+                                      'wins', 'losses', 'status',
+                                      'createdAt', 'expiresAt'])
+        && incoming().keys().hasAll(['squadId', 'leaderId', 'squadName',
+                                     'memberIds', 'format', 'region',
+                                     'courtIds', 'windowStart', 'windowEnd',
+                                     'wins', 'losses', 'status',
+                                     'createdAt', 'expiresAt'])
+        && incoming().squadId == squadId
+        && incoming().leaderId == request.auth.uid
+        && squad().leaderId == request.auth.uid
+        && incoming().memberIds == squad().memberIds
+        && incoming().squadName == squad().name
+        && incoming().format == squad().format
+        && incoming().region == squad().region
+        && isValidCourtSelection(incoming().courtIds)
+        && incoming().windowStart is timestamp
+        && incoming().windowEnd is timestamp
+        && incoming().windowEnd > incoming().windowStart
+        && incoming().windowEnd > request.time
+        // The same ceiling `games` puts on a scheduled run, reused so the two
+        // can't disagree about how far ahead the app plans.
+        && incoming().windowStart < request.time + duration.value(30, 'd')
+        && incoming().wins is int && incoming().wins >= 0
+        && incoming().losses is int && incoming().losses >= 0
+        // A ticket enters the pool open. `claimedBy`, `claimedAt` and
+        // `matchedGameId` are absent at create — absence, never null — and only
+        // the claim below may introduce the first two.
+        && incoming().status == 'open'
+        && isValidLifetime(incoming().expiresAt)
+        && incoming().createdAt == request.time;
+
+      // **The claim — the one contested write in the whole feature.**
+      //
+      // Naming another squad is authorized by leading the squad doing the
+      // claiming, which is one get() against `squads`. Nobody's uid is written
+      // by anybody else here either: the only thing that changes hands is a
+      // squad ID the caller already owns.
+      allow update: if isSignedIn()
+        && incoming().diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'claimedBy', 'claimedAt'])
+        && incoming().status == 'claimed'
+        && incoming().claimedBy is string
+        // A squad can't claim itself out of the pool.
+        && incoming().claimedBy != squadId
+        && get(/databases/$(database)/documents/squads/$(incoming().claimedBy))
+             .data.leaderId == request.auth.uid
+        && resource.data.expiresAt > request.time
+        // Open, or claimed by someone who never came back for it.
+        && (resource.data.status == 'open' || claimHasGoneStale())
+        // Pinned, not requested — a claim a client could backdate would look
+        // fresh forever and wedge the ticket.
+        && incoming().claimedAt == request.time;
+
+      // Leaving the queue. The leader's alone, and a delete rather than a
+      // status: absence, never null, the same move `friendships` makes.
+      // An abandoned ticket also ages out on `expiresAt` without anyone having
+      // to remove it.
+      allow delete: if isSignedIn() && resource.data.leaderId == request.auth.uid;
     }
   }
 }
