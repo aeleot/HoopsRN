@@ -167,6 +167,47 @@ final class ServiceFailureTests: XCTestCase {
         XCTAssertFalse(write.lowercased().contains("rules"))
     }
 
+    func testSquadPermissionDeniedMakesTheSameDistinction() {
+        let load = SquadService.message(
+            for: .permissionDenied, whileDoing: "loading your squads", context: .load
+        )
+        let write = SquadService.message(
+            for: .permissionDenied, whileDoing: "joining the squad", context: .write
+        )
+
+        XCTAssertNotEqual(load, write)
+        XCTAssertTrue(load.lowercased().contains("rules"))
+        XCTAssertFalse(write.lowercased().contains("rules"))
+    }
+
+    /// Squad failures are the ones most likely to arrive from somebody else's
+    /// action — a leader disbanding, an invite being revoked — so each has to
+    /// say what actually happened rather than falling back to a generic
+    /// sentence about the action the caller was attempting.
+    func testSquadFailuresNameThemselvesRatherThanTheAction() {
+        let cases: [(SquadError, String)] = [
+            (.squadNotFound, "no longer"),
+            (.inviteNotFound, "no longer"),
+            (.squadFull, "full"),
+            (.leaderCannotLeave, "disband"),
+            (.missingRegion, "city"),
+        ]
+
+        for (error, expected) in cases {
+            let message = SquadService.message(
+                for: error, whileDoing: "doing a thing", context: .write
+            )
+            XCTAssertTrue(
+                message.lowercased().contains(expected),
+                "\(error) should say what happened; got: \(message)"
+            )
+            XCTAssertFalse(
+                message.contains("doing a thing"),
+                "\(error) fell through to the generic sentence: \(message)"
+            )
+        }
+    }
+
     /// Every other case says the same thing either way — the context exists for
     /// `permissionDenied` alone, and shouldn't quietly start changing the rest.
     func testContextOnlyAffectsPermissionDenied() {

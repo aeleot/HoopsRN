@@ -4,8 +4,10 @@ import XCTest
 /// Keeps `firestore.rules` and the Swift constants it mirrors in step.
 ///
 /// Several rules restate a value the client also owns — the roster bounds, the
-/// scheduling window, the radius range, the name length, and the derivation of
-/// `status` from the roster. Nothing connected the two copies, and a
+/// scheduling window, the radius range, the name length, the derivation of
+/// `status` from the roster, and on `squads` the name bounds, the roster
+/// ceiling per format, the format allowlist and the crest allowlists. Nothing
+/// connected the two copies, and a
 /// divergence doesn't surface as a logic error: the server just refuses the
 /// write, and the app reports `permission-denied`, which reads like an
 /// undeployed ruleset. That's a bad afternoon.
@@ -180,6 +182,181 @@ final class FirestoreRulesParityTests: XCTestCase {
         )
     }
 
+    // MARK: - Squads
+
+    /// `Squad.nameLengthRange` in Swift, `isValidName()` in the rules.
+    ///
+    /// Scoped to that one function rather than matched against the whole file:
+    /// `users` also caps a name, and a pattern loose enough to find this bound
+    /// anywhere would happily assert the wrong collection's number.
+    func testSquadNameBoundsMatchSwift() throws {
+        let body = try functionBody("isValidName")
+        let lower = try XCTUnwrap(
+            numbers(#"name\.size\(\)\s*>=\s*(\d+)"#, in: body).first,
+            "Couldn't find the minimum squad-name length in isValidName()"
+        )
+        let upper = try XCTUnwrap(
+            numbers(#"name\.size\(\)\s*<=\s*(\d+)"#, in: body).first,
+            "Couldn't find the maximum squad-name length in isValidName()"
+        )
+
+        XCTAssertEqual(
+            Int(lower), Squad.nameLengthRange.lowerBound,
+            "firestore.rules allows squad names of >= \(Int(lower)) characters; Squad.nameLengthRange starts at \(Squad.nameLengthRange.lowerBound)"
+        )
+        XCTAssertEqual(
+            Int(upper), Squad.nameLengthRange.upperBound,
+            "firestore.rules allows squad names of <= \(Int(upper)) characters; Squad.nameLengthRange ends at \(Squad.nameLengthRange.upperBound)"
+        )
+    }
+
+    /// The format allowlist: `SquadFormat.available` in Swift,
+    /// `isAllowedFormat()` in the rules.
+    ///
+    /// Compared as sets, because the rules' order is arbitrary while Swift's is
+    /// the order the create sheet renders.
+    func testFormatAllowlistMatchesSwift() throws {
+        let allowed = Set(quotedStrings(in: try functionBody("isAllowedFormat")))
+        let swiftSide = Set(SquadFormat.available.map(\.rawValue))
+
+        XCTAssertFalse(allowed.isEmpty, "Couldn't find any format in isAllowedFormat()")
+        XCTAssertEqual(
+            allowed, swiftSide,
+            "firestore.rules allows formats \(allowed.sorted()); SquadFormat.available is \(swiftSide.sorted())"
+        )
+
+        // Every string in the rules has to name a case the model declares, or
+        // the allowlist admits a document nothing can decode.
+        for raw in allowed {
+            XCTAssertNotNil(
+                SquadFormat(rawValue: raw),
+                "firestore.rules allows format '\(raw)', which SquadFormat doesn't declare"
+            )
+        }
+    }
+
+    /// The roster ceiling per format: `SquadFormat.maxRoster` in Swift, the
+    /// `maxRoster()` ternary chain in the rules.
+    ///
+    /// Rather than string-matching the expression, this pulls out every
+    /// `format == 'x' ? n` pair and checks the *mapping*, the way
+    /// `testStatusRuleMatchesSwift` rebuilds its rule from its parts — a
+    /// reformat passes, a changed number doesn't.
+    func testRosterCeilingPerFormatMatchesSwift() throws {
+        let body = try functionBody("maxRoster")
+        let pairs = try pairs(#"format\s*==\s*'([^']+)'\s*\?\s*(\d+)"#, in: body)
+
+        XCTAssertFalse(pairs.isEmpty, "Couldn't find any format branch in maxRoster()")
+
+        for (raw, ceiling) in pairs {
+            let format = try XCTUnwrap(
+                SquadFormat(rawValue: raw),
+                "maxRoster() has a branch for format '\(raw)', which SquadFormat doesn't declare"
+            )
+            XCTAssertEqual(
+                Int(ceiling), format.maxRoster,
+                "firestore.rules caps a \(raw) roster at \(ceiling); SquadFormat.\(format).maxRoster is \(format.maxRoster)"
+            )
+        }
+
+        // A format you can create must have a ceiling, or every join is
+        // rejected against the fallback below.
+        for format in SquadFormat.available {
+            XCTAssertTrue(
+                pairs.contains { $0.0 == format.rawValue },
+                "SquadFormat.available includes \(format.rawValue), but maxRoster() in firestore.rules has no branch for it"
+            )
+        }
+
+        // The fallback. A format the allowlist doesn't admit has to get zero
+        // rather than a default — a non-zero fallback would size a roster
+        // against a format this ruleset never agreed to.
+        let fallback = try XCTUnwrap(
+            numbers(#":\s*(\d+)\s*;"#, in: body).last,
+            "Couldn't find maxRoster()'s fallback branch"
+        )
+        XCTAssertEqual(
+            Int(fallback), 0,
+            "maxRoster() falls back to \(Int(fallback)) for an unknown format; it has to be 0"
+        )
+    }
+
+    /// The crest allowlists: `Squad.iconKeys` / `Squad.colorKeys` in Swift,
+    /// `isAllowedIcon()` / `isAllowedColor()` in the rules.
+    ///
+    /// These are the widest of the mirrored values — twenty strings across two
+    /// files — and the easiest to add to on one side only. A key missing from
+    /// the rules is a crest that can be picked and never saved.
+    func testCrestAllowlistsMatchSwift() throws {
+        let icons = quotedStrings(in: try functionBody("isAllowedIcon"))
+        let colors = quotedStrings(in: try functionBody("isAllowedColor"))
+
+        XCTAssertFalse(icons.isEmpty, "Couldn't find any icon key in isAllowedIcon()")
+        XCTAssertFalse(colors.isEmpty, "Couldn't find any colour key in isAllowedColor()")
+
+        XCTAssertEqual(
+            Set(icons), Set(Squad.iconKeys),
+            """
+            firestore.rules and Squad.iconKeys disagree. \
+            Only in the rules: \(Set(icons).subtracting(Squad.iconKeys).sorted()). \
+            Only in Swift: \(Set(Squad.iconKeys).subtracting(icons).sorted()).
+            """
+        )
+        XCTAssertEqual(
+            Set(colors), Set(Squad.colorKeys),
+            """
+            firestore.rules and Squad.colorKeys disagree. \
+            Only in the rules: \(Set(colors).subtracting(Squad.colorKeys).sorted()). \
+            Only in Swift: \(Set(Squad.colorKeys).subtracting(colors).sorted()).
+            """
+        )
+
+        // Sets hide a repeat; the counts don't. A duplicated key in the rules
+        // widens nothing and reads as agreement.
+        XCTAssertEqual(icons.count, Set(icons).count, "isAllowedIcon() repeats a key")
+        XCTAssertEqual(colors.count, Set(colors).count, "isAllowedColor() repeats a key")
+    }
+
+    /// The invite gate. `SquadInvite.id(for:_:)` builds `squadId_uid` in Swift,
+    /// and the self-join rule rebuilds the same ID server-side to check the
+    /// invite exists — if those two ever disagree, every join is refused and
+    /// nothing says why.
+    func testSelfJoinChecksTheInviteIdSwiftWouldBuild() {
+        XCTAssertTrue(
+            rules.contains("squadInvites/$(squadId + '_' + request.auth.uid)"),
+            "The self-join rule no longer checks squadInvites/{squadId}_{uid}; SquadInvite.id(for:_:) is built around that shape."
+        )
+        XCTAssertEqual(
+            SquadInvite.id(for: "SQUAD", "UID"), "SQUAD_UID",
+            "SquadInvite.id(for:_:) no longer builds the ID the rules recompute."
+        )
+    }
+
+    /// The friendship gate on an invite. The rules recompute the ordered pair
+    /// ID with a ternary; Swift computes it with `Friendship.id(for:_:)`. Both
+    /// orderings have to appear, or half the pairs silently fail the check
+    /// depending on which uid sorts first.
+    func testInviteFriendshipGateMatchesFriendshipId() throws {
+        let body = try functionBody("friendshipId")
+
+        XCTAssertTrue(
+            body.contains("request.auth.uid + '_' + incoming().uid"),
+            "friendshipId() no longer builds the caller-first ordering: \(body)"
+        )
+        XCTAssertTrue(
+            body.contains("incoming().uid + '_' + request.auth.uid"),
+            "friendshipId() no longer builds the invitee-first ordering: \(body)"
+        )
+        XCTAssertTrue(
+            body.contains("request.auth.uid < incoming().uid"),
+            "friendshipId() no longer picks the ordering lexicographically, which is what Friendship.id(for:_:) does: \(body)"
+        )
+
+        // And Swift still agrees about which side is which.
+        XCTAssertEqual(Friendship.id(for: "aaa", "zzz"), "aaa_zzz")
+        XCTAssertEqual(Friendship.id(for: "zzz", "aaa"), "aaa_zzz")
+    }
+
     // MARK: - Parsing helpers
 
     private func firstMatch(_ pattern: String) -> [String]? {
@@ -195,18 +372,61 @@ final class FirestoreRulesParityTests: XCTestCase {
     }
 
     private func allNumbers(_ pattern: String) -> [Double] {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
-
-        return regex
-            .matches(in: rules, range: NSRange(rules.startIndex..., in: rules))
-            .compactMap { match in
-                Range(match.range(at: 1), in: rules)
-                    .flatMap { Double(rules[$0]) }
-            }
+        numbers(pattern, in: rules)
     }
 
     private func number(_ pattern: String, _ describing: String) throws -> Double {
         let values = allNumbers(pattern)
         return try XCTUnwrap(values.first, "Couldn't find \(describing) in firestore.rules")
+    }
+
+    /// The body of a named rules function, so a pattern can be scoped to the
+    /// one place a value is defined instead of hunting the whole file.
+    ///
+    /// Several bounds appear in more than one collection — `users` caps a name
+    /// and so does `squads` — and a pattern loose enough to find one anywhere
+    /// will cheerfully assert the wrong one. These bodies contain no nested
+    /// braces, which is what makes the non-greedy match safe.
+    private func functionBody(_ name: String) throws -> String {
+        let pattern = "function\\s+\(name)\\s*\\([^)]*\\)\\s*\\{([^}]*)\\}"
+        let groups = try XCTUnwrap(
+            firstMatch(pattern),
+            "Couldn't find function \(name)() in firestore.rules. If it was renamed, update this test — don't delete it."
+        )
+        return groups[0]
+    }
+
+    /// Every single-quoted string in `text`, in order. Rules allowlists are
+    /// written as `x in ['a', 'b']`, so this is how one is read back.
+    private func quotedStrings(in text: String) -> [String] {
+        strings(#"'([^']*)'"#, in: text)
+    }
+
+    private func numbers(_ pattern: String, in text: String) -> [Double] {
+        strings(pattern, in: text).compactMap(Double.init)
+    }
+
+    /// Every match of a two-group pattern, as ordered pairs — how a
+    /// `format == 'x' ? n` ternary chain is read back as a mapping.
+    private func pairs(_ pattern: String, in text: String) throws -> [(String, String)] {
+        let regex = try NSRegularExpression(pattern: pattern)
+        return regex
+            .matches(in: text, range: NSRange(text.startIndex..., in: text))
+            .compactMap { match in
+                guard match.numberOfRanges >= 3,
+                      let first = Range(match.range(at: 1), in: text),
+                      let second = Range(match.range(at: 2), in: text) else { return nil }
+                return (String(text[first]), String(text[second]))
+            }
+    }
+
+    private func strings(_ pattern: String, in text: String) -> [String] {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+
+        return regex
+            .matches(in: text, range: NSRange(text.startIndex..., in: text))
+            .compactMap { match in
+                Range(match.range(at: 1), in: text).map { String(text[$0]) }
+            }
     }
 }

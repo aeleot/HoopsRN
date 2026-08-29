@@ -2,17 +2,21 @@ rules_version = '2';
 
 // hoopsRN Firestore security rules.
 //
-// Three collections: `users` (one owner per document), `games` (the first
-// shared, multi-user state in the app), and `friendships` (one document per
-// pair of people, written by either of them). See
+// Five collections: `users` (one owner per document), `games` (the first
+// shared, multi-user state in the app), `friendships` (one document per pair
+// of people, written by either of them), `squads` (a team, written by its
+// leader and by each member for their own membership), and `squadInvites`
+// (one document per squad-and-person pair, structurally `friendships`). See
 // `context/database/DATABASE_SCHEMA.md`.
 //
 // SEVERAL VALUES HERE ARE MIRRORED IN SWIFT — the roster bounds, the
-// scheduling window, the radius range, the `userName` length, and the
-// derivation of `status` from the roster. `hooprTests/FirestoreRulesParityTests`
-// parses this file and fails if either copy moves without the other. Change a
-// bound here and change it there; a mismatch doesn't show up as a logic error,
-// it shows up as `permission-denied` on every affected write.
+// scheduling window, the radius range, the `userName` length, the derivation
+// of `status` from the roster, and on `squads` the name length, the roster
+// ceiling per format, the format allowlist and the icon/colour allowlists.
+// `hooprTests/FirestoreRulesParityTests` parses this file and fails if either
+// copy moves without the other. Change a bound here and change it there; a
+// mismatch doesn't show up as a logic error, it shows up as
+// `permission-denied` on every affected write.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -304,6 +308,260 @@ service cloud.firestore {
       // that's either side unfriending — all three are the same operation
       // (delete), distinguished client-side only for wording/logging.
       allow delete: if isSignedIn() && isParticipant(resource.data);
+    }
+
+    // A named team that queues together for season matches — the third piece
+    // of shared, multi-user state, and the first whose subject is a *group*
+    // rather than a person or a pair. That's what makes squad-vs-squad play
+    // legal here: a match names two squad IDs, so a leader commits three
+    // people by writing one identifier they already own, and nobody's uid is
+    // ever written by anybody else. See `context/plans/SEASONS.md` §0.3.
+    //
+    // Readable by any signed-in user, like `users` and unlike `friendships`.
+    // An opponent has to be able to render your crest and name on a match
+    // card, and season play is public by design. The key allowlist on create
+    // is what keeps that safe — exactly the argument `users` makes: without
+    // it, a modified client could store anything it liked on a document every
+    // account can read, and Firestore has no field-level read ACLs.
+    //
+    // **Three separate update paths**, the same split `users` draws between
+    // profile edits and stats and `games` draws between roster changes and
+    // completion. One write can never smuggle in another path's fields: a
+    // leader's rename can't also change the roster, and a join can't also
+    // change the name.
+    //
+    // SEVERAL VALUES HERE ARE MIRRORED IN SWIFT — the name length, the roster
+    // ceiling per format, the format allowlist, and the icon/colour
+    // allowlists. `hooprTests/FirestoreRulesParityTests` parses this file and
+    // fails if either copy moves without the other.
+    match /squads/{squadId} {
+      function isSignedIn() { return request.auth != null; }
+      function incoming() { return request.resource.data; }
+
+      // MIRRORED IN SWIFT — `SquadFormat.available`. The schema carries `1v1`
+      // and `5v5` from day one; only what's listed here can actually be
+      // created. Adding a format means an entry here *and* a branch in
+      // maxRoster() below.
+      function isAllowedFormat(format) {
+        return format in ['3v3'];
+      }
+
+      // MIRRORED IN SWIFT — `SquadFormat.maxRoster`. A side, plus the same
+      // number again in substitutes. A format this ruleset doesn't allow gets
+      // a ceiling of zero rather than a default, so a roster can never be
+      // sized against a format nobody agreed to.
+      function maxRoster(format) {
+        return format == '3v3' ? 6 : 0;
+      }
+
+      // MIRRORED IN SWIFT — `Squad.nameLengthRange`.
+      function isValidName(name) {
+        return name is string && name.size() >= 3 && name.size() <= 24;
+      }
+
+      // MIRRORED IN SWIFT — `Squad.iconKeys`. An SF Symbol name, rendered by
+      // everyone who can see the squad, which is everyone.
+      function isAllowedIcon(key) {
+        return key in ['basketball.fill', 'flame.fill', 'bolt.fill',
+                       'crown.fill', 'shield.fill', 'star.fill',
+                       'hare.fill', 'tortoise.fill', 'pawprint.fill',
+                       'bird.fill', 'mountain.2.fill', 'hexagon.fill'];
+      }
+
+      // MIRRORED IN SWIFT — `Squad.colorKeys`. A palette *key*, never a
+      // colour: the value is resolved by `Theme.swift` so the crest stays
+      // appearance-aware. A stored hex would bypass that entirely.
+      function isAllowedColor(key) {
+        return key in ['orange', 'red', 'pink', 'purple',
+                       'blue', 'teal', 'green', 'gold'];
+      }
+
+      // Whoever is calling may appear or disappear from the roster, and no one
+      // else may move. The `games` membership idiom verbatim — both
+      // directions, because one direction alone would let a caller add
+      // themselves while dropping somebody else in the same write.
+      function onlyCallerMoved() {
+        return incoming().memberIds.toSet()
+                 .difference(resource.data.memberIds.toSet())
+                 .hasOnly([request.auth.uid])
+          && resource.data.memberIds.toSet()
+               .difference(incoming().memberIds.toSet())
+               .hasOnly([request.auth.uid]);
+      }
+
+      function rosterIsWellFormed() {
+        return incoming().memberIds is list
+          && incoming().memberIds.size() <= maxRoster(resource.data.format)
+          // No repeats. Without this, the *set* comparison in
+          // onlyCallerMoved() reads a roster of
+          // ['leader','me','me','me','me','me'] as a single addition — six
+          // list entries, two set entries — letting one member consume every
+          // seat and lock the squad to full. The same hole the `games` rule
+          // documents, and the reason a set diff is only a faithful proxy for
+          // a stored list when the list has no duplicates.
+          && incoming().memberIds.toSet().size() == incoming().memberIds.size()
+          // The leader can't be removed by anyone, themselves included.
+          // Disbanding is their exit, the way cancelling is a `games` host's.
+          && incoming().memberIds.hasAll([resource.data.leaderId]);
+      }
+
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && incoming().keys().hasOnly(['id', 'name', 'nameLower', 'leaderId',
+                                      'memberIds', 'format', 'iconKey',
+                                      'colorKey', 'region',
+                                      'createdAt', 'updatedAt'])
+        && incoming().keys().hasAll(['id', 'name', 'nameLower', 'leaderId',
+                                     'memberIds', 'format', 'iconKey',
+                                     'colorKey', 'region',
+                                     'createdAt', 'updatedAt'])
+        && incoming().id == squadId
+        && incoming().leaderId == request.auth.uid
+        // A squad starts as its leader alone. Everyone else arrives through
+        // the self-join path below — which is what keeps "a client only ever
+        // writes its own membership" true from the very first write.
+        && incoming().memberIds == [request.auth.uid]
+        && isValidName(incoming().name)
+        && incoming().nameLower is string
+        && isAllowedFormat(incoming().format)
+        && isAllowedIcon(incoming().iconKey)
+        && isAllowedColor(incoming().colorKey)
+        // Deliberately unbounded beyond non-empty: `region` is `Court.city`
+        // today and `plans/SCALE_UP.md` S1.1's real region key tomorrow.
+        // Mirroring a length for a value already scheduled to change would
+        // pin down the one part of this field that isn't decided.
+        && incoming().region is string
+        && incoming().region.size() > 0
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      // 1. Leader edit — the name and the crest, and nothing else.
+      // `memberIds` is absent from the allowlist, so this path cannot change
+      // who is on the squad no matter what it ships alongside.
+      allow update: if isSignedIn()
+        && resource.data.leaderId == request.auth.uid
+        && incoming().diff(resource.data).affectedKeys()
+             .hasOnly(['name', 'nameLower', 'iconKey', 'colorKey', 'updatedAt'])
+        && isValidName(incoming().name)
+        && incoming().nameLower is string
+        && isAllowedIcon(incoming().iconKey)
+        && isAllowedColor(incoming().colorKey)
+        && incoming().updatedAt == request.time;
+
+      // 2. Self-join — the caller adds themselves, and only if a leader
+      // already invited them. `squadInvites/{squadId}_{uid}` *is* the standing
+      // permission, and deriving its document ID from the pair is what makes
+      // checking it one exists() rather than a query.
+      allow update: if isSignedIn()
+        && incoming().diff(resource.data).affectedKeys()
+             .hasOnly(['memberIds', 'updatedAt'])
+        && rosterIsWellFormed()
+        && onlyCallerMoved()
+        // Pins the direction: not a member before, a member after. With
+        // onlyCallerMoved() above, that leaves exactly one legal diff.
+        && !(request.auth.uid in resource.data.memberIds)
+        && incoming().memberIds.hasAll([request.auth.uid])
+        && exists(/databases/$(database)/documents/squadInvites/$(squadId + '_' + request.auth.uid))
+        && incoming().updatedAt == request.time;
+
+      // 3. Self-leave — the mirror image, and closed to the leader.
+      allow update: if isSignedIn()
+        && incoming().diff(resource.data).affectedKeys()
+             .hasOnly(['memberIds', 'updatedAt'])
+        && rosterIsWellFormed()
+        && onlyCallerMoved()
+        && request.auth.uid in resource.data.memberIds
+        && !(request.auth.uid in incoming().memberIds)
+        // Redundant with rosterIsWellFormed()'s hasAll([leaderId]) and kept
+        // anyway: this is the sentence that says *why* a leader can't leave,
+        // where the other one only says the leader must still be listed.
+        && request.auth.uid != resource.data.leaderId
+        && incoming().updatedAt == request.time;
+
+      // Disbanding. The leader's alone, and a first-class action rather than
+      // an omission — a squad nobody can dissolve would sit in every member's
+      // list forever, the same argument `games` makes for cancellation.
+      allow delete: if isSignedIn() && resource.data.leaderId == request.auth.uid;
+    }
+
+    // A leader's standing offer for one person to join one squad.
+    //
+    // Structurally `friendships`: one document per pair, ID derived from its
+    // own content, so a duplicate invite is impossible rather than merely
+    // deduplicated. The authority is asymmetric and spent in one move — the
+    // leader creates it, and the only thing the invitee ever does to *this*
+    // document is delete it. Accepting is a write to the squad, not to here,
+    // which is the whole reason a squad can gain a member without anyone
+    // writing somebody else's uid.
+    //
+    // Revoking, declining, and consuming an accepted invite are all the same
+    // operation (delete), which is why there's no `status` field: absence,
+    // never null.
+    match /squadInvites/{inviteId} {
+      function isSignedIn() { return request.auth != null; }
+      function incoming() { return request.resource.data; }
+
+      // Ties the document ID to its own content instead of trusting the client
+      // to pick a consistent one — the role idMatchesPair() plays on
+      // `friendships`, and the reason there's nothing to deduplicate.
+      function idMatchesPair() {
+        return inviteId == incoming().squadId + '_' + incoming().uid;
+      }
+
+      // The `friendships` document for the inviter and the invitee, computed
+      // exactly as `Friendship.id(for:_:)` computes it in Swift: the pair in
+      // lexicographic order. Firebase uids are ASCII alphanumeric, so Swift's
+      // `<` and this one agree on the ordering.
+      function friendshipId() {
+        return request.auth.uid < incoming().uid
+          ? request.auth.uid + '_' + incoming().uid
+          : incoming().uid + '_' + request.auth.uid;
+      }
+
+      // Squads are built from your friends. Four lines, and they're the
+      // difference between that and "anyone can spam invites at strangers" —
+      // the gap `GAPS.md` already records on friend requests, deliberately not
+      // repeated here. `exists()` first because a get() on a missing document
+      // fails the whole rule as an error rather than a clean denial.
+      function isAcceptedFriend() {
+        return exists(/databases/$(database)/documents/friendships/$(friendshipId()))
+          && get(/databases/$(database)/documents/friendships/$(friendshipId()))
+               .data.status == 'accepted';
+      }
+
+      // Both participants, the way `friendships` reads — the person invited,
+      // and the leader who invited them. Both client listeners filter on one
+      // of those two fields against the caller's own uid, so neither ever asks
+      // for a document this rule doesn't already admit.
+      allow read: if isSignedIn()
+        && (resource.data.uid == request.auth.uid
+            || resource.data.invitedBy == request.auth.uid);
+
+      allow create: if isSignedIn()
+        && idMatchesPair()
+        && incoming().keys().hasOnly(['squadId', 'uid', 'invitedBy', 'createdAt'])
+        && incoming().keys().hasAll(['squadId', 'uid', 'invitedBy', 'createdAt'])
+        && incoming().squadId is string
+        && incoming().squadId.size() > 0
+        && incoming().uid is string
+        && incoming().uid.size() > 0
+        && incoming().invitedBy == request.auth.uid
+        && incoming().uid != request.auth.uid
+        // Only a squad's leader may invite to it — one get(), against the same
+        // single identifier the rest of the feature rests on.
+        && get(/databases/$(database)/documents/squads/$(incoming().squadId))
+             .data.leaderId == request.auth.uid
+        && isAcceptedFriend()
+        && incoming().createdAt == request.time;
+
+      // Immutable. There is nothing here to change: accepting is a write to
+      // the squad, and every other outcome is a delete.
+      allow update: if false;
+
+      allow delete: if isSignedIn()
+        && (resource.data.uid == request.auth.uid
+            || resource.data.invitedBy == request.auth.uid);
     }
   }
 }
