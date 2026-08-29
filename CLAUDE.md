@@ -22,6 +22,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **A dry-run is not a test.** It compiles `firestore.rules` and proves nothing about whether a write is allowed. `npm run test:rules` starts the Firestore emulator and evaluates the real ruleset — the claim race, the membership diffs, the stale-claim window. It needs a JDK (`brew install openjdk`); see [`firestore-tests/README.md`](firestore-tests/README.md).
 
+**Blank white screen in the simulator?** It is almost certainly not your code. Firebase's Firestore holds an exclusive LevelDB file lock on its local cache, and it does not degrade when it can't get one — it throws `NSInternalInconsistencyException` from `FirestoreClient::Initialize` on a background queue, *after* the window exists and before anything draws. So the window is blank, the crash isn't a signal crash, and `log show --predicate 'process == "hoopr"'` reports nothing. An orphaned `hoopr` process left over from an earlier run holds that lock — and it can survive a simulator reboot and ignore `kill -9`:
+
+```bash
+lsof | grep "firestore.*LOCK"
+```
+
+If that names a PID you can't kill, delete the lock sentinel it is holding (it is a zero-byte file LevelDB recreates on open) and relaunch:
+
+```bash
+rm -f "$(xcrun simctl get_app_container booted Big-Boss-LLC.hoopr data)/Library/Application Support/firestore/__FIRAPP_DEFAULT/hoopsrn-4f1e9/main/LOCK"
+```
+
+Reinstalling the app does **not** fix it: the data container survives a reinstall, and `lsof` will keep reporting the same inode under whatever container name is current — which makes it look like a fresh container is failing too. Diagnosed 2026-08-29; the orphan was two days old.
+
 **Important:** Don't run `xcodebuild test` without `-only-testing:hooprTests` — the UI test runner currently fails to launch (`RequestDenied` from SpringBoard), which masks real failures.
 
 ## Architecture overview
