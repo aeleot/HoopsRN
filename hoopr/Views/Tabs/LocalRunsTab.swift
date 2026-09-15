@@ -19,6 +19,10 @@ struct LocalRunsTab: View {
     /// Observed because `ProfileButton` reads it for its badge dot.
     @ObservedObject private var friendService: FriendService
 
+    /// Same reason as `friendService` — `ProfileButton`'s badge also carries
+    /// squad invites now.
+    @ObservedObject private var squadService: SquadService
+
     private let onOpenProfile: () -> Void
 
     init(
@@ -26,9 +30,11 @@ struct LocalRunsTab: View {
         courtService: CourtService,
         userProfileService: UserProfileService,
         friendService: FriendService,
+        squadService: SquadService,
         onOpenProfile: @escaping () -> Void
     ) {
         self.friendService = friendService
+        self.squadService = squadService
         self.onOpenProfile = onOpenProfile
         _viewModel = StateObject(wrappedValue: LocalRunsViewModel(
             gameService: gameService,
@@ -94,7 +100,7 @@ struct LocalRunsTab: View {
 
             Spacer(minLength: 8)
 
-            ProfileButton(friendService: friendService, action: onOpenProfile)
+            ProfileButton(friendService: friendService, squadService: squadService, action: onOpenProfile)
                 .offset(x: 8)
         }
         .padding(.horizontal, 20)
@@ -199,6 +205,7 @@ struct LocalRunsTab: View {
         courtService: CourtService(),
         userProfileService: UserProfileService(authService: authService),
         friendService: FriendService(authService: authService),
+        squadService: SquadService(authService: authService),
         onOpenProfile: {}
     )
 }

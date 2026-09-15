@@ -20,6 +20,11 @@ struct ProfileButton: View {
     /// discover by already being inside it isn't a notification.
     @ObservedObject var friendService: FriendService
 
+    /// Same reasoning as `friendService`: a squad invite is the second kind of
+    /// thing the inbox collects, and the badge has to agree with it without
+    /// the Seasons tab having ever been opened this session.
+    @ObservedObject var squadService: SquadService
+
     let action: () -> Void
 
     var body: some View {
@@ -45,10 +50,10 @@ struct ProfileButton: View {
                 }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(hasUnansweredRequests ? "Profile, requests waiting" : "Profile")
+        .accessibilityLabel(hasUnansweredRequests ? "Profile, notifications waiting" : "Profile")
     }
 
     private var hasUnansweredRequests: Bool {
-        !friendService.incomingRequests.isEmpty
+        !friendService.incomingRequests.isEmpty || !squadService.incomingInvites.isEmpty
     }
 }

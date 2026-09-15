@@ -2,18 +2,22 @@ import SwiftUI
 
 /// Everything social that's waiting on you, and everything you're waiting on.
 ///
-/// Opened from the Friends tab's top-right corner and badged with the number of
-/// unanswered requests. Friend requests are the only thing that lands here
-/// today; a second kind of notification costs a second section, which is why
-/// there's **no notification-kind abstraction** — an `InboxItem` enum with one
-/// case would be invented structure, not shared structure.
+/// Opened from the profile's top-right corner and badged with the number of
+/// unanswered requests — see `ProfileButton`. Friend requests were the only
+/// thing that landed here at first; squad invites are the second kind, and
+/// true to the plan, that cost exactly one more section rather than a
+/// notification-kind abstraction — an `InboxItem` enum for two cases would
+/// still be invented structure, not shared structure. Squad invites used to
+/// render inline on Squad home; there's nowhere left for a second kind of
+/// notification to hide once there's a dedicated inbox for the first.
 ///
-/// Two plain titled sections rather than collapsibles. There are at most two of
-/// them, both short, and the whole point of moving requests off the main tab was
+/// Plain titled sections rather than collapsibles. There are at most three of
+/// them, all short, and the whole point of moving requests off the main tab was
 /// to stop making people open a dropdown to find out whether anything was
 /// waiting.
 struct InboxSheet: View {
     @ObservedObject var viewModel: FriendsViewModel
+    @ObservedObject var squadViewModel: SquadViewModel
 
     let onDismiss: () -> Void
 
@@ -21,7 +25,9 @@ struct InboxSheet: View {
     @State private var presentedPlayer: PlayerRoute?
 
     private var isEmpty: Bool {
-        viewModel.incomingRequests.isEmpty && viewModel.outgoingRequests.isEmpty
+        viewModel.incomingRequests.isEmpty
+            && viewModel.outgoingRequests.isEmpty
+            && squadViewModel.incomingInvites.isEmpty
     }
 
     var body: some View {
@@ -41,6 +47,15 @@ struct InboxSheet: View {
                                 emptyText: viewModel.requestsEmptyText,
                                 subtitle: "Wants to add you"
                             )
+
+                            // Unlike the two friend sections, this one is
+                            // omitted rather than shown empty — a squad invite
+                            // is rarer than a friend request, and a "nothing
+                            // here" placeholder for it on every visit would
+                            // outweigh the one time it has something to say.
+                            if !squadViewModel.incomingInvites.isEmpty {
+                                squadInvitesSection
+                            }
 
                             section(
                                 title: "Sent",
@@ -102,6 +117,25 @@ struct InboxSheet: View {
                     ) {
                         actions(for: row)
                     }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 20)
+        }
+    }
+
+    private var squadInvitesSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader(title: "Squad invites", count: squadViewModel.incomingInvites.count)
+
+            VStack(spacing: 10) {
+                ForEach(squadViewModel.incomingInvites) { row in
+                    SquadInviteRow(
+                        row: row,
+                        isBlocked: squadViewModel.isBlocked(row.id),
+                        onAccept: { Task { await squadViewModel.acceptInvite(row.invite) } },
+                        onDecline: { Task { await squadViewModel.declineInvite(row.invite) } }
+                    )
                 }
             }
             .padding(.horizontal, 16)

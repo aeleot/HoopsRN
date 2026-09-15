@@ -473,12 +473,28 @@ final class MatchmakingViewModel: ObservableObject {
     /// The three courts nearest the anchor, which is what the queue sheet
     /// pre-selects so the common case is two taps.
     func nearestCourtIds(limit: Int = 3) -> [String] {
+        Array(sortedByDistance(courtService.courts.map(\.id)).prefix(limit))
+    }
+
+    /// Any set of court IDs, nearest-first. The general form `nearestCourtIds`
+    /// truncates to — pulled out so a court found through search still lands
+    /// in the same preference order a court found by proximity would, since
+    /// `MatchRules.court(forHome:guest:...)` reads that order to decide which
+    /// mutually-acceptable court a match actually lands at.
+    func sortedByDistance(_ courtIds: some Sequence<String>) -> [String] {
         let anchor = LocationService.homeLocation
-        return courtService.courts
-            .map { ($0.id, Distance.between(anchor, $0.coordinate)) }
+        return courtIds
+            .compactMap { id in courtsById[id].map { (id, Distance.between(anchor, $0.coordinate)) } }
             .sorted { $0.1 < $1.1 }
-            .prefix(limit)
             .map(\.0)
+    }
+
+    /// Courts matching a typed query, name ahead of city — same ranking
+    /// `MapTab`'s search uses. The queue sheet only offers the nearest few by
+    /// default; this is the escape hatch to the other 200-odd, so a squad that
+    /// wants a specific court across town isn't limited to what's nearby.
+    func searchCourts(matching query: String) -> [Court] {
+        CourtSearch.matches(courtService.courts, query: query)
     }
 
     func court(id: String) -> Court? { courtsById[id] }

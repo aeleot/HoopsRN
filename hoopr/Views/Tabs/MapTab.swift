@@ -89,6 +89,10 @@ struct MapTab: View {
     /// Observed because `ProfileButton` reads it for its badge dot.
     @ObservedObject private var friendService: FriendService
 
+    /// Same reason as `friendService` — `ProfileButton`'s badge also carries
+    /// squad invites now.
+    @ObservedObject private var squadService: SquadService
+
     /// Handed up rather than handled here — opening the profile replaces the
     /// whole interface, which is the shell's call to make, not a tab's.
     private let onOpenProfile: () -> Void
@@ -100,11 +104,13 @@ struct MapTab: View {
         gameService: GameService,
         recentCourtsStore: RecentCourtsStore,
         friendService: FriendService,
+        squadService: SquadService,
         courtToSelect: Binding<Court?>,
         onOpenProfile: @escaping () -> Void
     ) {
         self.gameService = gameService
         self.friendService = friendService
+        self.squadService = squadService
         self.onOpenProfile = onOpenProfile
         _courtToSelect = courtToSelect
         _viewModel = StateObject(wrappedValue: FindAMatchViewModel(
@@ -314,7 +320,7 @@ struct MapTab: View {
                 onClear: { viewModel.clearSearch() }
             )
 
-            ProfileButton(friendService: friendService, action: onOpenProfile)
+            ProfileButton(friendService: friendService, squadService: squadService, action: onOpenProfile)
         }
         .padding(.horizontal, 14)
     }
@@ -1117,6 +1123,7 @@ struct MapTab: View {
         gameService: GameService(authService: authService),
         recentCourtsStore: RecentCourtsStore(),
         friendService: FriendService(authService: authService),
+        squadService: SquadService(authService: authService),
         courtToSelect: $courtToSelect,
         onOpenProfile: {}
     )

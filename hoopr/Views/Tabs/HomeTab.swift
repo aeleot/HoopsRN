@@ -16,6 +16,7 @@ import SwiftUI
 struct HomeTab: View {
     @StateObject private var viewModel: HomeViewModel
     @ObservedObject private var friendService: FriendService
+    @ObservedObject private var squadService: SquadService
 
     /// Handed up rather than handled here — switching tabs is the shell's job,
     /// and Home is the one screen that wants to send you somewhere else.
@@ -29,11 +30,13 @@ struct HomeTab: View {
         gameService: GameService,
         userProfileService: UserProfileService,
         friendService: FriendService,
+        squadService: SquadService,
         onOpenProfile: @escaping () -> Void,
         onOpenRuns: @escaping () -> Void,
         onOpenMap: @escaping (Court?) -> Void
     ) {
         self.friendService = friendService
+        self.squadService = squadService
         self.onOpenProfile = onOpenProfile
         self.onOpenRuns = onOpenRuns
         self.onOpenMap = onOpenMap
@@ -110,7 +113,7 @@ struct HomeTab: View {
 
             Spacer(minLength: 8)
 
-            ProfileButton(friendService: friendService, action: onOpenProfile)
+            ProfileButton(friendService: friendService, squadService: squadService, action: onOpenProfile)
                 .offset(x: 8)
         }
         .padding(.top, 8)

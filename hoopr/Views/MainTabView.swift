@@ -32,7 +32,10 @@ struct MainTabView: View {
     /// reads it: the button carries a dot while a friend request is unanswered,
     /// and a plain `let` wouldn't redraw when one arrives.
     @ObservedObject private var friendService: FriendService
-    private let squadService: SquadService
+    /// Observed, same reason as `friendService`: `ProfileButton`'s badge now
+    /// carries squad invites too, and it reads this directly rather than
+    /// through whichever screen's own `SquadViewModel` happens to be alive.
+    @ObservedObject private var squadService: SquadService
     private let matchmakingService: MatchmakingService
     private let seasonGameService: SeasonGameService
     private let notificationService: NotificationService
@@ -74,7 +77,8 @@ struct MainTabView: View {
                 authService: authService,
                 userProfileService: userProfileService,
                 courtService: courtService,
-                friendService: friendService
+                friendService: friendService,
+                squadService: squadService
             ) {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     showProfile = false
@@ -108,6 +112,7 @@ struct MainTabView: View {
                     gameService: gameService,
                     userProfileService: userProfileService,
                     friendService: friendService,
+                    squadService: squadService,
                     onOpenProfile: openProfile,
                     onOpenRuns: { selectedScreen = .runs },
                     onOpenMap: { court in
@@ -125,6 +130,7 @@ struct MainTabView: View {
                     gameService: gameService,
                     recentCourtsStore: recentCourtsStore,
                     friendService: friendService,
+                    squadService: squadService,
                     courtToSelect: $courtToShowOnMap,
                     onOpenProfile: openProfile
                 )
@@ -136,6 +142,7 @@ struct MainTabView: View {
                     courtService: courtService,
                     userProfileService: userProfileService,
                     friendService: friendService,
+                    squadService: squadService,
                     onOpenProfile: openProfile
                 )
             }

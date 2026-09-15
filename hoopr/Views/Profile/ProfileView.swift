@@ -46,6 +46,12 @@ struct ProfileView: View {
     /// views are stateless and are rebuilt on every switch.
     @StateObject private var friendsViewModel: FriendsViewModel
 
+    /// Own instance, same reasoning as `friendsViewModel` — this screen owns
+    /// what it presents rather than reaching for one the Seasons tab already
+    /// built. Both independently mirror the same `SquadService`, so there's
+    /// nothing for the two to disagree about.
+    @StateObject private var squadViewModel: SquadViewModel
+
     private let onBack: () -> Void
 
     @State private var pane: Pane = .profile
@@ -101,6 +107,7 @@ struct ProfileView: View {
         userProfileService: UserProfileService,
         courtService: CourtService,
         friendService: FriendService,
+        squadService: SquadService,
         onBack: @escaping () -> Void
     ) {
         self.onBack = onBack
@@ -110,6 +117,12 @@ struct ProfileView: View {
             courtService: courtService
         ))
         _friendsViewModel = StateObject(wrappedValue: FriendsViewModel(
+            friendService: friendService,
+            userProfileService: userProfileService,
+            courtService: courtService
+        ))
+        _squadViewModel = StateObject(wrappedValue: SquadViewModel(
+            squadService: squadService,
             friendService: friendService,
             userProfileService: userProfileService,
             courtService: courtService
@@ -143,7 +156,7 @@ struct ProfileView: View {
                 )
             }
             .sheet(isPresented: $isInboxPresented) {
-                InboxSheet(viewModel: friendsViewModel) {
+                InboxSheet(viewModel: friendsViewModel, squadViewModel: squadViewModel) {
                     isInboxPresented = false
                 }
             }
@@ -560,6 +573,7 @@ struct ProfileView: View {
         userProfileService: UserProfileService(authService: authService),
         courtService: CourtService(),
         friendService: FriendService(authService: authService),
+        squadService: SquadService(authService: authService),
         onBack: {}
     )
 }

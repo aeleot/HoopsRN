@@ -107,10 +107,6 @@ struct SeasonsTab: View {
                         )
                     }
 
-                    if !viewModel.incomingInvites.isEmpty {
-                        invitesSection
-                    }
-
                     if !viewModel.hasLoaded {
                         loading
                     } else if let squad = viewModel.primarySquad {
@@ -199,7 +195,7 @@ struct SeasonsTab: View {
 
             Spacer(minLength: 8)
 
-            ProfileButton(friendService: friendService, action: onOpenProfile)
+            ProfileButton(friendService: friendService, squadService: squadService, action: onOpenProfile)
                 .offset(x: 8)
         }
         .padding(.top, 8)
@@ -399,74 +395,6 @@ struct SeasonsTab: View {
                 .buttonStyle(.plain)
             }
         }
-    }
-
-    // MARK: - Invites
-
-    /// Where an invite lands. Not one of the plan's numbered screens, and
-    /// necessary: the leader can invite from screen 9, but without somewhere to
-    /// *answer* an invite the roster can never gain a second member, which is
-    /// the only thing the self-join rule exists for.
-    private var invitesSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Squad invites")
-                .hooprFont(13, weight: .semibold)
-                .foregroundStyle(Color.hooprSecondaryText)
-                .textCase(.uppercase)
-
-            ForEach(viewModel.incomingInvites) { row in
-                inviteRow(row)
-            }
-        }
-    }
-
-    private func inviteRow(_ row: SquadViewModel.IncomingInvite) -> some View {
-        HStack(spacing: 12) {
-            if let squad = row.squad {
-                SquadCrest(squad: squad, size: SquadCrest.Size.card)
-            } else {
-                SquadCrest(
-                    iconKey: Squad.defaultIconKey,
-                    colorKey: Squad.defaultColorKey,
-                    size: SquadCrest.Size.card
-                )
-                .redacted(reason: .placeholder)
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(row.squadName)
-                    .hooprFont(15, weight: .semibold)
-                    .foregroundStyle(Color.hooprPrimaryText)
-
-                Text(row.squad.map { "\($0.format.displayName) · \($0.rosterText)" } ?? "Invited you to join")
-                    .hooprFont(13)
-                    .foregroundStyle(Color.hooprSecondaryText)
-            }
-
-            Spacer(minLength: 8)
-
-            HStack(spacing: 8) {
-                Button("Join") {
-                    Task { await viewModel.acceptInvite(row.invite) }
-                }
-                .buttonStyle(.plain)
-                .hooprFont(14, weight: .semibold)
-                .foregroundStyle(Color.hooprOnBrand)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Capsule().fill(Color.hooprOrange))
-
-                Button("Decline") {
-                    Task { await viewModel.declineInvite(row.invite) }
-                }
-                .buttonStyle(.plain)
-                .hooprFont(14)
-                .foregroundStyle(Color.hooprRed)
-            }
-            .disabled(viewModel.isBlocked(row.id))
-        }
-        .padding(12)
-        .cardChrome(cornerRadius: 12)
     }
 }
 
