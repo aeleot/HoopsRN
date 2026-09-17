@@ -55,15 +55,6 @@ nonisolated enum MatchRules {
 
     // MARK: - Tuning
 
-    /// How long a claim may sit before another squad may take the ticket back.
-    ///
-    /// **Enforced in three places that must agree**: `MatchTicket.isClaimable`
-    /// (the scanner), the rules' re-claim clause, and the waiting squad's UI.
-    /// `FirestoreRulesParityTests` pins this against the rules copy —
-    /// a divergence would let a client claim a ticket the server then refuses,
-    /// which surfaces as `permission-denied` on a perfectly reasonable action.
-    static let staleClaim: TimeInterval = 90
-
     /// How long a ticket waits before its criteria are fully relaxed.
     ///
     /// Ten minutes: long enough that a healthy pool matches on its own terms
@@ -209,12 +200,11 @@ nonisolated enum MatchRules {
         guard !mine.isExpired(at: now), !theirs.isExpired(at: now) else { return nil }
         guard theirs.isClaimable(at: now) else { return nil }
 
-        // My own ticket has to still be in play. If somebody has *just* claimed
-        // me I'm about to be matched and must not claim anyone else — that's
-        // how a squad double-books itself. If their claim went stale, I'm back
-        // in the pool and searching again. That's exactly `isClaimable`, which
-        // is also how the same 90 seconds ends up governing both sides of the
-        // race rather than two constants that could drift.
+        // My own ticket has to still be in play. A ticket leaves the pool
+        // exactly once, so if mine is already spent I'm in a match and must not
+        // take anyone else out of the pool — that's how a squad double-books
+        // itself. The server enforces the same thing from the other side: the
+        // commit's rules only permit `open` -> `matched`.
         guard mine.isClaimable(at: now) else { return nil }
 
         guard let overlap = mine.overlap(with: theirs) else { return nil }

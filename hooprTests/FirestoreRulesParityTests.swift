@@ -364,31 +364,90 @@ final class FirestoreRulesParityTests: XCTestCase {
 
     // MARK: - Match tickets
 
-    /// **The three-places constant.** `MatchRules.staleClaim` governs the
-    /// scanner, this rule's re-claim clause, and the waiting squad's UI, and
-    /// the plan says so explicitly because a divergence here is invisible: a
-    /// client would claim a ticket the server then refuses, and the user would
-    /// see `permission-denied` on a perfectly reasonable action.
-    func testStaleClaimWindowMatchesSwift() throws {
-        let body = try functionBody("claimHasGoneStale")
-        let seconds = try XCTUnwrap(
-            numbers(#"duration\.value\((\d+),\s*'s'\)"#, in: body).first,
-            "Couldn't find the stale-claim window in claimHasGoneStale()"
-        )
+    /// **The invariant the duplicate-match fix rests on**: a ticket leaves the
+    /// pool exactly once.
+    ///
+    /// This replaces a parity test for `MatchRules.staleClaim`, the ninety-
+    /// second window that let another squad re-take a ticket whose claimer had
+    /// died. That window existed because a match was made in two writes and
+    /// something had to clean up between them. A match is one transaction now,
+    /// there is no between, and the constant it pinned is gone.
+    ///
+    /// What replaces it is worth pinning harder. Both `matchTickets` update
+    /// paths must demand `resource.data.status == 'open'`, and `MatchTicket`
+    /// must have no state between open and spent — because if either side grew
+    /// an intermediate state back, a squad could be taken out of the pool twice
+    /// and end up in two live matches, which is exactly the bug both halves of
+    /// this were changed to fix.
+    func testATicketIsSpentExactlyOnce() throws {
+        let block = try matchBlock("matchTickets")
 
+        let updates = block.components(separatedBy: "allow update:").dropFirst()
         XCTAssertEqual(
-            seconds, MatchRules.staleClaim,
-            "firestore.rules lets a claim be retaken after \(Int(seconds))s; MatchRules.staleClaim is \(Int(MatchRules.staleClaim))s"
+            updates.count, 2,
+            "matchTickets should have exactly two update paths — the home ticket and the claimer's own"
         )
 
-        // The comparison has to be strictly greater-than, matching
-        // `MatchTicket.isClaimable`. A `>=` here and a `>` there disagree on
-        // exactly one second, which is the kind of divergence that shows up
-        // once a week and never reproduces.
-        XCTAssertTrue(
-            body.contains("request.time > resource.data.claimedAt"),
-            "claimHasGoneStale() no longer compares strictly; MatchTicket.isClaimable does: \(body)"
+        for (index, update) in updates.enumerated() {
+            XCTAssertTrue(
+                update.contains("resource.data.status == 'open'"),
+                "matchTickets update path \(index) doesn't require the ticket to still be open, so a ticket could be spent twice"
+            )
+            XCTAssertTrue(
+                update.contains("incoming().status == 'matched'"),
+                "matchTickets update path \(index) writes some status other than 'matched'"
+            )
+        }
+
+        // No third state, on either side of the boundary.
+        XCTAssertNil(
+            MatchTicket.Status(rawValue: "claimed"),
+            "MatchTicket.Status grew a state between open and spent; firestore.rules only permits open -> matched"
         )
+        XCTAssertFalse(
+            block.contains("'claimed'"),
+            "firestore.rules still knows about a 'claimed' ticket status; MatchTicket.Status does not: \(block)"
+        )
+    }
+
+    /// **Each half of the commit proves the other happened.**
+    ///
+    /// The two `matchTickets` update paths and the `seasonGames` create rule
+    /// are three separate rule evaluations of one transaction, and what stops
+    /// any of them standing alone is `getAfter()`. A ticket may only be marked
+    /// matched by a write that really is creating that match, and a match may
+    /// only be created by a write that really is spending both tickets. Lose
+    /// either direction and the atomicity is decorative.
+    func testTheCommitIsProvedFromBothSides() throws {
+        let tickets = try matchBlock("matchTickets")
+        for update in tickets.components(separatedBy: "allow update:").dropFirst() {
+            XCTAssertTrue(
+                update.contains("getAfter(/databases/$(database)/documents/seasonGames/$(incoming().matchedGameId))"),
+                "a matchTickets update no longer checks the match it names exists after the commit: \(update)"
+            )
+        }
+
+        let games = try matchBlock("seasonGames")
+        let create = try XCTUnwrap(
+            games.components(separatedBy: "allow create:").dropFirst().first,
+            "Couldn't find the seasonGames create rule"
+        )
+        for side in ["homeTicket()", "awayTicket()"] {
+            XCTAssertTrue(
+                create.contains("\(side).status == 'matched'"),
+                "seasonGames create no longer requires \(side) to be spent on this match"
+            )
+            XCTAssertTrue(
+                create.contains("\(side).matchedGameId == gameId"),
+                "seasonGames create no longer ties \(side) to this specific match"
+            )
+        }
+        for side in ["homeTicket", "awayTicket"] {
+            XCTAssertTrue(
+                games.contains("function \(side)() {\n        return getAfter("),
+                "\(side)() reads the pre-commit ticket; in one atomic commit that is always the unspent one"
+            )
+        }
     }
 
     /// `MatchTicket.courtCountRange` in Swift, `isValidCourtSelection()` in the
@@ -447,15 +506,54 @@ final class FirestoreRulesParityTests: XCTestCase {
 
     /// Every ticket status the rules name has to be one the model declares. A
     /// typo'd `'opne'` would reject every queue attempt with no clue why.
+    ///
+    /// **Scoped to the ticket's own status**, because the `matchTickets` block
+    /// now also reads a `seasonGames` status through `getAfter()` — the
+    /// cross-check that proves a ticket is only ever marked matched by a write
+    /// really creating that match. A pattern loose enough to catch both would
+    /// assert a game's status against `MatchTicket.Status` and fail for the
+    /// wrong reason; the game's own statuses get their own assertion below.
     func testTicketStatusesInTheRulesAreDeclared() throws {
         let block = try matchBlock("matchTickets")
-        let statuses = Set(strings(#"status\s*==\s*'(\w+)'"#, in: block))
+        let statuses = Set(
+            strings(#"(?:resource\.data|incoming\(\))\.status\s*==\s*'(\w+)'"#, in: block)
+        )
 
         XCTAssertFalse(statuses.isEmpty, "Couldn't find any status comparison in the matchTickets rules")
         for raw in statuses {
             XCTAssertNotNil(
                 MatchTicket.Status(rawValue: raw),
                 "firestore.rules compares matchTickets status to '\(raw)', which MatchTicket.Status doesn't declare"
+            )
+        }
+    }
+
+    /// The other half: the `seasonGames` status the ticket rules reach across
+    /// for has to be one `SeasonGame.Status` declares.
+    ///
+    /// A typo here fails in the least helpful way available — every commit is
+    /// refused, on a rule about a *different* collection than the one the error
+    /// names, and the ticket and the match both look individually fine.
+    func testTheGameStatusTheTicketRulesReachForIsDeclared() throws {
+        let block = try matchBlock("matchTickets")
+        let statuses = Set(
+            // The full path, not just the word: `seasonGames` also appears
+            // in the prose above these rules, and a looser pattern reads a
+            // comment as a rule.
+            strings(
+                #"getAfter\(/databases/\$\(database\)/documents/seasonGames/[^\n]*\)\s*\.data\.status\s*==\s*'(\w+)'"#,
+                in: block
+            )
+        )
+
+        XCTAssertFalse(
+            statuses.isEmpty,
+            "The matchTickets rules no longer check the match they name exists after the commit"
+        )
+        for raw in statuses {
+            XCTAssertNotNil(
+                SeasonGame.Status(rawValue: raw),
+                "firestore.rules requires a matched ticket's game to be '\(raw)', which SeasonGame.Status doesn't declare"
             )
         }
     }

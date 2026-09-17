@@ -1,19 +1,26 @@
 // The `matchTickets` rules, evaluated rather than read.
 //
 // Everything here was previously verified by a `--dry-run`, which compiles the
-// file and proves nothing about a write. The stale-claim constant in
-// particular is mirrored in four places — `MatchRules.staleClaim`,
-// `MatchTicket.isClaimable`, the waiting squad's UI, and the rule below — and
-// `FirestoreRulesParityTests` can only compare the first three against the
-// *text* of the fourth. This is where the deployed rule finally gets checked.
+// file and proves nothing about a write. This is where the deployed rules
+// finally get checked.
+//
+// **A ticket is spent, never claimed.** This file used to open on the
+// ninety-second stale-claim window, the constant mirrored across
+// `MatchRules.staleClaim`, `MatchTicket.isClaimable`, the waiting squad's UI
+// and the rule. All four are gone: a match is one commit that creates the game
+// and spends both tickets, so a ticket is never spoken-for-but-not-spent and
+// nothing has to time out. What is left to evaluate is who may spend a ticket,
+// and on what — every one of which goes through a whole commit, because a
+// half-commit is refused by design.
 
 import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 
 import {
+  commitMatch,
   createTestEnvironment,
   readRaw,
   seed,
@@ -50,128 +57,137 @@ beforeEach(async () => {
   });
 });
 
-/** The claim write, exactly as `MatchmakingService` issues it. */
-function claimWrite(claimingSquadId) {
+const GAME_ID = 'game-1';
+
+/** The match a commit creates, matching `SeasonGameService.commitMatch`. */
+function gameDocument(overrides = {}) {
   return {
-    status: 'claimed',
-    claimedBy: claimingSquadId,
-    claimedAt: serverTimestamp(),
+    id: GAME_ID,
+    format: '3v3',
+    region: 'Durham',
+    homeSquadId: 'squad-home',
+    awaySquadId: 'squad-away',
+    squadIds: ['squad-home', 'squad-away'],
+    homeLeaderId: 'leader-home',
+    awayLeaderId: 'leader-away',
+    homeSquadName: 'Rim Reapers',
+    awaySquadName: 'Court Vision',
+    courtId: 'court-1',
+    scheduledTime: secondsFromNow(60 * 90),
+    status: 'scheduled',
+    arrivedPlayerIds: [],
+    createdBy: 'leader-away',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    ...overrides,
   };
 }
 
-// MARK: - The stale-claim window
-
-test('a claim 91 seconds old may be re-claimed', async () => {
-  await seed(testEnv, {
+/** Both tickets in the pool, which is where every commit starts. */
+function seedBothTickets(overrides = {}) {
+  return seed(testEnv, {
     'matchTickets/squad-home': ticketDocument({
-      status: 'claimed',
-      claimedBy: 'squad-gone',
-      claimedAt: secondsFromNow(-91),
+      leaderId: 'leader-home',
+      memberIds: ['leader-home', 'member-home'],
+      courtIds: ['court-1', 'court-2'],
+      ...(overrides.home ?? {}),
+    }),
+    'matchTickets/squad-away': ticketDocument({
+      squadId: 'squad-away',
+      leaderId: 'leader-away',
+      squadName: 'Court Vision',
+      memberIds: ['leader-away'],
+      courtIds: ['court-1'],
+      ...(overrides.away ?? {}),
     }),
   });
+}
+
+// MARK: - Spending a ticket
+
+test('a leader may spend both tickets to commit a match', async () => {
+  await seedBothTickets();
 
   const db = testEnv.authenticatedContext('leader-away').firestore();
-  await assertSucceeds(
-    updateDoc(doc(db, 'matchTickets', 'squad-home'), claimWrite('squad-away'))
-  );
+  await assertSucceeds(commitMatch(db, gameDocument()));
 
   const ticket = await readRaw(testEnv, 'matchTickets/squad-home');
+  assert.equal(ticket.status, 'matched');
   assert.equal(ticket.claimedBy, 'squad-away');
+  assert.equal(ticket.matchedGameId, GAME_ID);
 });
 
-test('a claim 89 seconds old may not be re-claimed', async () => {
-  // Seeded immediately before the assertion so the two seconds of margin are
-  // real ones. The boundary is 90; this test and the one above are the two
-  // sides of it.
-  await seed(testEnv, {
-    'matchTickets/squad-home': ticketDocument({
-      status: 'claimed',
-      claimedBy: 'squad-holding',
-      claimedAt: secondsFromNow(-89),
-    }),
-  });
+test('an expired ticket may not be spent, however open it says it is', async () => {
+  await seedBothTickets({ home: { expiresAt: secondsFromNow(-1) } });
 
   const db = testEnv.authenticatedContext('leader-away').firestore();
-  await assertFails(
-    updateDoc(doc(db, 'matchTickets', 'squad-home'), claimWrite('squad-away'))
-  );
+  await assertFails(commitMatch(db, gameDocument()));
 });
 
-test('an open ticket may be claimed', async () => {
-  await seed(testEnv, { 'matchTickets/squad-home': ticketDocument() });
+// MARK: - Who may spend
 
-  const db = testEnv.authenticatedContext('leader-away').firestore();
-  await assertSucceeds(
-    updateDoc(doc(db, 'matchTickets', 'squad-home'), claimWrite('squad-away'))
-  );
-});
-
-test('an expired ticket may not be claimed, however open it says it is', async () => {
-  await seed(testEnv, {
-    'matchTickets/squad-home': ticketDocument({ expiresAt: secondsFromNow(-1) }),
-  });
-
-  const db = testEnv.authenticatedContext('leader-away').firestore();
-  await assertFails(
-    updateDoc(doc(db, 'matchTickets', 'squad-home'), claimWrite('squad-away'))
-  );
-});
-
-// MARK: - Who may claim
-
-test('a claim on behalf of a squad the caller does not lead is refused', async () => {
-  await seed(testEnv, { 'matchTickets/squad-home': ticketDocument() });
+test('a commit on behalf of a squad the caller does not lead is refused', async () => {
+  await seedBothTickets();
 
   // A member of the away squad, not its leader. The rule's single get() against
   // `squads/{claimedBy}` is the whole authorization — this is it failing.
   const db = testEnv.authenticatedContext('member-away').firestore();
-  await assertFails(
-    updateDoc(doc(db, 'matchTickets', 'squad-home'), claimWrite('squad-away'))
-  );
+  await assertFails(commitMatch(db, gameDocument({ createdBy: 'member-away' })));
 });
 
 test('a squad cannot claim itself out of the pool', async () => {
-  await seed(testEnv, { 'matchTickets/squad-home': ticketDocument() });
+  await seedBothTickets();
 
   const db = testEnv.authenticatedContext('leader-home').firestore();
   await assertFails(
-    updateDoc(doc(db, 'matchTickets', 'squad-home'), claimWrite('squad-home'))
+    commitMatch(db, gameDocument(), { claimedBy: 'squad-home' })
   );
 });
 
-test('a claim may not smuggle another field alongside it', async () => {
-  await seed(testEnv, { 'matchTickets/squad-home': ticketDocument() });
+test('a commit may not smuggle another field alongside the spend', async () => {
+  await seedBothTickets();
 
   const db = testEnv.authenticatedContext('leader-away').firestore();
 
   // `memberIds` is the one that matters: it is what the no-shared-players rule
-  // reads, so a claim free to rewrite it could match a squad against itself.
-  await assertFails(
-    updateDoc(doc(db, 'matchTickets', 'squad-home'), {
-      ...claimWrite('squad-away'),
-      memberIds: ['leader-away'],
-    })
-  );
+  // reads, so a spend free to rewrite it could match a squad against itself.
+  for (const extra of [{ memberIds: ['leader-away'] }, { courtIds: ['court-99'] }]) {
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'seasonGames', GAME_ID), gameDocument());
+    batch.update(doc(db, 'matchTickets', 'squad-home'), {
+      status: 'matched',
+      claimedBy: 'squad-away',
+      claimedAt: serverTimestamp(),
+      matchedGameId: GAME_ID,
+      ...extra,
+    });
+    batch.update(doc(db, 'matchTickets', 'squad-away'), {
+      status: 'matched',
+      matchedGameId: GAME_ID,
+    });
 
-  await assertFails(
-    updateDoc(doc(db, 'matchTickets', 'squad-home'), {
-      ...claimWrite('squad-away'),
-      courtIds: ['court-99'],
-    })
-  );
+    await assertFails(batch.commit());
+  }
 });
 
-test('a claim cannot be backdated to look fresh forever', async () => {
-  await seed(testEnv, { 'matchTickets/squad-home': ticketDocument() });
+test('a spend cannot be backdated to look fresh forever', async () => {
+  await seedBothTickets();
 
   const db = testEnv.authenticatedContext('leader-away').firestore();
-  await assertFails(
-    updateDoc(doc(db, 'matchTickets', 'squad-home'), {
-      status: 'claimed',
-      claimedBy: 'squad-away',
-      claimedAt: secondsFromNow(60 * 60),
-    })
-  );
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'seasonGames', GAME_ID), gameDocument());
+  batch.update(doc(db, 'matchTickets', 'squad-home'), {
+    status: 'matched',
+    claimedBy: 'squad-away',
+    claimedAt: secondsFromNow(60 * 60),
+    matchedGameId: GAME_ID,
+  });
+  batch.update(doc(db, 'matchTickets', 'squad-away'), {
+    status: 'matched',
+    matchedGameId: GAME_ID,
+  });
+
+  await assertFails(batch.commit());
 });
 
 // MARK: - Queueing

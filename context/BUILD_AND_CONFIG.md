@@ -205,12 +205,19 @@ for a ruleset it never evaluated is worse than no rules suite at all.
 
 There are **two** suites, in two languages, and neither can do the other's job.
 
-- **`hooprTests` — 428 test methods across 27 suites**, from a green
-  `-only-testing:hooprTests` run on 2026-08-29. All of them carry real coverage;
+- **`hooprTests` — 438 test methods across 28 suites**, from a green
+  `-only-testing:hooprTests` run on 2026-09-15. All of them carry real coverage;
   there is no scaffold left in `hooprTests/`.
-- **`firestore-tests/` — 92 tests**, run by `npm run test:rules` against the
+- **`firestore-tests/` — 95 tests**, run by `npm run test:rules` against the
   Firestore emulator. This is the only place `firestore.rules` is *evaluated*
   rather than read; see "A dry-run is not a test" above.
+
+  **`claim-race.test.mjs` is the one that races rather than asserts.** It runs
+  two commits against one ticket, and two squads committing against *each
+  other*, fifteen rounds each, and requires exactly one match to survive. The
+  second of those is a regression test with a known failing baseline: run
+  against the pre-fix ruleset it produces two winners and two matches, which is
+  the duplicate-match bug users were seeing.
 
 **Every Swift test targets a `nonisolated static` pure function.** No test in
 the suite instantiates a service, and there are no service stubs anywhere in

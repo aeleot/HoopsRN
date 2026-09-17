@@ -322,91 +322,54 @@ final class MatchRulesTests: XCTestCase {
         XCTAssertNil(candidate(imminent, alsoImminent))
     }
 
-    // MARK: - Stale claims
+    // MARK: - Spent tickets
 
-    /// A claim older than `staleClaim` is claimable again; a fresh one isn't.
-    /// This is the recovery that makes the two-step claim-then-create design
-    /// safe without `getAfter()`.
-    func testAStaleClaimIsACandidateAndAFreshOneIsNot() throws {
-        let stale = ticket(
+    /// **A spent ticket is never a candidate**, on either side of the pair.
+    ///
+    /// This section used to test the ninety-second stale-claim recovery: a
+    /// ticket whose claimer had died came back to the pool, and the same window
+    /// governed both sides of the race. That existed because a match took two
+    /// writes and something had to clean up between them. A match is one
+    /// transaction now — both tickets and the game commit together — so a ticket
+    /// is either in the pool or spent, there is nothing in between to recover
+    /// from, and `MatchRules` has no `staleClaim` left to agree with the rules
+    /// about.
+    func testASpentTicketIsNeverACandidate() {
+        let spent = ticket(
             squadId: "theirs",
             members: ["b1", "b2", "b3"],
-            status: .claimed,
+            status: .matched,
             claimedBy: "someoneElse",
-            claimedAt: -(MatchRules.staleClaim + 1)
+            claimedAt: -1
         )
-        let fresh = ticket(
+        let longSpent = ticket(
             squadId: "theirs",
             members: ["b1", "b2", "b3"],
-            status: .claimed,
+            status: .matched,
             claimedBy: "someoneElse",
-            claimedAt: -(MatchRules.staleClaim - 1)
+            claimedAt: -86_400
         )
 
-        XCTAssertNotNil(try XCTUnwrap(candidate(mine, stale)))
-        XCTAssertNil(candidate(mine, fresh))
+        XCTAssertNil(candidate(mine, spent))
+        XCTAssertNil(candidate(mine, longSpent), "Age must not bring a spent ticket back")
     }
 
-    /// Exactly at the boundary is still fresh — the comparison is strictly
-    /// greater-than, matching the rules' `request.time > claimedAt + 90s`. A
-    /// disagreement here is a client claim the server refuses.
-    func testTheStaleBoundaryIsExclusive() {
-        let onTheDot = ticket(
-            squadId: "theirs",
-            members: ["b1", "b2", "b3"],
-            status: .claimed,
-            claimedBy: "someoneElse",
-            claimedAt: -MatchRules.staleClaim
-        )
-
-        XCTAssertFalse(onTheDot.isClaimable(at: now))
-        XCTAssertNil(candidate(mine, onTheDot))
-    }
-
-    /// A `claimed` ticket whose server timestamp hasn't resolved was written
-    /// seconds ago, so it is emphatically not stale. Reading a missing
-    /// timestamp as "infinitely old" would let every in-flight claim be stolen.
-    func testAClaimWithAnUnresolvedTimestampIsNotStale() {
-        let inFlight = ticket(
-            squadId: "theirs",
-            members: ["b1", "b2", "b3"],
-            status: .claimed,
-            claimedBy: "someoneElse",
-            claimedAt: nil
-        )
-
-        XCTAssertFalse(inFlight.isClaimable(at: now))
-        XCTAssertNil(candidate(mine, inFlight))
-    }
-
-    /// My own ticket being freshly claimed stops me claiming anyone else —
-    /// otherwise a squad double-books itself in the seconds before its own
-    /// match lands.
-    func testMyOwnFreshClaimStopsMeSearching() {
+    /// **My own spent ticket stops me taking anyone else out of the pool.**
+    ///
+    /// The half of the no-double-booking rule that lives on this side of the
+    /// pair. The server enforces the same thing from the other side — the
+    /// commit's rules only permit `open` -> `matched`, so a second commit on
+    /// the same ticket is refused — and this is what stops the client trying.
+    func testMyOwnSpentTicketStopsMeSearching() {
         let spokenFor = ticket(
             squadId: "mine",
             members: ["a1", "a2", "a3"],
-            status: .claimed,
+            status: .matched,
             claimedBy: "someoneElse",
             claimedAt: -1
         )
 
         XCTAssertNil(candidate(spokenFor, theirs))
-    }
-
-    /// …and once that claim goes stale I'm back in the pool. The same 90
-    /// seconds governs both sides of the race, which is what stops the two
-    /// halves drifting apart.
-    func testMyOwnStaleClaimLetsMeSearchAgain() throws {
-        let abandoned = ticket(
-            squadId: "mine",
-            members: ["a1", "a2", "a3"],
-            status: .claimed,
-            claimedBy: "someoneElse",
-            claimedAt: -(MatchRules.staleClaim + 1)
-        )
-
-        XCTAssertNotNil(try XCTUnwrap(candidate(abandoned, theirs)))
     }
 
     // MARK: - Relaxation over time

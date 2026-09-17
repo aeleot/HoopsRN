@@ -16,15 +16,29 @@ import Foundation
 ///
 /// Deliberately free of Firebase types, like every other model here.
 nonisolated struct MatchTicket: Identifiable, Sendable, Codable, Hashable {
-    /// Where a ticket is in its short life.
+    /// Where a ticket is in its short life. **Two states, and the second is
+    /// terminal.**
     ///
-    /// `claimed` is not terminal: a claim that never becomes a game goes stale
-    /// after `MatchRules.staleClaim` and the ticket returns to the pool. That
-    /// recovery is what makes the two-step claim-then-create design safe
-    /// without `getAfter()` — see the plan's §2.3.
+    /// There was a third, `claimed`, and removing it is the substance of the
+    /// duplicate-match fix rather than tidying after it. `claimed` existed
+    /// because a match used to be made in two steps — claim a ticket, then
+    /// write the game — and it named the gap between them. A gap is a state two
+    /// clients can disagree about: two squads that claimed *each other* wrote to
+    /// two different documents, so nothing serialized them, both claims won, and
+    /// both clients went on to create a game. Both squads then saw two live
+    /// matches.
+    ///
+    /// A match is now one transaction that reads both tickets and writes both
+    /// tickets and the game together, so there is no instant at which a ticket
+    /// is spoken for but not spent. With no gap there is nothing for `claimed`
+    /// to name — and with it goes the ninety-second stale-claim recovery, which
+    /// existed only to clean up after a claimer who died inside that gap.
     enum Status: String, Sendable, Codable {
+        /// In the pool, and claimable by anyone the rules admit.
         case open
-        case claimed
+        /// Spent on a match. Terminal: the rules permit `open` -> `matched` and
+        /// nothing else, which is what makes "a squad is in at most one live
+        /// match" true on the server rather than only in the client.
         case matched
     }
 
@@ -66,17 +80,31 @@ nonisolated struct MatchTicket: Identifiable, Sendable, Codable, Hashable {
 
     let status: Status
 
-    /// The squad that won the claim race. Set only by the claim transaction.
+    /// The squad that took this ticket out of the pool, on the home ticket
+    /// only — the away squad spends its own, so nobody claimed it.
+    ///
+    /// Written in the same commit as `matched`, not before it. The name
+    /// survives the two-step design it was born in and still says the right
+    /// thing: who claimed this ticket.
     let claimedBy: String?
 
-    /// Server-assigned when the claim landed. Drives stale-claim recovery, and
-    /// pinned to `request.time` in the rules so a claim can't be backdated to
-    /// look fresh forever.
+    /// Server-assigned when the match was committed, and pinned to
+    /// `request.time` in the rules so it can't be backdated. This document's
+    /// only change stamp — `matchTickets` deliberately carries no `updatedAt`.
     let claimedAt: Date?
 
-    /// The handoff to the waiting squad: the `seasonGames` document its
-    /// opponent created. A waiting squad learns it has been matched by watching
-    /// this field on a document it can always read.
+    /// The match this ticket was spent on. **Both tickets carry it, and they
+    /// carry the same value** — which is the sense in which one match now
+    /// refers back to both squads rather than each squad holding its own.
+    ///
+    /// No longer the handoff it used to be. A waiting squad used to learn it
+    /// had been matched by watching this field, because the game landed after
+    /// its ticket did; now they land together, and `seasonGames`' own
+    /// `array-contains` listener tells both squads directly. What it is for
+    /// today is proof: each ticket's rule checks the game named here really
+    /// exists after the commit and really casts this squad in this role, which
+    /// is what stops a ticket being marked matched by anything other than a
+    /// write that is genuinely making that match.
     let matchedGameId: String?
 
     /// Server-assigned. Ticket age is what drives relaxation.
@@ -85,6 +113,42 @@ nonisolated struct MatchTicket: Identifiable, Sendable, Codable, Hashable {
     /// Client-supplied, rules-bounded, and queried against — an expired ticket
     /// leaves the pool without anything having to delete it.
     let expiresAt: Date
+}
+
+// MARK: - Stored field names
+
+nonisolated extension MatchTicket {
+    /// The document's field names, **next to the coding keys they have to
+    /// agree with**.
+    ///
+    /// Every other collection keeps these in a `private enum Field` inside its
+    /// own service, for the stated reason that a write map must not drift from
+    /// the model's coding keys. `matchTickets` has two writers in different
+    /// files — `MatchmakingService` owns the collection, and
+    /// `SeasonGameService.commitMatch` spends both tickets inside the one
+    /// transaction that also creates the match — so a private copy in each
+    /// would be exactly the drift the pattern exists to prevent. Hoisting them
+    /// here serves that intent rather than bending it: there is still one copy,
+    /// and it now sits beside the thing it must match.
+    enum Field {
+        static let squadId = "squadId"
+        static let leaderId = "leaderId"
+        static let squadName = "squadName"
+        static let memberIds = "memberIds"
+        static let format = "format"
+        static let region = "region"
+        static let courtIds = "courtIds"
+        static let windowStart = "windowStart"
+        static let windowEnd = "windowEnd"
+        static let wins = "wins"
+        static let losses = "losses"
+        static let status = "status"
+        static let claimedBy = "claimedBy"
+        static let claimedAt = "claimedAt"
+        static let matchedGameId = "matchedGameId"
+        static let createdAt = "createdAt"
+        static let expiresAt = "expiresAt"
+    }
 }
 
 // MARK: - Identity
@@ -135,28 +199,29 @@ nonisolated extension MatchTicket {
         expiresAt <= now
     }
 
-    /// Whether another squad may claim this ticket at `now`.
+    /// Whether this ticket may still be spent on a match at `now`.
     ///
-    /// **`staleClaim` is enforced in three places that must agree**: here (the
-    /// scanner), in the rules' re-claim clause, and in the waiting squad's own
-    /// UI, which reverts to "searching" rather than showing a match that never
-    /// arrived. A claimer that crashed between winning the claim and writing
-    /// the game costs the pool 90 seconds and nothing else.
+    /// Asked of both sides of a candidate pair: of *theirs*, because a spent
+    /// ticket is not in the pool, and of *mine*, because a squad that has
+    /// already matched must not take anyone else out of it.
+    ///
+    /// `now` is unused today and kept in the signature deliberately: expiry is
+    /// the caller's own check in `MatchRules.candidate`, and dropping the
+    /// parameter would invite the next reader to fold expiry in here, where the
+    /// two checks would then be made in two places that could drift.
     func isClaimable(at now: Date) -> Bool {
-        switch status {
-        case .open:
-            return true
-        case .claimed:
-            guard let claimedAt else {
-                // A `claimed` ticket whose server timestamp hasn't resolved was
-                // written seconds ago, so it is emphatically not stale.
-                return false
-            }
-            return now.timeIntervalSince(claimedAt) > MatchRules.staleClaim
-        case .matched:
-            return false
-        }
+        status == .open
     }
+
+    /// Whether this ticket still represents a live search — the one question
+    /// the matchmaking card's "searching" state should ever ask of a ticket.
+    ///
+    /// A spent ticket outlives its match: nothing deletes it, and it ages out
+    /// on `expiresAt` up to a day later. Reading *any* ticket as "still
+    /// looking" is what left a squad staring at a search spinner, with a timer
+    /// counting up from when they queued, after their match had already been
+    /// played and confirmed.
+    var isSearching: Bool { status == .open }
 
     /// How long this ticket has been waiting. Never negative, even if a client
     /// clock disagrees with the server's.
@@ -243,8 +308,12 @@ nonisolated enum MatchTicketError: Error, Equatable {
     /// duplicate, since the document ID is the squad ID, so this is the
     /// client's name for "you're already queued".
     case alreadyQueued
-    /// The ticket was claimed, matched, or expired between the pool snapshot
-    /// and the claim. Expected, not exceptional.
+    /// The squad already has a live match. One live match at a time: queueing
+    /// again before it is played, cancelled or aged out is what would put two
+    /// in front of the same six people.
+    case matchAlreadyScheduled
+    /// The ticket was matched or expired between the pool snapshot and the
+    /// commit. Expected, not exceptional.
     case claimLost
     case ticketNotFound
     case permissionDenied

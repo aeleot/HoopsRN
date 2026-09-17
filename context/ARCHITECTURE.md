@@ -28,8 +28,8 @@ can be built with a stub.
 | `FriendService` | `friends: [Friendship]`, `incomingRequests: [Friendship]`, `outgoingRequests: [Friendship]`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Two session-scoped query listeners (`uidA == me`, `uidB == me`) merged client-side, and a `ListenerSupervisor` keying their health separately. |
 | `RecentCourtsStore` | `recentCourtIds: [String]` | `UserDefaults`-backed; deliberately on-device. |
 | `SquadService` | `squads: [Squad]`, `incomingInvites`/`sentInvites: [SquadInvite]`, `errorMessage`, `isRecovering`, `hasLoadedSquads` | `@MainActor`. Subscribes to `AuthService` itself. **Owns two collections** — `squads` and `squadInvites` — justified because a `squadInvite` has no independent existence: it is created against a squad, consumed by a write to that same squad, and deleted in the same breath. |
-| `MatchmakingService` | `myTicket: MatchTicket?`, `pool: [MatchTicket]`, `wonClaim: MatchCandidate?`, `isBackingOff: Bool` | `@MainActor`. Owns `matchTickets`, the pool listener, and **the one contested write in the app** — the claim transaction. Its retry is about contention, not network health, and is deliberately separate from the supervisor's. |
-| `SeasonGameService` | `games: [SeasonGame]`, `errorMessage`, `isRecovering`, `hasLoadedGames` | `@MainActor`. Owns `seasonGames`. A `seasonGame` earns its own service where a `squadInvite` didn't: it outlives both tickets, has its own listener, and is what a squad's record is derived from. |
+| `MatchmakingService` | `myTicket: MatchTicket?`, `pool: [MatchTicket]`, `isBackingOff: Bool` | `@MainActor`. Owns `matchTickets`, the pool listener and the scan. It no longer performs the contested write — that spans two collections and lives in `SeasonGameService.commitMatch`, reached through an injected `MatchCommitting`. Its retry is about contention, not network health, and is deliberately separate from the supervisor's. |
+| `SeasonGameService` | `games: [SeasonGame]`, `errorMessage`, `isRecovering`, `hasLoadedGames` | `@MainActor`. Owns `seasonGames`, and holds **the one contested write in the app** — `commitMatch`, which creates a match and spends both `matchTickets` atomically. A `seasonGame` earns its own service where a `squadInvite` didn't: it outlives both tickets, has its own listener, and is what a squad's record is derived from. |
 | `NotificationService` | `authorizationStatus: UNAuthorizationStatus?` | The only file in the app importing `UserNotifications`. **Executes a plan and decides nothing** — see the vendor boundary below. |
 
 Twelve view models are built from them, each `@StateObject` inside the view it
@@ -65,23 +65,33 @@ all), and `GameDayViewModel`/`ResultViewModel` join a match to both squads'
 rosters and crests. Pushing any of these down into a service would give one
 collection's owner a dependency on another's.
 
-### The one deliberate exception: a write *sequence* in a view model
+### The one deliberate exception: a write that spans two collections
 
-`MatchmakingViewModel` holds the claim → create → mark-matched sequence, and
-that is more than a join — it is a cross-collection **write sequence**, which
-this document otherwise puts nowhere.
+**`SeasonGameService.commitMatch` writes `matchTickets`**, which no other service
+does to another's collection. It creates the `seasonGames` document and spends
+*both* squads' tickets in a single transaction.
 
-It lives there because the alternative is worse. `MatchmakingService` owns
-`matchTickets` and `SeasonGameService` owns `seasonGames`; services here have no
-references to each other, and nothing about the sequence needs them to. One
-object holding both and calling them in order costs a house-rule asterisk. One
-service reaching into another would cost the house rule itself.
+It used to be a *sequence* instead — claim, then create, then mark both tickets
+— held by `MatchmakingViewModel`, on the argument that one object calling two
+services in order costs a house-rule asterisk while one service reaching into
+another costs the house rule itself. That argument was sound and the design was
+still wrong: three ordered writes are not one atomic write. Two squads that
+picked each other each claimed the *other's* ticket — different documents, so
+nothing serialized them — and both went on to create a match. Both squads then
+had two.
 
-The **order** inside it is load-bearing: the game is written first, because it is
-the durable thing and the tickets are bookkeeping. A client that dies after the
-game and before the tickets leaves a game both squads can still see, and each
-squad's own client closes its own ticket off its own `seasonGames` listener. The
-reverse order would take two squads out of the pool with nothing to show them.
+Atomicity has to win here, and an atomic write across two collections must
+belong to one object. It belongs to `SeasonGameService` because the match is the
+durable thing — the document a record is derived from, the one that outlives
+both tickets — and the ticket writes are bookkeeping that must not come apart
+from it. The four ticket field names it needs come from `MatchTicket.Field`, so
+there is still exactly one copy of them.
+
+**The view model still does the wiring, and only the wiring.** The scan loop
+stays in `MatchmakingService`; `MatchmakingViewModel` hands it a
+`MatchCommitting` closure that reaches `SeasonGameService`. That is a
+dependency, not an ordering — and the ordering that could come apart no longer
+exists.
 
 `RootViewModel` is a separate type from `RootView` specifically so the
 launching/login/main gating rule can be tested without rendering.
@@ -146,7 +156,7 @@ the service layer", which still holds.)*
 | `Services/FriendService.swift` | `FirebaseFirestore` | `friendships` | `Friendship`, `FriendError` |
 | `Services/SquadService.swift` | `FirebaseFirestore` | `squads`, `squadInvites` | `Squad`, `SquadInvite`, `SquadError` |
 | `Services/MatchmakingService.swift` | `FirebaseFirestore` | `matchTickets` | `MatchTicket`, `MatchCandidate`, `MatchTicketError` |
-| `Services/SeasonGameService.swift` | `FirebaseFirestore` | `seasonGames` | `SeasonGame`, `SeasonGameError` |
+| `Services/SeasonGameService.swift` | `FirebaseFirestore` | `seasonGames`, and `matchTickets` in `commitMatch` alone | `SeasonGame`, `SeasonGameError`, `ClaimOutcome` |
 | `Services/NotificationService.swift` | `UserNotifications` | scheduled local notifications | `UNAuthorizationStatus` only |
 | `Services/FirestoreFailure.swift` | `FirebaseFirestore` | *(nothing)* | `FirestoreFailure`, the shared classification |
 | `Services/ListenerSupervisor.swift` | *(none)* | listener re-attach + `FailureContext` | both, to the six Firestore services |
@@ -216,7 +226,7 @@ together:
 |---|---|---|
 | `Game.status(playerCount:maxPlayers:)` | the `games` status expression | A run reads `full` locally and `open` server-side. |
 | `SeasonGame.reportOutcome` | `derivedResultHolds()` on `seasonGames` | A result the client shows as confirmed that the server considers disputed. |
-| `MatchRules.staleClaim` | the 90-second re-claim window | A ticket the scanner thinks is claimable and the rules refuse. |
+| `MatchTicket.Status` | the `open` -> `matched` transition on `matchTickets` | A middle state on either side lets a squad be spent twice and land in two matches. |
 | `Squad`/`MatchTicket` bounds and allowlists | their create rules | `permission-denied` on a write the form said was fine. |
 
 `FirestoreRulesParityTests` parses `firestore.rules` from the source tree and

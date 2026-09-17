@@ -8,15 +8,20 @@ fileprivate let logger = Logger(subsystem: "com.hoopsrn", category: "Matchmaking
 /// Drives queueing, searching, and the match that comes out the other end —
 /// screens 4, 5 and 6 of `context/plans/SEASONS.md` §5.
 ///
-/// **This is where the claim → create → mark-matched sequence lives, and that
-/// is a deliberate departure worth naming.** `ARCHITECTURE.md` puts
-/// cross-collection *joins* in view models; this is a cross-collection write
-/// *sequence*, which is more than a join. It lives here anyway because the
-/// alternative is worse: `MatchmakingService` owns `matchTickets` and
-/// `SeasonGameService` owns `seasonGames`, services in this app have no
-/// references to each other, and nothing about this sequence needs them to.
-/// One object that holds both and calls them in order costs a house-rule
-/// asterisk. One service reaching into another would cost the house rule.
+/// **The claim → create → mark-matched sequence used to live here, and it had
+/// to stop.** Three writes in order across two collections is not the same
+/// thing as one atomic write, and the difference was the duplicate-match bug:
+/// two squads that picked each other each won a claim on the *other's* ticket —
+/// two different documents, so nothing serialized them — and each went on to
+/// create a match. Both squads then saw two.
+///
+/// What this view model does now is *wire*, not sequence. It hands
+/// `MatchmakingService` a way to commit a candidate, and the commit itself is
+/// one transaction in `SeasonGameService.commitMatch`. That is still a
+/// cross-collection concern resolved in a view model, which is what
+/// `ARCHITECTURE.md` reserves this layer for — but it is a dependency now
+/// rather than an ordering, and the ordering that used to be able to come apart
+/// no longer exists.
 ///
 /// It also joins `CourtService` and `LocationService` in, which *is* the
 /// ordinary kind of join — `MatchRules` needs a court lookup and a distance
@@ -73,18 +78,113 @@ final class MatchmakingViewModel: ObservableObject {
 
     /// Which screen the matchmaking card is showing.
     enum Phase: Equatable {
-        /// No ticket, no match — "Find a match".
+        /// No ticket worth showing, and no match — "Find a match".
         case idle
         /// Queued and looking. Screen 5.
         case searching
+        /// The ticket is spent and the match itself hasn't arrived on the games
+        /// listener yet. Milliseconds, normally — the game and the tickets are
+        /// written in one commit, but they reach this client on two listeners.
+        /// A state of its own so the card doesn't blink through "Find a match"
+        /// on its way to showing the match.
+        ///
+        /// **Bounded by `settlingGrace`.** Nothing re-evaluates `phase` once the
+        /// ticket itself stops changing, so without a timeout a match that never
+        /// arrives — `matchedGameId` pointing at a document this client can't
+        /// see, say a hand-edited or otherwise corrupted ticket — left this state
+        /// permanent: a spinner with no control on it. Past the grace period
+        /// `phase` reads as `.idle` instead, which is what lets the leader queue
+        /// again rather than stare at a screen that will never change.
+        case settling
         /// Matched. Screen 6.
         case matched(SeasonGame)
     }
 
+    /// **A ticket is not a search.** This used to read any non-nil ticket as
+    /// `.searching`, and nothing ever deletes a ticket once it is spent — it
+    /// sits there `matched` until `expiresAt`, up to a day later. So the moment
+    /// a match stopped being live, whether it was cancelled, confirmed, or
+    /// simply aged past its window, the card fell back to a search that wasn't
+    /// running, with a timer counting up from when the squad first queued. The
+    /// only way out was "Cancel search", which cancelled nothing.
+    ///
+    /// A spent ticket now means one of two things, and they are told apart by
+    /// whether the match it names has reached this client: still on its way, or
+    /// already over.
     var phase: Phase {
-        if let nextGame { return .matched(nextGame) }
-        return ticket == nil ? .idle : .searching
+        Self.phase(
+            ticket: ticket,
+            nextGame: nextGame,
+            committedGame: committedGame,
+            hasSettlingTimedOut: isSettlingTimedOut
+        )
     }
+
+    /// The card's state, as a pure function of the four things that decide it.
+    ///
+    /// `nonisolated static` for the reason `FriendsViewModel`'s helpers are:
+    /// this is the decision most likely to break silently, it needs no Firebase,
+    /// no main actor and no live service, and the failure it had was invisible
+    /// from the code — a search that wasn't running, rendered because a ticket
+    /// happened to be non-nil.
+    ///
+    /// - Parameters:
+    ///   - ticket: this squad's ticket, spent or otherwise.
+    ///   - nextGame: the soonest live match, if there is one.
+    ///   - committedGame: the match a spent ticket names, once this client has
+    ///     seen it. `nil` both while it is in flight and when there is no spent
+    ///     ticket — the ticket is what tells those two apart.
+    ///   - hasSettlingTimedOut: whether `settlingGrace` has elapsed without
+    ///     `committedGame` resolving. Only consulted while it would otherwise
+    ///     read `.settling` — see that case's own note for why it exists.
+    nonisolated static func phase(
+        ticket: MatchTicket?,
+        nextGame: SeasonGame?,
+        committedGame: SeasonGame?,
+        hasSettlingTimedOut: Bool
+    ) -> Phase {
+        if let nextGame { return .matched(nextGame) }
+        guard let ticket else { return .idle }
+        if ticket.isSearching { return .searching }
+
+        // The ticket is spent and no match is live. Either the match hasn't
+        // arrived on the games listener yet, or it has and is over — played and
+        // confirmed, cancelled, or aged past its window. Only the second reads
+        // as `.idle` outright; reading both as "still searching" is the bug
+        // this replaced.
+        if committedGame != nil { return .idle }
+        return hasSettlingTimedOut ? .idle : .settling
+    }
+
+    /// How long `.settling` waits for `committedGame` to resolve before
+    /// `phase` gives up and reads as `.idle`.
+    ///
+    /// Generous next to the "milliseconds, normally" case this state exists
+    /// for — two listeners on the same commit are not going to disagree by
+    /// twenty seconds under any ordinary network condition. It exists only for
+    /// the case that isn't ordinary: nothing re-evaluates `phase` once the
+    /// ticket stops changing, so without a bound, a match that never arrives at
+    /// all left `.settling` permanent.
+    static let settlingGrace: TimeInterval = 20
+
+    /// The match this squad's spent ticket was spent on, once the games
+    /// listener has delivered it. `nil` while it is still in flight — and also
+    /// when there is no spent ticket at all.
+    @Published private(set) var committedGame: SeasonGame?
+
+    /// Whether `settlingGrace` has elapsed while still waiting on the same
+    /// `committedGame`. Reset the moment that wait is no longer live — the
+    /// match arrives, the ticket changes, or a fresh wait begins for a
+    /// different `matchedGameId`.
+    @Published private(set) var isSettlingTimedOut = false
+
+    /// Whether the leader may put this squad in the queue.
+    ///
+    /// **One live match at a time.** Queueing again before the current match is
+    /// played, cancelled or aged out is what would put two matches in front of
+    /// the same six people — the product-level form of the invariant the commit
+    /// enforces on the server.
+    var canQueue: Bool { isLeader && phase == .idle }
 
     // MARK: - Dependencies
 
@@ -97,6 +197,17 @@ final class MatchmakingViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var tickTask: Task<Void, Never>?
 
+    /// Counts down `settlingGrace` while waiting on a specific `matchedGameId`.
+    /// Independent of `tickTask`, which only runs while searching — this has to
+    /// keep going precisely when ticking has stopped, because a spent ticket is
+    /// what starts the wait.
+    private var settlingTask: Task<Void, Never>?
+
+    /// Which `matchedGameId` `settlingTask` is timing, so a snapshot that
+    /// re-confirms the same wait doesn't restart the clock, and a wait for a
+    /// *different* match — a fresh queue-and-match cycle — does.
+    private var settlingGameId: String?
+
     /// The squad this view model is currently speaking for.
     private var squad: Squad?
 
@@ -106,10 +217,6 @@ final class MatchmakingViewModel: ObservableObject {
     /// requests on every tick. Scheduling *is* idempotent either way; this is
     /// just what keeps it from being called needlessly often.
     private var notifiedGameIds: Set<String> = []
-
-    /// Guards the claim → create → mark sequence so a second `wonClaim` emission
-    /// can't run it twice for the same claim.
-    private var isFinalizingClaim = false
 
     /// The bundled dataset keyed by ID, rebuilt when courts load. `MatchRules`
     /// wants a dictionary and `CourtService` publishes an array.
@@ -159,14 +266,30 @@ final class MatchmakingViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // The claim → create → mark sequence starts here.
-        matchmakingService.$wonClaim
-            .receive(on: DispatchQueue.main)
-            .compactMap { $0 }
-            .sink { [weak self] candidate in
-                Task { await self?.finalize(claim: candidate) }
-            }
-            .store(in: &cancellables)
+        // **The cross-collection wiring, and the whole of it.** The scan loop
+        // stays in `MatchmakingService`, the commit stays in
+        // `SeasonGameService`, and this is the one line that lets the first
+        // reach the second without the two services referring to each other.
+        //
+        // Weak, because the service is held strongly here and a strong capture
+        // would be a cycle. A commit that arrives after this view model is gone
+        // reports `.failed`, which the loop backs off from — the correct answer
+        // when there is nobody left to show a match to.
+        matchmakingService.commitMatch = { [weak self] candidate, mine, courts, anchor in
+            guard let self, let squad = self.squad else { return .failed }
+
+            return await self.seasonGameService.commitMatch(
+                candidate: candidate,
+                mine: mine,
+                // The *live* squad name, not the ticket's copy. `squadName` is
+                // denormalized at queue time with no refresh path, and the
+                // create rule pins it to `squads/{id}.name` — so a leader who
+                // renames the squad mid-queue would have every commit refused.
+                awaySquadName: squad.name,
+                courts: courts,
+                anchor: anchor
+            )
+        }
 
         seasonGameService.$games
             .receive(on: DispatchQueue.main)
@@ -199,6 +322,7 @@ final class MatchmakingViewModel: ObservableObject {
 
     deinit {
         tickTask?.cancel()
+        settlingTask?.cancel()
     }
 
     // MARK: - Lifecycle
@@ -225,8 +349,7 @@ final class MatchmakingViewModel: ObservableObject {
     }
 
     func stop() {
-        tickTask?.cancel()
-        tickTask = nil
+        stopTicking()
     }
 
     /// A one-second tick, alive only while searching.
@@ -244,10 +367,21 @@ final class MatchmakingViewModel: ObservableObject {
         }
     }
 
+    /// Cancels the clock. Called by `refreshSearchState` the first tick after
+    /// the ticket stops being a live search, so the timer's own loop is what
+    /// ends it — a match landing doesn't have to remember to.
+
     private func refreshSearchState() {
-        guard let ticket else {
+        refreshCommittedGame()
+
+        // **Only a live search has an elapsed time.** A spent ticket keeps its
+        // `createdAt`, so reading `age` off one meant the "searching" card's
+        // clock kept climbing long after the match had been played — which is
+        // what made the stale card look like a search that would not stop.
+        guard let ticket, ticket.isSearching else {
             elapsed = 0
             isWidening = false
+            stopTicking()
             return
         }
 
@@ -257,24 +391,19 @@ final class MatchmakingViewModel: ObservableObject {
         isWidening = MatchRules.relaxation(for: ticket, now: now) > 0
     }
 
+    private func stopTicking() {
+        tickTask?.cancel()
+        tickTask = nil
+    }
+
     private func refreshGames() {
         guard let squad else { return }
 
         nextGame = seasonGameService.nextGame(for: squad.id)
         duplicateGames = seasonGameService.duplicateGames(for: squad.id)
+        refreshCommittedGame()
 
         if let nextGame {
-            // The window-closing write. If a game exists for my squad and my own
-            // ticket is still `claimed`, the squad that made the match may have
-            // died before marking it — so I mark my own, which I am always
-            // allowed to do. Costs one refused write in the common case, where
-            // the away leader already did it.
-            if let ticket, ticket.status == .claimed {
-                Task { [matchmakingService] in
-                    await matchmakingService.markMatched(squadId: squad.id, gameId: nextGame.id)
-                }
-            }
-
             Task { await loadOpponent(for: nextGame, mySquadId: squad.id) }
             scheduleNotificationsIfNeeded(for: nextGame, mySquadId: squad.id)
         } else {
@@ -283,6 +412,63 @@ final class MatchmakingViewModel: ObservableObject {
         }
 
         cancelNotificationsForCancelledMatches(squadId: squad.id)
+    }
+
+    /// Resolves the match a spent ticket points at, if this client has seen it.
+    ///
+    /// **The `matchedGameId` back-reference is what makes this answerable.**
+    /// Both tickets carry the same one, written in the same commit as the match
+    /// itself, so "has the match this squad was matched into arrived yet"
+    /// is a lookup rather than a guess about timing.
+    private func refreshCommittedGame() {
+        guard let ticket, !ticket.isSearching, let gameId = ticket.matchedGameId else {
+            committedGame = nil
+            cancelSettlingTimeout()
+            return
+        }
+
+        committedGame = seasonGameService.games.first { $0.id == gameId }
+
+        if committedGame != nil {
+            cancelSettlingTimeout()
+        } else {
+            scheduleSettlingTimeoutIfNeeded(for: gameId)
+        }
+    }
+
+    /// Starts the `settlingGrace` countdown for `gameId`, unless it is already
+    /// running for that same one.
+    ///
+    /// **Keyed to the game, not just "are we waiting."** `refreshCommittedGame`
+    /// is called far more often than a wait actually begins — every tick while
+    /// searching, every unrelated `seasonGames` snapshot — and re-arming the
+    /// timer on each of those calls would mean it never fires. Keying it to
+    /// `gameId` also means a second match, queued and won after the first
+    /// settled or timed out, gets its own clock rather than inheriting one that
+    /// was already most of the way to expiring.
+    private func scheduleSettlingTimeoutIfNeeded(for gameId: String) {
+        guard settlingGameId != gameId else { return }
+
+        settlingTask?.cancel()
+        settlingGameId = gameId
+        isSettlingTimedOut = false
+
+        settlingTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.settlingGrace))
+            guard !Task.isCancelled else { return }
+            await MainActor.run { self?.isSettlingTimedOut = true }
+        }
+    }
+
+    /// Ends any running wait. Called the moment it stops being live — the match
+    /// arrives, the ticket changes, or the squad leaves the queue — so a timer
+    /// from a wait that's already over can never fire late and flip
+    /// `isSettlingTimedOut` back on for a phase that has moved past it.
+    private func cancelSettlingTimeout() {
+        settlingTask?.cancel()
+        settlingTask = nil
+        settlingGameId = nil
+        isSettlingTimedOut = false
     }
 
     /// The opponent's record and crest, for the match card.
@@ -340,64 +526,13 @@ final class MatchmakingViewModel: ObservableObject {
         }
     }
 
-    // MARK: - The claim → create → mark sequence
-
-    /// Turns a won claim into a scheduled match, then takes both tickets out of
-    /// the pool.
-    ///
-    /// The order is load-bearing. The game is written **first**, because it is
-    /// the durable thing and the tickets are bookkeeping: if this client dies
-    /// after the game and before the tickets, the game still exists and both
-    /// squads' own clients close their own tickets off their `seasonGames`
-    /// listeners. Marking first and dying would take two squads out of the pool
-    /// with nothing to show them.
-    private func finalize(claim candidate: MatchCandidate) async {
-        guard let squad, let awayTicket = ticket, !isFinalizingClaim else { return }
-        isFinalizingClaim = true
-        defer { isFinalizingClaim = false }
-
-        let homeTicket = candidate.ticket
-
-        do {
-            let gameId = try await seasonGameService.createGame(
-                homeTicket: homeTicket,
-                awayTicket: awayTicket,
-                homeSquadName: homeTicket.squadName,
-                awaySquadName: squad.name,
-                courtId: candidate.courtId,
-                scheduledTime: candidate.scheduledTime
-            )
-
-            // Bookkeeping, and deliberately not awaited as a unit: each write is
-            // independently useful and independently recoverable.
-            await matchmakingService.markMatched(squadId: homeTicket.squadId, gameId: gameId)
-            await matchmakingService.markMatched(squadId: squad.id, gameId: gameId)
-
-            logger.notice("Finalized a match against \(homeTicket.squadId, privacy: .public)")
-        } catch {
-            // The claim was won and the game was refused. Reachable in more
-            // than one way — a network blip, or the home squad's leader
-            // renaming their squad while queued: `homeTicket.squadName` is
-            // denormalized once at queue time with no refresh path, so a
-            // rename desyncs it from `squads/{homeSquadId}.name`, and the
-            // create rule's equality check refuses the write.
-            //
-            // **Releasing the claim is what keeps this from wedging the
-            // search.** `MatchmakingService.wonClaim` is the scan loop's
-            // "stop looking, we have one" signal, and nothing else ever
-            // clears it — so a claim that never became a game would leave
-            // `scheduleScan()`'s `wonClaim == nil` guard permanently false,
-            // freezing this client's search with no error and no retry. A
-            // claim that can't be turned into a game is not meaningfully
-            // different from one that was never won, so it gets the same
-            // treatment `ClaimPolicy` gives every other lost race: quiet, and
-            // the search keeps going.
-            logger.error(
-                "Won a claim but couldn't create the match: \(String(describing: error), privacy: .public)"
-            )
-            matchmakingService.releaseWonClaim()
-        }
-    }
+    // **The claim → create → mark sequence used to be finalized here**, in a
+    // `finalize(claim:)` that wrote a game and then marked two tickets, with a
+    // re-entrancy guard and a release path for a won claim that never became a
+    // game. All of it was scaffolding around three writes that could come
+    // apart. They are one transaction now — see `SeasonGameService.commitMatch`
+    // — so there is no sequence left to hold together, no partial state to
+    // release, and nothing for a second emission to run twice.
 
     // MARK: - Actions
 
@@ -414,6 +549,13 @@ final class MatchmakingViewModel: ObservableObject {
         expiresAt: Date
     ) async throws {
         guard let squad else { throw MatchTicketError.notSignedIn }
+
+        // One live match at a time. Checked against the *match* rather than the
+        // ticket, because the ticket is the wrong source of truth for this: it
+        // is spent the instant a match is made and stays that way long after
+        // the match is over, while the match itself is what the squad actually
+        // has on.
+        guard nextGame == nil else { throw MatchTicketError.matchAlreadyScheduled }
 
         let record = seasonGameService.record(for: squad.id)
 

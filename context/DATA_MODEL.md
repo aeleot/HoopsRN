@@ -274,8 +274,20 @@ is no duplicate-entry logic because there is nowhere to put a second row.
 - **Record proximity is a gate, not only a score** — 0.35 apart at relaxation 0,
   fully open at 1 — so it changes *when* an uneven match happens, never
   *whether*. This is the hook a skill rating would plug into.
-- **`staleClaim = 90s` appears in four places** that must agree: this model, the
-  scanner, the waiting UI, and the rules. Two tests exist to make sure.
+- **`Status` has exactly two cases**, `open` and `matched`, and the second is
+  terminal. There was a third, `claimed`, naming the gap between claiming a
+  ticket and writing the match — and a gap is a state two clients can disagree
+  about. Two squads that claimed *each other* wrote to two different documents,
+  so nothing serialized them, both won, and both created a match. The commit is
+  one transaction now, so there is no gap and nothing for `claimed` to name.
+  `MatchRules.staleClaim = 90s` went with it: the ninety-second recovery existed
+  only to clean up after a claimer that died inside that gap.
+- **`isClaimable` and `isSearching` ask different questions of the same
+  field.** `isClaimable` is the matchmaker's — may this ticket still be spent,
+  asked of both sides of a pair. `isSearching` is the UI's — is this squad still
+  looking. They agree today and are kept apart because their reasons differ: a
+  spent ticket outlives its match by up to a day, and reading one as a live
+  search is what showed a squad a spinner after their match had been played.
 - **`wins`/`losses` are denormalized at queue time for ranking only** — display
   and scoring, never the record of truth. `winPercentage` reads an unplayed
   squad as `0.5`, not as one that loses everything, which is what stops every
@@ -377,7 +389,9 @@ copy of the conversion factor.
 - `MatchRules` takes plain values and touches no service. Its bugs are
   plausible-looking rather than visible, which is exactly why it has to stay
   testable without Firestore.
-- `staleClaim` agrees in four places. Moving one moves all four.
+- A ticket goes `open` -> `matched` and nowhere else, in Swift and in the rules.
+  That single transition is what makes "one live match per squad" a server fact;
+  `FirestoreRulesParityTests` pins both sides of it.
 - A squad's crest is stored as an allowlisted **key**, never a colour. A stored
   hex bypasses the appearance-aware palette.
 - A `Friendship`'s direction and document ID are computed from stored fields,

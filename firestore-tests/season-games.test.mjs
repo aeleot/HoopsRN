@@ -1,19 +1,30 @@
-// The `seasonGames` rules, and the `matched` transition that closes the
-// double-booking window.
+// The `seasonGames` rules, and the atomic commit that makes a match.
 //
 // This is the block where a client names **another squad** in a document it
 // writes, so it is the one most worth evaluating rather than reading. The
-// authority is a won claim, and the whole question is whether the rule really
-// refuses a client that hasn't won one — or that has, but is scheduling the
-// match somewhere the home squad never offered.
+// authority used to be a won claim, seeded here as a `claimed` ticket. It isn't
+// any more: a match is one commit that creates the game and spends *both*
+// tickets, and the rules make each of the three documents prove the other two.
+// So every test here goes through `commitMatch`, and the questions are whether
+// the rules refuse a client scheduling the match somewhere the home squad never
+// offered — and whether they refuse a commit missing any of its legs.
 
 import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, deleteDoc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  doc,
+  deleteDoc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+  writeBatch,
+} from 'firebase/firestore';
 
 import {
+  commitMatch,
   createTestEnvironment,
   readRaw,
   seed,
@@ -35,9 +46,13 @@ after(async () => {
 const GAME_ID = 'game-1';
 
 /**
- * The fixture every test starts from: two squads, and a home ticket already
- * claimed by the away squad — i.e. the away leader has just won the race and is
- * about to write the game.
+ * The fixture every test starts from: two squads, **both tickets open**.
+ *
+ * It used to seed the home ticket as `claimed`, which is how the two-step
+ * design left it between winning a race and writing the game. There is no such
+ * state any more — a ticket is in the pool or spent on a match — so the
+ * starting point is simply two squads queued, and the commit is what moves
+ * them.
  */
 beforeEach(async () => {
   await testEnv.clearFirestore();
@@ -61,9 +76,6 @@ beforeEach(async () => {
       leaderId: 'leader-home',
       memberIds: ['leader-home', 'member-home'],
       courtIds: ['court-1', 'court-2'],
-      status: 'claimed',
-      claimedBy: 'squad-away',
-      claimedAt: secondsFromNow(-5),
     }),
     'matchTickets/squad-away': ticketDocument({
       squadId: 'squad-away',
@@ -75,7 +87,7 @@ beforeEach(async () => {
   });
 });
 
-/** A well-formed match, matching what `SeasonGameService.createGame` writes. */
+/** A well-formed match, matching what `SeasonGameService.commitMatch` writes. */
 function gameDocument(overrides = {}) {
   return {
     id: GAME_ID,
@@ -106,7 +118,7 @@ function awayDb() {
 // MARK: - Creating a match
 
 test('the leader who won the claim may create the match', async () => {
-  await assertSucceeds(setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument()));
+  await assertSucceeds(commitMatch(awayDb(), gameDocument()));
 
   const game = await readRaw(testEnv, `seasonGames/${GAME_ID}`);
   assert.deepEqual(game.squadIds, ['squad-home', 'squad-away']);
@@ -117,28 +129,22 @@ test('a court absent from the home ticket is rejected; a listed one succeeds', a
   // The prompt's Phase 4 test case #1. The home ticket offers court-1 and
   // court-2; court-9 was never offered by anybody.
   await assertFails(
-    setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument({ courtId: 'court-9' }))
+    commitMatch(awayDb(), gameDocument({ courtId: 'court-9' }))
   );
 
   await assertSucceeds(
-    setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument({ courtId: 'court-2' }))
+    commitMatch(awayDb(), gameDocument({ courtId: 'court-2' }))
   );
 });
 
 test('a tip-off outside the home ticket’s window is rejected', async () => {
   // The window is +1h to +5h from now.
   await assertFails(
-    setDoc(
-      doc(awayDb(), 'seasonGames', GAME_ID),
-      gameDocument({ scheduledTime: secondsFromNow(60 * 60 * 9) })
-    )
+    commitMatch(awayDb(), gameDocument({ scheduledTime: secondsFromNow(60 * 60 * 9) }))
   );
 
   await assertFails(
-    setDoc(
-      doc(awayDb(), 'seasonGames', GAME_ID),
-      gameDocument({ scheduledTime: secondsFromNow(60 * 10) })
-    )
+    commitMatch(awayDb(), gameDocument({ scheduledTime: secondsFromNow(60 * 10) }))
   );
 });
 
@@ -151,23 +157,18 @@ test('a tip-off in the past is rejected even if the window somehow allows it', a
       courtIds: ['court-1', 'court-2'],
       windowStart: secondsFromNow(-60 * 60),
       windowEnd: secondsFromNow(60 * 60 * 5),
-      status: 'claimed',
-      claimedBy: 'squad-away',
-      claimedAt: secondsFromNow(-5),
     }),
   });
 
   await assertFails(
-    setDoc(
-      doc(awayDb(), 'seasonGames', GAME_ID),
-      gameDocument({ scheduledTime: secondsFromNow(-60 * 10) })
-    )
+    commitMatch(awayDb(), gameDocument({ scheduledTime: secondsFromNow(-60 * 10) }))
   );
 });
 
-test('a squad that never won the claim cannot name the home squad', async () => {
+test('a third squad cannot spend two other squads’ tickets', async () => {
   // The whole authorization, failing. A third squad with a perfectly valid
-  // leader and no claim on this ticket.
+  // leader, committing a match between itself and squad-home — using a ticket
+  // that is not its own, since squad-third never queued.
   await seed(testEnv, {
     'squads/squad-third': squadDocument({
       id: 'squad-third',
@@ -180,9 +181,78 @@ test('a squad that never won the claim cannot name the home squad', async () => 
 
   const thirdDb = testEnv.authenticatedContext('leader-third').firestore();
   await assertFails(
-    setDoc(
-      doc(thirdDb, 'seasonGames', GAME_ID),
+    commitMatch(thirdDb, gameDocument({
+        awaySquadId: 'squad-third',
+        squadIds: ['squad-home', 'squad-third'],
+        awayLeaderId: 'leader-third',
+        awaySquadName: 'Baseline',
+        createdBy: 'leader-third',
+      }))
+  );
+});
+
+// **A commit is all three documents or it is nothing.** Each of these leaves
+// one leg out and must be refused — they are the shapes the two-step design
+// used to pass through legitimately, one write at a time, and every one of them
+// is a way for a squad to end up in two matches or in none.
+
+test('a match cannot be created without spending the home ticket', async () => {
+  await assertFails(commitMatch(awayDb(), gameDocument(), { skipHomeTicket: true }));
+});
+
+test('a match cannot be created without spending the away ticket', async () => {
+  // The leg the old rules never asked for, and the reason two squads could each
+  // be in two matches: proving the *home* ticket was claimed said nothing about
+  // whether the away squad was still in the pool.
+  await assertFails(commitMatch(awayDb(), gameDocument(), { skipAwayTicket: true }));
+});
+
+test('tickets cannot be spent without creating the match', async () => {
+  await assertFails(commitMatch(awayDb(), gameDocument(), { skipGame: true }));
+});
+
+test('a ticket cannot be spent on a different match than the one created', async () => {
+  await assertFails(
+    commitMatch(awayDb(), gameDocument(), { homeMatchedGameId: 'some-other-game' })
+  );
+  await assertFails(
+    commitMatch(awayDb(), gameDocument(), { awayMatchedGameId: 'some-other-game' })
+  );
+});
+
+test('the home ticket cannot be credited to a squad that is not the away side', async () => {
+  await assertFails(commitMatch(awayDb(), gameDocument(), { claimedBy: 'squad-home' }));
+});
+
+test('a ticket already spent cannot be spent again — one live match per squad', async () => {
+  // The invariant the whole rework exists for. Once a squad's ticket is gone
+  // from the pool, no second commit can take it out again, so no second match
+  // can name it.
+  await assertSucceeds(commitMatch(awayDb(), gameDocument()));
+
+  await seed(testEnv, {
+    'squads/squad-third': squadDocument({
+      id: 'squad-third',
+      name: 'Baseline',
+      nameLower: 'baseline',
+      leaderId: 'leader-third',
+      memberIds: ['leader-third'],
+    }),
+    'matchTickets/squad-third': ticketDocument({
+      squadId: 'squad-third',
+      leaderId: 'leader-third',
+      squadName: 'Baseline',
+      memberIds: ['leader-third'],
+      courtIds: ['court-1'],
+    }),
+  });
+
+  const thirdDb = testEnv.authenticatedContext('leader-third').firestore();
+  await assertFails(
+    commitMatch(
+      thirdDb,
       gameDocument({
+        id: 'game-2',
         awaySquadId: 'squad-third',
         squadIds: ['squad-home', 'squad-third'],
         awayLeaderId: 'leader-third',
@@ -193,52 +263,27 @@ test('a squad that never won the claim cannot name the home squad', async () => 
   );
 });
 
-test('an unclaimed ticket cannot be turned into a match', async () => {
-  await seed(testEnv, {
-    'matchTickets/squad-home': ticketDocument({
-      squadId: 'squad-home',
-      leaderId: 'leader-home',
-      memberIds: ['leader-home', 'member-home'],
-      courtIds: ['court-1', 'court-2'],
-    }),
-  });
-
-  await assertFails(setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument()));
-});
-
 test('a forged homeLeaderId is refused — it is what every later write trusts', async () => {
   // If this got through, the away leader would own the home leader's cancel
   // path, and Phase 6's report field with it.
   await assertFails(
-    setDoc(
-      doc(awayDb(), 'seasonGames', GAME_ID),
-      gameDocument({ homeLeaderId: 'leader-away' })
-    )
+    commitMatch(awayDb(), gameDocument({ homeLeaderId: 'leader-away' }))
   );
 });
 
 test('a fabricated squad name is refused', async () => {
   await assertFails(
-    setDoc(
-      doc(awayDb(), 'seasonGames', GAME_ID),
-      gameDocument({ homeSquadName: 'Somebody Else' })
-    )
+    commitMatch(awayDb(), gameDocument({ homeSquadName: 'Somebody Else' }))
   );
 });
 
 test('squadIds must be exactly [home, away], in that order', async () => {
   await assertFails(
-    setDoc(
-      doc(awayDb(), 'seasonGames', GAME_ID),
-      gameDocument({ squadIds: ['squad-away', 'squad-home'] })
-    )
+    commitMatch(awayDb(), gameDocument({ squadIds: ['squad-away', 'squad-home'] }))
   );
 
   await assertFails(
-    setDoc(
-      doc(awayDb(), 'seasonGames', GAME_ID),
-      gameDocument({ squadIds: ['squad-home', 'squad-away', 'squad-third'] })
-    )
+    commitMatch(awayDb(), gameDocument({ squadIds: ['squad-home', 'squad-away', 'squad-third'] }))
   );
 });
 
@@ -251,25 +296,22 @@ test('a match cannot be born already won, arrived, or cancelled', async () => {
     { cancelledBySquadId: 'squad-away' },
   ]) {
     await assertFails(
-      setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument(extra)),
+      commitMatch(awayDb(), gameDocument(extra)),
       `a create carrying ${Object.keys(extra)[0]} must be refused`
     );
   }
 
   await assertFails(
-    setDoc(
-      doc(awayDb(), 'seasonGames', GAME_ID),
-      gameDocument({ arrivedPlayerIds: ['leader-away'] })
-    )
+    commitMatch(awayDb(), gameDocument({ arrivedPlayerIds: ['leader-away'] }))
   );
 
   await assertFails(
-    setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument({ status: 'confirmed' }))
+    commitMatch(awayDb(), gameDocument({ status: 'confirmed' }))
   );
 });
 
 test('a match is readable by any signed-in account — season play is public', async () => {
-  await setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument());
+  await commitMatch(awayDb(), gameDocument());
 
   const stranger = testEnv.authenticatedContext('nobody').firestore();
   await assertSucceeds(getDoc(doc(stranger, 'seasonGames', GAME_ID)));
@@ -283,7 +325,7 @@ test('a match is readable by any signed-in account — season play is public', a
 test('both squads’ array-contains queries deliver the same match', async () => {
   const { collection, getDocs, query, where } = await import('firebase/firestore');
 
-  await setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument());
+  await commitMatch(awayDb(), gameDocument());
 
   const rows = [];
   for (const [uid, squadId] of [
@@ -306,7 +348,7 @@ test('both squads’ array-contains queries deliver the same match', async () =>
 // MARK: - Cancellation
 
 test('either leader may cancel, as their own squad only', async () => {
-  await setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument());
+  await commitMatch(awayDb(), gameDocument());
 
   const homeDb = testEnv.authenticatedContext('leader-home').firestore();
 
@@ -330,7 +372,7 @@ test('either leader may cancel, as their own squad only', async () => {
 });
 
 test('a member who is not a leader cannot cancel', async () => {
-  await setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument());
+  await commitMatch(awayDb(), gameDocument());
 
   const memberDb = testEnv.authenticatedContext('member-home').firestore();
   await assertFails(
@@ -343,7 +385,7 @@ test('a member who is not a leader cannot cancel', async () => {
 });
 
 test('a cancelled match cannot be cancelled again or revived', async () => {
-  await setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument());
+  await commitMatch(awayDb(), gameDocument());
 
   const homeDb = testEnv.authenticatedContext('leader-home').firestore();
   await updateDoc(doc(homeDb, 'seasonGames', GAME_ID), {
@@ -361,7 +403,7 @@ test('a cancelled match cannot be cancelled again or revived', async () => {
 });
 
 test('a match can never be deleted — a deletable match is a forgeable record', async () => {
-  await setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument());
+  await commitMatch(awayDb(), gameDocument());
 
   for (const uid of ['leader-home', 'leader-away']) {
     const db = testEnv.authenticatedContext(uid).firestore();
@@ -369,93 +411,47 @@ test('a match can never be deleted — a deletable match is a forgeable record',
   }
 });
 
-// MARK: - The `matched` transition
+// MARK: - Spending a ticket, on its own
 
-test('the claiming leader may mark the home ticket matched', async () => {
-  await setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument());
+// The `matched` transition used to be a write of its own, made twice for one
+// match: the claiming leader closed the home ticket, and the home leader closed
+// it too, off their own `seasonGames` listener, because the claimer might have
+// died in between. Both are gone — a ticket is spent in the same commit that
+// creates the match, so there is no second write to make and no window to
+// close. What is worth evaluating now is that a ticket **cannot** be spent by
+// anything else.
 
-  await assertSucceeds(
+test('a ticket cannot be marked matched outside a commit that creates the match', async () => {
+  // Every field the real commit writes, minus the match itself. Legal under the
+  // old rules; the point of `getAfter()` is that it is not legal now.
+  await assertFails(
     updateDoc(doc(awayDb(), 'matchTickets', 'squad-home'), {
       status: 'matched',
-      matchedGameId: GAME_ID,
-    })
-  );
-
-  const ticket = await readRaw(testEnv, 'matchTickets/squad-home');
-  assert.equal(ticket.status, 'matched');
-  assert.equal(ticket.matchedGameId, GAME_ID);
-});
-
-test('a leader whose game exists but whose ticket is still claimed marks their OWN ticket matched', async () => {
-  // The prompt's Phase 4 test case #2, and the window §2.3 doesn't cover: the
-  // away leader died after writing the game and before marking the tickets.
-  // The home leader closes it themselves, off their own seasonGames listener,
-  // without writing anybody else's document.
-  await setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument());
-
-  const homeDb = testEnv.authenticatedContext('leader-home').firestore();
-  await assertSucceeds(
-    updateDoc(doc(homeDb, 'matchTickets', 'squad-home'), {
-      status: 'matched',
+      claimedBy: 'squad-away',
+      claimedAt: serverTimestamp(),
       matchedGameId: GAME_ID,
     })
   );
 });
 
-test('a stranger cannot mark a ticket matched', async () => {
-  await setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument());
-
+test('a ticket cannot be pointed at an existing match it is not in', async () => {
   await seed(testEnv, {
     'squads/squad-third': squadDocument({
       id: 'squad-third',
       leaderId: 'leader-third',
       memberIds: ['leader-third'],
     }),
-  });
-
-  const thirdDb = testEnv.authenticatedContext('leader-third').firestore();
-  await assertFails(
-    updateDoc(doc(thirdDb, 'matchTickets', 'squad-home'), {
-      status: 'matched',
-      matchedGameId: GAME_ID,
-    })
-  );
-});
-
-test('a ticket cannot be marked matched against a game that does not exist', async () => {
-  // Otherwise the transition is a way to strand a ticket in a state no listener
-  // will ever move it out of.
-  await assertFails(
-    updateDoc(doc(awayDb(), 'matchTickets', 'squad-home'), {
-      status: 'matched',
-      matchedGameId: 'no-such-game',
-    })
-  );
-});
-
-test('a ticket cannot be marked matched against a game it is not in', async () => {
-  await seed(testEnv, {
-    'squads/squad-third': squadDocument({
-      id: 'squad-third',
-      leaderId: 'leader-third',
-      memberIds: ['leader-third'],
-    }),
-  });
-
-  await setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument());
-
-  // squad-third's own ticket, pointed at a game between the other two.
-  await seed(testEnv, {
     'matchTickets/squad-third': ticketDocument({
       squadId: 'squad-third',
       leaderId: 'leader-third',
       memberIds: ['leader-third'],
-      status: 'claimed',
-      claimedBy: 'squad-away',
-      claimedAt: secondsFromNow(-5),
     }),
   });
 
+  await assertSucceeds(commitMatch(awayDb(), gameDocument()));
+
+  // squad-third's own ticket, pointed at a match between the other two — a way
+  // to strand a ticket in a state no listener will ever move it out of.
   const thirdDb = testEnv.authenticatedContext('leader-third').firestore();
   await assertFails(
     updateDoc(doc(thirdDb, 'matchTickets', 'squad-third'), {
@@ -465,39 +461,92 @@ test('a ticket cannot be marked matched against a game it is not in', async () =
   );
 });
 
-test('the matched transition cannot smuggle a re-claim, and a claim cannot smuggle a match', async () => {
-  await setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument());
-
-  // One write, one path — the same split `squads` uses.
+test('a ticket cannot be marked matched against a match that does not exist', async () => {
   await assertFails(
     updateDoc(doc(awayDb(), 'matchTickets', 'squad-home'), {
       status: 'matched',
-      matchedGameId: GAME_ID,
       claimedBy: 'squad-away',
       claimedAt: serverTimestamp(),
+      matchedGameId: 'no-such-game',
     })
   );
 });
 
-test('an open ticket cannot jump straight to matched', async () => {
-  await setDoc(doc(awayDb(), 'seasonGames', GAME_ID), gameDocument());
-
+test('a stranger cannot spend somebody else’s ticket', async () => {
   await seed(testEnv, {
-    'matchTickets/squad-away': ticketDocument({
-      squadId: 'squad-away',
-      leaderId: 'leader-away',
-      squadName: 'Court Vision',
-      memberIds: ['leader-away', 'member-away'],
+    'squads/squad-third': squadDocument({
+      id: 'squad-third',
+      leaderId: 'leader-third',
+      memberIds: ['leader-third'],
+    }),
+    'matchTickets/squad-third': ticketDocument({
+      squadId: 'squad-third',
+      leaderId: 'leader-third',
+      squadName: 'Baseline',
+      memberIds: ['leader-third'],
+      courtIds: ['court-1'],
     }),
   });
 
-  // squad-away's own ticket is `open`, never claimed. The away leader marks it
-  // matched off their own listener — but the transition is claimed → matched,
-  // so this is refused and the away ticket is left to expire instead.
+  // squad-third commits a match it is genuinely in — but spends *squad-away's*
+  // ticket for the away leg instead of its own.
+  const thirdDb = testEnv.authenticatedContext('leader-third').firestore();
   await assertFails(
-    updateDoc(doc(awayDb(), 'matchTickets', 'squad-away'), {
-      status: 'matched',
-      matchedGameId: GAME_ID,
-    })
+    commitMatch(
+      thirdDb,
+      gameDocument({
+        awaySquadId: 'squad-third',
+        squadIds: ['squad-home', 'squad-third'],
+        awayLeaderId: 'leader-third',
+        awaySquadName: 'Baseline',
+        createdBy: 'leader-third',
+      }),
+      { awaySquadId: 'squad-away' }
+    )
   );
+});
+
+test('a commit cannot smuggle a pool field alongside the spend', async () => {
+  // The affectedKeys allowlist, from the outside. `memberIds` is what the
+  // no-shared-players rule reads, so a spend that could rewrite it would be a
+  // spend that could arrange to play yourself.
+  // One instance, held: `awayDb()` mints a new Firestore each call, and
+  // references from different instances can't share a batch.
+  const db = awayDb();
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'seasonGames', GAME_ID), gameDocument());
+  batch.update(doc(db, 'matchTickets', 'squad-home'), {
+    status: 'matched',
+    claimedBy: 'squad-away',
+    claimedAt: serverTimestamp(),
+    matchedGameId: GAME_ID,
+    memberIds: ['leader-away'],
+  });
+  batch.update(doc(db, 'matchTickets', 'squad-away'), {
+    status: 'matched',
+    matchedGameId: GAME_ID,
+  });
+
+  await assertFails(batch.commit());
+});
+
+test('a successful commit leaves both tickets spent and pointing at the same match', async () => {
+  await assertSucceeds(commitMatch(awayDb(), gameDocument()));
+
+  const home = await readRaw(testEnv, 'matchTickets/squad-home');
+  const away = await readRaw(testEnv, 'matchTickets/squad-away');
+
+  assert.equal(home.status, 'matched');
+  assert.equal(home.claimedBy, 'squad-away');
+  assert.ok(home.claimedAt != null, 'claimedAt was never stamped');
+  assert.equal(away.status, 'matched');
+
+  // **One match, referred to from both sides.** The two squads no longer hold
+  // separate tickets that each have to be reconciled with a match of their own.
+  assert.equal(home.matchedGameId, GAME_ID);
+  assert.equal(away.matchedGameId, GAME_ID);
+
+  // Nothing else moved.
+  assert.deepEqual(home.memberIds, ['leader-home', 'member-home']);
+  assert.equal(home.leaderId, 'leader-home');
 });

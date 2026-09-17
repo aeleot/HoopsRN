@@ -62,23 +62,43 @@ final class MatchTicketTests: XCTestCase {
         XCTAssertNil(ticket.matchedGameId)
     }
 
-    /// The claimed shape. `claimedBy` and `claimedAt` are absent until the
-    /// claim transaction writes them, which is why both are optional and why
-    /// their presence is what `isClaimable` reasons about.
-    func testDecodesAClaimedTicket() throws {
+    /// The spent shape — the home ticket's, which carries all three. The away
+    /// squad spends its own, so nobody claimed it and `claimedBy` stays absent
+    /// there; both carry the same `matchedGameId`, written in the same commit
+    /// as the match, which is the back-reference tying one match to both
+    /// squads.
+    func testDecodesASpentTicket() throws {
         let claimedAt = Timestamp(date: now.addingTimeInterval(-30))
         let ticket = try decoder.decode(
             MatchTicket.self,
             from: document(overrides: [
-                "status": "claimed",
+                "status": "matched",
                 "claimedBy": "sq_2",
                 "claimedAt": claimedAt,
+                "matchedGameId": "game_1",
             ])
         )
 
-        XCTAssertEqual(ticket.status, .claimed)
+        XCTAssertEqual(ticket.status, .matched)
         XCTAssertEqual(ticket.claimedBy, "sq_2")
         XCTAssertEqual(ticket.claimedAt, claimedAt.dateValue())
+        XCTAssertEqual(ticket.matchedGameId, "game_1")
+    }
+
+    /// **A ticket the old two-step design wrote must not decode.**
+    ///
+    /// `claimed` named the gap between claiming a ticket and writing the match
+    /// — a gap two clients could disagree about, and the reason two squads that
+    /// picked each other both committed. A match is one transaction now, so the
+    /// state has no meaning; a leftover document carrying it is skipped by the
+    /// per-document decoding rather than being read as something live.
+    func testAClaimedTicketNoLongerDecodes() {
+        XCTAssertThrowsError(
+            try decoder.decode(
+                MatchTicket.self,
+                from: document(overrides: ["status": "claimed", "claimedBy": "sq_2"])
+            )
+        )
     }
 
     /// **`memberIds` is what the no-shared-players rule reads**, so a document
@@ -149,18 +169,27 @@ final class MatchTicketTests: XCTestCase {
         XCTAssertFalse(ticket(status: .matched, claimedAt: -10_000).isClaimable(at: now))
     }
 
-    /// The 90-second recovery, at its boundary. This constant lives in three
-    /// places — here, the rules' re-claim clause, and the waiting squad's UI —
-    /// and they must agree or a client claims what the server refuses.
-    func testAClaimBecomesClaimableExactlyAfterStaleClaim() {
-        XCTAssertFalse(ticket(status: .claimed, claimedAt: -1).isClaimable(at: now))
-        XCTAssertFalse(
-            ticket(status: .claimed, claimedAt: -MatchRules.staleClaim).isClaimable(at: now),
-            "The boundary is exclusive, matching the rules' `request.time > claimedAt + 90s`."
-        )
-        XCTAssertTrue(
-            ticket(status: .claimed, claimedAt: -(MatchRules.staleClaim + 1)).isClaimable(at: now)
-        )
+    /// **Spending is terminal, at any age.** The ninety-second stale-claim
+    /// recovery this test used to pin is gone with the state it recovered: a
+    /// match is one transaction, so no ticket is ever spoken for without being
+    /// spent, and nothing has to time out. A spent ticket that is hours old is
+    /// as unclaimable as one spent a second ago.
+    func testSpendingATicketIsTerminalAtAnyAge() {
+        XCTAssertFalse(ticket(status: .matched, claimedAt: -1).isClaimable(at: now))
+        XCTAssertFalse(ticket(status: .matched, claimedAt: -91).isClaimable(at: now))
+        XCTAssertFalse(ticket(status: .matched, claimedAt: -86_400).isClaimable(at: now))
+    }
+
+    /// **A spent ticket is not a search**, however long it lingers.
+    ///
+    /// Nothing deletes a ticket once it is spent — it ages out on `expiresAt`,
+    /// up to a day later. Reading one as a live search is what left a squad
+    /// looking at a spinner and a climbing timer after their match had already
+    /// been played and confirmed.
+    func testOnlyAnOpenTicketReadsAsSearching() {
+        XCTAssertTrue(ticket(status: .open, claimedAt: nil).isSearching)
+        XCTAssertFalse(ticket(status: .matched, claimedAt: -1).isSearching)
+        XCTAssertFalse(ticket(status: .matched, claimedAt: -86_400).isSearching)
     }
 
     // MARK: - Records

@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = join(here, '..');
@@ -128,6 +128,55 @@ export function ticketDocument(overrides = {}) {
     expiresAt: secondsFromNow(60 * 60 * 2),
     ...overrides,
   };
+}
+
+/**
+ * `SeasonGameService.commitMatch` in JavaScript — the three documents the real
+ * transaction touches, in one atomic commit.
+ *
+ * **Atomic is the whole point, so the test has to be atomic too.** A match is
+ * now made by one write that creates the `seasonGames` document and spends
+ * *both* `matchTickets`, and the rules make each of the three prove the others:
+ * the game demands that both tickets end this commit `matched` and pointing at
+ * it, and each ticket demands that the game exist afterwards and cast it in the
+ * right role. Written one at a time, every one of them is refused — which is
+ * exactly what stops a squad being taken out of the pool without getting a
+ * match, or getting a match without leaving the pool.
+ *
+ * A batched write rather than a transaction because these tests have nothing to
+ * read first; `getAfter()` sees both the same way.
+ *
+ * The `overrides` exist so a test can break one leg on purpose — leave a ticket
+ * unspent, point one at a different match — and watch the rules refuse the lot.
+ */
+export function commitMatch(db, game, overrides = {}) {
+  const gameId = overrides.gameId ?? game.id;
+  const homeSquadId = overrides.homeSquadId ?? game.homeSquadId;
+  const awaySquadId = overrides.awaySquadId ?? game.awaySquadId;
+
+  const batch = writeBatch(db);
+
+  if (overrides.skipGame !== true) {
+    batch.set(doc(db, 'seasonGames', gameId), game);
+  }
+
+  if (overrides.skipHomeTicket !== true) {
+    batch.update(doc(db, 'matchTickets', homeSquadId), {
+      status: 'matched',
+      claimedBy: overrides.claimedBy ?? awaySquadId,
+      claimedAt: serverTimestamp(),
+      matchedGameId: overrides.homeMatchedGameId ?? gameId,
+    });
+  }
+
+  if (overrides.skipAwayTicket !== true) {
+    batch.update(doc(db, 'matchTickets', awaySquadId), {
+      status: 'matched',
+      matchedGameId: overrides.awayMatchedGameId ?? gameId,
+    });
+  }
+
+  return batch.commit();
 }
 
 export function friendshipDocument(uidA, uidB, status = 'accepted') {

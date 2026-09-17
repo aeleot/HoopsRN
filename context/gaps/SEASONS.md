@@ -110,13 +110,6 @@ Limits that are working as built, and will surprise somebody anyway.
   primary-squad-only from squad home. Fine while almost everyone has one squad,
   and the wrong shape the moment they don't.
 
-- **Two matches can exist for one pair, and this is not prevented in rules.**
-  The window between a game being written and both tickets being marked `matched`
-  lets a third squad re-claim a stale ticket whose game already exists. Rules
-  cannot query, so the client renders the earliest-created match and a leader
-  cancels the other. `SeasonGameService.duplicateGames` logs it — if it happens
-  more than rarely, the jitter or the 90-second stale window is wrong.
-
 - **An empty pool is the default experience in a new city**, not the edge case.
   `../plans/SEASONS.md` §8 names relaxation plus honest UI as the mitigation, and
   both shipped — but the *seeding* idea it floats (a one-sided open challenge
@@ -129,6 +122,43 @@ Limits that are working as built, and will surprise somebody anyway.
   meets, not cryptographic integrity.
 
 ---
+
+## Fixed, and worth remembering
+
+- **Two matches for one pair used to be the *ordinary* outcome, not a rare
+  one.** This file recorded it as a narrow window — a third squad re-claiming a
+  stale ticket whose game already existed — and said rules could not prevent it
+  because rules cannot query. Both halves were wrong.
+
+  The real cause was two squads picking *each other*. A match was made in three
+  writes, the first of which claimed a **single** ticket and leaned on Firestore
+  serializing contested writes to one document. Two mutual claims touch two
+  different documents, so nothing serialized them: both won, both clients wrote a
+  match, and both squads were told they had more than one scheduled. With two
+  squads queued in a region that is what normally happened.
+
+  It never needed a query — only a read set wide enough to contend. The commit
+  now reads and writes both tickets and the match in one transaction, each of
+  the three documents proving the other two with `getAfter()`, and a ticket may
+  only go `open` -> `matched`. `firestore-tests/claim-race.test.mjs` races the
+  mutual case fifteen rounds and asserts exactly one match survives.
+
+  Three things went with it: the `claimed` status, `MatchRules.staleClaim` and
+  its four-places-that-must-agree, and the two-writer `matched` transition. All
+  three existed to clean up after a gap that no longer exists.
+
+- **A spent ticket used to read as a live search.** Nothing deletes a ticket
+  once it is spent; it ages out on `expiresAt`, up to a day later. The card read
+  any non-nil ticket as "searching", so the moment a match stopped being live —
+  played and confirmed, cancelled, or simply aged out — a squad was shown a
+  spinner and a timer counting from when they first queued, with a "Cancel
+  search" button that cancelled nothing. `MatchTicket.isSearching` is now the
+  only question that state may ask, and `MatchmakingViewModelTests` pins each
+  way a match can end.
+
+  The same stale ticket also blocked re-queueing: a `setData` over it is an
+  *update*, which no rule admits, so the squad was refused for as long as the
+  ticket lived. `MatchmakingService.queue` now deletes a spent ticket first.
 
 ## Costs accepted on purpose
 

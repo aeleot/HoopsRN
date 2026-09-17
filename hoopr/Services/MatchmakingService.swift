@@ -6,15 +6,23 @@ import os
 
 fileprivate let logger = Logger(subsystem: "com.hoopsrn", category: "MatchmakingService")
 
-/// Owns the `matchTickets` collection — the matchmaking pool, and the one
-/// contested write in the app.
+/// Owns the `matchTickets` collection — the matchmaking pool, and the search
+/// loop that runs against it.
 ///
 /// **There is no server.** `context/plans/SEASONS.md` §0.1: nothing can wake up,
 /// look at a pool of waiting squads and pair them. So matchmaking is *pull with
 /// a lock* — every queued client watches the same pool, and the winner of a
-/// one-document race gets to create the match. This service is that client
-/// side: the pool listener, the scan, the claim transaction, jitter and
-/// backoff.
+/// contested transaction gets the match. This service is the pull: the pool
+/// listener, the scan, the ranking, jitter and backoff.
+///
+/// **It does not write the match itself.** The commit that turns a chosen
+/// candidate into a match spends two tickets and creates a `seasonGames`
+/// document in one transaction, so it spans two collections and cannot belong
+/// to either service alone; it lives in `SeasonGameService.commitMatch` and
+/// reaches this loop through `commitMatch`, which `MatchmakingViewModel` wires
+/// up. What stays here is everything about *choosing*, which is this
+/// collection's own business — and the `ClaimPolicy` loop stays whole rather
+/// than being split across two objects.
 ///
 /// Follows `SquadService` and `GameService` structurally — its own `AuthService`
 /// subscription, a `ListenerSupervisor`, per-document decoding, and no Firestore
@@ -24,24 +32,48 @@ fileprivate let logger = Logger(subsystem: "com.hoopsrn", category: "Matchmaking
 /// distance anchor, and both arrive as parameters to `startSearching` rather
 /// than as injected services — the same move `SquadService.createSquad(region:)`
 /// makes with a value derived from `CourtService` and `LocationService`.
+/// Turns a chosen candidate into a real match, and reports how it went.
+///
+/// **A closure rather than a service reference, because the write it performs
+/// belongs to neither service.** Committing a match spends both squads'
+/// tickets and creates the `seasonGames` document in one transaction — it has
+/// to be one transaction, or two squads that pick each other both commit — so
+/// it spans two collections at once. `MatchmakingService` owns `matchTickets`,
+/// `SeasonGameService` owns `seasonGames`, and services in this app hold no
+/// references to each other. `MatchmakingViewModel` supplies this, which is the
+/// same cross-collection wiring the house rules already put in view models.
+///
+/// Passing the courts and the anchor through means the commit can re-rank the
+/// pair against the tickets as its own transaction reads them, rather than
+/// trusting a candidate chosen against a snapshot that may be seconds old.
+typealias MatchCommitting = @MainActor (
+    _ candidate: MatchCandidate,
+    _ mine: MatchTicket,
+    _ courts: [String: Court],
+    _ anchor: CLLocationCoordinate2D
+) async -> ClaimOutcome
+
 @MainActor
 final class MatchmakingService: ObservableObject {
     /// My squad's own ticket, watched as a single document.
     ///
     /// Separate from `pool` and not merely filtered out of it: the pool query
-    /// is `status in ['open', 'claimed']`, so a ticket that reaches `matched`
-    /// **leaves** the pool. Watching my own document is how a waiting squad
-    /// learns it has been matched — `matchedGameId` lands on a document it can
-    /// always read, which is the plan's §2.2 handoff.
+    /// is `status == 'open'`, so a ticket spent on a match **leaves** the pool.
+    /// Watching my own document is how this service knows whether it is still
+    /// searching at all — it is what drives the pool listener up and down.
     @Published private(set) var myTicket: MatchTicket?
 
     /// Every claimable ticket in my region and format, mine included — the
     /// rules reject self-matching, so filtering here would only duplicate that.
     @Published private(set) var pool: [MatchTicket] = []
 
-    /// The claim we won, waiting for Phase 4 to turn it into a `seasonGames`
-    /// document. Cleared by `stopSearching()`.
-    @Published private(set) var wonClaim: MatchCandidate?
+    /// Commits a chosen candidate as a real match, atomically, and says how it
+    /// went. Supplied by `MatchmakingViewModel`; see the type's own note.
+    ///
+    /// Optional rather than required in `init` so this service keeps its "no
+    /// dependency on any other service" shape — the wiring is the view model's,
+    /// the same way `supervisor.onRetry` is this object's.
+    var commitMatch: MatchCommitting?
 
     @Published private(set) var errorMessage: String?
 
@@ -67,33 +99,16 @@ final class MatchmakingService: ObservableObject {
         static let mine = "mine"
     }
 
-    /// Field names in one place so the write maps can't drift from
-    /// `MatchTicket`'s coding keys, matching the other four services.
+    /// Field names live on `MatchTicket` rather than in a private enum here,
+    /// because `SeasonGameService.commitMatch` writes these same documents
+    /// inside the transaction that creates a match. See `MatchTicket.Field`.
     ///
     /// There is deliberately no `updatedAt`: `matchTickets` doesn't carry one.
     /// `claimedAt` already is the ticket's "when did this change" stamp, the
-    /// claim is the ticket's only mutation, and the rules' `affectedKeys()`
-    /// allowlist on the claim is three fields wide. Adding one would mean
-    /// widening that allowlist, which is the one place it should stay narrow.
-    private enum Field {
-        static let squadId = "squadId"
-        static let leaderId = "leaderId"
-        static let squadName = "squadName"
-        static let memberIds = "memberIds"
-        static let format = "format"
-        static let region = "region"
-        static let courtIds = "courtIds"
-        static let windowStart = "windowStart"
-        static let windowEnd = "windowEnd"
-        static let wins = "wins"
-        static let losses = "losses"
-        static let status = "status"
-        static let claimedBy = "claimedBy"
-        static let claimedAt = "claimedAt"
-        static let matchedGameId = "matchedGameId"
-        static let createdAt = "createdAt"
-        static let expiresAt = "expiresAt"
-    }
+    /// commit is the ticket's only mutation, and the rules' `affectedKeys()`
+    /// allowlist is four fields wide. Adding one would mean widening that
+    /// allowlist, which is the one place it should stay narrow.
+    private typealias Field = MatchTicket.Field
 
     /// How much of the pool is worth holding. A region's live pool is tens of
     /// tickets; this is a sanity limit, not pagination.
@@ -236,8 +251,47 @@ final class MatchmakingService: ObservableObject {
         hasLoadedPool = false
         pool = []
         myTicket = nil
-        wonClaim = nil
         clearError()
+    }
+
+    /// Stops *looking* without forgetting what we were looking for.
+    ///
+    /// **This is what "cancel the search when a match is made" means here.**
+    /// The pool listener is a live query over every open ticket in the region;
+    /// once this squad's own ticket is spent there is nothing it can tell us,
+    /// and a scan that kept running could only pick a candidate the rules would
+    /// refuse. The `myTicket` listener stays attached, because a spent ticket
+    /// becoming a fresh one is exactly how the search starts again.
+    ///
+    /// Reached from both sides of a match and needs no coordination between
+    /// them: the squad that committed and the squad that was claimed both see
+    /// their own ticket turn `matched` on their own listener.
+    private func concludeSearch() {
+        scanTask?.cancel()
+        scanTask = nil
+        poolListener?.remove()
+        poolListener = nil
+        supervisor.recordSuccess(for: ListenerKey.pool)
+        attempt = 0
+        isBackingOff = false
+        hasLoadedPool = false
+        pool = []
+    }
+
+    /// Brings the pool listener up while this squad is searching and takes it
+    /// down when it isn't, off a single source of truth: our own ticket.
+    ///
+    /// Every transition runs through here — queueing, matching, leaving,
+    /// expiring — so there is one answer to "should we be watching the pool"
+    /// rather than one per caller.
+    private func syncPoolListener() {
+        guard let search, myTicket?.isSearching == true else {
+            if poolListener != nil { concludeSearch() }
+            return
+        }
+
+        guard poolListener == nil else { return }
+        attachPoolListener(for: search)
     }
 
     /// Re-attaches now rather than waiting out the backoff.
@@ -245,43 +299,21 @@ final class MatchmakingService: ObservableObject {
         supervisor.retryNow()
     }
 
-    /// Opens both listeners, replacing any already open. Also the supervisor's
-    /// retry path, matching the other services.
+    /// Opens the ticket listener, and lets it decide about the pool. Also the
+    /// supervisor's retry path, matching the other services.
     ///
-    /// **`status in ['open', 'claimed']`, not `== 'open'`.** A query filtered to
-    /// open alone would hide every stale claim from the scanner, which would
-    /// make the plan's §2.3 recovery unreachable — and nothing would report it,
-    /// because a ticket wedged by a claimer that crashed simply never appears.
-    /// The composite index for this query already exists.
+    /// The pool listener is deliberately *not* opened here unconditionally:
+    /// whether we should be watching the pool is a question about our own
+    /// ticket, and `syncPoolListener` is the one place that answers it. On a
+    /// cold attach `myTicket` is still nil, so the pool comes up a beat later
+    /// when the first ticket snapshot lands — which is the right order anyway,
+    /// since a scan needs our own ticket before it can rank anything.
     private func attachListeners() {
         guard let search else { return }
 
         poolListener?.remove()
+        poolListener = nil
         myTicketListener?.remove()
-
-        // Recomputed per attach rather than captured once, so a listener
-        // re-attached minutes later doesn't filter on a stale instant.
-        let now = Timestamp(date: Date())
-
-        poolListener = database
-            .collection(Collection.matchTickets)
-            .whereField(Field.region, isEqualTo: search.region)
-            .whereField(Field.format, isEqualTo: search.format.rawValue)
-            .whereField(
-                Field.status,
-                in: [MatchTicket.Status.open.rawValue, MatchTicket.Status.claimed.rawValue]
-            )
-            .whereField(Field.expiresAt, isGreaterThan: now)
-            .limit(to: Limit.pool)
-            .addSnapshotListener { [weak self] snapshot, error in
-                Task { @MainActor in
-                    self?.handle(error: error, listener: ListenerKey.pool, describing: "the pool") {
-                        service in
-                        service.pool = Self.decoded(snapshot)
-                        service.hasLoadedPool = true
-                    }
-                }
-            }
 
         myTicketListener = database
             .collection(Collection.matchTickets)
@@ -291,6 +323,37 @@ final class MatchmakingService: ObservableObject {
                     self?.handle(error: error, listener: ListenerKey.mine, describing: "your queue") {
                         service in
                         service.myTicket = Self.decoded(snapshot)
+                    }
+                }
+            }
+    }
+
+    /// The pool query.
+    ///
+    /// **`status == 'open'`, not `in ['open', 'claimed']`.** There is no
+    /// `claimed` any more: a ticket is in the pool or it is spent on a match,
+    /// and the transaction that spends it leaves no state in between for a
+    /// scanner to have to recover. The composite index this uses — region,
+    /// format, status, expiresAt — is unchanged, since an equality filter and
+    /// an `in` filter on the same field read the same index.
+    private func attachPoolListener(for search: Search) {
+        // Recomputed per attach rather than captured once, so a listener
+        // re-attached minutes later doesn't filter on a stale instant.
+        let now = Timestamp(date: Date())
+
+        poolListener = database
+            .collection(Collection.matchTickets)
+            .whereField(Field.region, isEqualTo: search.region)
+            .whereField(Field.format, isEqualTo: search.format.rawValue)
+            .whereField(Field.status, isEqualTo: MatchTicket.Status.open.rawValue)
+            .whereField(Field.expiresAt, isGreaterThan: now)
+            .limit(to: Limit.pool)
+            .addSnapshotListener { [weak self] snapshot, error in
+                Task { @MainActor in
+                    self?.handle(error: error, listener: ListenerKey.pool, describing: "the pool") {
+                        service in
+                        service.pool = Self.decoded(snapshot)
+                        service.hasLoadedPool = true
                     }
                 }
             }
@@ -319,7 +382,12 @@ final class MatchmakingService: ObservableObject {
             clearError()
         }
 
-        // Every snapshot is a reason to look again: a new ticket, a claim
+        // Our own ticket may have just been spent — by us, or by the squad
+        // that claimed it — so decide whether we should still be watching the
+        // pool at all before deciding whether to scan it.
+        syncPoolListener()
+
+        // Every snapshot is a reason to look again: a new ticket, a match
         // landing, or my own ticket ageing into a wider relaxation.
         scheduleScan()
     }
@@ -362,7 +430,7 @@ final class MatchmakingService: ObservableObject {
     /// ticket, and burning a transaction against ourselves is the one form of
     /// contention entirely within our own control.
     private func scheduleScan() {
-        guard search != nil, wonClaim == nil, scanTask == nil else { return }
+        guard search != nil, scanTask == nil else { return }
 
         scanTask = Task { [weak self] in
             await self?.scan()
@@ -371,12 +439,14 @@ final class MatchmakingService: ObservableObject {
     }
 
     private func scan() async {
-        guard let search, wonClaim == nil else { return }
+        guard let search, let commit = commitMatch else { return }
         guard let mine = myTicket else { return }
 
-        // My own ticket has to still be in play. If somebody has just claimed
-        // *me* I'm about to be matched and must not claim anyone else — that is
-        // how a squad double-books itself.
+        // My own ticket has to still be in play. A ticket is spent exactly
+        // once, so if mine is already spent I am in a match and must not take
+        // anyone else out of the pool — that is how a squad double-books
+        // itself. Re-read on every pass rather than trusted from the last one,
+        // because the answer changes underneath us.
         guard mine.isClaimable(at: Date()) else { return }
 
         let candidates = MatchRules.rank(
@@ -402,17 +472,28 @@ final class MatchmakingService: ObservableObject {
         var generator = SystemRandomNumberGenerator()
         let delay = ClaimPolicy.jitterDelay(using: &generator)
         try? await Task.sleep(for: .seconds(delay))
-        guard !Task.isCancelled, wonClaim == nil else { return }
+        guard !Task.isCancelled else { return }
+
+        // **Re-read after the sleep, not only before it.** The jitter is up to
+        // three seconds, and the whole point of it is that somebody else is
+        // acting in that interval — including, in a two-squad pool, the squad
+        // we are about to claim, claiming us. Checking staleness before a
+        // deliberate pause and not after made the pause itself the window: a
+        // client could watch its own ticket be spent and commit anyway.
+        guard let fresh = myTicket, fresh.isClaimable(at: Date()) else { return }
 
         attempt += 1
-        let outcome = await claim(candidate, mine: mine, search: search)
+        let outcome = await commit(candidate, fresh, search.courts, search.anchor)
 
         switch ClaimPolicy.next(after: outcome, attempt: attempt) {
         case .stop:
             attempt = 0
             isBackingOff = false
-            wonClaim = candidate
-            logger.notice("Won a claim on ticket \(candidate.ticket.squadId, privacy: .public)")
+            // The ticket listener concludes the search on its own the moment it
+            // sees our ticket spent; doing it here too means the pool query is
+            // down before the round trip, rather than a beat after it.
+            concludeSearch()
+            logger.notice("Committed a match against \(candidate.ticket.squadId, privacy: .public)")
 
         case .rescan:
             isBackingOff = false
@@ -425,121 +506,65 @@ final class MatchmakingService: ObservableObject {
             isBackingOff = true
             logger.debug("Backing off for \(interval, privacy: .public)s after \(self.attempt, privacy: .public) attempts")
             try? await Task.sleep(for: .seconds(interval))
-            guard !Task.isCancelled, wonClaim == nil else { return }
+            guard !Task.isCancelled else { return }
             attempt = 0
             await scan()
         }
     }
 
-    // MARK: - The claim
+    // MARK: - The commit
 
-    /// **The one contested write in the feature.** A transaction against a
-    /// single document: the other squad's ticket.
-    ///
-    /// What it reads: that ticket, and only that ticket. What it re-checks:
-    /// every hard rule, against the version the transaction itself read.
-    ///
-    /// **Re-checking inside is not redundant with the scan outside.** The scan
-    /// ran against a pool snapshot that is at best milliseconds old and at
-    /// worst seconds — a listener snapshot is a push of what *was* true. In
-    /// between, the ticket may have been claimed by somebody faster, expired,
-    /// had its window narrowed, or been re-queued by a leader who left and came
-    /// back with a different roster. The transaction's own read is the only
-    /// view of the ticket guaranteed current at the moment of the write, and
-    /// Firestore's guarantee is precisely that: if this document changes before
-    /// the commit, the whole transaction is retried against the new value.
-    /// Checking outside and writing inside would be checking a value we are not
-    /// writing against.
-    ///
-    /// **What happens to each loser, and why it is not an error.** Firestore
-    /// serializes contested single-document transactions, so exactly one
-    /// claimer commits. Everyone else either has their transaction retried —
-    /// where it re-reads a now-`claimed` ticket and the guard below returns
-    /// `.lost` — or is refused by the rules for the same reason. Neither is a
-    /// failure of anything: the pool is shared, every client sees every ticket,
-    /// and being second is the ordinary experience of a healthy pool. The user
-    /// asked to be matched, not to win this particular race, and their search
-    /// is already looking at the next candidate. `ClaimPolicy.isUserFacing`
-    /// keeps that quiet, and it is a pure function so the quietness is tested.
-    private func claim(
-        _ candidate: MatchCandidate,
-        mine: MatchTicket,
-        search: Search
-    ) async -> ClaimOutcome {
-        let reference = database
-            .collection(Collection.matchTickets)
-            .document(candidate.ticket.squadId)
-        let claimingSquadId = search.squadId
-        let courts = search.courts
-        let anchor = search.anchor
-
-        do {
-            let outcome = try await database.runTransaction { transaction, errorPointer in
-                let snapshot: DocumentSnapshot
-                do {
-                    snapshot = try transaction.getDocument(reference)
-                } catch let fetchError as NSError {
-                    // Setting the pointer makes `runTransaction` throw, so the
-                    // value returned here is never inspected.
-                    errorPointer?.pointee = fetchError
-                    return nil
-                }
-
-                guard snapshot.exists, let fresh = try? snapshot.data(as: MatchTicket.self) else {
-                    return ClaimOutcome.missing.rawValue
-                }
-
-                // The re-check. Same pure function as the scan, against the
-                // document this write will actually land on.
-                guard MatchRules.candidate(
-                    for: mine,
-                    against: fresh,
-                    courts: courts,
-                    anchor: anchor,
-                    now: Date()
-                ) != nil else {
-                    return ClaimOutcome.lost.rawValue
-                }
-
-                transaction.updateData(
-                    [
-                        Field.status: MatchTicket.Status.claimed.rawValue,
-                        Field.claimedBy: claimingSquadId,
-                        // Pinned, not requested. A claim a client could
-                        // backdate would look fresh forever and wedge the
-                        // ticket — which is why the rules assert
-                        // `claimedAt == request.time` rather than trusting it.
-                        Field.claimedAt: FieldValue.serverTimestamp(),
-                    ],
-                    forDocument: reference
-                )
-
-                return ClaimOutcome.claimed.rawValue
-            }
-
-            let decided = ClaimOutcome(rawValue: outcome as? String ?? "") ?? .failed
-            if decided != .claimed {
-                logger.debug("Claim on \(candidate.ticket.squadId, privacy: .public) ended as \(decided.rawValue, privacy: .public)")
-            }
-            return decided
-        } catch {
-            let ticketError = Self.mapped(error)
-
-            // A refusal here is the server's copy of the guard above firing —
-            // the ticket moved between our read and the commit. Quiet, like
-            // losing, and distinguished only so the logs stay honest about
-            // which side rejected it.
-            if ticketError == .permissionDenied {
-                logger.debug("Claim on \(candidate.ticket.squadId, privacy: .public) was refused by the rules")
-                return .refused
-            }
-
-            report(ticketError, whileDoing: "looking for a match", context: .write)
-            return .failed
-        }
-    }
+    // **The contested write used to live here, and moving it is the fix.**
+    //
+    // It was a transaction against one document: the other squad's ticket. That
+    // rested on Firestore serializing contested writes to a *single* document,
+    // which it does — and which turned out to be the wrong guarantee. Two
+    // squads claiming each other write to two *different* tickets, so nothing
+    // serializes them, both win, and both go on to create a match. With two
+    // squads in a pool that is the ordinary path, not a rare one, and it is
+    // what put two live matches in front of both squads.
+    //
+    // The commit now reads and writes *both* tickets and the game in one
+    // transaction, so the two mutual attempts finally share a read set and
+    // exactly one lands. That write spans two collections, so it lives in
+    // `SeasonGameService.commitMatch` and arrives here as `commitMatch`.
+    //
+    // **What hasn't changed is why losing is quiet.** Every loser re-reads a
+    // ticket that is already spent and fails the same guard it always did. The
+    // pool is shared, every client sees every ticket, and being second is the
+    // ordinary experience of a healthy pool — the user asked to be matched, not
+    // to win this particular race, and the search is already looking again.
+    // `ClaimPolicy.isUserFacing` keeps that quiet, and it is a pure function so
+    // the quietness stays tested.
 
     // MARK: - Writes
+
+    /// Removes this squad's ticket if it has already been spent on a match, so
+    /// a fresh one can be written at the same document ID.
+    ///
+    /// An `open` ticket is left alone and reported as `alreadyQueued`: the squad
+    /// really is in the pool, and silently replacing a live offer would move the
+    /// window and courts out from under a claimer mid-race.
+    private func clearSpentTicket(for squadId: String) async throws {
+        let reference = database.collection(Collection.matchTickets).document(squadId)
+
+        do {
+            let snapshot = try await reference.getDocument()
+            guard snapshot.exists else { return }
+
+            if let existing = try? snapshot.data(as: MatchTicket.self), existing.isSearching {
+                throw MatchTicketError.alreadyQueued
+            }
+
+            try await reference.delete()
+        } catch let error as MatchTicketError {
+            throw error
+        } catch {
+            let ticketError = Self.mapped(error)
+            report(ticketError, whileDoing: "joining the queue", context: .write)
+            throw ticketError
+        }
+    }
 
     /// Puts a squad in the pool.
     ///
@@ -564,6 +589,21 @@ final class MatchmakingService: ObservableObject {
     ) async throws {
         guard let uid = observedUID else { throw MatchTicketError.notSignedIn }
         guard squad.leaderId == uid else { throw MatchTicketError.notLeader }
+
+        // **A spent ticket has to be cleared before a new one can be written.**
+        // The document ID is the squad ID, so this write is a create against a
+        // fixed path — and once a ticket has been spent on a match, nothing
+        // removes it. It sits there `matched` until `expiresAt`, which is up to
+        // a day, and a `setData` over it is an *update* as far as the rules are
+        // concerned. The update paths only permit `open` -> `matched`, so the
+        // squad would be refused every time it tried to queue again, for hours,
+        // with "the server wouldn't accept that" and nothing to act on.
+        //
+        // A leader may always delete their own ticket, so the fix needs no new
+        // permission: clear the spent one, then create. Read first rather than
+        // deleting blind, because a delete on a document that isn't there has
+        // no `resource` for the rule to read and fails as an error.
+        try await clearSpentTicket(for: squad.id)
 
         // Rejected, not reshaped, and checked against the same bounds the
         // create rule enforces — the shape `Game.validate` and `Squad.validate`
@@ -612,75 +652,23 @@ final class MatchmakingService: ObservableObject {
         }
     }
 
-    /// Marks a ticket `matched`, pointing it at the game that was created.
-    ///
-    /// **Called for two different reasons, by two different clients.**
-    ///
-    /// 1. The squad that won the claim closes out both tickets right after
-    ///    writing the game. That is the fast path.
-    /// 2. The *home* squad marks **its own** ticket matched off its own
-    ///    `seasonGames` listener, the moment the game lands.
-    ///
-    /// The second one closes a window the plan doesn't cover. §2.3 handles a
-    /// claimer that dies *before* writing the game — the claim goes stale after
-    /// 90 seconds and the ticket returns to the pool. It says nothing about a
-    /// claimer that dies **after** writing the game and before marking the
-    /// tickets: that ticket also goes stale, and its game already exists, so a
-    /// third squad re-claims it and creates a second game against a squad that
-    /// already has one.
-    ///
-    /// A leader can always write their own ticket, so the home squad can shut
-    /// the window itself without anyone writing anyone else's document — which
-    /// is the only fix the security model admits. The rules accept both writers
-    /// for exactly this reason.
-    ///
-    /// Idempotent in effect: whichever client gets there second finds the
-    /// ticket already `matched`, the `claimed` → `matched` transition no longer
-    /// applies, and the refusal is swallowed. Two clients doing the same
-    /// necessary thing is not a failure.
-    func markMatched(squadId: String, gameId: String) async {
-        guard observedUID != nil else { return }
-
-        do {
-            try await database
-                .collection(Collection.matchTickets)
-                .document(squadId)
-                .updateData([
-                    Field.status: MatchTicket.Status.matched.rawValue,
-                    Field.matchedGameId: gameId,
-                ])
-            logger.debug("Marked ticket \(squadId, privacy: .public) matched")
-        } catch {
-            // Never surfaced. Either somebody else already did it — the common
-            // case, and the point of having two writers — or the ticket is gone,
-            // which is also fine: an unmarked ticket ages out on `expiresAt`.
-            logger.debug(
-                "Couldn't mark ticket \(squadId, privacy: .public) matched: \(error.localizedDescription, privacy: .public)"
-            )
-        }
-    }
-
-    /// Gives up on a won claim that didn't turn into a game, and resumes
-    /// scanning.
-    ///
-    /// **Called by the view model when `SeasonGameService.createGame` fails
-    /// after a claim was won** — a network blip, or the home squad renaming
-    /// itself out from under its own ticket's denormalized `squadName` while
-    /// queued. `wonClaim` is this service's only "stop looking" signal, and
-    /// nothing else clears it; a claim that never became a game would
-    /// otherwise leave `scheduleScan()`'s `wonClaim == nil` guard permanently
-    /// false, freezing the search with no error and no retry.
-    ///
-    /// Safe to resume immediately rather than backing off: the ticket we just
-    /// failed to convert is marked `claimed` by us and won't be
-    /// `isClaimable(at:)` again for up to 90 seconds, so an immediate re-scan
-    /// looks for a *different* candidate rather than retrying the one that
-    /// just failed.
-    func releaseWonClaim() {
-        guard wonClaim != nil else { return }
-        wonClaim = nil
-        scheduleScan()
-    }
+    // **`markMatched` and `releaseWonClaim` used to live here, and both were
+    // repairs to a window that no longer exists.**
+    //
+    // `markMatched` had two callers for one reason: a client could die after
+    // writing the game and before closing the tickets, leaving a ticket that
+    // went stale with its match already made — so a third squad re-claimed it
+    // and created a second match against a squad that already had one. Each
+    // squad closing its own ticket off its own `seasonGames` listener was the
+    // fix that needed no new permission.
+    //
+    // `releaseWonClaim` was the other half: a claim won but never turned into a
+    // game froze the search, because the won claim was the loop's only "stop
+    // looking" signal and nothing else cleared it.
+    //
+    // Both are gone because the gap they sat in is gone. The game and both
+    // tickets land in one commit, so there is no instant at which one exists
+    // without the others, and nothing to reconcile afterwards.
 
     /// Leaves the queue. The leader's alone, enforced server-side.
     ///
@@ -758,6 +746,8 @@ final class MatchmakingService: ObservableObject {
             return "Only the squad's leader can queue it."
         case .alreadyQueued:
             return "This squad is already in the queue."
+        case .matchAlreadyScheduled:
+            return "Your squad already has a match scheduled."
         case .claimLost, .ticketNotFound:
             return "That match was taken. Still looking."
         case .permissionDenied:

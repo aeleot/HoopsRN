@@ -15,8 +15,7 @@ rules_version = '2';
 // scheduling window, the radius range, the `userName` length, the derivation
 // of `status` from the roster, on `squads` the name length, the roster
 // ceiling per format, the format allowlist and the icon/colour allowlists, and
-// on `matchTickets` the stale-claim window, the court-count bounds and the
-// ticket lifetime.
+// on `matchTickets` the court-count bounds and the ticket lifetime.
 // `hooprTests/FirestoreRulesParityTests` parses this file and fails if either
 // copy moves without the other. Change a bound here and change it there; a
 // mismatch doesn't show up as a logic error, it shows up as
@@ -628,19 +627,6 @@ service cloud.firestore {
           && expiresAt <= request.time + duration.value(24, 'h');
       }
 
-      // MIRRORED IN SWIFT — `MatchRules.staleClaim`. **Enforced in three places
-      // that must agree**: here, `MatchTicket.isClaimable` (the scanner), and
-      // the waiting squad's own UI, which reverts to "searching" rather than
-      // showing a match that never arrived.
-      //
-      // This is what makes the two-step claim-then-create design safe without
-      // `getAfter()`: a claimer who crashes between winning the claim and
-      // writing the game costs the pool ninety seconds and nothing else.
-      function claimHasGoneStale() {
-        return resource.data.status == 'claimed'
-          && request.time > resource.data.claimedAt + duration.value(90, 's');
-      }
-
       // The pool is readable by any signed-in account, like `squads`, because
       // that is what a pool *is* — every queued client watches the same one and
       // the winner of a one-document race gets the match. The pool query
@@ -690,7 +676,35 @@ service cloud.firestore {
         && isValidLifetime(incoming().expiresAt)
         && incoming().createdAt == request.time;
 
-      // **The claim — the one contested write in the whole feature.**
+      // **The match commit — the one contested write in the whole feature.**
+      //
+      // A match is made by **one transaction that consumes both tickets and
+      // creates the game**, so there is no intermediate `claimed` state and no
+      // window between the two. The two `allow update` blocks below are the two
+      // halves of that single commit: this one takes the *other* squad's ticket,
+      // the next one closes the caller's own.
+      //
+      // **Why atomic, and what the two-phase version got wrong.** The old design
+      // claimed one ticket, then created the game, then marked both tickets. Its
+      // guarantee was Firestore serializing contested writes to a *single*
+      // document — which holds, and is the wrong guarantee. Two squads that
+      // claim each other touch two *different* documents, so nothing serializes
+      // them, both claims win, and both clients go on to write a game. In a pool
+      // of two squads that is not an edge case, it is the ordinary path, and it
+      // is what put two live matches in front of both squads.
+      //
+      // Reading and writing **both** tickets in one transaction is what fixes
+      // it: the two mutual commits now share a read set, so exactly one lands
+      // and the other retries onto a ticket that is already `matched`. The
+      // guarantee is the same one as before, applied to the pair that actually
+      // needs it.
+      //
+      // `getAfter()` is what lets each half prove the other happened. The game
+      // named here must exist **after this commit** and must name these two
+      // squads in these two roles — so a ticket cannot be marked matched except
+      // by a write that really is creating that match, and the `seasonGames`
+      // create rule makes the mirror-image demand of both tickets. Neither
+      // document can move without the other.
       //
       // Naming another squad is authorized by leading the squad doing the
       // claiming, which is one get() against `squads`. Nobody's uid is written
@@ -698,62 +712,57 @@ service cloud.firestore {
       // squad ID the caller already owns.
       allow update: if isSignedIn()
         && incoming().diff(resource.data).affectedKeys()
-             .hasOnly(['status', 'claimedBy', 'claimedAt'])
-        && incoming().status == 'claimed'
+             .hasOnly(['status', 'claimedBy', 'claimedAt', 'matchedGameId'])
+        && incoming().diff(resource.data).affectedKeys()
+             .hasAll(['status', 'claimedBy', 'claimedAt', 'matchedGameId'])
+        // **Open, and nothing else.** A ticket leaves the pool exactly once —
+        // which is what stops a squad ever appearing in two live matches, and
+        // is the invariant the duplicate-match bug was the absence of.
+        && resource.data.status == 'open'
+        && incoming().status == 'matched'
         && incoming().claimedBy is string
         // A squad can't claim itself out of the pool.
         && incoming().claimedBy != squadId
+        && incoming().matchedGameId is string
+        && resource.data.expiresAt > request.time
         && get(/databases/$(database)/documents/squads/$(incoming().claimedBy))
              .data.leaderId == request.auth.uid
-        && resource.data.expiresAt > request.time
-        // Open, or claimed by someone who never came back for it.
-        && (resource.data.status == 'open' || claimHasGoneStale())
-        // Pinned, not requested — a claim a client could backdate would look
-        // fresh forever and wedge the ticket.
+        // The game has to exist after this commit and cast these two squads in
+        // exactly these two roles — this ticket's squad at home, because it is
+        // the home offer the match was built from, and the claimer away.
+        && getAfter(/databases/$(database)/documents/seasonGames/$(incoming().matchedGameId))
+             .data.homeSquadId == squadId
+        && getAfter(/databases/$(database)/documents/seasonGames/$(incoming().matchedGameId))
+             .data.awaySquadId == incoming().claimedBy
+        && getAfter(/databases/$(database)/documents/seasonGames/$(incoming().matchedGameId))
+             .data.status == 'scheduled'
+        // Pinned, not requested — a stamp a client could backdate would make a
+        // ticket's history unreadable, and `matchTickets` carries no
+        // `updatedAt` for it to be checked against.
         && incoming().claimedAt == request.time;
 
-      // **The `matched` transition — two writers, deliberately.**
+      // **The claimer's own ticket, closed in the same commit.**
       //
-      // Kept a separate `allow update` from the claim above, the same
-      // one-write-one-path split `squads` uses: a claim can never smuggle in a
-      // `matchedGameId`, and a match can never re-claim.
-      //
-      // The obvious writer is the squad that won the claim, closing out its own
-      // handoff. The second writer is **this ticket's own leader**, and it
-      // exists to close a window `context/plans/SEASONS.md` §2.3 doesn't cover.
-      // §2.3 handles a claimer that dies *before* writing the game: the claim
-      // goes stale after 90 seconds and the ticket returns to the pool. It says
-      // nothing about a claimer that dies **after** writing the game and before
-      // marking the tickets matched — that ticket also goes stale, and its game
-      // already exists, so a third squad re-claims it and creates a second game
-      // against a squad that already has one.
-      //
-      // The fix that needs no new permission: each squad marks its **own**
-      // ticket matched off its own `seasonGames` listener. A leader can always
-      // write their own ticket, so the home squad closes the window itself the
-      // moment the game lands, without anyone writing anyone else's document.
-      // The away leader's write stays as the fast path; this is the one that
-      // makes it safe.
-      //
-      // The game has to actually exist and actually name this squad, or the
-      // transition would be a way to strand a ticket in a state no listener
-      // will ever move it out of. `exists()` before `get()`, because a get() on
-      // a missing document fails the whole rule as an error rather than a clean
-      // denial.
+      // The mirror of the block above, and the half that makes the pair atomic
+      // rather than merely simultaneous: without it a squad could take an
+      // opponent out of the pool while staying in it themselves, and match a
+      // second squad a moment later. `claimedBy` is absent here because nobody
+      // claimed this ticket — its own leader spent it.
       allow update: if isSignedIn()
         && incoming().diff(resource.data).affectedKeys()
              .hasOnly(['status', 'matchedGameId'])
-        && resource.data.status == 'claimed'
+        && incoming().diff(resource.data).affectedKeys()
+             .hasAll(['status', 'matchedGameId'])
+        && resource.data.status == 'open'
         && incoming().status == 'matched'
         && incoming().matchedGameId is string
-        && exists(/databases/$(database)/documents/seasonGames/$(incoming().matchedGameId))
-        && get(/databases/$(database)/documents/seasonGames/$(incoming().matchedGameId))
-             .data.squadIds.hasAll([squadId])
-        // The ticket's own leader first, so the common path short-circuits
-        // before spending a document access on the claiming squad.
-        && (resource.data.leaderId == request.auth.uid
-            || get(/databases/$(database)/documents/squads/$(resource.data.claimedBy))
-                 .data.leaderId == request.auth.uid);
+        && resource.data.leaderId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/seasonGames/$(incoming().matchedGameId))
+             .data.awaySquadId == squadId
+        && getAfter(/databases/$(database)/documents/seasonGames/$(incoming().matchedGameId))
+             .data.awayLeaderId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/seasonGames/$(incoming().matchedGameId))
+             .data.status == 'scheduled';
 
       // Leaving the queue. The leader's alone, and a delete rather than a
       // status: absence, never null, the same move `friendships` makes.
@@ -790,10 +799,24 @@ service cloud.firestore {
       function isSignedIn() { return request.auth != null; }
       function incoming() { return request.resource.data; }
 
-      // The claimed ticket that authorizes this match. One access, cached
-      // across every use below.
+      // The two tickets this match spends, **as they stand after this commit**.
+      //
+      // `getAfter()` rather than `get()`, because the commit that creates this
+      // match is the same commit that marks both tickets `matched` — a `get()`
+      // here would read the pre-commit `open` and prove nothing. One access
+      // each, cached across every use below.
+      //
+      // Reading both is what pins a match to *two* spent tickets rather than
+      // one. The old rule proved only that the home ticket had been claimed,
+      // which left the away squad free to be in a second match at the same
+      // time; `matchTickets` and `seasonGames` now demand each other in both
+      // directions, so neither can move alone.
       function homeTicket() {
-        return get(/databases/$(database)/documents/matchTickets/$(incoming().homeSquadId)).data;
+        return getAfter(/databases/$(database)/documents/matchTickets/$(incoming().homeSquadId)).data;
+      }
+
+      function awayTicket() {
+        return getAfter(/databases/$(database)/documents/matchTickets/$(incoming().awaySquadId)).data;
       }
 
       function squad(id) {
@@ -874,10 +897,10 @@ service cloud.firestore {
 
       allow read: if isSignedIn();
 
-      // Three document accesses: the home ticket and both squads. Rules get()s
+      // Four document accesses: both tickets and both squads. Rules lookups
       // against the same path within one evaluation are cached, so the repeated
-      // homeTicket() calls below cost nothing extra — three of the ten the
-      // platform allows.
+      // homeTicket() and awayTicket() calls below cost nothing extra — four of
+      // the ten the platform allows.
       allow create: if isSignedIn()
         && incoming().keys().hasOnly(['id', 'format', 'region',
                                       'homeSquadId', 'awaySquadId', 'squadIds',
@@ -904,11 +927,19 @@ service cloud.firestore {
         // [home, away] and the rule pins that exact shape.
         && incoming().squadIds == [incoming().homeSquadId, incoming().awaySquadId]
 
-        // **Proves the claim was won.** This is the condition that authorizes
-        // naming another squad at all: the home ticket says it is claimed, and
-        // says it is claimed by *us*. Only one squad could have won that race.
-        && homeTicket().status == 'claimed'
+        // **Proves both tickets were spent, on this match, in this commit.**
+        // The condition that authorizes naming another squad at all: the home
+        // ticket says it is matched, matched to *this* game, and claimed by
+        // *us* — and the away ticket says the same, under the leader making
+        // this write. Each ticket's own rule only permits `open` -> `matched`,
+        // so a ticket can be spent exactly once and a squad can therefore be in
+        // exactly one live match.
+        && homeTicket().status == 'matched'
         && homeTicket().claimedBy == incoming().awaySquadId
+        && homeTicket().matchedGameId == gameId
+        && awayTicket().status == 'matched'
+        && awayTicket().matchedGameId == gameId
+        && awayTicket().leaderId == request.auth.uid
 
         // The court and the time must be ones the home squad actually offered.
         // Both clients derive these from the same pure function, but agreement
@@ -921,6 +952,18 @@ service cloud.firestore {
         && incoming().scheduledTime > request.time
         && incoming().format == homeTicket().format
         && incoming().region == homeTicket().region
+
+        // The away side's offer is checked too, now that reading its ticket is
+        // already paid for. Tip-off comes from the *overlap* of the two
+        // windows, so it falls inside both by construction — asserting it makes
+        // that a guarantee rather than a property of the client that computed
+        // it. The court deliberately isn't pinned to the away list: relaxation
+        // lets a guest travel to a home court it never named, and a rule that
+        // forbade that would refuse matches `MatchRules` is built to make.
+        && incoming().scheduledTime >= awayTicket().windowStart
+        && incoming().scheduledTime <= awayTicket().windowEnd
+        && incoming().format == awayTicket().format
+        && incoming().region == awayTicket().region
 
         // Verified once, here, because every later write trusts them for free.
         && squad(incoming().homeSquadId).leaderId == incoming().homeLeaderId

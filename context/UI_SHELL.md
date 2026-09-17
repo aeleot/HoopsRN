@@ -200,10 +200,39 @@ The fourth tab: squads, matchmaking, and the record that comes out of them. One
 `NavigationStack` over a scroll view, with two sheets and three pushes.
 
 **Screens 5, 6 and 8's "waiting" are *states*, not destinations.** Squad home
-has one card that matters right now — *find a match*, *searching*, or *next
-match* — and `MatchmakingCard` swaps its contents in place rather than pushing.
-Making them separate screens would mean navigating between three views that
-differ by one sentence.
+has one card that matters right now — *find a match*, *searching*, *match
+found*, or *next match* — and `MatchmakingCard` swaps its contents in place
+rather than pushing. Making them separate screens would mean navigating between
+views that differ by one sentence.
+
+**The state is decided by `MatchmakingViewModel.phase`, a `nonisolated static`
+pure function**, and it is worth knowing why it is not simply "is there a
+ticket". Nothing deletes a ticket once it has been spent on a match; it ages out
+on `expiresAt`, up to a day later. Reading any non-nil ticket as *searching*
+meant that the moment a match stopped being live — played and confirmed, called
+off, or aged past its window — the card fell back to a search nobody had
+started, with a timer counting up from when the squad first queued and a "Cancel
+search" button that cancelled nothing. `MatchTicket.isSearching` is the only
+question the searching state may ask.
+
+*Match found* is the fourth state and covers a real gap rather than a cosmetic
+one: the match and both tickets are written in one transaction but reach the
+client on two listeners, so for a few hundred milliseconds the ticket is spent
+and the match hasn't arrived. Without it the card blinks through *find a match*
+— the wrong answer, and an offer to queue that would be refused.
+
+**It is also bounded, by `MatchmakingViewModel.settlingGrace` (20s).** Nothing
+re-evaluates `phase` once the ticket itself stops changing, so if the match
+never arrives — `matchedGameId` pointing at a document this client can't see,
+which rules make narrow but a hand-edited or otherwise corrupted ticket can
+still produce — *match found* had no way out at all: a permanent spinner, with
+no cancel control on it. Past the grace period `phase` falls back to *find a
+match*, which is what lets a leader queue again instead of being stuck behind a
+match that will never resolve.
+
+**Queue up is gated on `canQueue`, not on being the leader.** One live match at
+a time: a leader with a match scheduled is shown the match, and the queue
+re-opens once it is over.
 
 | Surface | File | Presentation |
 |---|---|---|
@@ -211,7 +240,7 @@ differ by one sentence.
 | Squad home — crest, record, form, the one live card, roster | `SeasonsTab` | inline |
 | Create squad | `CreateSquadSheet` | `sheet(item:)` |
 | Queue up — window chips and court multi-select | `QueueSheet` | `sheet(item:)` |
-| Searching · match found | `MatchmakingCard` | states of squad home |
+| Searching · match found · next match | `MatchmakingCard` | states of squad home |
 | Game day — countdown, court, both rosters, arrival | `GameDayView` | push |
 | Result — who won, and what the two reports say | `ResultView` | push |
 | Squad detail — record, form, history, roster, controls | `SquadDetailView` | push |

@@ -26,11 +26,9 @@ many, each confined to their own lane of a shared document; `friendships` has
 two, with asymmetric authority spent in a single move; `squads` has a leader plus
 every member acting only on their own membership; `squadInvites` returns to
 asymmetric authority, spent in one move and answered by a write to a *different*
-collection; `matchTickets` breaks the pattern entirely — it is written by
-somebody who doesn't own it, and correctness rests on Firestore's concurrency
-guarantee rather than on any rule; and `seasonGames` is written by one squad's
-leader about *both* squads, authorized by a claim the rules re-read rather than
-trust.
+collection; and `matchTickets` and `seasonGames` break the pattern together —
+one commit, written by a squad that owns only half of it, whose three documents
+each prove the other two happened in the same transaction.
 
 **A dry-run is not a test.** `firebase deploy --dry-run` proves this file
 compiles. Whether a write is actually refused is evaluated in `firestore-tests/`
@@ -657,10 +655,10 @@ with a lock rather than push.
 | `courtIds` | array\<string\> | yes | no | Acceptable courts, 1–8, **ordered by preference**. No duplicates: a preference order can't rank a court against itself. |
 | `windowStart` / `windowEnd` | timestamp | yes | no | When they can play. Client-supplied, rules-bounded — `windowEnd > windowStart`, `windowEnd > request.time`, and `windowStart` inside the same 30-day ceiling `games` puts on a run. |
 | `wins` / `losses` | int | yes | no | Denormalized **at queue time** for opponent ranking. Display and scoring only — never the record of truth. Derived from confirmed `seasonGames` by the caller; see `squads` above. |
-| `status` | string | yes | yes | `open` \| `claimed` \| `matched`. |
-| `claimedBy` | string? | no | yes | The squad that won the claim race. Absent until then; set only by the claim. |
-| `claimedAt` | timestamp? | no | yes | Server-assigned. Drives stale-claim recovery. |
-| `matchedGameId` | string? | no | yes | The handoff to the waiting squad. Written by the `matched` transition. |
+| `status` | string | yes | yes | `open` \| `matched`. **Two states, and the second is terminal** — there is no `claimed`, because there is no gap between claiming and matching for it to name. |
+| `claimedBy` | string? | no | yes | The squad that took this ticket out of the pool. On the **home** ticket only — the away squad spends its own, so nobody claimed it. Written in the same commit as `matched`. |
+| `claimedAt` | timestamp? | no | yes | Server-assigned, pinned to `request.time`. This document's only change stamp. |
+| `matchedGameId` | string? | no | yes | The match this ticket was spent on. **Both tickets carry it, and they carry the same value** — one match, referred to from both squads. Also the proof each ticket's rule checks with `getAfter()`. |
 | `createdAt` | timestamp | yes | no | Server-assigned. **Ticket age is what drives relaxation.** |
 | `expiresAt` | timestamp | yes | no | Client-supplied, rules-bounded to 15 minutes–24 hours, and queried against — an expired ticket leaves the pool without anything having to delete it. |
 
@@ -672,45 +670,106 @@ rather than just an outcome.** `../plans/SEASONS.md` §1.3's field table omits
 Both cannot be right.
 
 **The field table won.** `claimedAt` already *is* this document's "when did this
-change" stamp, and the claim is the ticket's only mutation — so an `updatedAt`
+change" stamp, and the commit is the ticket's only mutation — so an `updatedAt`
 would be a second name for the same instant, and adding it would mean widening
-the claim's `affectedKeys()` allowlist, which is the one place it should stay
+the commit's `affectedKeys()` allowlist, which is the one place it should stay
 narrow. A ticket is ephemeral; it has no edit history worth keeping.
 
 If a later phase makes an `updatedAt` genuinely useful, **reopen that
 deliberately** — change the field table, the allowlist and this paragraph
 together. Do not let it drift back in as an incidental field on some other write.
 
-### The claim, and the 90-second stale window
+### The commit: one transaction, two tickets, one match
 
 ```
 runTransaction:
-  read matchTickets/{A}
-  guard status == 'open'  OR  (status == 'claimed' AND claimedAt < now - 90s)
-  guard expiresAt > now
-  guard MatchRules still produces a candidate      ← re-checked inside the txn
-  write status = 'claimed', claimedBy = B, claimedAt = <server>
+  read matchTickets/{theirs}                  ← both reads, before any write
+  read matchTickets/{mine}
+  guard both status == 'open'
+  guard MatchRules still produces a candidate ← re-checked inside the txn
+  create seasonGames/{new}
+  write theirs: status='matched', claimedBy=mine, claimedAt=<server>, matchedGameId
+  write mine:   status='matched',                                     matchedGameId
 ```
 
-The re-check inside is not redundant with the scan outside: a listener snapshot
-is a push of what *was* true, and Firestore's guarantee is about the document
-being written. Every loser re-reads a now-`claimed` ticket and fails the guard.
-**Losing is expected, not exceptional, and is never surfaced to the user** —
+**A ticket is spent exactly once, and that is the whole invariant.** The rules
+permit `open` -> `matched` and nothing else, on both update paths, so a squad
+cannot be taken out of the pool twice — which is what makes "a squad is in at
+most one live match" true on the server rather than only in the client.
+
+#### Why it is one commit, and what the two-step version got wrong
+
+This used to be three writes: claim the opponent's ticket, create the game, then
+mark both tickets `matched`. The claim was a transaction against a **single
+document**, and it leaned on Firestore serializing contested writes to one
+document. That guarantee holds. It is the wrong guarantee.
+
+Two squads that pick *each other* claim two **different** tickets. Nothing
+serializes them, both claims win, and both clients go on to create a match. Both
+squads then have two live matches against each other, and the app asks a leader
+to cancel the one they didn't want — when only one was ever intended. In a
+region with two squads queued, that is not an edge case: it is what normally
+happens.
+
+Reading and writing **both** tickets in one transaction is the fix, and it is
+the same guarantee applied to the pair that actually needs it. The two mutual
+commits now share a read set, so exactly one lands and the other is retried onto
+a ticket that is already spent, where the in-transaction guard turns it into a
+quiet loss. `firestore-tests/claim-race.test.mjs` races both shapes — two squads
+on one ticket, and two squads on each other — fifteen rounds each, and asserts
+exactly one match exists at the end.
+
+Losing is expected, not exceptional, and is never surfaced to the user —
 `ClaimPolicy.isUserFacing` is a pure function so that stays tested.
 
-A claimer can die *after* winning the claim and before writing the game.
-**`staleClaim = 90s`** is the recovery, and it is enforced in four places that
-must agree: `MatchRules.staleClaim`, `MatchTicket.isClaimable` (the scanner), the
-waiting squad's UI (which reverts to "searching" rather than showing a match that
-never arrived), and the rules' re-claim clause. `FirestoreRulesParityTests` pins
-the first three against the *text* of the fourth;
-`firestore-tests/match-tickets.test.mjs` evaluates the deployed rule from both
-sides of the boundary — 91 seconds re-claimable, 89 not. A griefer who claims
-tickets and never creates games costs the pool 90 seconds per ticket and nothing
-else.
+#### Each document proves the other two
 
-`claimedAt` is **pinned to `request.time`**, not requested. A claim a client
-could backdate would look fresh forever and wedge the ticket.
+Three documents, three separate rule evaluations of one commit, and `getAfter()`
+is what stops any of them standing alone:
+
+- **`seasonGames` create** demands that *both* tickets end the commit `matched`
+  and carrying this `gameId`, and that the home ticket's `claimedBy` is the away
+  squad. So a match cannot be created without spending both tickets.
+- **Each `matchTickets` update** demands that the match named in
+  `matchedGameId` exist after the commit, be `scheduled`, and cast this squad in
+  the role the ticket claims. So a ticket cannot be spent except by a write that
+  really is making that match.
+
+Written one at a time, every one of them is refused. That is deliberate: a
+half-commit is exactly how a squad ends up out of the pool with no match, or in
+a match while still in the pool.
+
+`claimedAt` is **pinned to `request.time`**, not requested, so the one change
+stamp this document carries cannot be backdated.
+
+#### Three windows closed, not one
+
+The two-step design needed recovery machinery that no longer has anything to
+recover:
+
+- **A claimer dying between the claim and the game** left a ticket wedged
+  `claimed`. `MatchRules.staleClaim = 90s` was the recovery, enforced in four
+  places that had to agree. Gone: nothing is ever spoken for without being
+  spent.
+- **A claimer dying between the game and the tickets** left a spent ticket
+  looking claimable, so a third squad re-matched a squad that already had a
+  game. The fix was a second writer on the `matched` transition — each leader
+  closing their own ticket off their own `seasonGames` listener. Gone with the
+  window.
+- **Two matches for one pair**, which this file previously recorded as
+  unpreventable in rules "because rules cannot query". That framing was wrong:
+  it never needed a query, only a read set wide enough to contend.
+
+**A spent ticket is not deleted**, and nothing cleans it up — it ages out on
+`expiresAt`, up to 24 hours later. Two consequences worth stating, because both
+were bugs:
+
+- **The UI must not read a spent ticket as a live search.** `MatchTicket.isSearching`
+  is that question, and it is the only one the searching state may ask.
+- **Queueing again is a delete-then-create.** A `setData` over a spent ticket is
+  an *update* to the rules, and no update path admits it, so a squad would be
+  refused for hours. `MatchmakingService.queue` reads the ticket, deletes it if
+  it is spent, and then creates — all leader-only writes, so no new permission.
 
 ### Record proximity is a gate, not only a score
 
@@ -749,22 +808,30 @@ rules blocks.
 - **Create:** the squad's leader only, with the four denormalized fields pinned
   to the `squads` document and `status == 'open'`. `claimedBy`, `claimedAt` and
   `matchedGameId` are absent at create — absence, never null.
-- **Update (claim):** any leader of a *different* squad, on an open or stale
-  ticket, touching only `status`, `claimedBy` and `claimedAt`. Authorized by one
-  `get()` against `squads/{claimedBy}`.
+- **Update — the home ticket:** any leader of a *different* squad, on an `open`
+  ticket, touching only `status`, `claimedBy`, `claimedAt` and `matchedGameId`,
+  and only in a commit that creates the match it names. Authorized by one
+  `get()` against `squads/{claimedBy}` and one `getAfter()` against the match.
+- **Update — the claimer's own ticket:** its own leader, `open` -> `matched`
+  with `matchedGameId`, in that same commit. Without this half a squad could
+  take an opponent out of the pool while staying in it themselves.
 - **Delete:** the leader only. A delete rather than a status — absence, never
-  null, the same move `friendships` makes. An abandoned ticket also ages out on
-  `expiresAt` without anyone removing it.
+  null, the same move `friendships` makes. Also how a squad re-queues after a
+  match: the spent ticket is deleted and a fresh one created, because no update
+  path will overwrite one. An abandoned ticket ages out on `expiresAt` without
+  anyone removing it.
 
 ### Indexes
 
 One composite, on `(region ASC, format ASC, status ASC, expiresAt ASC)` — the
 pool query.
 
-**`status in ['open', 'claimed']`, not `== 'open'`.** A query filtered to open
-alone would hide every stale claim from the scanner, making the recovery above
-unreachable — and nothing would report it, because a ticket wedged by a claimer
-that crashed simply never appears in anybody's pool.
+**`status == 'open'`**, which is the whole of it: a ticket is in the pool or it
+is spent. The query used to be `status in ['open', 'claimed']`, so the scanner
+could see tickets wedged by a claimer that crashed and re-take them after 90
+seconds. With the commit atomic there is nothing to wedge, so the middle state
+and the recovery it needed are both gone. **The index is unchanged** — an
+equality filter and an `in` filter on the same field read the same composite.
 
 ---
 
@@ -781,7 +848,7 @@ produce, and the one a squad's record is derived from.
 | `id` | string | yes | no | Mirrors the document ID. |
 | `format` / `region` | string | yes | no | Copied from the home ticket and pinned to it. |
 | `homeSquadId` | string | yes | no | **The squad whose ticket was claimed** — so the court and window are theirs. |
-| `awaySquadId` | string | yes | no | The squad that won the claim and wrote this document. |
+| `awaySquadId` | string | yes | no | The squad that committed the match. Its own ticket is spent in the same transaction. |
 | `squadIds` | array\<string\> | yes | no | `[home, away]`, in that order. The `array-contains` query field, and the reason one listener serves both squads. The rule pins the exact array, order included. |
 | `homeLeaderId` / `awayLeaderId` | string | yes | no | Denormalized, and **verified against `squads` at create**. See below. |
 | `homeSquadName` / `awaySquadName` | string | yes | no | Denormalized so history survives a disbanded squad. Verified against `squads` at create, so they can't be invented. |
@@ -793,19 +860,24 @@ produce, and the one a squad's record is derived from.
 | `homeScore` / `awayScore` | int? | no | yes | Optional and cosmetic. Set by whichever leader is reporting; never read by the record. |
 | `result` | string? | no | yes | The winning squad ID, written **only** when both reports agree, and only equal to both of them. |
 | `cancelledBySquadId` | string? | no | yes | Written by the cancelling leader, as their own squad. |
-| `createdBy` | string | yes | no | uid of the claiming leader. |
+| `createdBy` | string | yes | no | uid of the leader who committed the match. |
 | `createdAt` / `updatedAt` | timestamp | yes | — | Server-assigned. |
 | `confirmedAt` | timestamp? | no | yes | Server-assigned, and only on the write that confirms. |
 
 ### What authorizes naming another squad
 
 This is the document that makes squad play legal, so the question is worth
-answering directly: **a won claim, proved rather than asserted.** The create
-rule reads the home squad's ticket and requires `status == 'claimed'` *and*
-`claimedBy == awaySquadId`, with the caller being `awayLeaderId`. Only one squad
-could have won that race — Firestore serializes the contested transaction — so
-the authority traces back to a lock the home leader themselves created by
-queueing.
+answering directly: **two spent tickets, proved rather than asserted.** The
+create rule reads *both* tickets with `getAfter()` and requires each to end this
+commit `matched` and naming this `gameId`, the home ticket's `claimedBy` to be
+the away squad, and the caller to be `awayLeaderId` and the away ticket's
+leader. Each ticket can only go `open` -> `matched`, so only one commit can ever
+spend a given ticket — and the authority traces back to an offer each leader
+made by queueing.
+
+Reading the away ticket is the half that used to be missing. Proving the home
+ticket had been claimed said nothing about whether the away squad was still in
+the pool, which is how one squad ended up in two matches at once.
 
 Nobody's uid is written by anybody else. `homeLeaderId` is a **copy of a fact**
 verified against `squads/{homeSquadId}`, not an assertion about a person.
@@ -843,29 +915,31 @@ because a cancelled match is still history both squads should see. A cancelled
 match is structurally excluded from the record because it never reaches
 `confirmed`.
 
-### The double-booking window, and how it closes
+### The double-booking window, and why there isn't one
 
-`../plans/SEASONS.md` §2.3 covers a claimer that dies **before** writing the
-game: the claim goes stale after 90 seconds and the ticket returns to the pool.
-It does not cover a claimer that dies **after** writing the game and before
-marking the tickets `matched`. That ticket also goes stale, and its game already
-exists — so a third squad re-claims it and creates a second game against a squad
-that already has one.
+This section used to describe a window and a repair. The window was the gap
+between writing the match and marking the tickets: a client that died in it left
+a spent ticket looking claimable, so a third squad re-matched a squad that
+already had a game. The repair was a second writer on the `matched` transition —
+each leader closing their own ticket off their own `seasonGames` listener — and
+it left duplicate matches possible but rare.
 
-**The fix needs no new permission: each squad marks its own ticket `matched` off
-its own `seasonGames` listener.** A leader can always write their own ticket, so
-the home squad closes the window itself the moment the game lands, without
-anyone writing anyone else's document. The `matched` transition on
-`matchTickets` therefore admits two writers — the leader named in `claimedBy`
-(the fast path) and the ticket's own leader (the safe one) — and it is a
-separate `allow update` from the claim, the same one-write-one-path split
-`squads` uses.
+**Both are gone.** The match and both tickets are written in one transaction, so
+there is no instant at which one exists without the others, nothing to reconcile
+afterwards, and no second writer to admit. `SeasonGame` documents are created by
+exactly one write, which also spends exactly the two tickets that authorize it.
 
-**Duplicate matches can still be created inside that window, and are not
-prevented in rules**, which cannot query. The client renders the
-earliest-created one and a leader cancels the other. If it happens more than
-rarely, the jitter or the stale window is wrong — `SeasonGameService` logs it
-for that reason.
+What replaced the repair is the mutual demand described under `matchTickets`
+above: the create rule reads **both** tickets with `getAfter()` and requires each
+to be `matched` and to name this `gameId`. Proving only that the *home* ticket
+had been claimed — which is all the old rule did — said nothing about whether
+the away squad was still in the pool, and that omission is what let one squad
+appear in two matches.
+
+`SeasonGameService.duplicateGames` and the card's "more than one match
+scheduled" line are **kept as a tripwire**, not as a workflow. They should now
+be unreachable; if either ever fires, an invariant above has been lost and the
+rules are the first place to look.
 
 ### Arrival
 
@@ -1026,8 +1100,14 @@ Two composites:
   `Game.status` and its rules expression must.
 - The leader IDs denormalized onto a `seasonGame` are verified against `squads`
   at create and immutable after, because every later write trusts them for free.
-- `staleClaim = 90s` appears in four places — two Swift constants, the waiting
-  UI, and the rules. They must agree; two different tests exist to make sure.
+- A ticket goes `open` -> `matched` and nowhere else, on both update paths. That
+  single transition is what makes "one live match per squad" a server fact
+  rather than a client convention, and `FirestoreRulesParityTests` pins it on
+  both sides of the boundary.
+- A match and the two tickets that authorize it are written in **one**
+  transaction, and each of the three proves the other two with `getAfter()`.
+  Any write that moves one without the others is refused — which is the point,
+  not a limitation.
 - Every new editable field needs both a service write method and a rules
   redeploy. One without the other is a silent failure.
 - Absent, never null. Clearing a field deletes it, and a status that would mean

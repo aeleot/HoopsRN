@@ -28,8 +28,9 @@ struct MatchmakingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             switch viewModel.phase {
-            case .idle:            idleState
-            case .searching:       searchingState
+            case .idle:              idleState
+            case .searching:         searchingState
+            case .settling:          settlingState
             case .matched(let game): matchState(game)
             }
         }
@@ -51,7 +52,7 @@ struct MatchmakingCard: View {
                 .foregroundStyle(Color.hooprSecondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if viewModel.isLeader {
+            if viewModel.canQueue {
                 Button(action: onQueue) {
                     Text("Queue up")
                         .hooprFont(16, weight: .semibold)
@@ -70,6 +71,30 @@ struct MatchmakingCard: View {
                     .foregroundStyle(Color.hooprSecondaryText)
             }
         }
+    }
+
+    // MARK: - Between the commit and the card
+
+    /// The match is made and hasn't arrived here yet.
+    ///
+    /// Normally a few hundred milliseconds: the match and both tickets are
+    /// written in one transaction, but they reach this client on two separate
+    /// listeners, and the ticket's usually wins. Without a state of its own the
+    /// card would fall back to "Find a match" in that gap and then jump to the
+    /// match — a flash of the wrong answer, and an offer to queue that would be
+    /// refused if anyone were fast enough to take it.
+    private var settlingState: some View {
+        HStack(spacing: 10) {
+            ProgressView().tint(Color.hooprOrange)
+
+            Text("Match found")
+                .hooprFont(16, weight: .semibold)
+                .foregroundStyle(Color.hooprPrimaryText)
+
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Match found. Loading the details.")
     }
 
     // MARK: - Screen 5: searching

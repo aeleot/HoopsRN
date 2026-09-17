@@ -1,4 +1,5 @@
 import Combine
+import CoreLocation
 import FirebaseFirestore
 import Foundation
 import os
@@ -18,12 +19,13 @@ fileprivate let logger = Logger(subsystem: "com.hoopsrn", category: "SeasonGameS
 /// that made it may have disbanded. One service per collection is the house
 /// rule, and this collection earns it.
 ///
-/// **The claim → create → mark-matched sequence is not here.** It spans two
-/// collections, and the two services that own them have no reference to each
-/// other. A view model holding both sequences it — which puts a write
-/// *sequence* in a view model where the precedent is joins only, and is still
-/// the better trade: the alternative is one service reaching into another,
-/// which nothing in this design needs.
+/// **The commit that makes a match *is* here, and it writes `matchTickets`.**
+/// A view model used to sequence claim → create → mark-matched across the two
+/// services, which was a write *sequence* in a place the house rules reserve
+/// for joins — and, worse, was not atomic, so two squads that picked each other
+/// both committed and both squads got two live matches. Making it one
+/// transaction means one object has to write both collections; `commitMatch`
+/// explains why that object is this one.
 @MainActor
 final class SeasonGameService: ObservableObject {
     /// Every match either of the observed squads is in, soonest first.
@@ -43,6 +45,9 @@ final class SeasonGameService: ObservableObject {
 
     private enum Collection {
         static let seasonGames = "seasonGames"
+        /// Not this service's collection. `commitMatch` writes it because the
+        /// commit is atomic across both — see that method's note.
+        static let matchTickets = "matchTickets"
     }
 
     private enum ListenerKey {
@@ -329,55 +334,231 @@ final class SeasonGameService: ObservableObject {
 
     // MARK: - Writes
 
-    /// Turns a won claim into a scheduled match.
+    /// **The one contested write in the feature**: spends both squads' tickets
+    /// and creates the match, in a single transaction.
     ///
-    /// Everything here is verified server-side against the **home** ticket — the
-    /// court against its `courtIds`, the time against its window, and the whole
-    /// write against its `claimedBy`. `SeasonGame.validate` mirrors those checks
-    /// client-side first, which is what makes a `permission-denied` here mean
-    /// "the state moved" rather than "the rules aren't deployed".
+    /// ## Why this is one commit and not three
     ///
-    /// - Returns: the new match's document ID, which both tickets then carry as
-    ///   `matchedGameId`.
-    @discardableResult
-    func createGame(
-        homeTicket: MatchTicket,
-        awayTicket: MatchTicket,
-        homeSquadName: String,
+    /// It used to be three: claim the opponent's ticket, create the game, then
+    /// mark both tickets matched. Each step was sound on its own, and the whole
+    /// was not. The claim's guarantee was Firestore serializing contested
+    /// writes to a **single document** — true, and the wrong guarantee for the
+    /// problem. Two squads that pick each other claim two *different* tickets,
+    /// so nothing serializes them: both claims win, both clients create a game,
+    /// and both squads end up looking at two live matches against each other.
+    /// In a pool with two squads in it, that is not an edge case — it is what
+    /// normally happens, and it is the bug this method exists to kill.
+    ///
+    /// Reading **both** tickets and writing both tickets and the game together
+    /// is the fix, and it is the same guarantee as before applied to the pair
+    /// that actually needs it. Two mutual commits now share a read set, so
+    /// Firestore's optimistic concurrency does exactly what it always did:
+    /// exactly one lands, and the other is retried onto a ticket that is
+    /// already spent, where the guard below turns it into a quiet `.lost`.
+    ///
+    /// Three windows close with it, not one:
+    /// - two squads matching each other twice, which is the reported bug;
+    /// - a claimer dying between the claim and the game, which the old design
+    ///   recovered from with a ninety-second stale-claim window that no longer
+    ///   needs to exist;
+    /// - a claimer dying between the game and the tickets, which used to leave
+    ///   a spent ticket looking claimable and let a third squad re-match a
+    ///   squad that already had a game.
+    ///
+    /// ## Why it lives here
+    ///
+    /// It doesn't belong to either collection's service, and this is the less
+    /// bad of two homes rather than a clean fit. `SeasonGameService` owns
+    /// `seasonGames`, `MatchmakingService` owns `matchTickets`, and the house
+    /// rule is one service per collection. An atomic write across both has to
+    /// break that somewhere. It breaks it here because the game is the durable
+    /// thing — the document a record is derived from, the one that outlives both
+    /// tickets — and the ticket writes are bookkeeping that must not come apart
+    /// from it. The four ticket field names it needs come from
+    /// `MatchTicket.Field`, so there is still exactly one copy of them.
+    ///
+    /// ## Re-ranking inside the transaction is not redundant
+    ///
+    /// The candidate was chosen against a pool snapshot that is at best
+    /// milliseconds old. A ticket's pool fields are immutable, so most of
+    /// `MatchRules` could not have changed — but a ticket can be deleted and
+    /// re-created at the same document ID, which is exactly what a leader who
+    /// leaves the queue and re-queues with a different roster, window or court
+    /// list does. Re-ranking against the version this transaction itself read is
+    /// the only view guaranteed current at the moment of the write, and the
+    /// court and tip-off written below come from *that* ranking rather than the
+    /// stale one.
+    ///
+    /// - Returns: a `ClaimOutcome` rather than throwing, because losing is the
+    ///   ordinary experience of a healthy pool and the caller's `ClaimPolicy`
+    ///   loop is written in these terms. Only `.failed` ever reaches the user.
+    func commitMatch(
+        candidate: MatchCandidate,
+        mine: MatchTicket,
+        awaySquadName: String,
+        courts: [String: Court],
+        anchor: CLLocationCoordinate2D
+    ) async -> ClaimOutcome {
+        guard let uid = observedUID else { return .failed }
+        guard mine.leaderId == uid else { return .refused }
+
+        let tickets = database.collection(Collection.matchTickets)
+        let homeReference = tickets.document(candidate.ticket.squadId)
+        let awayReference = tickets.document(mine.squadId)
+        // Generated outside the closure: a transaction body may be retried, and
+        // an ID minted inside would differ on every attempt.
+        let gameReference = database.collection(Collection.seasonGames).document()
+        let gameId = gameReference.documentID
+
+        do {
+            let outcome = try await database.runTransaction { transaction, errorPointer in
+                // Every read before every write — Firestore requires it, and
+                // reading both tickets is what puts both in the read set and so
+                // makes two mutual commits contend.
+                let homeSnapshot: DocumentSnapshot
+                let awaySnapshot: DocumentSnapshot
+                do {
+                    homeSnapshot = try transaction.getDocument(homeReference)
+                    awaySnapshot = try transaction.getDocument(awayReference)
+                } catch let fetchError as NSError {
+                    // Setting the pointer makes `runTransaction` throw, so the
+                    // value returned here is never inspected.
+                    errorPointer?.pointee = fetchError
+                    return nil
+                }
+
+                guard homeSnapshot.exists, awaySnapshot.exists,
+                      let home = try? homeSnapshot.data(as: MatchTicket.self),
+                      let away = try? awaySnapshot.data(as: MatchTicket.self)
+                else {
+                    return ClaimOutcome.missing.rawValue
+                }
+
+                // Our own ticket has to still be ours and still be unspent. The
+                // second half is the one the whole transaction turns on: on a
+                // retry after losing a mutual race, this is what has changed.
+                guard away.leaderId == uid else { return ClaimOutcome.refused.rawValue }
+                guard away.isClaimable(at: Date()) else { return ClaimOutcome.lost.rawValue }
+
+                // Same pure function as the scan, against the documents this
+                // write will actually land on.
+                guard let fresh = MatchRules.candidate(
+                    for: away,
+                    against: home,
+                    courts: courts,
+                    anchor: anchor,
+                    now: Date()
+                ) else {
+                    return ClaimOutcome.lost.rawValue
+                }
+
+                if SeasonGame.validate(
+                    homeTicket: home,
+                    awayTicket: away,
+                    courtId: fresh.courtId,
+                    scheduledTime: fresh.scheduledTime
+                ) != nil {
+                    return ClaimOutcome.lost.rawValue
+                }
+
+                transaction.setData(
+                    Self.newMatchFields(
+                        id: gameId,
+                        home: home,
+                        away: away,
+                        awaySquadName: awaySquadName,
+                        courtId: fresh.courtId,
+                        scheduledTime: fresh.scheduledTime,
+                        createdBy: uid
+                    ),
+                    forDocument: gameReference
+                )
+
+                // The home ticket, taken out of the pool by us.
+                transaction.updateData(
+                    [
+                        MatchTicket.Field.status: MatchTicket.Status.matched.rawValue,
+                        MatchTicket.Field.claimedBy: away.squadId,
+                        // Pinned, not requested — the rules assert
+                        // `claimedAt == request.time` rather than trusting it.
+                        MatchTicket.Field.claimedAt: FieldValue.serverTimestamp(),
+                        MatchTicket.Field.matchedGameId: gameId,
+                    ],
+                    forDocument: homeReference
+                )
+
+                // Our own, spent in the same breath. Without this a squad could
+                // take an opponent out of the pool while staying in it, and
+                // match somebody else a moment later.
+                transaction.updateData(
+                    [
+                        MatchTicket.Field.status: MatchTicket.Status.matched.rawValue,
+                        MatchTicket.Field.matchedGameId: gameId,
+                    ],
+                    forDocument: awayReference
+                )
+
+                return ClaimOutcome.claimed.rawValue
+            }
+
+            let decided = ClaimOutcome(rawValue: outcome as? String ?? "") ?? .failed
+            if decided == .claimed {
+                clearError()
+                logger.notice("Committed a match at court \(candidate.courtId, privacy: .public)")
+            } else {
+                logger.debug(
+                    "Commit against \(candidate.ticket.squadId, privacy: .public) ended as \(decided.rawValue, privacy: .public)"
+                )
+            }
+            return decided
+        } catch {
+            let gameError = Self.mapped(error)
+
+            // A refusal is the server's copy of the guards above firing — a
+            // ticket moved between our read and the commit. Quiet, like losing,
+            // and distinguished only so the logs stay honest about which side
+            // rejected it.
+            if gameError == .permissionDenied {
+                logger.debug(
+                    "Commit against \(candidate.ticket.squadId, privacy: .public) was refused by the rules"
+                )
+                return .refused
+            }
+
+            report(gameError, whileDoing: "setting up your match", context: .write)
+            return .failed
+        }
+    }
+
+    /// The new match document, as a field map.
+    ///
+    /// Pulled out of the transaction body so the shape of a `seasonGame` stays
+    /// readable as one thing, and so a retried transaction rebuilds exactly the
+    /// same document. Everything here is verified server-side against the two
+    /// tickets — the court against the home list, the time against both windows,
+    /// the names and leaders against `squads`.
+    private static func newMatchFields(
+        id: String,
+        home: MatchTicket,
+        away: MatchTicket,
         awaySquadName: String,
         courtId: String,
-        scheduledTime: Date
-    ) async throws -> String {
-        guard let uid = observedUID else { throw SeasonGameError.notSignedIn }
-        guard awayTicket.leaderId == uid else { throw SeasonGameError.notLeader }
-
-        if let invalid = SeasonGame.validate(
-            homeTicket: homeTicket,
-            awayTicket: awayTicket,
-            courtId: courtId,
-            scheduledTime: scheduledTime
-        ) {
-            throw invalid
-        }
-
-        let reference = database.collection(Collection.seasonGames).document()
-
-        let fields: [String: Any] = [
-            Field.id: reference.documentID,
-            Field.format: homeTicket.format.rawValue,
-            Field.region: homeTicket.region,
-            Field.homeSquadId: homeTicket.squadId,
-            Field.awaySquadId: awayTicket.squadId,
+        scheduledTime: Date,
+        createdBy uid: String
+    ) -> [String: Any] {
+        [
+            Field.id: id,
+            Field.format: home.format.rawValue,
+            Field.region: home.region,
+            Field.homeSquadId: home.squadId,
+            Field.awaySquadId: away.squadId,
             // Order is load-bearing: the create rule asserts this array equals
             // [homeSquadId, awaySquadId] exactly, so the other order is a
             // `permission-denied` with no obvious cause.
-            Field.squadIds: SeasonGame.squadIds(
-                home: homeTicket.squadId,
-                away: awayTicket.squadId
-            ),
-            Field.homeLeaderId: homeTicket.leaderId,
+            Field.squadIds: SeasonGame.squadIds(home: home.squadId, away: away.squadId),
+            Field.homeLeaderId: home.leaderId,
             Field.awayLeaderId: uid,
-            Field.homeSquadName: homeSquadName,
+            Field.homeSquadName: home.squadName,
             Field.awaySquadName: awaySquadName,
             Field.courtId: courtId,
             Field.scheduledTime: Timestamp(date: scheduledTime),
@@ -387,17 +568,6 @@ final class SeasonGameService: ObservableObject {
             Field.createdAt: FieldValue.serverTimestamp(),
             Field.updatedAt: FieldValue.serverTimestamp(),
         ]
-
-        do {
-            try await reference.setData(fields)
-            clearError()
-            logger.notice("Created a season game at court \(courtId, privacy: .public)")
-            return reference.documentID
-        } catch {
-            let gameError = Self.mapped(error)
-            report(gameError, whileDoing: "setting up your match", context: .write)
-            throw gameError
-        }
     }
 
     /// Calls a match off. Either leader, as their own squad, enforced
