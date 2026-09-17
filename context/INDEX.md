@@ -1,96 +1,138 @@
 # hoopsRN — Context Dictionary
 
-Working memory for an agent picking up this codebase cold. Start here, follow
-the routing table to the one or two entries that own what you're changing, then
-read the code.
+Working memory for an agent picking up this codebase cold. **Start with the
+routing table below**, read the one or two entries that own what you're
+changing, then read the code.
 
-Every entry carries a `Scope` line (the source paths it owns) and a `Verified`
-stamp (date + **commit sha**, never a branch name — a branch moves and the stamp
-stops meaning anything). Scopes don't overlap, and together they cover every
-source path in the repo.
+Everything in `context/` is one of three kinds of thing, and keeping them apart
+is what stops this folder becoming a pile:
 
-Four entries own no paths and say so with `Scope: —`: `GAPS.md`,
-`gaps/SEASONS.md`, `PRODUCT_OVERVIEW.md`, and
-`database/USER_PROFILE_WORKFLOW.md`. All four are cross-cutting narratives over
-code other entries own, so they can't be diffed — the drift check lists them
-under "always revisit" and they're re-read by hand every pass.
-
-`gaps/` holds per-feature gap files, one per feature large enough that its gaps
-would crowd `GAPS.md` out of readability. A gap belongs in exactly one of the
-two. **A new subdirectory under `context/` is invisible to
-`tools/check_context_drift.py` until it is added to that script's
-`entry_files()`** — the directories it scans are listed explicitly, not walked.
-
----
-
-## Entries
-
-| Entry | What it answers | Verified |
+| Kind | Answers | Where |
 |---|---|---|
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the app is wired: service ownership, startup order, the Firebase vendor boundary, listener recovery. | 2026-08-21 @ a524a7f |
-| [`DATA_MODEL.md`](DATA_MODEL.md) | The domain types and their contracts — stable court IDs, the profile's write rules, derived game status, what each error case means. | 2026-08-21 @ 9a81cc2 |
-| [`database/DATABASE_SCHEMA.md`](database/DATABASE_SCHEMA.md) | What's stored in Firestore and what a client may write, across all three collections. | 2026-08-21 @ 9a81cc2 |
-| [`database/USER_PROFILE_WORKFLOW.md`](database/USER_PROFILE_WORKFLOW.md) | What happens between sign-in and a rendered profile, including the search-key backfill. | 2026-08-22 @ aa093ee |
-| [`MAP_LAYER.md`](MAP_LAYER.md) | The map, its UUID trigger pattern, the north bias, and the pins' heat-map colouring. | 2026-08-21 @ a524a7f |
-| [`COURT_DATASET.md`](COURT_DATASET.md) | Where courts come from and how to regenerate or extend them. | 2026-08-21 @ 9a81cc2 |
-| [`UI_SHELL.md`](UI_SHELL.md) | Navigation structure, the Local Runs tab, the profile and its Friends pane, run creation, and the visual conventions. | 2026-08-21 @ 9a81cc2 |
-| [`BUILD_AND_CONFIG.md`](BUILD_AND_CONFIG.md) | Project identity, dependencies, the Firebase CLI surface, repo tooling, real test coverage. | 2026-08-21 @ a524a7f |
-| [`GAPS.md`](GAPS.md) | What's unfinished, and where comments and docs contradict the code — everything except a feature with its own file in `gaps/`. | 2026-08-21 @ 9a81cc2 |
-| [`gaps/SEASONS.md`](gaps/SEASONS.md) | Seasons' own gaps: what's unverified, the ways a played match can fail to reach a record, the named ceilings, and the costs taken on purpose. | 2026-08-29 @ 52680a6 |
-| [`PRODUCT_OVERVIEW.md`](PRODUCT_OVERVIEW.md) | **Business-facing.** What users can do today, what the app guarantees on security, accessibility and coverage, and what's planned. | 2026-08-21 @ a524a7f |
+| **Dictionary entry** | How the thing that exists works | `*.md`, `database/` |
+| **Gap** | What's wrong, missing, or unverified about it | [`gaps/`](gaps/) |
+| **Plan** | How something that *doesn't* exist would work | [`plans/`](plans/) |
+
+A subject appears in exactly one of the three. When a plan ships, fold what's
+true into the entries and strike it from the plan; when a gap closes, delete
+it rather than striking it through.
 
 ---
 
-## Routing
+## Routing — if you're changing…
 
-| If you're changing… | Read first |
+| …this | Read first |
 |---|---|
-| anything touching Firebase | `ARCHITECTURE.md` (vendor boundary + startup order) |
-| a stored profile field | `database/DATABASE_SCHEMA.md` + `database/USER_PROFILE_WORKFLOW.md` — it takes a service method *and* a rules redeploy |
+| anything touching Firebase | `ARCHITECTURE.md` — the vendor boundary and startup order |
+| a snapshot listener, or an error message | `ARCHITECTURE.md` — `ListenerSupervisor`, and the read/write split on `permission-denied` |
+| a stored field, or any write rule | `database/DATABASE_SCHEMA.md` — **and expect a rules redeploy**, not just a service method |
+| a profile field, or sign-in | `database/DATABASE_SCHEMA.md` + `database/USER_PROFILE_WORKFLOW.md` |
 | games, rosters, or run scheduling | `database/DATABASE_SCHEMA.md` (`games`) + `UI_SHELL.md` (Local Runs) |
-| friendships, requests, or player search | `database/DATABASE_SCHEMA.md` (`friendships`) + `UI_SHELL.md` (the profile's Friends pane) |
-| a snapshot listener, or an error message | `ARCHITECTURE.md` (`ListenerSupervisor`, and the read/write split on `permission-denied`) |
+| friendships, requests, or player search | `database/DATABASE_SCHEMA.md` (`friendships`) + `UI_SHELL.md` |
+| squads, matchmaking, game day, results | `gaps/SEASONS.md` **first** — several Seasons behaviours are capped or unverified in ways the code doesn't show |
+| a model field or an error case | `DATA_MODEL.md` |
 | map behaviour or the bottom sheet | `MAP_LAYER.md` |
 | court data, or adding a city | `COURT_DATASET.md` |
-| navigation, screen presentation, or styling | `UI_SHELL.md` |
-| a model field or an error case | `DATA_MODEL.md` |
-| build settings, dependencies, or tests | `BUILD_AND_CONFIG.md` |
-| anything at all, before trusting a code comment | `GAPS.md` |
-| squads, matchmaking, game day, or recorded results | `gaps/SEASONS.md` **first** — several Seasons behaviours are capped or unverified in ways the code doesn't show |
-| explaining the product to someone, or scoping a roadmap | `PRODUCT_OVERVIEW.md` |
+| navigation, screen presentation, styling | `UI_SHELL.md` |
+| build settings, dependencies, tests | `BUILD_AND_CONFIG.md` |
+| **anything at all, before trusting a code comment** | [`GAPS.md`](GAPS.md) |
+| explaining the product to someone | `PRODUCT_OVERVIEW.md` |
+| deciding what to work on next | [`ROADMAP.md`](ROADMAP.md) |
+
+---
+
+## The dictionary
+
+Entries that describe **code that exists today**.
+
+### Owns source paths — drift-checked automatically
+
+Each carries a `Scope` line listing the paths it owns and a `Verified` stamp
+(date + commit sha). Scopes don't overlap, and together they cover every source
+path in the repo.
+
+| Entry | What it answers |
+|---|---|
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the app is wired: service ownership, startup order, the Firebase vendor boundary, listener recovery, and the one write that spans two collections. |
+| [`DATA_MODEL.md`](DATA_MODEL.md) | The domain types and their contracts — stable court IDs, the profile's write rules, derived game status, what each error case means. |
+| [`database/DATABASE_SCHEMA.md`](database/DATABASE_SCHEMA.md) | What's stored in Firestore and what a client may write, across all **seven** collections — plus the rate-limit floors and why they're cooldowns rather than quotas. |
+| [`MAP_LAYER.md`](MAP_LAYER.md) | The map, its UUID trigger pattern, the north bias, and the pins' heat-map colouring. |
+| [`COURT_DATASET.md`](COURT_DATASET.md) | Where courts come from and how to regenerate or extend them. |
+| [`UI_SHELL.md`](UI_SHELL.md) | Navigation structure, the tabs, run creation, the Seasons card's four states, and the visual conventions. |
+| [`BUILD_AND_CONFIG.md`](BUILD_AND_CONFIG.md) | Project identity, dependencies, the Firebase CLI surface, repo tooling, real test coverage. |
+
+### Owns no paths — re-read by hand
+
+These are cross-cutting narratives over code the entries above own, so they
+can't be diffed. They declare `Scope: —` and the drift check lists them under
+*always revisit*.
+
+| Entry | What it answers |
+|---|---|
+| [`PRODUCT_OVERVIEW.md`](PRODUCT_OVERVIEW.md) | **Business-facing.** What users can do today, what the app guarantees, and what's deliberately not built. The document to hand someone who won't read the code. |
+| [`database/USER_PROFILE_WORKFLOW.md`](database/USER_PROFILE_WORKFLOW.md) | What happens between sign-in and a rendered profile, including the search-key backfill. |
+| [`GAPS.md`](GAPS.md) | Router into `gaps/`, plus the known-drift table. |
+| [`ROADMAP.md`](ROADMAP.md) | What to do next, in order, and the one infrastructure decision that gates six of them. |
+
+---
+
+## Gaps
+
+What's wrong with what exists. [`GAPS.md`](GAPS.md) routes; the files live in
+[`gaps/`](gaps/) and are listed there rather than duplicated here.
+
+**`gaps/` is flat on purpose.** `tools/check_context_drift.py` scans
+`context/*.md` plus the directories named explicitly in its `entry_files()` —
+currently `database` and `gaps`. **A file in a subdirectory that function
+doesn't know about is silently unchecked forever**, which is worse than a
+typo'd scope. Adding a nesting level means editing that function too.
 
 ---
 
 ## Plans
 
-`plans/` holds designs for work that hasn't been built yet — the dictionary
-describes code that exists, a plan describes code that doesn't. When a plan
-ships, fold what's true into the entries above and strike it from the plan.
+Designs for work that hasn't been built. A plan describes code that doesn't
+exist; the dictionary describes code that does.
 
 | Plan | Status |
 |---|---|
+| [`plans/SEASONS.md`](plans/SEASONS.md) | **Shipped.** All eight phases built and folded into the entries; §6 records where each went. Kept for §0 (why there is no server-side matchmaker), §7 (what's deliberately out of reach) and §8 (live risks). |
+| [`plans/FRIENDS.md`](plans/FRIENDS.md) | **Partly shipped.** Phases 1–3 (backend, UI, discovery) are built. Phase 4 (friends'-public-runs badge) and Phase 5 (safety tooling) are still proposals. |
+| [`plans/STATS_CARD.md`](plans/STATS_CARD.md) | **Partly shipped.** Phases 1–3 built; the card stays empty until something writes `status: "completed"` — see `gaps/GAMES.md`. |
+| [`plans/APP_SHELL_AND_HOME.md`](plans/APP_SHELL_AND_HOME.md) | **Shipped.** Bottom tab bar, Home tab, inline court search. Its §5 records the colour work a native tab bar forced — now tracked in `gaps/ACCESSIBILITY.md`. |
 | [`plans/LIVE_HEADCOUNT.md`](plans/LIVE_HEADCOUNT.md) | Proposed — live court occupancy via a `checkins` collection. |
-| [`plans/FRIENDS.md`](plans/FRIENDS.md) | **Partly shipped** — the `friendships` backend (Phase 1), the Friends UI (Phase 2), and search, public profiles and the inbox (Phase 3) are built and folded into the entries above. The friends'-public-runs badge (Phase 4) is still a proposal. |
-| [`plans/SCALE_UP.md`](plans/SCALE_UP.md) | Proposed — the multi-city scaling roadmap: the global public-games query fix, court-dataset delivery for many cities, and the sequencing of every other pending feature/gap around them. |
-| [`plans/BACKLOG.md`](plans/BACKLOG.md) | Proposed — medium-to-large enhancement stories in four tracks: the Queue Up matchmaking feature, the friends system, UI depth, and correctness/standards. Its D1 records verified drift in the entries above. |
-| [`plans/APP_SHELL_AND_HOME.md`](plans/APP_SHELL_AND_HOME.md) | Proposed — move navigation to a bottom tab bar, add a Home tab, and give the map inline court search. Its §5 records the colour work a native tab bar forces. |
-| [`plans/SEASONS.md`](plans/SEASONS.md) | **Shipped** — the Seasons tab: squads, client-side squad-vs-squad matchmaking, and mutually-confirmed W‑L records. All eight phases are built and folded into the entries above; §6 records where each went. Kept for its §0 (why there is no server-side matchmaker, and why GameKit isn't the transport), §7 (what's deliberately out of reach) and §8 (live risks). |
+| [`plans/SCALE_UP.md`](plans/SCALE_UP.md) | Proposed — multi-city scaling: the global public-games query fix, court-dataset delivery, and the sequencing around them. |
+| [`plans/BACKLOG.md`](plans/BACKLOG.md) | Proposed — enhancement stories across four tracks. Its Queue Up track shipped 2026-09-16; the rest stands. |
 
 ---
 
-## Refreshing this dictionary
+## Keeping this honest
 
-Run `python3 tools/check_context_drift.py` **first**, always. It parses every
-entry's `Scope`/`Verified` header, diffs the owned paths against the working
-tree — uncommitted work included, not just the last commit — and prints which
-entries are stale, unresolvable, or current, plus any changed file that matches
-no entry's scope at all. Feed its output straight into the refresh rather than
-re-deriving staleness by hand, and don't restamp an entry it calls current: an
-untouched stamp is the signal that nothing in that area moved.
+**Run the drift check first, always:**
 
-Then run `context/prompts/refresh-context-dictionary.md` for routine upkeep, or
-`context/prompts/rebuild-context-dictionary.md` when more than half the entries
-are stale and incremental repair has stopped being worth it.
+```bash
+python3 tools/check_context_drift.py
+```
 
-`context/prompts/` and `context/plans/` are not dictionary entries and carry no
-`Scope`/`Verified` stamp.
+It parses every entry's `Scope`/`Verified` header, diffs the owned paths
+against the working tree — **uncommitted work included** — and prints what's
+stale, unresolvable, always-revisit, or current, plus any changed file matching
+no entry's scope at all. That last one is a live scope gap, not something to
+shrug off.
+
+Then:
+
+1. For each **stale** entry, reread only the files it named plus the entry's
+   own text. Correct it, then restamp with `git rev-parse --short HEAD` —
+   **never a branch or tag name.** A branch ref moves every time someone
+   pushes, so `@ some-branch` silently stops meaning "verified at this exact
+   commit", and this whole mechanism depends on the stamp being a fixed point.
+2. Leave every entry it calls **current** untouched. An untouched stamp is the
+   signal that nothing in that area moved — restamping it destroys that signal.
+3. Re-read the **always revisit** entries by hand. They own no paths, so
+   nothing can tell you when they rot.
+
+**The stamp lives in the entry's own header and nowhere else.** This page
+deliberately does not repeat it: it was duplicated here until 2026-09-16, and
+six of eleven copies had drifted from the files they described, because nothing
+kept them in sync. One copy, in the file the tool actually reads.

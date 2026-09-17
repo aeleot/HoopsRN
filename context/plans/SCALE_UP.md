@@ -230,8 +230,7 @@ query that would make each new city actively worse for every existing user.
 
 ### Phase 2 — Invites: the receiving half
 
-Already fully scoped in `GAPS.md` §4 and
-`context/prompts/invitation_for_private_game.md`. Sending shipped
+Already fully scoped in `context/gaps/GAMES.md`. Sending shipped
 2026-08-15; nothing about *receiving* one exists yet. This is the single
 highest-leverage adoption feature available: every invite link sent is an
 acquisition channel for someone who doesn't have the app yet, and today that

@@ -1,8 +1,13 @@
 # hoopsRN — Data Model
 
 **Scope:** `hoopr/Models/`, `hoopr/Support/Distance.swift`,
-`hoopr/Support/InviteLink.swift`, `hoopr/Support/CourtSearch.swift`
-**Verified:** 2026-08-29 @ 4575026
+`hoopr/Support/InviteLink.swift`
+**Verified:** 2026-09-17 @ 8209408
+
+`Support/CourtSearch.swift` moved to `MAP_LAYER.md`'s scope — it was listed in
+both entries, which `INDEX.md` says scopes must never do. It's a search
+algorithm over `[Court]`, not a domain type, and `MAP_LAYER.md` is where it was
+actually documented.
 
 The domain types and the contracts attached to them. Read this before
 changing a field, adding one, or deciding how something gets persisted. The

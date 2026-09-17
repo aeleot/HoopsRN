@@ -4,8 +4,8 @@ Mechanical staleness pre-check for the hoopsRN context dictionary.
 
 Reads every dictionary entry's `**Scope:**` / `**Verified:**` header, diffs
 its owned paths against HEAD, and reports which entries are stale --
-*before* an agent rereads anything. Run this first; feed its output to
-`context/prompts/refresh-context-dictionary.md` and only reread/restamp the
+*before* an agent rereads anything. Run this first; feed its output into
+the refresh workflow in `context/INDEX.md` and only reread/restamp the
 entries it names as stale or unresolvable. Entries it reports as current
 should not be touched.
 

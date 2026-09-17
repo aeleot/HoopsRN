@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Quick start
 
-- **Read first**: [`context/INDEX.md`](context/INDEX.md) is a routing table into architecture, data model, UI structure, and more. Start there for any major change.
+- **Read first**: [`context/INDEX.md`](context/INDEX.md) is a routing table into architecture, data model, UI structure, and more. Start there for any major change. It separates three kinds of doc: **entries** describe code that exists, [`gaps/`](context/gaps/) describes what's wrong with it, and [`plans/`](context/plans/) describes code that doesn't exist yet.
 - **Tests**: `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:hooprTests`
 - **Run**: Open `hoopr.xcodeproj` in Xcode, select the `hoopr` scheme, pick an iOS 26.5 Simulator, Cmd+R.
 - **Run a single test**: `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:hooprTests/SuiteName/testName`
@@ -97,7 +97,9 @@ The codebase has a published **context dictionary** at [`context/INDEX.md`](cont
 | Navigation, screens, styling | [`UI_SHELL.md`](context/UI_SHELL.md) |
 | Domain types, error cases | [`DATA_MODEL.md`](context/DATA_MODEL.md) |
 | Build settings, dependencies, test coverage | [`BUILD_AND_CONFIG.md`](context/BUILD_AND_CONFIG.md) |
-| Code vs. docs conflicts | [`GAPS.md`](context/GAPS.md) — **always read this before trusting a code comment** |
+| Squads, matchmaking, results | [`gaps/SEASONS.md`](context/gaps/SEASONS.md) **first** — behaviours are capped in ways the code doesn't show |
+| Code vs. docs conflicts | [`GAPS.md`](context/GAPS.md) — **always read this before trusting a code comment**. It routes into [`gaps/`](context/gaps/), one file per subject. |
+| What to work on next | [`ROADMAP.md`](context/ROADMAP.md) |
 
 **Before refreshing docs:** Run `python3 tools/check_context_drift.py` to see which docs are stale. It diffs owned scopes against the working tree and reports staleness.
 

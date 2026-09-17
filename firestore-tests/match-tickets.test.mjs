@@ -203,6 +203,53 @@ test('a leader may queue their own squad, and the denormalized fields are pinned
   );
 });
 
+// MARK: - Burst-rate floors, not quotas
+
+// `firestore.rules` explains why: there is no request counter to cap squad or
+// ticket *count*, so what's enforced instead is a comparison against a
+// timestamp already pinned by an earlier write, which a client cannot move
+// backwards. These two boundary-test that floor the way the old staleClaim
+// window used to be boundary-tested, seeding a precise age rather than
+// waiting a real five seconds.
+
+test('a squad younger than five seconds cannot queue', async () => {
+  await seed(testEnv, {
+    'squads/squad-home': squadDocument({
+      id: 'squad-home',
+      leaderId: 'leader-home',
+      memberIds: ['leader-home', 'member-home'],
+      createdAt: secondsFromNow(0),
+    }),
+  });
+
+  const db = testEnv.authenticatedContext('leader-home').firestore();
+  await assertFails(
+    setDoc(doc(db, 'matchTickets', 'squad-home'), {
+      ...ticketDocument({ memberIds: ['leader-home', 'member-home'] }),
+      createdAt: serverTimestamp(),
+    })
+  );
+});
+
+test('a squad five seconds old or older may queue', async () => {
+  await seed(testEnv, {
+    'squads/squad-home': squadDocument({
+      id: 'squad-home',
+      leaderId: 'leader-home',
+      memberIds: ['leader-home', 'member-home'],
+      createdAt: secondsFromNow(-6),
+    }),
+  });
+
+  const db = testEnv.authenticatedContext('leader-home').firestore();
+  await assertSucceeds(
+    setDoc(doc(db, 'matchTickets', 'squad-home'), {
+      ...ticketDocument({ memberIds: ['leader-home', 'member-home'] }),
+      createdAt: serverTimestamp(),
+    })
+  );
+});
+
 test('a forged memberIds on a ticket is refused', async () => {
   const db = testEnv.authenticatedContext('leader-home').firestore();
 
@@ -302,6 +349,31 @@ test('leaving the queue is the leader’s alone', async () => {
   const memberDb = testEnv.authenticatedContext('member-home').firestore();
   await assertFails(deleteDoc(doc(memberDb, 'matchTickets', 'squad-home')));
 
+  const leaderDb = testEnv.authenticatedContext('leader-home').firestore();
+  await assertSucceeds(deleteDoc(doc(leaderDb, 'matchTickets', 'squad-home')));
+});
+
+test('a ticket younger than five seconds cannot be abandoned and requeued', async () => {
+  // The other half of the burst-rate floor above: this one bounds the *same*
+  // squad churning its own ticket — delete, recreate, delete, recreate —
+  // which the squad-age floor doesn't touch, since the squad itself isn't
+  // fresh on the second cycle. `resource.data.createdAt` is server-pinned, so
+  // there's nothing here for a client to backdate.
+  await seed(testEnv, {
+    'matchTickets/squad-home': ticketDocument({ createdAt: secondsFromNow(0) }),
+  });
+
+  const { deleteDoc } = await import('firebase/firestore');
+  const leaderDb = testEnv.authenticatedContext('leader-home').firestore();
+  await assertFails(deleteDoc(doc(leaderDb, 'matchTickets', 'squad-home')));
+});
+
+test('a ticket five seconds old or older may be abandoned', async () => {
+  await seed(testEnv, {
+    'matchTickets/squad-home': ticketDocument({ createdAt: secondsFromNow(-6) }),
+  });
+
+  const { deleteDoc } = await import('firebase/firestore');
   const leaderDb = testEnv.authenticatedContext('leader-home').firestore();
   await assertSucceeds(deleteDoc(doc(leaderDb, 'matchTickets', 'squad-home')));
 });

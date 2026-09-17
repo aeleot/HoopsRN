@@ -1,7 +1,7 @@
 # hoopsRN — Database Schema
 
 **Scope:** `firestore.rules`, `firestore.indexes.json`, `firebase.json`, `.firebaserc`, `firestore-tests/`
-**Verified:** 2026-08-29 @ 9ff5968
+**Verified:** 2026-09-17 @ 8209408
 
 What's stored server-side and what a client may write. Seven collections are
 live:
@@ -596,15 +596,19 @@ friend requests themselves (`../GAPS.md`), deliberately not repeated here. A
 
 ### Where an invite is answered
 
-**On the Seasons tab**, in an incoming-invites section above the squad list —
-not on any of `../plans/SEASONS.md` §5's numbered screens, which is why it is
-worth stating.
+**In the profile's `InboxSheet`**, alongside friend requests — not on any of
+`../plans/SEASONS.md` §5's numbered screens, and not on the Seasons tab either,
+which is why it is worth stating. It rendered inline on Squad home at first,
+then moved once the inbox existed: both a friend request and a squad invite
+are "something waiting on you," and one inbox is where that belongs rather
+than two places a person has to remember to check.
 
-The plan's screen list never names a place to accept, and without one a roster
-could never gain a second member: the self-join rule exists for exactly this
-moment, and a squad would be permanently a team of one. `SquadViewModel` joins
-`squadInvites` to `SquadService.fetchSquad(id:)` for the name and crest, because
-the squads listener only carries squads you are already on.
+Wherever it renders, the same rule holds: without somewhere to *accept*, a
+roster could never gain a second member — the self-join rule exists for
+exactly this moment, and a squad would be permanently a team of one.
+`SquadViewModel` joins `squadInvites` to `SquadService.fetchSquad(id:)` for the
+name and crest, because the squads listener only carries squads you are
+already on.
 
 ### Access
 
@@ -696,6 +700,30 @@ runTransaction:
 permit `open` -> `matched` and nothing else, on both update paths, so a squad
 cannot be taken out of the pool twice — which is what makes "a squad is in at
 most one live match" true on the server rather than only in the client.
+
+#### Two burst-rate floors, added after a rate-limiting review
+
+Rules have no request counter — there is no way to ask "how many times has
+this uid written recently" — so nothing here is a quota. What's added instead
+is two comparisons against a timestamp an earlier write already pinned, which
+a client cannot move backwards:
+
+- **`matchTickets` create** requires `squad().createdAt` to be at least five
+  seconds old. Bounds one account minting many disposable squads and queueing
+  each the instant it exists, to flood a region's pool past the client's
+  `limit(to:)` or multiply how many tickets it can hold open at once.
+- **`matchTickets` delete** requires the ticket's own `createdAt` to be at
+  least five seconds old. Bounds the case the create-side floor doesn't reach
+  — the *same* squad churning its own ticket, which would otherwise be free
+  to run as fast as the network allows and would churn every other client's
+  pool listener in that region/format on each cycle.
+
+Both cap **burst** rate, not sustained abuse, and neither survives a fresh
+account — sign-up has no verification step. A rules-only floor is what's
+achievable without new infrastructure; App Check or a Cloud Function would be
+needed for anything stronger. `firestore-tests/match-tickets.test.mjs`
+boundary-tests both at 4s (refused) and 6s (allowed), the same way the old
+90-second stale-claim window used to be tested.
 
 #### Why it is one commit, and what the two-step version got wrong
 
@@ -987,6 +1015,20 @@ and it is three rules:
    counts for nobody, and either leader may overwrite or clear their own report
    and enter it again, which is how a dispute gets resolved — by two people
    talking, which is what actually happens at a court.
+
+**Re-touching your own already-present field floors at five seconds** —
+`request.time >= resource.data.updatedAt + duration.value(5, 's')`, checked
+only once that field already exists on `resource.data`. Added after a
+rate-limiting review: nothing else stops a leader clearing and re-entering
+their own report as fast as the network allows, bouncing the match between
+`scheduled` and `disputed` and churning the opponent's listener on every
+cycle. It has to be scoped to *one leader's own field*, not the document —
+a document-wide floor breaks the ordinary case point 1 describes, two
+different leaders each reporting for the first time within moments of each
+other, since the second leader's first-ever report would be refused for the
+crime of arriving promptly. `firestore-tests/results.test.mjs` pins both: the
+concurrent-first-report case unfloored, and a same-leader re-touch floored at
+the 4s/6s boundary.
 
 So forging a win takes two colluding squads rather than one lying client. That
 is not cryptographic integrity and this schema does not claim it is; it is the

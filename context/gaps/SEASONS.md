@@ -1,7 +1,7 @@
 # hoopsRN — Seasons gaps
 
 **Scope:** —
-**Verified:** 2026-08-29 @ 52680a6
+**Verified:** 2026-09-17 @ 8209408
 
 What's unfinished, unverified, or deliberately capped in the Seasons feature —
 squads, matchmaking, game day, and mutually-confirmed records. Read this before

@@ -377,9 +377,9 @@ When phases ship, update — don't let the dictionary drift:
 | `ARCHITECTURE.md` | The rewritten vendor-boundary invariant; `CheckInService` in the ownership table. |
 | `DATA_MODEL.md` | `CheckIn` and `CheckInError`. |
 | `MAP_LAYER.md` | Whatever Phase 2/3 adds to the sheet and the annotations. |
-| `GAPS.md` | Strike "No occupancy, check-in, game creation…"; strike the `select(_:)` empty-hook line once it's used. |
+| `gaps/GAMES.md` | Strike the "no occupancy or check-in" ceiling; strike the `select(_:)` empty-hook line once it's used. |
 | `BUILD_AND_CONFIG.md` | `firestore.indexes.json` is no longer empty; the deploy command now includes `firestore:indexes`. |
-| `firestore.rules:6` | The header comment still points at the pre-rename path `"hoopr project info/DATABASE_SCHEMA.md"` and calls this "Phase 1: the `users` collection only" — both stale the moment this lands. Already logged in `GAPS.md`. |
+| `firestore.rules` | The header comment enumerates the collections by name and count — it will need `checkins` added. (The pre-rename path and the "Phase 1: `users` only" framing this row used to flag were both corrected before 2026-09-16.) |
 
 ## See also
 

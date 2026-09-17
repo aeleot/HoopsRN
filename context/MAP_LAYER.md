@@ -5,7 +5,7 @@
 `hoopr/Views/Tabs/SheetGeometry.swift`,
 `hoopr/Views/Components/CourtBadges.swift`, `hoopr/Support/CourtHeat.swift`,
 `hoopr/Support/CourtSearch.swift`
-**Verified:** 2026-08-27 @ 37aaf7a
+**Verified:** 2026-09-17 @ 8209408
 
 The map tab and its bottom sheet — the densest interaction code in the app, and
 the part most likely to break subtly when edited. Read this before touching
@@ -105,9 +105,12 @@ Two reasons, and the second is the load-bearing one:
    Court #2 / +2 more" — that covered more of the map than the roads did. A
    plain `MKAnnotationView` subclass draws no label at all.
 
-`CourtAnnotation.title` is still populated, now from `Court.displayName`, purely
-so VoiceOver has something to read. Nothing renders it, and `subtitle` is gone
-entirely.
+`CourtAnnotation.title` is still populated, now from `Court.displayName`, but
+no longer purely for VoiceOver: `configureAsCourt` (below) sets an explicit
+`accessibilityLabel` that folds the run count in ("Bethesda Park, 3 runs
+today"), which supersedes `title` for VoiceOver whenever it's set. `title`
+persists mainly as `CourtAnnotation`'s own record of the name; nothing draws
+it, and `subtitle` is gone entirely.
 
 The view is a shadowed `ring` (surface-coloured) containing a `disc`
 containing the basketball glyph. **Colours are set as
@@ -130,6 +133,29 @@ MapKit hides a pin whose circle collides with a higher-priority neighbour's and
 a smaller circle survives that test at more zoom levels. The glyph's symbol
 point size was scaled with it (15 → 12) so it keeps its share of the disc.
 There is no second diameter any more; `layOut()` takes no parameter.
+
+**A `countLabel` competes with the glyph for the disc**, and a court with any
+runs today wins: `configureAsCourt(color:gameCount:isSelected:)` hides the
+basketball glyph and shows the count instead whenever `gameCount > 0`, exact
+through 9 then clamped to `"9+"` (`CourtMarkerView.countText(_:)`). This is
+deliberately **not** capped at 4 to match `CourtHeat`'s ramp below — the colour
+ceilings because it runs out of luma to distinguish with, but the number is a
+precise datum on a different channel, and truncating it to match a limitation
+of the colour would throw away the exact thing the badge exists to show. Both
+branches assign both views unconditionally (`countLabel.isHidden`,
+`glyph.isHidden`), because a recycled `MKAnnotationView` otherwise carries the
+previous court's badge into a quiet one — the same `prepareForReuse` discipline
+that clears both. **The count is the primary activity signal and the colour
+reinforces it**, not the reverse: a five-stop ramp roughly 15 luma points apart
+per step is not something a reader decodes into a quantity at a glance, and
+there's no legend on screen to help them. Whether a court is "active"
+(`gameCount > 0`) also feeds `displayPriority`/`zPriority` now — unselected but
+active outranks unselected and quiet — so a busy court's pin outranks a quiet
+neighbour's when MapKit's collision pass has to drop one; the disc itself
+stays 27pt regardless, since collisions resolve *before* `updateUIView`'s
+restyle loop runs and a pin that grew when its first run landed would keep its
+enlarged footprint until the next region change. `accessibilityLabel` is set
+here too — see the `title` note above.
 
 ## `CourtHeat` — the pins' heat-map colouring
 
@@ -247,17 +273,33 @@ options above without knowing this is the ceiling.
 ## `MapTab` — the sheet state machine
 
 ```swift
-private enum Detent { case collapsed, medium, expanded }
+// SheetGeometry.swift — file-scope, nonisolated, pulled out of MapTab entirely
+enum SheetDetent: Equatable, CaseIterable { case collapsed, medium, expanded }
 
-private enum SheetState: Equatable {
-    case rest(Detent)
-    case detail(court: Court, returningTo: Detent)
+enum SheetState: Equatable {
+    case rest(SheetDetent)
+    case detail(court: Court, returningTo: SheetDetent)
+}
+
+struct SheetGeometry: Equatable {
+    let containerHeight: CGFloat
+    // mediumHeight, expandedHeight, sheetHeight(detent:drag:),
+    // sheetOffset(detent:drag:), rubberBanded(_:), nextDetent(from:projecting:)
 }
 ```
 
-**Two orthogonal axes, deliberately not merged.** `Detent` is how far up the
-sheet sits; `SheetState` is what it's showing. `.detail` carries the detent to
-fall back to, so dismissing a court restores whatever the sheet was at
+**Both types and the detent arithmetic moved out of `MapTab` into
+`SheetGeometry.swift`, `nonisolated`, specifically so they could be tested** —
+this was the densest interaction code in the app with no coverage at all until
+`MapTabDetentTests`. `MapTab` keeps the gestures, the animation and the state
+variable; `SheetGeometry` (a plain struct built fresh from `containerHeight`)
+answers only "where does the sheet sit, given a detent and a finger position."
+`SheetState.detent`/`.displayDetent`/`.selectedCourt` are computed properties on
+the enum itself now, callable with no view in scope.
+
+**Two orthogonal axes, deliberately not merged.** `SheetDetent` is how far up
+the sheet sits; `SheetState` is what it's showing. `.detail` carries the detent
+to fall back to, so dismissing a court restores whatever the sheet was at
 beforehand — a pin tapped while the sheet was collapsed returns to collapsed.
 
 Three accessors do the work, and mixing them up is the bug this shape invites:
@@ -359,21 +401,97 @@ component Friends and the home-court picker use on `hooprFill`. Focusing it
 raises the sheet to `.expanded` and swaps the sheet's contents for results;
 **Recent** lives there as the empty state rather than as a segment.
 
+**The matching itself is `CourtSearch.matches(_:query:limit:)`**, an in-memory
+substring scan with no debounce anywhere that calls it — 214 rows resident in
+memory beats a round trip on both latency and availability, and a keystroke
+here costs a pass over an array rather than a network request. It searches
+**both** `Court.name` and `Court.displayName`: the stored name still carries
+"Basketball Court," `displayName` has stripped it, and a query can match either
+spelling ("basketball" only hits the stored form; "Park #2" only hits the
+stripped one), so checking one field alone silently drops real hits. Name
+matches rank ahead of city matches so typing a court's own name doesn't bury it
+under every other court in the same town, capped at 25 results, and a blank
+query returns nothing rather than the whole dataset. Three call sites share it
+rather than each rolling their own: this search field, `QueueSheet`'s court
+picker (`MatchmakingViewModel.searchCourts(matching:)`), and the profile's
+home-court picker — which is why it lives in `Support/` rather than as a
+private helper on `FindAMatchViewModel`.
+
 `courtToSelect` is a `Court?` binding the shell writes when a Home hot-court row
 is tapped. `MapTab` consumes it in `.onChange`, clears it so the same court can
 be sent twice, and routes it through the same `select(_:recenter:)` a list row
 uses rather than reaching into the sheet's state machine.
 
+## The court list: Now / Nearby / Saved
+
+Three segments, added when the sheet's list grew a way to answer "is anyone
+playing" instead of only "what's near me." **Recent isn't a fourth** — it moved
+to the search field's empty state (below) when `.now` took its slot, which is
+why `FindAMatchViewModel.ListTab` has exactly three cases.
+
+- **Now** — courts with a run scheduled today, soonest tip-off first. The
+  segment's whole reason to exist, and the map's answer, in list form, to the
+  question the pins' heat colour and count only gesture at.
+- **Nearby** — every court inside the profile's `preferredRadius`, nearest
+  first. What the list used to be, unconditionally.
+- **Saved** — favourites. Was `favorites`; renamed for the segment's width
+  budget, not its meaning.
+
+**`Now` renders `CourtGameRow`, not `CourtRow`.** `CourtRow` answers "what is
+this court like" — hoops, surface, lights; `CourtGameRow` answers "can I play
+here soon," so the tip-off time and open-slot count take the space the badges
+had. It's **one row per court, not per run** — a court with three runs today is
+still one place to walk to, so extra runs are summarised ("+2 more today")
+rather than listed, and the row opens the same detail card every other
+selection does, where the actual runs and their buttons live. This keeps the
+one-place-either-tab-acts-on-a-run invariant intact: `CourtGameRow` itself
+carries no Join/Leave button.
+
+**The initial segment is chosen once, not defaulted or kept reactive.**
+`chooseInitialTabIfNeeded()` opens on `.now` if it has anything the first time
+`GameService` finishes loading, `.nearby` otherwise, and never touches
+`selectedTab` again on its own — a segment swapping under the user's thumb the
+moment somebody else books a run would be worse than opening on the "wrong"
+one. It deliberately doesn't run on `onAppear`: `@Published` replays its
+current (empty) value to a fresh subscriber regardless of what has actually
+loaded, so an appear-time check would resolve to `.nearby` on every cold
+launch — precisely the failure this segment exists to fix.
+
+`gameCountByCourtID` (the pins' own source, see `CourtHeat` below) and
+`activeCourts`/`listedCourts` are two different derivations over the same
+`GameService` arrays, kept separate because they answer different questions at
+different grains: the pins want a same-day count without caring which runs;
+`.now` wants the actual `Game` values, sorted, to render rows and act on them.
+
 ## The court detail card
 
 Reached from a pin tap or a list row, both through `select(_:recenter:)`.
-It carries the court's `displayName`, a `city · distance` line, the same
-`CourtBadges` the list row shows, and two buttons:
+It carries the court's `displayName`, a `city · distance` line, **today's
+runs at that court, if any — with the same Join/Leave/Cancel actions the Runs
+tab offers**, and finally the same `CourtBadges` the list row shows, plus two
+buttons:
 
 - **Directions** — hands the court to Maps via `MKMapItem.openInMaps`, driving
   mode. The app knows where courts are and nothing about how to get to one.
 - **Start Run** — presents `CreateGameSheet` for that court. One button covers
   both entry points because both converge here. See `UI_SHELL.md`.
+
+**Runs lead the card and `CourtBadges` moved below them** — a card that opened
+with amenity badges put the surface material ahead of the thing a
+"find a game right now" tab actually exists to answer. `viewModel.gamesToday(at:)`
+filters to `Game.isVisible(at:)`, same cutoff the `Now` segment uses, so a run
+that finished two hours ago is gone from both rather than sitting here with a
+stale Join button. Each run row's action comes from
+`FindAMatchViewModel.action(for:)`, which calls straight through to
+`LocalRunsViewModel.action(for:)` rather than restating the rule — the map and
+the Runs tab must never offer a different button for the same run. One write
+in flight at a time via `pendingGameId`, the same `GameCard`/`LocalRunsTab`
+convention: the acting row shows a spinner and every other row's button goes
+inert. This is the **only** place besides the Runs tab either surface performs
+a roster action from — the `Now` segment's own rows carry no buttons and route
+here instead. The runs list and the card body around it scroll independently
+of the header and the pinned action row below, so "Start Run"/"Directions"
+never end up below the fold behind a long list of today's games.
 
 **There is no address row, deliberately.** In this dataset `address` is the city
 and state — "Durham, NC" — which the metadata line above it already says. It's

@@ -2,13 +2,15 @@ rules_version = '2';
 
 // hoopsRN Firestore security rules.
 //
-// Six collections: `users` (one owner per document), `games` (the first
-// shared, multi-user state in the app), `friendships` (one document per pair
-// of people, written by either of them), `squads` (a team, written by its
-// leader and by each member for their own membership), and `squadInvites`
-// (one document per squad-and-person pair, structurally `friendships`), and
-// `matchTickets` (a squad's standing offer to play, and the only document
-// here whose contested write is another squad's). See
+// Seven collections, in increasing order of who may write them:
+// `users` (one owner per document), `games` (the first shared, multi-user
+// state in the app), `friendships` (one document per pair of people, written
+// by either of them), `squads` (a team, written by its leader and by each
+// member for their own membership), `squadInvites` (one document per
+// squad-and-person pair, structurally `friendships`), and finally
+// `matchTickets` and `seasonGames` — which are written *together*, by one
+// transaction that spends both squads' tickets and creates the match, and are
+// the only documents here whose contested write is another squad's. See
 // `context/database/DATABASE_SCHEMA.md`.
 //
 // SEVERAL VALUES HERE ARE MIRRORED IN SWIFT — the roster bounds, the
@@ -575,27 +577,23 @@ service cloud.firestore {
     // uses.
     //
     // This is the one collection here written by somebody who doesn't own the
-    // document: the **claim** is another squad's leader taking a ticket out of
-    // the pool, and Firestore serializing contested single-document
-    // transactions is what makes exactly one of them win. That guarantee is the
-    // entire matchmaker — see `context/plans/SEASONS.md` §2.2.
+    // document: a match is committed by **both** squads' leaders in one
+    // transaction — the claimer's write reaches across to spend the other
+    // squad's ticket, and the two update rules below are that transaction's two
+    // halves. See the commit rule's own comment for why it reads and writes
+    // both tickets rather than one, and `context/plans/SEASONS.md` §2.2 for the
+    // pull-with-a-lock design this replaced a single-document claim inside.
     //
-    // > **Raced, not assumed.** `firestore-tests/claim-race.test.mjs` runs two
-    // > concurrent clients at one ticket against the Firestore emulator fifteen
-    // > times and asserts exactly one wins, with the loser taking a transaction
-    // > failure rather than leaving a half-written document. The stale-claim
-    // > boundary is checked from both sides there too — 91 seconds re-claimable,
-    // > 89 not — which is where the *deployed* copy of that constant finally
-    // > gets evaluated rather than merely parsed. Run it with
-    // > `npm run test:rules`.
+    // > **Raced, not assumed.** `firestore-tests/claim-race.test.mjs` runs
+    // > concurrent clients against the Firestore emulator fifteen rounds each,
+    // > both shapes — two squads on one ticket, and two squads on *each other*
+    // > — and asserts exactly one match survives either way, with every loser
+    // > taking a transaction failure rather than leaving a half-written
+    // > document. Run it with `npm run test:rules`.
     //
-    // The `matched` transition is below, and it admits **two** writers — see
-    // the rule for why the second one is what closes a window the plan doesn't
-    // cover.
-    //
-    // MIRRORED IN SWIFT — the stale-claim window, the court-count bounds, and
-    // the ticket lifetime. `hooprTests/FirestoreRulesParityTests` fails if
-    // either copy moves without the other.
+    // MIRRORED IN SWIFT — the court-count bounds and the ticket lifetime.
+    // `hooprTests/FirestoreRulesParityTests` fails if either copy moves without
+    // the other.
     match /matchTickets/{squadId} {
       function isSignedIn() { return request.auth != null; }
       function incoming() { return request.resource.data; }
@@ -655,6 +653,28 @@ service cloud.firestore {
         && incoming().squadId == squadId
         && incoming().leaderId == request.auth.uid
         && squad().leaderId == request.auth.uid
+        // **A burst-rate floor, not a quota.** Rules have no request counter —
+        // there is no way to ask "how many squads has this uid created" — so a
+        // cap on squad *count* would need a denormalized counter a modified
+        // client could just decrement, which defeats the point. What rules
+        // *can* enforce is a comparison against a timestamp already pinned by
+        // an earlier write, which a client cannot move backwards. `squad()` is
+        // already fetched for the pinned fields above, so reading its
+        // `createdAt` costs nothing extra.
+        //
+        // This bounds how fast a *fresh* squad may enter the pool for the
+        // first time — the shape that matters is one account minting many
+        // disposable squads and queueing each the instant it exists, to flood
+        // a region's pool past what any client's `limit(to:)` can see, or to
+        // multiply how many tickets it can hold open for
+        // `matchTickets.allow update`-directed transaction attempts. It does
+        // nothing for the *same* squad's requeue cadence — `allow delete`
+        // below carries that half — and it does nothing against a patient
+        // attacker willing to space requests out. A rules-only floor can bound
+        // burst rate; it cannot bound sustained abuse or survive a fresh
+        // account, which need App Check and real infrastructure respectively.
+        // See `context/gaps/SEASONS.md`.
+        && squad().createdAt <= request.time - duration.value(5, 's')
         && incoming().memberIds == squad().memberIds
         && incoming().squadName == squad().name
         && incoming().format == squad().format
@@ -768,7 +788,26 @@ service cloud.firestore {
       // status: absence, never null, the same move `friendships` makes.
       // An abandoned ticket also ages out on `expiresAt` without anyone having
       // to remove it.
-      allow delete: if isSignedIn() && resource.data.leaderId == request.auth.uid;
+      //
+      // **A floor on the ticket's own age, mirroring the create-side one
+      // above.** Once deleted a ticket leaves nothing behind to read a
+      // timestamp from — a delete-then-immediately-recreate cooldown can't be
+      // checked *after* the delete, so it has to be checked *before* it, as a
+      // condition on the delete itself. `resource.data.createdAt` is
+      // server-pinned at create and every subsequent write to this document
+      // only ever moves `status`/`claimedBy`/`claimedAt`/`matchedGameId`, so a
+      // client cannot backdate it to shorten the wait.
+      //
+      // This is the half the create-side floor above explicitly doesn't cover:
+      // the *same* squad churning its own ticket — delete, recreate, delete,
+      // recreate — which would otherwise be free to run as fast as the network
+      // allows and would churn every other client's pool listener in that
+      // region/format on each cycle. Five seconds is far below anything a
+      // person correcting a mistaken court or window would notice, and it caps
+      // a scripted loop at roughly 12 cycles a minute rather than unbounded.
+      allow delete: if isSignedIn()
+        && resource.data.leaderId == request.auth.uid
+        && request.time >= resource.data.createdAt + duration.value(5, 's');
     }
 
     // A scheduled squad-vs-squad match — the document the whole feature exists
@@ -1053,16 +1092,48 @@ service cloud.firestore {
       // rec-league scoresheet standard §3 claims to meet, and not something the
       // recovery path needs. `cancelled` is out for the same reason it is out
       // of every other path here: a called-off match has no result.
+      // **A floor on re-reporting, scoped to one leader's own field — not the
+      // document.** Nothing otherwise stops a leader clearing and re-entering
+      // their own report as fast as the network allows, bouncing the match
+      // between `scheduled` and `disputed` and churning the opponent's
+      // listener on every cycle.
+      //
+      // **It has to be per-field, or it breaks the feature's own happy path.**
+      // A document-wide floor on `resource.data.updatedAt` looked right at
+      // first and is wrong: mutual confirmation's ordinary case is two
+      // *different* leaders each reporting for the first time within moments
+      // of each other — two people standing on the same court, both opening
+      // the app right after the final basket — and a floor keyed to "was this
+      // document touched recently, by anyone" would refuse the second
+      // leader's first-ever report for the crime of arriving promptly.
+      // `firestore-tests/results.test.mjs` is full of exactly that sequence,
+      // which is what caught this before it shipped.
+      //
+      // The fix is asking a narrower question: was *this leader's own field*
+      // already present before this write? If not, this is their first report
+      // and nothing should slow it down, however soon after the other
+      // leader's. If so, this is a re-touch of a report already on record —
+      // clearing it, changing it, or re-entering it — and that's the write
+      // worth spacing out.
+      function reportCooldownElapsed(field) {
+        return !(field in resource.data)
+          || request.time >= resource.data.updatedAt + duration.value(5, 's');
+      }
+
       allow update: if isSignedIn()
         && (resource.data.status == 'scheduled' || resource.data.status == 'disputed')
         // A match cannot be reported before it has been played. Plan §3's
         // "after `scheduledTime`", enforced rather than assumed.
         && request.time >= resource.data.scheduledTime
-        // Each report field is pinned to its own leader, in both directions.
+        // Each report field is pinned to its own leader, in both directions,
+        // and each leader's cooldown is checked against their own field only —
+        // never the other leader's, and never the document as a whole.
         && ((request.auth.uid == resource.data.homeLeaderId
-             && movesOnlyOwnReport('homeReport'))
+             && movesOnlyOwnReport('homeReport')
+             && reportCooldownElapsed('homeReport'))
             || (request.auth.uid == resource.data.awayLeaderId
-                && movesOnlyOwnReport('awayReport')))
+                && movesOnlyOwnReport('awayReport')
+                && reportCooldownElapsed('awayReport')))
         && homeReportIsWellFormed()
         && awayReportIsWellFormed()
         // Cosmetic and explicitly not part of the record — the scoresheet

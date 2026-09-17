@@ -3,7 +3,7 @@
 **Scope:** `hoopr.xcodeproj/`, `hooprTests/`, `hooprUITests/`,
 `hoopr/Assets.xcassets/`, `hoopr/GoogleService-Info.plist`, `.gitignore`,
 `tools/check_context_drift.py`, `package.json`, `package-lock.json`
-**Verified:** 2026-08-29 @ 4a2fded
+**Verified:** 2026-09-17 @ 8209408
 
 `Package.resolved` isn't listed separately — it lives under `hoopr.xcodeproj/`
 and is covered by it. (Anything backticked between the `Scope` and `Verified`
@@ -205,12 +205,16 @@ for a ruleset it never evaluated is worse than no rules suite at all.
 
 There are **two** suites, in two languages, and neither can do the other's job.
 
-- **`hooprTests` — 438 test methods across 28 suites**, from a green
-  `-only-testing:hooprTests` run on 2026-09-15. All of them carry real coverage;
+- **`hooprTests` — 441 test methods across 28 suites**, from a green
+  `-only-testing:hooprTests` run on 2026-09-17. All of them carry real coverage;
   there is no scaffold left in `hooprTests/`.
-- **`firestore-tests/` — 95 tests**, run by `npm run test:rules` against the
+- **`firestore-tests/` — 102 tests**, run by `npm run test:rules` against the
   Firestore emulator. This is the only place `firestore.rules` is *evaluated*
-  rather than read; see "A dry-run is not a test" above.
+  rather than read; see "A dry-run is not a test" above. (Counted directly from
+  the suite on 2026-09-17, including the two burst-rate-floor tests added to
+  `match-tickets.test.mjs` and the three added to `results.test.mjs` — not
+  re-run here, since this environment has no JDK for the emulator; see
+  `firestore-tests/README.md`.)
 
   **`claim-race.test.mjs` is the one that races rather than asserts.** It runs
   two commits against one ticket, and two squads committing against *each
@@ -234,12 +238,12 @@ resolves real colours. A third measurement style would be one too many.
 | Suite | Cases | Guards |
 |---|---|---|
 | `SeasonGameTests` | 47 | The derived record and form guide, the report derivation and what a report write contains, who may report and when, create-time validation mirroring the rules, and the queue windows. |
-| `MatchRulesTests` | 46 | The pure matchmaker: every hard rule rejecting in isolation, soft-rule ordering, relaxation over time, window arithmetic across midnight and DST, stale claims, empty pool, self-match. |
+| `MatchRulesTests` | 43 | The pure matchmaker: every hard rule rejecting in isolation, soft-rule ordering, relaxation over time, window arithmetic across midnight and DST, empty pool, self-match. Lost the stale-claim cases when the atomic commit deleted the window they pinned. |
 | `SquadTests` | 31 | Decoding, name and roster bounds, leadership, the icon/colour allowlists. |
 | `GameTests` | 28 | Decoding, derived status, form validation, roster membership, visibility, presentation, the invite-link string, distance. |
-| `MatchTicketTests` | 20 | Ticket validation, claimability, the stale-claim window, `winPercentage`'s unplayed midpoint. |
-| `FirestoreRulesParityTests` | 19 | Every bound mirrored between Swift and `firestore.rules`, parsed out of the rules file as text. |
-| `FindAMatchViewModelTests` | 18 | `gameCountsByCourt` — the per-court/per-day join behind the map's heat colours. |
+| `MatchTicketTests` | 22 | Ticket validation, claimability, `isSearching` vs. `isClaimable`, `winPercentage`'s unplayed midpoint. |
+| `FirestoreRulesParityTests` | 21 | Every bound mirrored between Swift and `firestore.rules`, parsed out of the rules file as text — including the `open` -> `matched` transition and the two burst-rate floors. |
+| `FindAMatchViewModelTests` | 18 | `gameCountsByCourt` — the per-court/per-day join behind the map's heat colours and pin counts — plus `rankActive`, the **Now** segment's ordering: soonest run first, distance/name tiebreaks, `isVisible(at:)` filtering, and that every `ActiveCourt` has at least one game. |
 | `UserProfileTests` | 17 | Decoding, the radius coercion ladder, name validation. |
 | `SquadViewModelTests` | 17 | `invitableUids`, the roster sort, and the region derivation. |
 | `ServiceFailureTests` | 17 | Backoff schedule, per-listener recovery, read/write messaging, `FirestoreFailure` classification. |
@@ -249,6 +253,7 @@ resolves real colours. A third measurement style would be one too many.
 | `SeasonGameNotificationsTests` | 13 | The scheduling plan: three reminders for a future match, none for one already started, stable identifiers across a reschedule. |
 | `ClaimPolicyTests` | 13 | Jitter, the three-attempt bound, and the backoff poll. |
 | `ThemeContrastTests` | 12 | Every colour pairing the UI actually draws, against WCAG AA — including all eight crest fills against `hooprOnCrest` — plus the tracked brand-as-foreground gaps asserted in the failing direction. |
+| `MatchmakingViewModelTests` | 12 | `Phase.phase(ticket:nextGame:committedGame:hasSettlingTimedOut:)` — searching vs. settling vs. matched vs. idle, including a spent ticket that outlives its match by hours and a match that never arrives past `settlingGrace`. |
 | `CourtSearchTests` | 11 | Court name matching and ranking. |
 | `FriendshipTests` | 10 | Decoding, the derived document ID, direction. |
 | `CourtHeatTests` | 10 | `CourtHeat.color(forGameCount:)`'s five stops, its clamps, and the ramp's shape. |
@@ -267,12 +272,12 @@ resolves real colours. A third measurement style would be one too many.
 
 | File | Guards |
 |---|---|
-| `claim-race.test.mjs` | Two concurrent clients race one ticket, repeatedly. **Exactly one wins** — the guarantee `SEASONS.md` §2.2 and the whole matchmaker rest on. A race that passes once passed by luck. |
+| `claim-race.test.mjs` | Two shapes, fifteen rounds each: concurrent clients racing one ticket, and two squads committing against *each other*. **Exactly one match survives either way** — the guarantee the atomic commit rests on, and the second shape is a regression test with a known failing baseline against the pre-fix ruleset. |
 | `squads.test.mjs` | The three squad update paths in isolation, the self-join uid diff, the duplicate-roster hole, the invite friendship gate. |
-| `match-tickets.test.mjs` | Ticket bounds, the claim transition, and stale re-claim at 89 vs 91 seconds. |
-| `season-games.test.mjs` | What authorizes naming another squad, the court/window pinning, the forged-leader refusal, and the `matched` transition's two writers. |
+| `match-tickets.test.mjs` | Ticket bounds, the `open` -> `matched` transition (no more `claimed`), and the two burst-rate floors: a squad younger than 5s can't queue, a ticket younger than 5s can't be abandoned and requeued. |
+| `season-games.test.mjs` | What authorizes naming another squad — **both** tickets' `getAfter()` proof, not just the home one — the court/window pinning, and the forged-leader refusal. |
 | `arrival.test.mjs` | Self-add only, no undo, no duplicates, refused once a match leaves `scheduled`. |
-| `results.test.mjs` | Mutual confirmation, evaluated with **two distinct authenticated leaders** — agreement confirms, disagreement disputes, a leader cannot write the other's report or manufacture an agreement alone, and a disputed match is resolved by re-reporting. |
+| `results.test.mjs` | Mutual confirmation, evaluated with **two distinct authenticated leaders** — agreement confirms, disagreement disputes, a leader cannot write the other's report or manufacture an agreement alone, a disputed match is resolved by re-reporting, and the per-leader 5s re-touch floor doesn't catch two different leaders' first reports arriving moments apart. |
 
 `UserProfileTests`, `GameTests` and
 `FriendshipTests` run through `Firestore.Decoder` — the same decoder the
@@ -336,8 +341,10 @@ were deleted on 2026-08-15; every file in `hooprTests/` now carries real
 coverage.
 
 Worth testing and currently untested: `RootViewModel`'s gating rule,
-`FindAMatchViewModel`'s ranking and radius filtering, `MapTab`'s detent
-transitions, and the four `mapped(_:)` error translations. (The zoom-conversion
+`FindAMatchViewModel`'s plain nearby-radius `ranked(courts:from:)` (as opposed
+to `rankActive`, now covered — see above), and the four `mapped(_:)` error
+translations. (`MapTab`'s detent transitions were on this list until
+`MapTabDetentTests` landed — see the suite table above. The zoom-conversion
 round-trip named here until 2026-08-21 is gone — so are the functions.)
 
 ---

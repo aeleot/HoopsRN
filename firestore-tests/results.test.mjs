@@ -58,8 +58,17 @@ function playedGame(overrides = {}) {
     status: 'scheduled',
     arrivedPlayerIds: ['leader-home', 'leader-away'],
     createdBy: 'leader-away',
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    createdAt: secondsFromNow(-60 * 90),
+    // **Backdated, not a fresh server timestamp.** The report rule now floors
+    // re-reports at five seconds since `updatedAt`, a burst-rate guard against
+    // a leader toggling their own report to bounce the match between
+    // `scheduled` and `disputed` — see `firestore.rules`. A game seeded with
+    // `updatedAt` resolving to "now" would trip that floor the instant any
+    // test reported against it, which is nearly all of them; this fixture
+    // represents a match that has sat untouched since it was made, which is
+    // also just the realistic default — nothing writes to a `seasonGames`
+    // document between creation and a first report in the real app either.
+    updatedAt: secondsFromNow(-60 * 90),
     ...overrides,
   };
 }
@@ -214,6 +223,46 @@ test('an agreement cannot be written as disputed either — the derivation runs 
   await assertFails(
     updateDoc(gameRef('leader-away'), report('awayReport', 'squad-home', { status: 'disputed' }))
   );
+});
+
+// MARK: - The re-reporting floor is per-leader, not per-document
+
+// `firestore.rules` explains the shape of this: nothing otherwise stops a
+// leader clearing and re-entering their own report as fast as the network
+// allows, bouncing the match between `scheduled` and `disputed` and churning
+// the opponent's listener on every cycle. The floor has to be scoped to one
+// leader's own field rather than the document as a whole, or it breaks the
+// feature's own happy path — the first test below is the reason why, made
+// explicit rather than left as an accident of test ordering.
+
+test('two different leaders reporting for the first time within moments of each other is never floored', async () => {
+  // The ordinary case mutual confirmation exists for: two people standing on
+  // the same court, both opening the app right after the final basket. A
+  // document-wide floor on "was this touched recently, by anyone" would
+  // refuse the second leader's first-ever report for arriving promptly —
+  // which is exactly what a first version of this floor did before this test
+  // caught it. Nothing here waits; both writes land back-to-back on purpose.
+  await assertSucceeds(updateDoc(gameRef('leader-home'), report('homeReport', 'squad-home')));
+  await assertSucceeds(
+    updateDoc(gameRef('leader-away'), confirmingReport('awayReport', 'squad-home'))
+  );
+
+  const confirmed = await readRaw(testEnv, `seasonGames/${GAME_ID}`);
+  assert.equal(confirmed.status, 'confirmed');
+});
+
+test('a leader re-touching their own already-present report within five seconds is refused', async () => {
+  // Unlike the test above, this is the *same* leader's field, already on the
+  // document — the shape actually worth slowing down.
+  await seedGame({ homeReport: 'squad-home', updatedAt: secondsFromNow(0) });
+
+  await assertFails(updateDoc(gameRef('leader-home'), report('homeReport', 'squad-away')));
+});
+
+test('a leader may re-touch their own report once five seconds have passed', async () => {
+  await seedGame({ homeReport: 'squad-home', updatedAt: secondsFromNow(-6) });
+
+  await assertSucceeds(updateDoc(gameRef('leader-home'), report('homeReport', 'squad-away')));
 });
 
 // MARK: - Re-reporting is the same path, called again

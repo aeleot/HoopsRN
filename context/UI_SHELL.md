@@ -8,10 +8,11 @@
 `hoopr/Views/Components/ProfileButton.swift`,
 `hoopr/Views/Components/HooprSearchField.swift`,
 `hoopr/Views/Components/CardChrome.swift`,
-`hoopr/Views/Components/GlassChip.swift`, `hoopr/Views/Seasons/`,
+`hoopr/Views/Components/GlassChip.swift`,
+`hoopr/Views/Components/StatsCard.swift`, `hoopr/Views/Seasons/`,
 `hoopr/Support/Theme.swift`,
 `hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`
-**Verified:** 2026-08-29 @ 4575026
+**Verified:** 2026-09-17 @ 8209408
 
 Navigation structure and the visual conventions every screen follows. Read this
 before adding a screen, changing how one is presented, or picking a colour or a
@@ -251,10 +252,13 @@ already `Hashable` and already in hand at every call site. The stack and its
 an `onOpenResult` closure rather than reaching for the path, the same way
 `MatchmakingCard` takes `onOpenGameDay`.
 
-**Squad invites are answered here**, on the tab — not one of the plan's numbered
-screens, and necessary: a leader can invite from squad detail, but without
-somewhere to *accept*, a roster could never gain a second member, which is the
-only thing the self-join rule exists for.
+**Squad invites are no longer answered here.** They used to render inline on
+squad home — a leader can invite from squad detail, but without somewhere to
+*accept*, a roster could never gain a second member, which is the only thing
+the self-join rule exists for — and moved to the profile's `InboxSheet`
+alongside friend requests once that inbox existed, on the same "everything
+waiting on you belongs in one place" reasoning. See the Friends section's
+`InboxSheet` entry below.
 
 **The `seasonGames` listener is pointed from this tab**, at every squad the user
 is on rather than only the primary one — screen 9's history reads off the same
@@ -339,11 +343,24 @@ column — and the handle is what distinguishes two friends who share a display
 name, since `userName` isn't unique. The home court has a labelled row on the
 profile.
 
-**`InboxSheet`** holds what's waiting: **Requests** (incoming, what the badge
-counts) and **Sent** (outgoing, cancel-only). Friend requests are the only kind
-of notification today, so there is deliberately **no notification-kind
-abstraction** — a second kind costs a second section, and an `InboxItem` enum
-for one case would be invented structure.
+**`InboxSheet`** holds what's waiting: **Requests** (incoming friend requests,
+what the badge counts), **Squad invites** (incoming, Join/Decline inline via
+`SquadInviteRow`), and **Sent** (outgoing friend requests, cancel-only — a
+squad's own sent invites are revocable from squad detail instead, not here).
+Squad invites used to render inline on Squad home, where a leader could invite
+from squad detail but there was nowhere to *answer* one; they moved here once
+there was a dedicated inbox for "something's waiting on you," which the
+Seasons tab no longer is. **The squad invites section is omitted rather than
+shown empty**, unlike the two friend sections — a squad invite is rare enough
+that a standing "nothing here" placeholder would outweigh the one time it has
+something to say.
+
+Two kinds of notification now, not one, and the design call still holds: a
+second kind cost one more section rather than a shared `InboxItem`
+abstraction, which is still invented structure for two cases rather than
+shared structure. `ProfileButton`'s badge (wired in `MainTabView`) now reads
+`squadService.incomingInvites` alongside `friendService.incomingRequests`, so
+it's live whether or not the Seasons tab has been opened this session.
 
 **`PlayerProfileSheet`** shows another player: name, home court, joined. That's
 a *display* decision, not an access control — `users` is readable whole by any

@@ -103,8 +103,16 @@ export function squadDocument(overrides = {}) {
     iconKey: 'basketball.fill',
     colorKey: 'orange',
     region: 'Durham',
-    createdAt: Timestamp.now(),
-    updatedAt: Timestamp.now(),
+    // **Backdated, not "now".** `matchTickets`' create rule now floors on
+    // `squad().createdAt` being at least five seconds old — a burst-rate
+    // guard against an account minting fresh squads and queueing each one
+    // instantly, see `firestore.rules`. A squad seeded a millisecond before a
+    // test queues it would trip that floor on every test that isn't
+    // specifically exercising it, which is nearly all of them: this fixture
+    // represents an *established* squad unless a test overrides it to prove
+    // otherwise.
+    createdAt: secondsFromNow(-60),
+    updatedAt: secondsFromNow(-60),
     ...overrides,
   };
 }
@@ -124,7 +132,11 @@ export function ticketDocument(overrides = {}) {
     wins: 0,
     losses: 0,
     status: 'open',
-    createdAt: Timestamp.now(),
+    // Same reasoning as `squadDocument`'s `createdAt`: `matchTickets`' delete
+    // rule now floors on the ticket itself being at least five seconds old,
+    // so a ticket seeded as "just created" would trip that floor the instant
+    // any test tried to leave the queue with it.
+    createdAt: secondsFromNow(-60),
     expiresAt: secondsFromNow(60 * 60 * 2),
     ...overrides,
   };

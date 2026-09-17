@@ -591,8 +591,8 @@ entry every other entry tells you to read before trusting a comment.
 - The `attribution` row is **not** simply deleted — it's a live licence
   obligation (C2). Correcting the doc must not lose the obligation.
 - `Verified` stamps are re-dated on every entry touched.
-- `context/prompts/refresh-context-dictionary.md` is run, and if it did not
-  catch these, the prompt is improved — a drift-detection process that misses
+- The refresh workflow in `context/INDEX.md` is run, and if it did not catch
+  these, that workflow is improved — a drift-detection process that misses
   four stale claims in one entry needs adjusting, not just re-running.
 
 ---
@@ -945,9 +945,10 @@ Two ways to close that honestly:
   the run), at the cost of a schema field, a rule clause, and a "regenerate
   invite" affordance somewhere.
 
-`context/prompts/invitation_for_private_game.md` has a worked design
-including the view-model skeleton — read it before starting rather than
-re-deriving the shape.
+`context/gaps/GAMES.md` carries the load-bearing decision — the `get`/`list`
+split versus an `inviteToken`. The fuller worked design that lived in
+`context/prompts/` was removed on 2026-09-16; `git log` has it if the
+view-model skeleton is wanted.
 
 *Acceptance criteria:*
 - The decision above is recorded in `database/DATABASE_SCHEMA.md` with its
