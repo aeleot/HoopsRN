@@ -24,6 +24,11 @@ struct GameCard: View {
         VStack(alignment: .leading, spacing: 12) {
             header
             details
+
+            if let friendsHereText = listing.friendsHereText {
+                friendsHere(friendsHereText)
+            }
+
             capacity
 
             // Host-only, matching the invite design: an invite-only run is the
@@ -98,6 +103,32 @@ struct GameCard: View {
 
             Spacer(minLength: 0)
         }
+    }
+
+    /// Who you know is already on this run — the one piece of social proof on
+    /// the card, and the reason `plans/FRIENDS.md` §4 calls it "you can now see
+    /// it's worth joining."
+    ///
+    /// **Its own line, not a fourth `detail`:** that row is a plain `HStack`
+    /// with no `ViewThatFits` ladder, so a fourth entry overflows at
+    /// accessibility text sizes. **And not the header badge:** that slot is at
+    /// most one badge about *your own* relationship to the run, and who else is
+    /// here is a different question — folding them into one priority chain
+    /// would mean a run you host could never show it.
+    ///
+    /// `hooprPrimaryText`, so it outweighs the grey details above it without
+    /// reaching for `hooprOrange` — which fails AA as a foreground in light
+    /// mode, a gap `gaps/ACCESSIBILITY.md` already tracks and a new surface
+    /// shouldn't add another instance of.
+    private func friendsHere(_ text: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: "person.2.wave.2.fill")
+                .hooprFont(11)
+
+            Text(text)
+                .hooprFont(13, weight: .semibold)
+        }
+        .foregroundStyle(Color.hooprPrimaryText)
     }
 
     private func detail(symbol: String, text: String) -> some View {

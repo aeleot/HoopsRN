@@ -24,7 +24,7 @@ can be built with a stub.
 | `UserProfileService` | `currentProfile: UserProfile?`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns a `ListenerSupervisor`. |
 | `CourtService` | `courts: [Court]`, `loadError: String?` | Loads the bundled dataset synchronously in `init()`, sorted by `name`. A missing or undecodable `courts.json` leaves `courts` empty **and sets `loadError`** — `FindAMatchViewModel` mirrors it as `datasetError` so the map's empty state can say why rather than reading as "no courts near you". No retry: the dataset is in the app bundle, so a failure is a build problem. |
 | `LocationService` | `authorizationStatus` | `CLLocationManagerDelegate` wrapper. Also owns `homeLocation`, the single anchor every distance in the app measures from. It publishes **no device coordinate**: a `userLocation` property existed but nothing ever read it — every distance goes through `homeLocation`, and the blue dot is MapKit's own `showsUserLocation`. Removed 2026-08-22 along with the `didUpdateLocations` callback that fed it; the permission request survives only so that dot can draw. |
-| `GameService` | `queuedGames: [Game]`, `publicGames: [Game]`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns two session-scoped query listeners and a `ListenerSupervisor` that keys their health separately. |
+| `GameService` | `queuedGames: [Game]`, `publicGames: [Game]`, `completedGames: [Game]`, `hasLoadedGames: Bool`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns **three** session-scoped query listeners and a `ListenerSupervisor` that keys their health separately. The third, `completedGames`, is the only one **not** windowed to the future: it filters `status == completed` and orders by `completedAt` descending, capped rather than time-bounded, because `completedGameCount` is a lifetime total. |
 | `FriendService` | `friends: [Friendship]`, `incomingRequests: [Friendship]`, `outgoingRequests: [Friendship]`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Two session-scoped query listeners (`uidA == me`, `uidB == me`) merged client-side, and a `ListenerSupervisor` keying their health separately. |
 | `RecentCourtsStore` | `recentCourtIds: [String]` | `UserDefaults`-backed; deliberately on-device. |
 | `SquadService` | `squads: [Squad]`, `incomingInvites`/`sentInvites: [SquadInvite]`, `errorMessage`, `isRecovering`, `hasLoadedSquads` | `@MainActor`. Subscribes to `AuthService` itself. **Owns two collections** — `squads` and `squadInvites` — justified because a `squadInvite` has no independent existence: it is created against a squad, consumed by a write to that same squad, and deleted in the same breath. |
@@ -38,7 +38,8 @@ backs: `RootViewModel` (from `AuthService`), `LoginViewModel` (`AuthService`),
 `UserProfileService`), `HomeViewModel` (`AuthService` + `CourtService` +
 `GameService` + `UserProfileService` + `FriendService`), `ProfileViewModel`
 (`AuthService` + `UserProfileService` + `CourtService`), `LocalRunsViewModel`
-(`GameService` + `CourtService` + `UserProfileService`), `FriendsViewModel`
+(`GameService` + `CourtService` + `UserProfileService` + `FriendService`),
+`FriendsViewModel`
 (`FriendService` + `UserProfileService` + `CourtService` — the last one only to
 name a home court on another player's profile), `CreateGameViewModel`
 (`GameService`, plus the `Court` the form was opened from — the one view model
@@ -54,7 +55,10 @@ pushed).
 `SquadViewModel`, `GameDayViewModel` and `ResultViewModel` are where
 **cross-collection joins live**. A service owns one collection and never
 learns about another's: `LocalRunsViewModel` joins runs to the bundled court
-dataset for its distance filter, `FriendsViewModel` joins friendship uids to
+dataset for its distance filter **and to `friendships` for the "friends here"
+count on each card** — `games` holds the rosters, `friendships` holds the
+edges, and neither service learns the other exists — `FriendsViewModel` joins
+friendship uids to
 profiles for their names, and `FindAMatchViewModel` joins `GameService`'s
 `queuedGames` + `publicGames` to the court dataset to colour the map's pins by
 how busy each court is today — see `MAP_LAYER.md`'s `CourtHeat` section, and

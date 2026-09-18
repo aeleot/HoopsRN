@@ -16,7 +16,7 @@ pass.
 
 Two suites, in two languages, and neither can do the other's job.
 
-- **`hooprTests` — 441 test methods across 28 suites**, confirmed by a green
+- **`hooprTests` — 452 test methods across 28 suites**, confirmed by a green
   `-only-testing:hooprTests` run on 2026-09-17. Every Swift test
   targets a `nonisolated static` pure function; no test instantiates a service
   and there are no service stubs anywhere. That is a design constraint, not an

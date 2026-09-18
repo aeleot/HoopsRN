@@ -87,6 +87,127 @@ final class LocalRunsViewModelTests: XCTestCase {
         XCTAssertFalse(LocalRunsViewModel.Action.none.isDestructive)
     }
 
+    // MARK: - Friends on a run
+
+    private func friendship(
+        _ uid1: String,
+        _ uid2: String,
+        status: Friendship.Status = .accepted
+    ) -> Friendship {
+        let pair = [uid1, uid2].sorted()
+        return Friendship(
+            uidA: pair[0],
+            uidB: pair[1],
+            requestedBy: uid1,
+            status: status,
+            createdAt: now,
+            updatedAt: now
+        )
+    }
+
+    /// The bug the resolution exists to avoid: a friendship stores both
+    /// participants, so a naive union of `uidA`/`uidB` would make you your own
+    /// friend — and every run you're on would count you in its badge.
+    func testYourOwnUidIsNeverAFriendUid() {
+        let edges = [friendship(player, "friend-a"), friendship(player, "friend-b")]
+        let uids = LocalRunsViewModel.friendUids(from: edges, currentUserId: player)
+
+        XCTAssertEqual(uids, ["friend-a", "friend-b"])
+        XCTAssertFalse(uids.contains(player))
+    }
+
+    /// Resolving works from either side of the stored pair — the case a naive
+    /// `uidA == me` implementation gets wrong for half of all friendships.
+    func testAnEdgeResolvesFromWhicheverSideYouAreOn() {
+        let edge = friendship("aaa-uid", "zzz-uid")
+
+        XCTAssertEqual(
+            LocalRunsViewModel.friendUids(from: [edge], currentUserId: "aaa-uid"),
+            ["zzz-uid"]
+        )
+        XCTAssertEqual(
+            LocalRunsViewModel.friendUids(from: [edge], currentUserId: "zzz-uid"),
+            ["aaa-uid"]
+        )
+    }
+
+    func testSignedOutHasNoFriendUids() {
+        let edges = [friendship(player, "friend-a")]
+        XCTAssertTrue(LocalRunsViewModel.friendUids(from: edges, currentUserId: nil).isEmpty)
+    }
+
+    func testAFriendOnTheRosterIsCounted() {
+        let run = game(players: [host, "friend-a", stranger])
+        XCTAssertEqual(
+            LocalRunsViewModel.friendIds(on: run, friendUids: ["friend-a", "friend-b"]),
+            ["friend-a"]
+        )
+    }
+
+    /// A friend waiting for a spot is the same signal as one holding it —
+    /// you'd be turning up to the same court either way.
+    func testAFriendOnTheWaitlistIsCounted() {
+        let run = game(
+            players: Array(repeating: "other", count: 10),
+            waitlisted: ["friend-a"]
+        )
+        XCTAssertEqual(
+            LocalRunsViewModel.friendIds(on: run, friendUids: ["friend-a"]),
+            ["friend-a"]
+        )
+    }
+
+    func testStrangersOnTheRosterAreNotCounted() {
+        let run = game(players: [host, stranger])
+        XCTAssertTrue(LocalRunsViewModel.friendIds(on: run, friendUids: ["friend-a"]).isEmpty)
+    }
+
+    func testNoFriendsAtAllIsEmptyRatherThanEveryone() {
+        let run = game(players: [host, player, stranger])
+        XCTAssertTrue(LocalRunsViewModel.friendIds(on: run, friendUids: []).isEmpty)
+    }
+
+    /// Sorted, so an identical rebuild can't reorder the names a later phase
+    /// may render — and deduped, since the union spans two rosters.
+    func testTheResultIsSortedAndDeduped() {
+        let run = game(players: ["friend-c", "friend-a"], waitlisted: ["friend-a", "friend-b"])
+        XCTAssertEqual(
+            LocalRunsViewModel.friendIds(on: run, friendUids: ["friend-a", "friend-b", "friend-c"]),
+            ["friend-a", "friend-b", "friend-c"]
+        )
+    }
+
+    // MARK: - The badge's own copy
+
+    func testFriendsHereTextIsAbsentRatherThanZero() {
+        let listing = LocalRunsViewModel.Listing(
+            game: game(players: [host]),
+            court: nil,
+            distanceMeters: nil
+        )
+        XCTAssertNil(listing.friendsHereText)
+    }
+
+    func testFriendsHereTextIsSingularForOne() {
+        let listing = LocalRunsViewModel.Listing(
+            game: game(players: [host, "friend-a"]),
+            court: nil,
+            distanceMeters: nil,
+            friendIds: ["friend-a"]
+        )
+        XCTAssertEqual(listing.friendsHereText, "1 friend here")
+    }
+
+    func testFriendsHereTextIsPluralForMore() {
+        let listing = LocalRunsViewModel.Listing(
+            game: game(players: [host, "friend-a", "friend-b"]),
+            court: nil,
+            distanceMeters: nil,
+            friendIds: ["friend-a", "friend-b"]
+        )
+        XCTAssertEqual(listing.friendsHereText, "2 friends here")
+    }
+
     /// `.none` renders no button at all, so an empty title is what the views
     /// branch on.
     func testOnlyNoneHasAnEmptyTitle() {

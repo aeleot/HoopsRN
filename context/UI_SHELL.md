@@ -155,11 +155,31 @@ and `FriendService`. The hot list calls
 `nonisolated static` and pure, so Home shares the map's counting rule instead of
 restating it. No extra Firestore read, no rules change.
 
-**There is deliberately no stats card.** Nothing in the app records that a run
-happened — `Game.status` never reaches `.completed` and both game listeners are
-windowed to the future — so "runs this week" and a streak have no honest source
-yet. `plans/APP_SHELL_AND_HOME.md` §6.3 has the query that would provide one and
-the two things to be careful about when it does.
+**The stats card shipped, and this entry said it hadn't for longer than it
+should have.** `StatsCard` (`Views/Components/StatsCard.swift`) leads the tab
+with three text columns — Runs, Streak, Last Run — fed from the profile's
+`completedGameCount`, `participationStreak` and `lastCompletedAt`. It is
+**gated on `HomeViewModel.hasStats`** (`completedGameCount > 0`), so a
+brand-new account sees no card at all rather than a row of zeros.
+
+**The pipeline behind it is complete except for its first step.**
+`GameService`'s third listener publishes `completedGames` (`status ==
+completed`, ordered by `completedAt`), `HomeViewModel` recalculates the three
+numbers off that snapshot and writes them back through
+`UserProfileService.refreshStats` — the one write on this screen, placed here
+because both services are already held for the subscriptions above rather than
+by giving either a dependency on the other — and `firestore.rules` has a
+completion path ready to pin `completedAt`. **What doesn't exist is anything
+that writes `status: completed`**: no `GameService` method, no host control.
+So on an account whose data wasn't seeded by hand, `hasStats` stays false and
+this card never renders. `gaps/GAMES.md` owns that gap; don't read the card's
+presence in a dev build as evidence the run lifecycle closes on its own.
+
+**They remain self-reported profile counters.** They are stored on
+`users/{uid}`, which the owner writes, so they carry exactly the forgeability
+`database/DATABASE_SCHEMA.md` records for `completedGameCount` — unlike a
+squad's record, which is derived from documents two leaders had to agree on.
+Read them as a personal activity summary, not as a competitive claim.
 
 `HomeViewModel.rankHotCourts` is `nonisolated static` and pure, pinned by
 `HomeViewModelTests`. Its tie-break on `displayName` is load-bearing: a
@@ -188,6 +208,24 @@ dialog, so a dialog saying "Cancel run" can't perform a join.
 Only one roster write is in flight at a time: the acting card shows a spinner
 and every other card's button goes inert, so a double tap can't race the
 transaction already running.
+
+**A card shows "N friends here" when any of your friends are on its roster or
+waitlist** — the one piece of social proof on the card, and the point of
+`plans/FRIENDS.md` Phase 4: you can see a run is worth joining without changing
+how you join it. It gets **its own line rather than a fourth `detail` chip**
+(that row is a plain `HStack` with no `ViewThatFits` ladder, so a fourth entry
+overflows at accessibility sizes) and **rather than the header badge** (that
+slot is at most one badge about *your own* relationship to the run — HOSTING →
+WAITLIST → FULL — and who else is here is a different question, so folding them
+into one chain would mean a run you host could never show it). It's drawn in
+`hooprPrimaryText` so it outweighs the grey details above it without reaching
+for `hooprOrange`, which fails AA as a foreground in light mode.
+
+The intersection is a `nonisolated static` on `LocalRunsViewModel`, resolved
+once per rebuild alongside the distance rather than per row during scroll, and
+it **widens nothing**: it reads the roster of a run already on screen. A
+friend's *private* run stays invisible — that needs the authorization design
+`plans/FRIENDS.md` §4 defers.
 
 A card for a run you host that isn't public also carries an `InviteLinkCard` —
 the run's `hoopsrn://game/{id}` link, shown in full with a tap that copies it.

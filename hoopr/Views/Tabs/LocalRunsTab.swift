@@ -39,7 +39,8 @@ struct LocalRunsTab: View {
         _viewModel = StateObject(wrappedValue: LocalRunsViewModel(
             gameService: gameService,
             courtService: courtService,
-            userProfileService: userProfileService
+            userProfileService: userProfileService,
+            friendService: friendService
         ))
     }
 

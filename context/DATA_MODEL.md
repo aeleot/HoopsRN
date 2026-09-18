@@ -165,6 +165,17 @@ the rest; `GameService` owns all encoding.
 - **`queuedPlayerIds` is non-optional and always stored**, `[]` when empty. The
   one deliberate exception to the "absent, never null" convention, because the
   update rule diffs both rosters together.
+- **`completedAt` is the only thing a completion records**, and **nothing in
+  the app writes it yet.** `firestore.rules` has a completion path that pins it
+  to `request.time` in the same write that sets `status: completed`, so the two
+  can't drift — but no `GameService` method and no UI control ever performs
+  that write; the service only ever writes the `open`/`full` `status` derived
+  from the roster. So the field, the rule, `Game.calculateStreak(from:now:)`
+  and the `completedGames` listener are all built and wired to each other with
+  nothing at the front of the pipe. See `gaps/GAMES.md`. When something does
+  write it: non-nil implies completed, and "completed" means only that the run
+  happened and you were on `playerIds` — there's no way to record who won.
+  `in_progress` remains declared and never written.
 - **`isVisible(at:)` is what actually retires a run.** The Firestore query's
   cutoff is fixed when its listener attaches, so a session left open for hours
   would keep showing a run that has since aged out. Re-applying the predicate on

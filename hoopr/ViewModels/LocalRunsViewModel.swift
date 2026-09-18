@@ -14,13 +14,35 @@ import Foundation
 final class LocalRunsViewModel: ObservableObject {
     /// A run with its court resolved, ready to render. Distance is computed
     /// once per rebuild, never during scroll.
-    struct Listing: Identifiable, Equatable {
+    /// `nonisolated` for the same reason `Action` below is: it's a plain value
+    /// with no isolation to protect, and leaving it on the main actor would put
+    /// `friendsHereText` and the rest of its derivations out of reach of a test.
+    nonisolated struct Listing: Identifiable, Equatable {
         let game: Game
         /// `nil` when the stored `courtId` no longer matches a court in the
         /// bundled dataset — the run is still shown, since you're committed to
         /// it, but it can't be placed on the map.
         let court: Court?
         let distanceMeters: CLLocationDistance?
+        /// Friends already on this run, confirmed or waitlisted. Resolved once
+        /// per rebuild for the same reason `distanceMeters` is — never per row
+        /// while the list scrolls.
+        let friendIds: [String]
+
+        /// `friendIds` defaults so `HomeViewModel`, which builds a `Listing` for
+        /// its own read-only next-run card, doesn't have to answer a question
+        /// that card never asks.
+        init(
+            game: Game,
+            court: Court?,
+            distanceMeters: CLLocationDistance?,
+            friendIds: [String] = []
+        ) {
+            self.game = game
+            self.court = court
+            self.distanceMeters = distanceMeters
+            self.friendIds = friendIds
+        }
 
         var id: String { game.id }
 
@@ -31,6 +53,17 @@ final class LocalRunsViewModel: ObservableObject {
 
         var distanceText: String? {
             distanceMeters.map(Distance.text)
+        }
+
+        /// `nil` rather than "0 friends", so the card renders nothing at all
+        /// when none of yours are on a run — the same absent-not-empty shape
+        /// `distanceText` takes.
+        var friendsHereText: String? {
+            switch friendIds.count {
+            case 0:          nil
+            case 1:          "1 friend here"
+            case let count:  "\(count) friends here"
+            }
         }
     }
 
@@ -90,11 +123,16 @@ final class LocalRunsViewModel: ObservableObject {
     private var queuedGames: [Game] = []
     private var publicGames: [Game] = []
     private var courtsByID: [String: Court] = [:]
+    /// The raw edges, not the uids they resolve to. Which uid is *the other
+    /// one* depends on who's signed in, and that answer is read per rebuild
+    /// rather than captured here — see `rebuild()`.
+    private var friendships: [Friendship] = []
 
     init(
         gameService: GameService,
         courtService: CourtService,
-        userProfileService: UserProfileService
+        userProfileService: UserProfileService,
+        friendService: FriendService
     ) {
         self.gameService = gameService
 
@@ -138,6 +176,19 @@ final class LocalRunsViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        // The cross-collection join `plans/FRIENDS.md` §4 puts here rather than
+        // in either service: `GameService` holds the rosters, `FriendService`
+        // holds the edges, and neither learns about the other. Live, so a
+        // friend joining a run you're looking at updates the card without a
+        // refresh.
+        friendService.$friends
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] friendships in
+                self?.friendships = friendships
+                self?.rebuild()
+            }
+            .store(in: &cancellables)
+
         gameService.$errorMessage
             .receive(on: DispatchQueue.main)
             .sink { [weak self] message in
@@ -159,12 +210,17 @@ final class LocalRunsViewModel: ObservableObject {
     private func rebuild(now: Date = Date()) {
         let origin = LocationService.homeLocation
         let radiusMeters = Distance.meters(miles: radiusMiles)
+        // Read per rebuild rather than captured once, the same way
+        // `HomeViewModel` reads the location anchor: a session that signs in
+        // after this view model is built would otherwise resolve every
+        // friendship against a nil uid and never recover.
+        let friendUids = Self.friendUids(from: friendships, currentUserId: currentUserId)
 
         // The query's cutoff was fixed when its listener attached; re-applying
         // it here is what retires a run during a long-lived session.
         queued = queuedGames
             .filter { $0.isVisible(at: now) }
-            .map { listing(for: $0, from: origin) }
+            .map { listing(for: $0, from: origin, friendUids: friendUids) }
 
         let joinedIDs = Set(queuedGames.map(\.id))
 
@@ -173,7 +229,7 @@ final class LocalRunsViewModel: ObservableObject {
                 // Runs already in the queued section don't repeat here.
                 game.isVisible(at: now) && !joinedIDs.contains(game.id)
             }
-            .map { listing(for: $0, from: origin) }
+            .map { listing(for: $0, from: origin, friendUids: friendUids) }
             .filter { listing in
                 // A run whose court can't be resolved has no distance, so it
                 // can't be shown to be in range — the opposite call from the
@@ -183,13 +239,56 @@ final class LocalRunsViewModel: ObservableObject {
             }
     }
 
-    private func listing(for game: Game, from origin: CLLocationCoordinate2D) -> Listing {
+    private func listing(
+        for game: Game,
+        from origin: CLLocationCoordinate2D,
+        friendUids: Set<String>
+    ) -> Listing {
         let court = courtsByID[game.courtId]
         return Listing(
             game: game,
             court: court,
-            distanceMeters: court.map { Distance.between(origin, $0.coordinate) }
+            distanceMeters: court.map { Distance.between(origin, $0.coordinate) },
+            friendIds: Self.friendIds(on: game, friendUids: friendUids)
         )
+    }
+
+    /// Who you're actually friends with, from the edges `FriendService`
+    /// publishes.
+    ///
+    /// `nonisolated static` for the reason `action(for:currentUserId:)` is, and
+    /// it earns it: a friendship stores *both* participants, so the obvious
+    /// union of `uidA`/`uidB` includes you — and a run you're on would then
+    /// count you as one of your own friends. Resolving each edge from your side
+    /// is what avoids that, and it's only checkable at all because the rule is
+    /// a free function over plain values.
+    ///
+    /// Signed out reads as no friends rather than trapping, matching
+    /// `action(for:currentUserId:)`'s treatment of a nil uid.
+    nonisolated static func friendUids(
+        from friendships: [Friendship],
+        currentUserId uid: String?
+    ) -> Set<String> {
+        guard let uid else { return [] }
+        return Set(friendships.map { $0.otherUid(than: uid) })
+    }
+
+    /// Which of your friends are already on a run.
+    ///
+    /// **Both rosters**, because a friend on the waitlist is the same signal as
+    /// a friend holding a spot — you'd be turning up to the same court either
+    /// way. Sorted, so an identical rebuild can't reorder a name later phases
+    /// may want to render.
+    ///
+    /// **This widens nothing.** It reads the roster of a run already on screen
+    /// and already readable by this account. A friend's *private* run stays
+    /// invisible — that needs an authorization design `plans/FRIENDS.md` §4
+    /// defers, not a client-side cross-reference.
+    nonisolated static func friendIds(on game: Game, friendUids: Set<String>) -> [String] {
+        guard !friendUids.isEmpty else { return [] }
+        return Set(game.playerIds + game.queuedPlayerIds)
+            .intersection(friendUids)
+            .sorted()
     }
 
     // MARK: - Actions
