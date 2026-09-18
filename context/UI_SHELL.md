@@ -12,7 +12,7 @@
 `hoopr/Views/Components/StatsCard.swift`, `hoopr/Views/Seasons/`,
 `hoopr/Support/Theme.swift`,
 `hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`
-**Verified:** 2026-09-17 @ 8209408
+**Verified:** 2026-09-18 @ de875eb
 
 Navigation structure and the visual conventions every screen follows. Read this
 before adding a screen, changing how one is presented, or picking a colour or a

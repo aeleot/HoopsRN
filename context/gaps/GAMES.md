@@ -1,7 +1,7 @@
 # hoopsRN — Runs and invites gaps
 
 **Scope:** —
-**Verified:** 2026-09-16 @ 8209408
+**Verified:** 2026-09-18 @ de875eb
 
 What's unfinished about `games` — the run lifecycle, the invite link that can
 be sent but not opened, and the waitlist that doesn't move.
