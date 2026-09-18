@@ -11,10 +11,12 @@ nonisolated struct Game: Identifiable, Sendable, Codable, Hashable {
     /// rather than chosen — `firestore.rules` rejects a status that disagrees
     /// with `playerIds.count` against `maxPlayers`, so the two can't drift.
     ///
-    /// `inProgress` and `completed` are declared because the schema owns them,
-    /// but nothing writes them yet: there is no host-run controls UI, and the
-    /// update rule only ever permits `open`/`full`. A run simply ages out of
-    /// both lists once it's past `visibilityGrace`.
+    /// `completed` is written by the host, through `GameService.completeGame`
+    /// and its own `allow update` clause — a one-way move, since that rule
+    /// refuses a document already `completed`. `inProgress` is still declared
+    /// and never written: nothing distinguishes it from `open` on any screen,
+    /// and a run that's never completed still ages out of both lists once it's
+    /// past `visibilityGrace`.
     enum Status: String, Sendable, Codable {
         case open
         case full

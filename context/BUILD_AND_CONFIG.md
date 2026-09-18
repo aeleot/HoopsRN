@@ -205,8 +205,8 @@ for a ruleset it never evaluated is worse than no rules suite at all.
 
 There are **two** suites, in two languages, and neither can do the other's job.
 
-- **`hooprTests` — 452 test methods across 28 suites**, from a green
-  `-only-testing:hooprTests` run on 2026-09-17. All of them carry real coverage;
+- **`hooprTests` — 457 test methods across 28 suites**, from a green
+  `-only-testing:hooprTests` run on 2026-09-18. All of them carry real coverage;
   there is no scaffold left in `hooprTests/`.
 - **`firestore-tests/` — 102 tests**, run by `npm run test:rules` against the
   Firestore emulator. This is the only place `firestore.rules` is *evaluated*
@@ -243,7 +243,7 @@ resolves real colours. A third measurement style would be one too many.
 | `GameTests` | 28 | Decoding, derived status, form validation, roster membership, visibility, presentation, the invite-link string, distance. |
 | `MatchTicketTests` | 22 | Ticket validation, claimability, `isSearching` vs. `isClaimable`, `winPercentage`'s unplayed midpoint. |
 | `FirestoreRulesParityTests` | 21 | Every bound mirrored between Swift and `firestore.rules`, parsed out of the rules file as text — including the `open` -> `matched` transition and the two burst-rate floors. |
-| `LocalRunsViewModelTests` | 19 | Which button a run offers, and the friends-on-a-run join: resolving an edge from either side of the stored pair, never counting yourself, both rosters, sorted and deduped, and the badge's own singular/plural copy. |
+| `LocalRunsViewModelTests` | 24 | Which button a run offers; whether the host may mark a run complete (host-only, not before tip-off, not twice, and a roster of one is still a run); and the friends-on-a-run join: resolving an edge from either side of the stored pair, never counting yourself, both rosters, sorted and deduped, and the badge's own singular/plural copy. |
 | `FindAMatchViewModelTests` | 18 | `gameCountsByCourt` — the per-court/per-day join behind the map's heat colours and pin counts — plus `rankActive`, the **Now** segment's ordering: soonest run first, distance/name tiebreaks, `isVisible(at:)` filtering, and that every `ActiveCourt` has at least one game. |
 | `UserProfileTests` | 17 | Decoding, the radius coercion ladder, name validation. |
 | `SquadViewModelTests` | 17 | `invitableUids`, the roster sort, and the region derivation. |

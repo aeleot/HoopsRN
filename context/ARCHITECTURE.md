@@ -348,7 +348,11 @@ came from can, which is what `FailureContext` carries:
   claim, `GameService.mutateRoster`, `SquadService.mutateRoster` and
   `SeasonGameService.reportResult` all read inside the transaction because the
   listener's copy can be stale — which is precisely the race each of them
-  exists to close.
+  exists to close. *Uncontested* writes don't need one and don't get one:
+  `GameService.cancelGame` is a bare delete and `GameService.completeGame` a
+  bare `updateData`, because neither derives anything from what's already in the
+  document — the rule's own precondition (`status != 'completed'`) is what makes
+  a second completion a no-op, not a read.
 - Anything mirrored into `firestore.rules` moves on both sides in the same
   commit, and gains a parity test if it doesn't have one.
 

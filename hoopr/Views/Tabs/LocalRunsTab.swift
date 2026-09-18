@@ -143,12 +143,20 @@ struct LocalRunsTab: View {
                             isHost: viewModel.isHost(listing),
                             isWaitlisted: viewModel.isWaitlisted(listing),
                             isPending: viewModel.pendingGameId == listing.id,
-                            // One roster write at a time, so a second tap can't
-                            // race the transaction already in flight.
+                            // One write at a time, so a second tap can't race
+                            // the transaction already in flight.
                             isDisabled: viewModel.pendingGameId != nil
                                 && viewModel.pendingGameId != listing.id,
+                            // Resolved at render, so the control appears on the
+                            // next rebuild after tip-off rather than on a timer
+                            // — the same cadence `Game.isVisible(at:)` retires a
+                            // run on, and the rule is the real gate anyway.
+                            canComplete: viewModel.canComplete(listing),
                             onAction: {
                                 Task { await viewModel.perform(action, on: listing) }
+                            },
+                            onComplete: {
+                                Task { await viewModel.complete(listing) }
                             }
                         )
                     }

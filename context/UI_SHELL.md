@@ -162,18 +162,22 @@ with three text columns — Runs, Streak, Last Run — fed from the profile's
 **gated on `HomeViewModel.hasStats`** (`completedGameCount > 0`), so a
 brand-new account sees no card at all rather than a row of zeros.
 
-**The pipeline behind it is complete except for its first step.**
+**The pipeline behind it is now complete end to end** (2026-09-18).
 `GameService`'s third listener publishes `completedGames` (`status ==
 completed`, ordered by `completedAt`), `HomeViewModel` recalculates the three
 numbers off that snapshot and writes them back through
 `UserProfileService.refreshStats` — the one write on this screen, placed here
 because both services are already held for the subscriptions above rather than
-by giving either a dependency on the other — and `firestore.rules` has a
-completion path ready to pin `completedAt`. **What doesn't exist is anything
-that writes `status: completed`**: no `GameService` method, no host control.
-So on an account whose data wasn't seeded by hand, `hasStats` stays false and
-this card never renders. `gaps/GAMES.md` owns that gap; don't read the card's
-presence in a dev build as evidence the run lifecycle closes on its own.
+by giving either a dependency on the other. The step that was missing, a write
+of `status: completed`, is the host's "Mark complete" control on `GameCard`
+(see `LocalRunsTab` below). So `hasStats` now turns true on a real account the
+first time a host marks one of their runs complete, rather than only on data
+seeded by hand.
+
+**Nothing refreshes the card by hand, and nothing should.** The completion
+write lands, the `completedGames` listener echoes it, and `HomeViewModel`
+recalculates off that snapshot — the card appearing is a consequence of the
+listener, not of the tap. A second write path to force it would double-count.
 
 **They remain self-reported profile counters.** They are stored on
 `users/{uid}`, which the owner writes, so they carry exactly the forgeability
@@ -226,6 +230,36 @@ once per rebuild alongside the distance rather than per row during scroll, and
 it **widens nothing**: it reads the roster of a run already on screen. A
 friend's *private* run stays invisible — that needs the authorization design
 `plans/FRIENDS.md` §4 defers.
+
+**A host gets a second control on their own run once it has started: "Mark
+complete".** It is deliberately *not* a `LocalRunsViewModel.Action` case —
+`action(for:)` returns exactly one thing to offer and a host already gets
+"Cancel run", so after tip-off the card has to show both, which one-of-N can't
+express. It's gated on `LocalRunsViewModel.canComplete(_:currentUserId:now:)`, a
+`nonisolated static` pure predicate: host, `now >= scheduledTime`, and not
+already completed. The roster isn't consulted — there's no attendance concept,
+so a host who turned up alone may still record that the run happened.
+
+It's drawn as a **secondary** control below the primary button — bordered over
+`hooprFill` like `InviteLinkCard`, the card's other host-only affordance — not a
+second primary and not destructive. Completing takes nothing away, and drawing
+it in `hooprRed` beside "Cancel run" would make two very different outcomes look
+alike. It shares `pendingGameId` with the roster writes, so while either is in
+flight neither is tappable.
+
+**The card disappears once the write lands, and that's correct.**
+`Game.isVisible(at:)` excludes `completed`, so `rebuild()` drops the run from
+both lists the moment the listener echoes it — it has moved to the Home stats
+card. That's why the confirmation dialog says so ("It moves to your stats and
+leaves this list"): without it, the disappearance reads as a deletion. The
+dialog also has to name the two things that can't be taken back — the write is
+one-way, since the rule refuses a document already `completed`, and it freezes
+the roster, since the roster clause only admits a run whose status is
+`open`/`full`.
+
+**Runs tab only.** The map's court card renders its rows from the same `Action`,
+and since completion isn't a case of it, that surface gets nothing — intended,
+and what keeps the blast radius off `FindAMatchViewModel`.
 
 A card for a run you host that isn't public also carries an `InviteLinkCard` —
 the run's `hoopsrn://game/{id}` link, shown in full with a tap that copies it.

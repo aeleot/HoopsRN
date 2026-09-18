@@ -160,22 +160,26 @@ the rest; `GameService` owns all encoding.
   is the client's copy of an expression `firestore.rules` also evaluates. They
   must stay identical — a divergence turns every write into a
   `permission-denied`, which reads like an undeployed ruleset rather than a
-  logic bug. `inProgress` carries the raw value `in_progress`; nothing writes
-  it yet.
+  logic bug. It only ever returns `open`/`full` — `completed` is *chosen* by the
+  host on its own write path, not derived, which is why it doesn't appear here.
+  `inProgress` carries the raw value `in_progress`; nothing writes it.
 - **`queuedPlayerIds` is non-optional and always stored**, `[]` when empty. The
   one deliberate exception to the "absent, never null" convention, because the
   update rule diffs both rosters together.
-- **`completedAt` is the only thing a completion records**, and **nothing in
-  the app writes it yet.** `firestore.rules` has a completion path that pins it
-  to `request.time` in the same write that sets `status: completed`, so the two
-  can't drift — but no `GameService` method and no UI control ever performs
-  that write; the service only ever writes the `open`/`full` `status` derived
-  from the roster. So the field, the rule, `Game.calculateStreak(from:now:)`
-  and the `completedGames` listener are all built and wired to each other with
-  nothing at the front of the pipe. See `gaps/GAMES.md`. When something does
-  write it: non-nil implies completed, and "completed" means only that the run
-  happened and you were on `playerIds` — there's no way to record who won.
-  `in_progress` remains declared and never written.
+- **`completedAt` is the only thing a completion records**, and it is
+  **written by the host**, through `GameService.completeGame(id:)` behind the
+  "Mark complete" control on `GameCard` (shipped 2026-09-18). `firestore.rules`
+  pins it to `request.time` in the same write that sets `status: completed`, so
+  the two can't drift — which is also why the write sends
+  `FieldValue.serverTimestamp()` for it and for `updatedAt`. A client `Date`
+  would have to equal `request.time` to the nanosecond and is rejected, and
+  that is what stops a completion being backdated to inflate a streak. Non-nil
+  implies completed, and "completed" means only that the run happened — there's
+  no way to record who won, and **no attendance concept either**: a host who
+  turned up alone may mark their run complete, which is a deliberate call and
+  not an oversight (`gaps/GAMES.md` keeps the reasoning). The write is one-way;
+  the rule's `resource.data.status != 'completed'` precondition means there is
+  no un-complete path. `in_progress` remains declared and never written.
 - **`isVisible(at:)` is what actually retires a run.** The Firestore query's
   cutoff is fixed when its listener attaches, so a session left open for hours
   would keep showing a run that has since aged out. Re-applying the predicate on

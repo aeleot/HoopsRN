@@ -50,23 +50,48 @@ a Cloud Function running with admin credentials.
 
 ---
 
-## No host controls for `in_progress` / `completed`
+## `in_progress` is still never written
 
-Both statuses are declared and neither is ever written; runs age out
-`Game.visibilityGrace` (3h) after tip-off instead.
+**`completed` now is** (2026-09-18). A host gets a "Mark complete" control on
+their own run's card once it has started, which calls
+`GameService.completeGame(id:)` and writes `status: completed` + `completedAt`
+through the host-only `allow update` clause that had been sitting in
+`firestore.rules` unused. That closed the Home stats card gap this section used
+to describe: `completedGames` now receives documents, `HomeViewModel`
+recalculates off them, and `hasStats` turns true on a real account without
+anyone hand-editing `users/{uid}`.
 
-**This also stalls the Home stats card.** `HomeViewModel` only calls
-`UserProfileService.refreshStats` when `GameService.completedGames` publishes a
-non-empty snapshot, and that listener queries `status == "completed"` — the
-status nothing writes. So `completedGameCount` stays absent and `hasStats`
-stays false for every account, new or existing, until something marks a game
-complete. The only way to see the card today is hand-editing
-`completedGameCount` / `participationStreak` / `lastCompletedAt` directly on a
-`users/{uid}` document.
+`in_progress` remains declared and never written. Nothing distinguishes it from
+`open` on any screen, so there's no control to hang on it — and a run that is
+never completed still ages out `Game.visibilityGrace` (3h) after tip-off, which
+is what retires the ones nobody marks.
 
-`plans/STATS_CARD.md` §14 names this as an external dependency it assumes gets
-built separately, and confirms neither Phase 4 nor Phase 5 closes it — the
-completion UI is listed under its §11 Future Work, unscheduled.
+**What completion still doesn't do, and won't without a Cloud Function:**
+happen by itself. A run whose host never taps the control is never completed —
+it just ages out — so the streak reflects the runs a host *recorded*, not the
+runs that happened. An automatic sweep needs a scheduled function, which needs
+the Blaze plan; `ROADMAP.md` §0 keeps the two separated now that the
+host-triggered half has shipped on Spark.
+
+**Completion carries no attendance claim, deliberately.** There is no check-in
+concept anywhere in the schema, so the only thing `completed` asserts is *this
+run happened*. A host who turned up alone can mark their own run complete and
+take the streak week for it — `canComplete` does not consult the roster, and a
+floor there was considered and rejected: it would invent a guarantee the
+ruleset doesn't make (the rule itself checks only host, not-already-completed,
+and the three-key allowlist), and the client is not where an unforgeable count
+could be enforced anyway. These are self-reported profile counters on a
+document the owner writes, which `database/DATABASE_SCHEMA.md` already records
+as forgeable. Read the streak as a personal activity log, not a competitive
+claim. **Decided 2026-09-18** — if this is revisited, it's a product call about
+what the number means, not a bug.
+
+**There is no un-complete path**, by design: the rule's
+`resource.data.status != 'completed'` precondition refuses a second write. A
+host who completes the wrong run cannot reverse it, and cannot cancel it either
+— the delete rule is separate and still permits it, but the run has already left
+every list, so there is no UI that reaches it. That is a real rough edge and the
+first thing to revisit if anyone hits it in practice.
 
 ---
 
@@ -92,7 +117,9 @@ completion UI is listed under its §11 Future Work, unscheduled.
 
 - `../database/DATABASE_SCHEMA.md` — the `games` rules, including the roster
   membership diff these gaps keep running into.
-- `../plans/LIVE_HEADCOUNT.md`, `../plans/STATS_CARD.md` — the two designs that
-  would close the occupancy and completion gaps.
+- `../plans/LIVE_HEADCOUNT.md` — the design that would close the occupancy gap.
+- `../plans/STATS_CARD.md` — the card completion now feeds. Its §11 lists the
+  completion UI under Future Work and its §14 treats it as an external
+  dependency; both were written before it shipped.
 - [`RATE_LIMITING.md`](RATE_LIMITING.md) — why "needs a Cloud Function" appears
   three times on this page.

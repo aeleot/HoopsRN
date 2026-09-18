@@ -376,7 +376,7 @@ func testStreakResetsAfterWeekWithoutGames() {
 
 These extensions are out of scope but unblocked by this plan:
 
-1. **Completion UI** — Host-only button to mark game complete
+1. ~~**Completion UI** — Host-only button to mark game complete~~ — **shipped 2026-09-18**, as the third option in §14: a host-only control on `GameCard` calling `GameService.completeGame(id:)`. No Cloud Function, no admin endpoint.
 2. **Win/Loss Tracking** — Not built here; the schema currently stores no outcome data at all. Would need its own fields on `Game`/`UserProfile` and its own rules path.
 3. **Leaderboards** — Query top users by completedGameCount or participationStreak
 4. **Weekly Digest** — Email or push with stats from the past week
@@ -434,15 +434,15 @@ Prioritized by implementation order:
 
 ## 14. External Dependencies
 
-**CRITICAL:** This plan assumes a separate completion mechanism already exists or will be built separately:
+**RESOLVED 2026-09-18.** This plan assumed a separate completion mechanism would be built separately, and offered three ways it could be:
 
 - **Cloud Function** that hosts call to mark a game complete, OR
 - **Admin endpoint** that the app backend hits, OR
-- **Host UI** in the app that only the host can see
+- ✅ **Host UI** in the app that only the host can see ← *this is what shipped*
 
-Without this, the completed-games listener will query correctly but return an empty result set. Stats will show "Runs: 0" for all users.
+A host marks their own started run complete from `GameCard`, which calls `GameService.completeGame(id:)` and writes `status: completed` + `completedAt` through the host-only `allow update` clause already in `firestore.rules`. No Blaze plan, no backend. Until then this section's warning held exactly as written: the listener queried correctly and returned nothing, and the card never rendered on a real account.
 
-**Action:** Confirm with the product/infrastructure team that a game-completion pathway exists before shipping this feature. The data model and rules are ready; the orchestration is not.
+**What it does not cover:** a run whose host never taps the control is still never completed — it ages out. Automatic completion needs the scheduled Function `ROADMAP.md` §0 gates.
 
 ---
 

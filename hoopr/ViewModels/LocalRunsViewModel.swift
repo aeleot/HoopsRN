@@ -112,9 +112,14 @@ final class LocalRunsViewModel: ObservableObject {
     /// can name the real number instead of restating a constant.
     @Published private(set) var radiusMiles = UserProfile.defaultPreferredRadius
 
-    /// The run with a roster write in flight, if any. One at a time: the
-    /// button that started it shows a spinner and every other card's button is
-    /// disabled, so a double tap can't queue two conflicting transactions.
+    /// The run with a write in flight, if any. One at a time: the button that
+    /// started it shows a spinner and every other card's button is disabled, so
+    /// a double tap can't queue two conflicting transactions.
+    ///
+    /// Shared by the roster writes and by `complete(_:)`, which isn't one — a
+    /// card's two host controls sit side by side after tip-off, and completing
+    /// a run while its cancel is still in flight would race a write against a
+    /// delete.
     @Published private(set) var pendingGameId: String?
 
     private let gameService: GameService
@@ -324,6 +329,48 @@ final class LocalRunsViewModel: ObservableObject {
         return game.isFull ? .joinWaitlist : .join
     }
 
+    func canComplete(_ listing: Listing, now: Date = Date()) -> Bool {
+        Self.canComplete(listing.game, currentUserId: currentUserId, now: now)
+    }
+
+    /// Whether the host may mark this run finished.
+    ///
+    /// **Not an `Action` case, deliberately.** `action(for:currentUserId:)`
+    /// returns exactly one thing to offer, and a host already gets `.cancel`;
+    /// after tip-off both have to be available at once, which one-of-N can't
+    /// express. That function is also shared with `FindAMatchViewModel` for the
+    /// map's court card, so a new case would change a second screen for a
+    /// control only the Runs tab wants.
+    ///
+    /// Three conditions, and the rule enforces all three server-side too — this
+    /// only decides whether to *show* the control:
+    ///
+    /// - **The host's alone.** Same shape as cancelling.
+    /// - **Not before tip-off.** `>=` rather than `>`: a run is under way the
+    ///   instant it starts, and there's nothing to gain from a minute's grace.
+    ///   This is the one condition that isn't in the rule — nothing server-side
+    ///   forbids completing a run early, and the streak maths reads
+    ///   `completedAt`, not `scheduledTime`. It's a UI judgement, not a
+    ///   guarantee.
+    /// - **Not already completed**, which is what makes a double tap a no-op
+    ///   locally instead of a write the rule refuses.
+    ///
+    /// **The roster isn't consulted.** There's no attendance concept in the
+    /// schema, so a completion claims only that the run happened — a host who
+    /// turned up alone may record it, and deliberately so. Adding a floor here
+    /// would invent a guarantee the server doesn't make.
+    ///
+    /// `nonisolated static` and pure, like every other rule on this type: it's
+    /// the only part of completion that can be tested at all, since nothing in
+    /// this suite stands up a service.
+    nonisolated static func canComplete(
+        _ game: Game,
+        currentUserId uid: String?,
+        now: Date
+    ) -> Bool {
+        game.isHost(uid) && now >= game.scheduledTime && game.status != .completed
+    }
+
     func perform(_ action: Action, on listing: Listing) async {
         guard pendingGameId == nil, action != .none else { return }
 
@@ -343,6 +390,30 @@ final class LocalRunsViewModel: ObservableObject {
             }
             // The listener re-emits the roster the server actually stored, so
             // there's nothing to apply optimistically here.
+        } catch {
+            // `GameService` already reported it; `errorMessage` is mirrored.
+        }
+    }
+
+    /// Marks a run finished.
+    ///
+    /// Separate from `perform(_:on:)` because completion isn't an `Action` —
+    /// see `canComplete(_:currentUserId:now:)` — but it shares `pendingGameId`
+    /// with it on purpose: one write per card at a time, whichever kind, so
+    /// completing can't race the cancel sitting next to it.
+    ///
+    /// The run disappears from both lists once the listener echoes the write:
+    /// `Game.isVisible(at:)` excludes `completed`, so `rebuild()` drops it.
+    /// That's the run moving to the Home stats card, not a deletion — which is
+    /// what the confirmation dialog on the card is there to set up.
+    func complete(_ listing: Listing) async {
+        guard pendingGameId == nil else { return }
+
+        pendingGameId = listing.id
+        defer { pendingGameId = nil }
+
+        do {
+            try await gameService.completeGame(id: listing.id)
         } catch {
             // `GameService` already reported it; `errorMessage` is mirrored.
         }

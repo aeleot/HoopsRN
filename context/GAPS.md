@@ -20,7 +20,7 @@ something ships.
 | File | What's in it |
 |---|---|
 | [`gaps/SEASONS.md`](gaps/SEASONS.md) | Squads, matchmaking, game day, recorded results. The unverified two-person confirm flow, the ways a played match can fail to reach a record, the local-notification ceiling. |
-| [`gaps/GAMES.md`](gaps/GAMES.md) | Runs: the invite link that can be sent but not opened, no waitlist promotion, no `in_progress`/`completed` — which also stalls the Home stats card. |
+| [`gaps/GAMES.md`](gaps/GAMES.md) | Runs: the invite link that can be sent but not opened, no waitlist promotion, no `in_progress`, and no *automatic* completion — a host marks a run complete by hand or it just ages out. |
 | [`gaps/FRIENDS.md`](gaps/FRIENDS.md) | Discovery and requests. No blocking, reporting or rate limiting; verified by hand once and never since. |
 | [`gaps/PROFILES.md`](gaps/PROFILES.md) | `users/{uid}`: the search-key backfill that completes one account at a time, what a world-readable profile leaks, what sign-in still can't do. |
 | [`gaps/RATE_LIMITING.md`](gaps/RATE_LIMITING.md) | What bounds how fast a client can write, what doesn't, and why most of it needs infrastructure the project doesn't have. |

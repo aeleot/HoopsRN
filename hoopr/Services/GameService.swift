@@ -416,6 +416,47 @@ final class GameService: ObservableObject {
         }
     }
 
+    /// Marks a run finished. Host only, enforced server-side, and one-way —
+    /// the update rule's `resource.data.status != 'completed'` precondition
+    /// means a second write is refused, so there is no un-complete path by
+    /// design.
+    ///
+    /// Deliberately **not** folded into `mutateRoster`. The rules admit this
+    /// write and the roster write through two separate `allow update` clauses
+    /// with disjoint key allowlists — `['completedAt', 'status', 'updatedAt']`
+    /// here, `['playerIds', 'queuedPlayerIds', 'status', 'updatedAt']` there —
+    /// so one path touching both key sets would satisfy neither. It needs no
+    /// transaction for the same reason: nothing here is read-modify-write, and
+    /// the rule's own precondition is what makes a double tap idempotent.
+    ///
+    /// Both timestamps are `FieldValue.serverTimestamp()` because the rule
+    /// pins them to `request.time`. That sentinel is resolved by the server
+    /// before the rules evaluate, so the comparison holds by construction —
+    /// a client `Date` would have to match to the nanosecond across network
+    /// latency and never would. It's also what stops a completion being
+    /// backdated to inflate a participation streak.
+    ///
+    /// Completing doesn't check the roster. There's no attendance concept in
+    /// the schema, so `completed` carries one claim — *this run happened* —
+    /// and a host who turned up alone is as entitled to record it as one who
+    /// filled the court. See `gaps/GAMES.md`.
+    func completeGame(id gameId: String) async throws {
+        guard observedUID != nil else { throw GameError.notSignedIn }
+
+        do {
+            try await database.collection(Collection.games).document(gameId).updateData([
+                Field.status: Game.Status.completed.rawValue,
+                Field.completedAt: FieldValue.serverTimestamp(),
+                Field.updatedAt: FieldValue.serverTimestamp(),
+            ])
+            clearError()
+        } catch {
+            let gameError = Self.mapped(error)
+            report(gameError, whileDoing: "marking your run complete", context: .write)
+            throw gameError
+        }
+    }
+
     /// The single roster-mutating path. Both directions need the same
     /// read-modify-write under a transaction, and folding them together keeps
     /// the status recomputation in exactly one place.

@@ -18,7 +18,9 @@ final class LocalRunsViewModelTests: XCTestCase {
     private func game(
         players: [String],
         waitlisted: [String] = [],
-        maxPlayers: Int = 10
+        maxPlayers: Int = 10,
+        status: Game.Status? = nil,
+        completedAt: Date? = nil
     ) -> Game {
         Game(
             id: "game-1",
@@ -27,12 +29,15 @@ final class LocalRunsViewModelTests: XCTestCase {
             scheduledTime: now,
             isPublic: true,
             maxPlayers: maxPlayers,
-            status: Game.status(playerCount: players.count, maxPlayers: maxPlayers),
+            // Derived from the roster unless a test is pinning a status the
+            // roster can't produce — `completed` is written by the host, not
+            // computed, so it has to be passed in.
+            status: status ?? Game.status(playerCount: players.count, maxPlayers: maxPlayers),
             playerIds: players,
             queuedPlayerIds: waitlisted,
             createdAt: now,
             updatedAt: now,
-            completedAt: nil
+            completedAt: completedAt
         )
     }
 
@@ -72,6 +77,71 @@ final class LocalRunsViewModelTests: XCTestCase {
 
         let full = game(players: (0..<10).map { "player-\($0)" })
         XCTAssertEqual(LocalRunsViewModel.action(for: full, currentUserId: nil), .joinWaitlist)
+    }
+
+    // MARK: - Marking a run complete
+
+    /// Completion is a separate affordance from `action(for:)`, not a case of
+    /// it: after tip-off the host has both this and "Cancel run", and an
+    /// enum that returns one thing can't offer two. These pin the rule that
+    /// decides whether the control is drawn at all — the ruleset enforces the
+    /// same thing server-side, so a false positive here is a rejected write
+    /// rather than an unauthorized one.
+
+    func testTheHostCanCompleteARunThatHasStarted() {
+        let run = game(players: [host, player])
+        XCTAssertTrue(
+            LocalRunsViewModel.canComplete(run, currentUserId: host, now: now.addingTimeInterval(60))
+        )
+    }
+
+    /// Tip-off is the boundary, and it's inclusive — a run is under way the
+    /// instant it starts.
+    func testTheHostCannotCompleteARunBeforeItStarts() {
+        let run = game(players: [host, player])
+
+        XCTAssertFalse(
+            LocalRunsViewModel.canComplete(run, currentUserId: host, now: now.addingTimeInterval(-60))
+        )
+        XCTAssertTrue(
+            LocalRunsViewModel.canComplete(run, currentUserId: host, now: now)
+        )
+    }
+
+    /// Host-only, the same shape as cancelling — and signed out reads as an
+    /// outsider rather than trapping, matching `action(for:currentUserId:)`.
+    func testOnlyTheHostCanCompleteARun() {
+        let run = game(players: [host, player])
+        let started = now.addingTimeInterval(60)
+
+        XCTAssertFalse(LocalRunsViewModel.canComplete(run, currentUserId: player, now: started))
+        XCTAssertFalse(LocalRunsViewModel.canComplete(run, currentUserId: stranger, now: started))
+        XCTAssertFalse(LocalRunsViewModel.canComplete(run, currentUserId: nil, now: started))
+    }
+
+    /// There is no un-complete path — the update rule refuses a document that
+    /// is already `completed` — so the second tap has to be stopped here, or
+    /// it's a write the server rejects with `permission-denied`.
+    func testACompletedRunCannotBeCompletedAgain() {
+        let run = game(
+            players: [host, player],
+            status: .completed,
+            completedAt: now.addingTimeInterval(30)
+        )
+        XCTAssertFalse(
+            LocalRunsViewModel.canComplete(run, currentUserId: host, now: now.addingTimeInterval(60))
+        )
+    }
+
+    /// A run nobody joined is still a run that happened. There's no attendance
+    /// concept in the schema — `completed` claims only that — so the host of an
+    /// empty run may record it, deliberately. A roster floor here would invent a
+    /// guarantee the ruleset doesn't make.
+    func testAHostWhoTurnedUpAloneCanStillCompleteTheRun() {
+        let run = game(players: [host])
+        XCTAssertTrue(
+            LocalRunsViewModel.canComplete(run, currentUserId: host, now: now.addingTimeInterval(60))
+        )
     }
 
     // MARK: - Action semantics

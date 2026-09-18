@@ -14,9 +14,15 @@ struct GameCard: View {
     let isPending: Bool
     /// Another card's write is in flight, so this one's button is inert.
     let isDisabled: Bool
+    /// The host may mark this run finished — it's theirs and it has started.
+    /// Independent of `action`, not a case of it: after tip-off a host has both
+    /// this and "Cancel run", and `Action` only ever offers one thing.
+    let canComplete: Bool
     let onAction: () -> Void
+    let onComplete: () -> Void
 
     @State private var isConfirmingCancel = false
+    @State private var isConfirmingComplete = false
 
     private var game: Game { listing.game }
 
@@ -41,6 +47,10 @@ struct GameCard: View {
             if action != .none {
                 primaryButton
             }
+
+            if canComplete {
+                completeButton
+            }
         }
         .padding(16)
         .cardChrome()
@@ -53,6 +63,20 @@ struct GameCard: View {
             Button("Keep it", role: .cancel) {}
         } message: {
             Text("Everyone on the roster loses their spot. This can't be undone.")
+        }
+        // Completion is one-way — the update rule refuses a second write — and
+        // it freezes the roster, so the dialog has to say both. The card also
+        // vanishes from this list afterwards, which reads as a deletion unless
+        // something has already framed it as the run being over.
+        .confirmationDialog(
+            "Mark this run complete?",
+            isPresented: $isConfirmingComplete,
+            titleVisibility: .visible
+        ) {
+            Button("Mark complete", action: onComplete)
+            Button("Not yet", role: .cancel) {}
+        } message: {
+            Text("It moves to your stats and leaves this list. The roster is frozen and this can't be undone.")
         }
     }
 
@@ -187,6 +211,50 @@ struct GameCard: View {
             .foregroundStyle(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
             .background(action.isDestructive ? Color.hooprFill : Color.hooprOrange)
             .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        .disabled(isPending || isDisabled)
+        .opacity(isDisabled && !isPending ? 0.5 : 1)
+    }
+
+    /// Recording that the run happened, for the host only.
+    ///
+    /// **Secondary, not a second primary.** It's bordered over `hooprFill` like
+    /// `InviteLinkCard` — the card's other host-only affordance — so the thing a
+    /// player is deciding still reads first. Not destructive either: completing
+    /// takes nothing away, it's the run finishing as intended, and drawing it in
+    /// `hooprRed` next to "Cancel run" would make two very different outcomes
+    /// look alike.
+    ///
+    /// Shares `isPending`/`isDisabled` with the primary button because it shares
+    /// `pendingGameId` with it — while either write is in flight, neither is
+    /// tappable.
+    private var completeButton: some View {
+        Button {
+            isConfirmingComplete = true
+        } label: {
+            Group {
+                if isPending {
+                    ProgressView()
+                        .tint(Color.hooprPrimaryText)
+                } else {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle")
+                            .hooprFont(13, weight: .semibold, maximumSize: 17)
+                        Text("Mark complete")
+                            .hooprFont(15, weight: .semibold)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 42)
+            .foregroundStyle(Color.hooprPrimaryText)
+            .background(Color.hooprFill)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.hooprBorder, lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
         .disabled(isPending || isDisabled)

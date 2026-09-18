@@ -866,18 +866,30 @@ in the App Store listing alike.
 
 ---
 
-### D6 — Host controls for a full run: waitlist promotion and closing out a game
+### D6 — Waitlist promotion and *automatic* run completion
 
 **Size:** Large · **Note:** the first story in this backlog that needs the
 Blaze plan
 
-Two related gaps that share a cause. `GAPS.md`: "No waitlist promotion. When a
-confirmed player leaves a full run, the freed slot isn't handed to the first
-waitlisted player — the update rule forbids writing another user's uid,
-deliberately. Needs a host action or a Cloud Function." And separately: "No
-host controls for `in_progress` / `completed`. Both statuses are declared and
-neither is ever written; runs age out `Game.visibilityGrace` (3h) after
-tip-off instead."
+**Partly shipped 2026-09-18, and the shipped half never needed Blaze.** This
+story used to bundle two things under one plan decision. They have come apart:
+
+- **Host-triggered completion — done.** A host marks their own started run
+  complete from `GameCard`; `GameService.completeGame(id:)` writes
+  `status: completed` + `completedAt` through a host-only `allow update`
+  clause that was already in `firestore.rules`. It is an ordinary client
+  write with the same authorization shape as cancel, so it shipped on Spark.
+  It also closed the Home stats card gap this story used to carry.
+- **Automatic completion — still Blaze.** A run whose host never taps the
+  control is never completed; it ages out via `Game.visibilityGrace` instead.
+  Finishing it without a host action needs a scheduled Function.
+- **Waitlist promotion — still Blaze.** Unchanged: "the freed slot isn't
+  handed to the first waitlisted player — the update rule forbids writing
+  another user's uid, deliberately."
+
+What remains in this story is the two Blaze halves. `in_progress` is still
+declared and never written, and there is still no control for it — nothing on
+any screen distinguishes it from `open`.
 
 The `games` update rule's membership diff is exactly as deliberate as Track
 A's design note says: a caller may only move themselves across
@@ -1071,8 +1083,9 @@ Not a commitment, just the order with the fewest blocked dependencies:
    it after C7 — D5's accent color derives from the palette C7 settles on.
 8. **A3** (auto-form), **D2**, **D4**, **C4**, **C6** (invite links) — as
    capacity allows.
-9. **D6** (waitlist promotion / completed status) — gated on the Blaze-plan
-   decision it names, otherwise sequence-independent of everything above.
+9. **D6** (waitlist promotion / automatic completion) — what's left of it is
+   gated on the Blaze-plan decision it names, otherwise sequence-independent of
+   everything above. Its host-triggered completion half shipped 2026-09-18.
 
 ## Documentation debt
 

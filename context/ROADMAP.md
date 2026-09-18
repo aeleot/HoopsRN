@@ -25,7 +25,13 @@ something ships.
 on the Blaze plan, and/or App Check. It is one decision, and it unblocks:
 
 - waitlist promotion (§3)
-- automatic run completion, which also unstalls the Home stats card
+- **automatic** run completion — a scheduled sweep that finishes a run its host
+  never marked. *Host-triggered* completion shipped 2026-09-18 on Spark and is
+  not part of this decision: it's an ordinary client write against a host-only
+  rule, the same authorization shape as cancel, and it already unstalled the
+  Home stats card. What Blaze would add is completion without a host action, so
+  a streak reflects the runs that happened rather than the ones someone
+  remembered to record
 - real rate limiting and the friend-request block list
 - push notifications
 - a real `userNameLower` backfill
@@ -59,8 +65,8 @@ recovery, so a healthy long-lived session still holds its original cutoff.
 Options, cheapest first: recompute on foreground via `scenePhase` and
 re-attach; or drop the range clause and filter entirely client-side (removes a
 composite index, costs more reads); or move retirement server-side with a
-scheduled Function writing `status: "completed"` — which is also what unblocks
-the stats card.
+scheduled Function writing `status: "completed"` — which is the automatic
+completion §0 gates, now that the host-triggered half has shipped.
 
 ## 2. Backfill rules coverage for `games`, `friendships` and `users`
 
