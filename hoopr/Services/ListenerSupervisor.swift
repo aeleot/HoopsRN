@@ -48,6 +48,19 @@ final class ListenerSupervisor {
     /// `RootViewModel` and the view models avoid.
     var onRetry: (() -> Void)?
 
+    /// The app came back to the foreground, whether or not anything is broken.
+    ///
+    /// Distinct from `onRetry`, which only fires while a listener is down. A
+    /// healthy listener can still be stale — `GameService`'s queries fix their
+    /// `scheduledTime` cutoff at attach time, so a session left open overnight
+    /// keeps querying yesterday's window without ever failing. This is the hook
+    /// that lets its owner notice; what counts as stale is the owner's call,
+    /// since no other service here has a time-windowed query.
+    ///
+    /// Fires *after* `retryNow()`, so an owner that re-attached for recovery
+    /// sees its own fresh state rather than deciding twice.
+    var onForeground: (() -> Void)?
+
     /// A listener has failed and a re-attach is pending or in flight. Services
     /// mirror this so the UI can say so rather than showing an empty list with
     /// no explanation.
@@ -179,6 +192,10 @@ final class ListenerSupervisor {
     /// A backgrounded app's sleeping retry doesn't fire on time, and coming
     /// back is also when the user is most likely to be looking at the empty
     /// list this is trying to fill.
+    ///
+    /// `onForeground` runs second so a re-attach for recovery has already
+    /// happened by the time the owner judges its own freshness — otherwise
+    /// both would fire for the same return and re-attach twice.
     private func observeForeground() {
         #if canImport(UIKit)
         foregroundObserver = NotificationCenter.default.addObserver(
@@ -188,6 +205,7 @@ final class ListenerSupervisor {
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.retryNow()
+                self?.onForeground?()
             }
         }
         #endif

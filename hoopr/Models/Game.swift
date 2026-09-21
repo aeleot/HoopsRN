@@ -103,7 +103,13 @@ nonisolated extension Game {
     /// How long a run stays listed after its start time. Long enough that a
     /// run already underway is still joinable, short enough that yesterday's
     /// game isn't.
-    static let visibilityGrace: TimeInterval = 3 * 60 * 60
+    ///
+    /// Four hours covers a run that started late or went long without leaving a
+    /// morning game listed into the afternoon. Raising it widens both the
+    /// Firestore query and `isVisible(at:)`, which have to agree — and it widens
+    /// the drift `GameService.windowRefreshInterval` guards, so the two are worth
+    /// reading together.
+    static let visibilityGrace: TimeInterval = 4 * 60 * 60
 
     /// The single definition of `open` vs `full`. Used on the write path and
     /// mirrored in the rules, so a client that computes it differently is

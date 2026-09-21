@@ -92,6 +92,24 @@ final class GameService: ObservableObject {
         static let completed = 500
     }
 
+    /// How far the query window may drift before returning to the foreground
+    /// re-attaches the listeners.
+    ///
+    /// The two windowed queries fix their `scheduledTime` cutoff when they
+    /// attach, and nothing moves it afterwards — a healthy session never fails,
+    /// so `supervisor` never re-attaches it. A session left open overnight goes
+    /// on querying last night's window: `Game.isVisible(at:)` hides those rows
+    /// client-side so nothing wrong is *displayed*, but the query still pays for
+    /// them and they still spend the `limit(to:)` budget that imminent runs
+    /// should be getting.
+    ///
+    /// An hour against a three-hour `visibilityGrace` is where that overshoot
+    /// stops being noise. Below it a re-attach would cost more reads than the
+    /// stale rows do — every app switch would re-run both queries — and an hour
+    /// between foregrounds means the user genuinely left rather than flicked
+    /// away.
+    nonisolated static let windowRefreshInterval: TimeInterval = 60 * 60
+
     /// Resolved lazily so the Firestore singleton is never touched before
     /// `FirebaseApp.configure()` has run.
     private lazy var database = Firestore.firestore()
@@ -101,6 +119,10 @@ final class GameService: ObservableObject {
     private var completedListener: ListenerRegistration?
     private var observedUID: String?
     private var cancellables = Set<AnyCancellable>()
+
+    /// When the cutoff the live listeners were built with was computed. `nil`
+    /// while nothing is attached. Read only by `refreshWindowIfStale()`.
+    private var windowAttachedAt: Date?
 
     /// Brings both listeners back after one of them dies. See
     /// `ListenerSupervisor` for why an error on a listener is always terminal.
@@ -132,6 +154,10 @@ final class GameService: ObservableObject {
         // would be a cycle.
         supervisor.onRetry = { [weak self] in
             self?.attachListeners()
+        }
+
+        supervisor.onForeground = { [weak self] in
+            self?.refreshWindowIfStale()
         }
     }
 
@@ -179,7 +205,15 @@ final class GameService: ObservableObject {
         // listener re-attached hours later doesn't query yesterday's window.
         // `Game.isVisible(at:)` re-applies the same cutoff on every rebuild,
         // which is what actually retires a run mid-session.
-        let cutoff = Timestamp(date: Game.visibilityCutoff())
+        //
+        // Stamped so `refreshWindowIfStale()` can tell how far this window has
+        // drifted. Recording it here rather than at each call site is also what
+        // makes the recovery and staleness paths safe to run back to back on one
+        // foreground: whichever re-attaches first resets the clock, and the
+        // other then sees no drift.
+        let attachedAt = Date()
+        let cutoff = Timestamp(date: Game.visibilityCutoff(from: attachedAt))
+        windowAttachedAt = attachedAt
 
         queuedListener = database
             .collection(Collection.games)
@@ -244,9 +278,37 @@ final class GameService: ObservableObject {
             }
     }
 
+    /// Re-attaches the listeners when their query window has aged out, so a
+    /// long-lived session stops paying for runs it will never render.
+    ///
+    /// Only worth doing on a return to the foreground: the drift that matters
+    /// accumulates while the app is away, and re-attaching on a timer would
+    /// re-run both queries in the background for a list nobody is looking at.
+    private func refreshWindowIfStale(now: Date = Date()) {
+        guard observedUID != nil,
+              Self.shouldRefreshWindow(attachedAt: windowAttachedAt, now: now)
+        else { return }
+
+        logger.notice("Game query window went stale; re-attaching listeners")
+        attachListeners()
+    }
+
+    /// Whether a window stamped at `attachedAt` has drifted far enough to be
+    /// worth re-attaching for.
+    ///
+    /// `nonisolated static` and pure, like every other rule in this layer: the
+    /// re-attach itself needs a live Firestore, so this is the only part of the
+    /// behaviour a test can reach. A `nil` stamp means nothing is attached,
+    /// which is never stale.
+    nonisolated static func shouldRefreshWindow(attachedAt: Date?, now: Date) -> Bool {
+        guard let attachedAt else { return false }
+        return now.timeIntervalSince(attachedAt) >= windowRefreshInterval
+    }
+
     private func stopObserving() {
         supervisor.cancel()
         isRecovering = false
+        windowAttachedAt = nil
         queuedListener?.remove()
         queuedListener = nil
         publicListener?.remove()

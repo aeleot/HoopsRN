@@ -249,11 +249,13 @@ final class FindAMatchViewModelTests: XCTestCase {
     /// question — a run that finished hours ago is not an answer to it.
     func testARunThatHasAgedOutIsExcludedEvenThoughItIsStillToday() {
         let ranked = [nearby("court-a", meters: 100)]
-        // Four hours before `now`, past `Game.visibilityGrace` of three.
+        // Expressed against the constant rather than a literal: this used to
+        // hardcode four hours to clear a three-hour grace, which silently became
+        // a boundary case the moment the grace was widened to four.
         let stale = game(
             id: "stale",
             courtId: "court-a",
-            scheduledTime: today.addingTimeInterval(-4 * 3600)
+            scheduledTime: today.addingTimeInterval(-Game.visibilityGrace - 3600)
         )
 
         let active = FindAMatchViewModel.rankActive(

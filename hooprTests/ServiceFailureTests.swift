@@ -127,6 +127,66 @@ final class ServiceFailureTests: XCTestCase {
         var value = 0
     }
 
+    // MARK: - Stale query windows
+
+    /// The hook exists because `retryNow()` deliberately does nothing when
+    /// nothing is broken — which is the whole problem for a windowed query. A
+    /// healthy listener never fails, so it never re-attaches, so its cutoff
+    /// never moves. `onForeground` is the only signal that reaches an owner
+    /// whose listeners are fine but stale.
+    @MainActor
+    func testForegroundHookFiresWhileHealthy() {
+        let supervisor = ListenerSupervisor(subject: "test")
+        let foregrounds = Counter()
+        supervisor.onForeground = { foregrounds.value += 1 }
+
+        XCTAssertFalse(supervisor.isRecovering)
+        supervisor.onForeground?()
+
+        XCTAssertEqual(foregrounds.value, 1)
+    }
+
+    func testWindowIsNotStaleBeforeTheInterval() {
+        let attachedAt = Date()
+        let now = attachedAt.addingTimeInterval(GameService.windowRefreshInterval - 60)
+
+        XCTAssertFalse(
+            GameService.shouldRefreshWindow(attachedAt: attachedAt, now: now),
+            "Re-attaching this often would cost more reads than the stale rows do"
+        )
+    }
+
+    func testWindowIsStaleAfterTheInterval() {
+        let attachedAt = Date()
+        let now = attachedAt.addingTimeInterval(GameService.windowRefreshInterval + 60)
+
+        XCTAssertTrue(GameService.shouldRefreshWindow(attachedAt: attachedAt, now: now))
+    }
+
+    /// The case the whole mechanism is for: a session left open overnight is
+    /// still querying last night's cutoff, spending its `limit(to:)` budget on
+    /// runs `Game.isVisible(at:)` will hide.
+    func testWindowLeftOpenOvernightIsStale() {
+        let attachedAt = Date()
+        let now = attachedAt.addingTimeInterval(9 * 60 * 60)
+
+        XCTAssertTrue(GameService.shouldRefreshWindow(attachedAt: attachedAt, now: now))
+    }
+
+    func testNothingAttachedIsNeverStale() {
+        // Signed out. There is no window to refresh, and re-attaching would
+        // have no uid to query for.
+        XCTAssertFalse(GameService.shouldRefreshWindow(attachedAt: nil, now: Date()))
+    }
+
+    /// A refresh shorter than the grace it protects would let the window drift
+    /// past its own width before anything noticed; one much longer than a
+    /// session would never fire. The interval only makes sense between them.
+    func testRefreshIntervalIsProportionateToTheGrace() {
+        XCTAssertLessThan(GameService.windowRefreshInterval, Game.visibilityGrace)
+        XCTAssertGreaterThan(GameService.windowRefreshInterval, 60)
+    }
+
     // MARK: - Read vs write messaging
 
     /// The whole point of `FailureContext`. Firestore returns one
