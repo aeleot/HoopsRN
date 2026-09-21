@@ -1,7 +1,7 @@
 # hoopsRN — Runs and invites gaps
 
 **Scope:** —
-**Verified:** 2026-09-18 @ de875eb
+**Verified:** 2026-09-21 @ 29486ac
 
 What's unfinished about `games` — the run lifecycle, the invite link that can
 be sent but not opened, and the waitlist that doesn't move.
@@ -63,8 +63,8 @@ anyone hand-editing `users/{uid}`.
 
 `in_progress` remains declared and never written. Nothing distinguishes it from
 `open` on any screen, so there's no control to hang on it — and a run that is
-never completed still ages out `Game.visibilityGrace` (3h) after tip-off, which
-is what retires the ones nobody marks.
+never completed still ages out `Game.visibilityGrace` (4h, raised from three on
+2026-09-20) after tip-off, which is what retires the ones nobody marks.
 
 **What completion still doesn't do, and won't without a Cloud Function:**
 happen by itself. A run whose host never taps the control is never completed —
@@ -103,10 +103,11 @@ first thing to revisit if anyone hits it in practice.
 - **No occupancy or check-in.** Games exist — scheduling, joining, leaving,
   cancelling — but "is anyone at this court *now*" is unanswerable. See
   `../plans/LIVE_HEADCOUNT.md`.
-- **Game cards show court, time, roster, distance and capacity only.** Player
-  names, avatars, and any per-run detail screen are unbuilt. Names would need a
-  read across `users` and a privacy decision, not just a UI — see
-  [`PROFILES.md`](PROFILES.md).
+- **Game cards show court, time, roster, distance, capacity and how many of your
+  friends are on the run — never who.** The "N friends here" line is a count
+  (shipped 2026-09-18); player names, avatars, and any per-run detail screen are
+  unbuilt. Names would need a read across `users` and a privacy decision, not
+  just a UI — see [`PROFILES.md`](PROFILES.md).
 - **No cap on runs per host**, which is the `games` instance of the pattern in
   [`RATE_LIMITING.md`](RATE_LIMITING.md): a flood of public runs can crowd real
   ones out of the client's 100-document query window for a whole city.

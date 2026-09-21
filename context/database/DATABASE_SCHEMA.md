@@ -733,9 +733,9 @@ a client cannot move backwards:
 Both cap **burst** rate, not sustained abuse, and neither survives a fresh
 account — sign-up has no verification step. A rules-only floor is what's
 achievable without new infrastructure; App Check or a Cloud Function would be
-needed for anything stronger. `firestore-tests/match-tickets.test.mjs`
-boundary-tests both at 4s (refused) and 6s (allowed), the same way the old
-90-second stale-claim window used to be tested.
+needed for anything stronger. `firestore-tests/match-tickets.test.mjs` tests
+both with a brand-new document (0s, refused) and a six-second-old one
+(allowed) — which pins the floor to somewhere in (0, 6], not to five.
 
 #### Why it is one commit, and what the two-step version got wrong
 

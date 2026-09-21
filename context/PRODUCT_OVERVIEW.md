@@ -206,7 +206,7 @@ carries real coverage — there is no scaffold.
 | Suite | Tests | What it protects |
 |---|---|---|
 | **App logic** (`hooprTests`) | 463 across 28 suites | Every stored shape and every rule the app applies before it writes: capacity and scheduling bounds, roster membership, matchmaking's ranking and its claim policy, the matchmaking card's state, result derivation, WCAG contrast, court naming and badges, error classification, reconnection. |
-| **Security rules** (`firestore-tests`) | 141 | What the server actually *permits*, evaluated against the Firestore emulator rather than read. Covers **every collection** as of September 2026, including the matchmaking race run 15 rounds in both shapes, the atomic match commit, and the rate-limit floors at their exact boundaries. |
+| **Security rules** (`firestore-tests`) | 141 | What the server actually *permits*, evaluated against the Firestore emulator rather than read. Covers **every collection** as of September 2026, including the matchmaking race run 15 rounds in both shapes, the atomic match commit, and the rate-limit floors (a brand-new document refused, a six-second-old one allowed). |
 
 Two things are worth calling out. **A rules dry-run is not a test** — it
 compiles the file and proves nothing about whether a write is allowed, which is

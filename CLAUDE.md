@@ -40,7 +40,7 @@ Reinstalling the app does **not** fix it: the data container survives a reinstal
 
 ## Architecture overview
 
-hoopsRN is a **SwiftUI iOS app** (deployment target iOS 26.5) that finds pickup basketball games via Firebase (Auth + Firestore). The app is well-documented — see the context dictionary below for detailed architecture, data model, UI structure, etc.
+hoopsRN is a **SwiftUI iOS app** (iPhone-only, deployment target iOS 18.0 — iOS 26 APIs such as Liquid Glass and `MKAddress` are availability-gated, and nothing below iOS 26 has been run on a device) that finds pickup basketball games via Firebase (Auth + Firestore). The app is well-documented — see the context dictionary below for detailed architecture, data model, UI structure, etc.
 
 ### Service layer owns Firebase
 
@@ -121,10 +121,10 @@ Organized by feature (e.g., `Views/Friends/`, `Views/Map/`). Navigate with `Navi
 `Theme.swift` (colours), `Typography.swift` (fonts, sizes). Both use `hoopr`-prefixed identifiers (historical prefix, survives the 2026-08-15 product rename to hoopsRN).
 
 ### Firebase errors are service concerns
-A `ListenerSupervisor` in each service retries transient errors (network, quota). Persistent errors (`permission-denied`, `not-found`) surface as a domain enum and stop the listener. View models publish clean error messages, never raw Firebase text.
+A `ListenerSupervisor` in each service re-attaches a dead listener after **any** error — an error reaching a snapshot callback means the SDK has already given up, so none is worth telling apart — with delays escalating 2s → 5m and then holding, and immediately on return to the foreground. Errors surface as a domain enum through the service's `errorMessage`; view models publish clean error messages, never raw Firebase text.
 
 ### Location and distance
-Every distance in the app measures from `homeLocation`, not device location. The `CLLocationManagerDelegate` remains active only so MapKit's blue dot can draw. Removed the `userLocation` property in 2026-08-22 — nothing ever read it.
+Every distance in the app measures from `LocationService.homeLocation`. Since 2026-08-27 that **follows the device** — the first fix, then any fix at least 100m from the last — and falls back to downtown Durham when there is no fix. It is the only anchor, which is what stops two screens disagreeing about how far a court is.
 
 ### Firestore rules and indexes must be deployed
 Until `firestore.rules` is deployed, writes fail with `permission-denied` — the app surfaces "Not allowed to save yet". Run `firebase deploy --only firestore:rules,firestore:indexes --dry-run` to compile without deploying.

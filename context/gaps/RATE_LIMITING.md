@@ -1,7 +1,7 @@
 # hoopsRN — Rate limiting and abuse gaps
 
 **Scope:** —
-**Verified:** 2026-09-16 @ 8209408
+**Verified:** 2026-09-21 @ 29486ac
 
 What bounds how fast a client can write, what doesn't, and why most of it
 can't be fixed without infrastructure the project has deliberately avoided.
@@ -62,8 +62,12 @@ forward, never back:
 on *count* needs a stored counter, and a counter a client can decrement is a
 counter that defeats itself. A cooldown needs only a timestamp the rules
 already pin, so there is nothing to tamper with. `firestore.rules` carries the
-full reasoning at each site; `firestore-tests/` boundary-tests all three at 4s
-refused / 6s allowed.
+full reasoning at each site; `firestore-tests/` tests all three with a document
+that is **brand new (0s) → refused** and one that is **6s old → allowed**.
+
+That pins the floor to somewhere in (0, 6] seconds, not to five: a floor
+quietly loosened to 2s would still pass. (This page used to say the tests sat at
+4s / 6s — "at their exact boundaries" — which none of the three do.)
 
 ---
 

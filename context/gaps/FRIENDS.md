@@ -1,7 +1,7 @@
 # hoopsRN — Friends gaps
 
 **Scope:** —
-**Verified:** 2026-09-20 @ e6968e0
+**Verified:** 2026-09-21 @ 29486ac
 
 What's unfinished about `friendships` — discovery, requests, and the safety
 tooling that was deferred on purpose. Phases refer to `../plans/FRIENDS.md` §8.
@@ -75,9 +75,6 @@ and no emulator test can get to it.
 
 ## Still to build
 
-- **Friend profile detail.** `../plans/FRIENDS.md` §6 says tapping a friend
-  shows name + home court. Not built, and it needs the visibility question in
-  [`PROFILES.md`](PROFILES.md) settled first.
 - **Friends' *private* runs**, which needs a real authorization design and
   overlaps with invite-only games — settle it with the invite decision in
   [`GAMES.md`](GAMES.md) rather than separately.

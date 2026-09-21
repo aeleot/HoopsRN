@@ -1,7 +1,7 @@
 # hoopsRN — Profile and account gaps
 
 **Scope:** —
-**Verified:** 2026-09-16 @ 8209408
+**Verified:** 2026-09-21 @ 29486ac
 
 What's unfinished about `users/{uid}` and the account behind it — the search
 key, what a profile leaks, and what sign-in still can't do.

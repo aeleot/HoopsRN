@@ -1,7 +1,7 @@
 # hoopsRN — Seasons gaps
 
 **Scope:** —
-**Verified:** 2026-09-17 @ 2c75b14
+**Verified:** 2026-09-21 @ 29486ac
 
 What's unfinished, unverified, or deliberately capped in the Seasons feature —
 squads, matchmaking, game day, and mutually-confirmed records. Read this before
@@ -46,11 +46,17 @@ a live consequence somebody will actually hit.
   code can close it.
 
 - **Rules and indexes must be deployed before any of this works against the real
-  project.** Phase 6 added a reporting path to `firestore.rules` and a second
-  `seasonGames` composite index; a dry-run compiled them, which proves nothing
-  about the deployed ruleset. Until `firebase deploy --only
-  firestore:rules,firestore:indexes` runs, a report write fails
-  `permission-denied` and an opponent's record read fails `failed-precondition`.
+  project — and `ROADMAP.md` records that they were, on 2026-09-16, including
+  the atomic commit and the three burst-rate floors.** Phase 6 added a reporting
+  path to `firestore.rules` and a second `seasonGames` composite index; a
+  dry-run compiled them, which proves nothing about the deployed ruleset. What's
+  left is the standing rule: any *later* rules or index change fails the same
+  way until it is redeployed — a report write `permission-denied`, an
+  opponent's record read `failed-precondition`.
+
+  **Not checkable from the repo:** the rules' last commit is 2026-09-17
+  (`2c75b14`), a day *after* the recorded deploy. Confirm the live ruleset
+  matches it before trusting either date.
 
 ---
 
