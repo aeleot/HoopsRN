@@ -1,7 +1,7 @@
 # hoopsRN — Gaps
 
 **Scope:** —
-**Verified:** 2026-09-18 @ de875eb
+**Verified:** 2026-09-20 @ 349d309
 
 **Read this before trusting a code comment**, and before assuming a feature
 exists because a field or a tab does.

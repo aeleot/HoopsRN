@@ -1,7 +1,7 @@
 # hoopsRN — Assets and data gaps
 
 **Scope:** —
-**Verified:** 2026-09-16 @ 8209408
+**Verified:** 2026-09-20 @ 349d309
 
 The missing accent colour, the unmet licence obligation, and two scripts that
 can't be re-run cleanly.

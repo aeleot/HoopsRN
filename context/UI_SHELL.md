@@ -13,7 +13,7 @@
 `hoopr/Support/Theme.swift`,
 `hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`,
 `hoopr/Support/Glass.swift`
-**Verified:** 2026-09-18 @ de875eb
+**Verified:** 2026-09-20 @ 349d309
 
 Navigation structure and the visual conventions every screen follows. Read this
 before adding a screen, changing how one is presented, or picking a colour or a

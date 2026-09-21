@@ -1,10 +1,12 @@
 # hoopsRN — Configuration gaps
 
 **Scope:** —
-**Verified:** 2026-09-16 @ 8209408
+**Verified:** 2026-09-20 @ 349d309
 
-The half-finished rename, the deployment target nobody chose, and the platforms
-the UI doesn't actually support.
+The half-finished rename, and the iOS 18 fallback path nothing has run below
+iOS 26. The deployment target and the over-declared platforms were fixed on
+2026-09-20 and are struck below rather than deleted, because both sections
+recorded a claim that turned out to be false.
 
 `Scope: —` because this is a narrative over the Xcode project and bundle
 identity, which `BUILD_AND_CONFIG.md` owns. It can't be diffed, so it's re-read
