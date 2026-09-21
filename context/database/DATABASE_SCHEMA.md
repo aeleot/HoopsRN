@@ -1,7 +1,7 @@
 # hoopsRN — Database Schema
 
 **Scope:** `firestore.rules`, `firestore.indexes.json`, `firebase.json`, `.firebaserc`, `firestore-tests/`
-**Verified:** 2026-09-17 @ 2c75b14
+**Verified:** 2026-09-20 @ e6968e0
 
 What's stored server-side and what a client may write. Seven collections are
 live:
@@ -233,9 +233,15 @@ range and the `userName` cap. **Change a bound on one side and a test fails
 naming both sides.** It is not a rules evaluator; it only proves the shared
 constants still agree.
 
-`in_progress` and `completed` are declared by the schema but **nothing writes
-them yet**: the update rule only ever admits `open`/`full`. A run simply ages
-out of both lists once it's past its visibility grace window (3h after tip-off).
+`completed` **is** written, by the host, through the separate completion update
+path below — that shipped 2026-09-18. `in_progress` remains declared and never
+written by anything.
+
+A run that nobody completes still ages out of both lists once it's past its
+visibility grace window (**4h** after tip-off, raised from three on 2026-09-20).
+That window is client-side only — no rule mentions it — so the run stays in the
+collection, merely unlisted. Retiring it server-side needs a scheduled Function;
+see `../ROADMAP.md` §0.
 
 ### The membership diff
 

@@ -24,7 +24,7 @@ something ships.
 | [`gaps/FRIENDS.md`](gaps/FRIENDS.md) | Discovery and requests. No blocking, reporting or rate limiting; verified by hand once and never since. |
 | [`gaps/PROFILES.md`](gaps/PROFILES.md) | `users/{uid}`: the search-key backfill that completes one account at a time, what a world-readable profile leaks, what sign-in still can't do. |
 | [`gaps/RATE_LIMITING.md`](gaps/RATE_LIMITING.md) | What bounds how fast a client can write, what doesn't, and why most of it needs infrastructure the project doesn't have. |
-| [`gaps/TESTING.md`](gaps/TESTING.md) | What the two suites cover, what they don't (`games`, `friendships`, `users` have no rules coverage), and the recovery path never exercised for real. |
+| [`gaps/TESTING.md`](gaps/TESTING.md) | What the two suites cover — all seven collections have rules coverage as of 2026-09-20 — what they still don't, and the recovery path never exercised for real. |
 | [`gaps/ACCESSIBILITY.md`](gaps/ACCESSIBILITY.md) | The one tracked WCAG failure — brand orange as a foreground in light mode — pinned by a test that fails when it's fixed. |
 | [`gaps/ASSETS_AND_DATA.md`](gaps/ASSETS_AND_DATA.md) | Placeholder app icon, the unmet ODbL licence obligation, two scripts that can't be re-run cleanly. |
 | [`gaps/CONFIGURATION.md`](gaps/CONFIGURATION.md) | The half-finished hoopr→hoopsRN rename. The deployment target and the over-declared platforms were fixed 2026-09-20; what's left there is the iOS 18 fallback path nothing has run below iOS 26. |

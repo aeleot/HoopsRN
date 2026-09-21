@@ -73,7 +73,7 @@ down.
 
 Capacity is enforced on the server, not just in the app: two people taking the
 last seat at the same moment cannot both succeed. A run retires from every list
-three hours after tip-off.
+four hours after tip-off.
 
 ### Find people
 
@@ -205,8 +205,8 @@ carries real coverage — there is no scaffold.
 
 | Suite | Tests | What it protects |
 |---|---|---|
-| **App logic** (`hooprTests`) | 438 across 28 suites | Every stored shape and every rule the app applies before it writes: capacity and scheduling bounds, roster membership, matchmaking's ranking and its claim policy, the matchmaking card's state, result derivation, WCAG contrast, court naming and badges, error classification, reconnection. |
-| **Security rules** (`firestore-tests`) | 102 | What the server actually *permits*, evaluated against the Firestore emulator rather than read. Includes the matchmaking race run 15 rounds in both shapes, the atomic match commit, and the rate-limit floors at their exact boundaries. |
+| **App logic** (`hooprTests`) | 463 across 28 suites | Every stored shape and every rule the app applies before it writes: capacity and scheduling bounds, roster membership, matchmaking's ranking and its claim policy, the matchmaking card's state, result derivation, WCAG contrast, court naming and badges, error classification, reconnection. |
+| **Security rules** (`firestore-tests`) | 141 | What the server actually *permits*, evaluated against the Firestore emulator rather than read. Covers **every collection** as of September 2026, including the matchmaking race run 15 rounds in both shapes, the atomic match commit, and the rate-limit floors at their exact boundaries. |
 
 Two things are worth calling out. **A rules dry-run is not a test** — it
 compiles the file and proves nothing about whether a write is allowed, which is
@@ -215,12 +215,16 @@ app and in the server's rules; a parity suite parses the rules file and fails if
 either copy moves alone, a mismatch that would otherwise surface as saves
 failing in production.
 
-**Not covered:** the emulator suite covers season play only — it was built
-during the phase that needed it. The rules for profiles, runs and friendships
-have no automated test of what they permit; the friendship rules were validated
-by hand once, in August 2026, which proves they were correct that day and
-nothing about the next edit. Backfilling those three is the cheapest remaining
-assurance work in the project, and is tracked in `gaps/TESTING.md`.
+The rules suite covered season play only until September 2026 — it was built
+during the phase that needed it. Profiles, runs and friendships were backfilled
+then, and the additions were checked by deliberately weakening three rules to
+confirm the right tests failed: a test that has never failed is not yet evidence
+of anything.
+
+**Not covered:** anything needing two real people on two devices at once — a
+friend seeing your request arrive live, or both halves of a simultaneous friend
+request. The server's side of those is tested; the app's handling of them is
+verified by hand, and is tracked in `gaps/TESTING.md`.
 
 ---
 

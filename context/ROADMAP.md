@@ -1,7 +1,7 @@
 # hoopsRN — Roadmap
 
 **Scope:** —
-**Verified:** 2026-09-20 @ b7a94ae
+**Verified:** 2026-09-20 @ e6968e0
 
 What to do next, roughly in order of value per unit of effort. Each item names
 the files it touches so it can be picked up cold.

@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr/Models/`, `hoopr/Support/Distance.swift`,
 `hoopr/Support/InviteLink.swift`
-**Verified:** 2026-09-18 @ de875eb
+**Verified:** 2026-09-20 @ e6968e0
 
 `Support/CourtSearch.swift` moved to `MAP_LAYER.md`'s scope — it was listed in
 both entries, which `INDEX.md` says scopes must never do. It's a search

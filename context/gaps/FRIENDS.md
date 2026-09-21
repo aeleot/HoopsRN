@@ -1,7 +1,7 @@
 # hoopsRN — Friends gaps
 
 **Scope:** —
-**Verified:** 2026-09-20 @ b7a94ae
+**Verified:** 2026-09-20 @ e6968e0
 
 What's unfinished about `friendships` — discovery, requests, and the safety
 tooling that was deferred on purpose. Phases refer to `../plans/FRIENDS.md` §8.
@@ -52,18 +52,18 @@ account is refused the read; the requester cannot accept their own request;
 against a real client write; the three deletes work and a declined pair's
 deterministic ID is re-usable afterwards.
 
-**That was a one-time manual pass, not coverage.** `firestore-tests/` now
-exists and evaluates the real ruleset against the emulator — but it covers
-Seasons only. The `friendships` block still has no automated test, so any
-future edit to it, or to the `users` key allowlists, is unverified until
-someone repeats those checks by hand. Backfilling `friendships` coverage into
-the existing harness is cheap now that the harness is the expensive part; see
-[`TESTING.md`](TESTING.md).
+**That was a one-time manual pass, not coverage** — it proved the rules were
+correct that day and nothing about the next edit.
 
-**The `friendships` ruleset has emulator coverage** as of 2026-09-20 —
-`firestore-tests/friendships.test.mjs`, ten tests. That closes the *rules* half
-of the collision case below: the second create is refused, asserted rather than
-assumed.
+**Superseded on 2026-09-20.** `firestore-tests/friendships.test.mjs` now
+evaluates this block against the emulator on every run: ten tests covering the
+ordered pair and its derived ID, the participants-only read, accept-by-recipient
+only, the one-way transition, and the three deletes. Every one of the six manual
+checks above is now automated, so a future edit is caught rather than trusted.
+See [`TESTING.md`](TESTING.md).
+
+It also closes the *rules* half of the collision case below: the second create
+is refused, asserted rather than assumed.
 
 **The client half has still never run:** whether `sendRequest` catches that
 refusal and accepts instead of surfacing a `permission-denied`. Reaching it

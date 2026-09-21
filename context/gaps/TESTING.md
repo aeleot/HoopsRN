@@ -1,7 +1,7 @@
 # hoopsRN — Testing gaps
 
 **Scope:** —
-**Verified:** 2026-09-20 @ b7a94ae
+**Verified:** 2026-09-20 @ e6968e0
 
 What the two suites cover, what they deliberately don't, and the one recovery
 path that has never been exercised for real.
