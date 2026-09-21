@@ -1,7 +1,7 @@
 # hoopsRN — Roadmap
 
 **Scope:** —
-**Verified:** 2026-09-18 @ de875eb
+**Verified:** 2026-09-20 @ b7a94ae
 
 What to do next, roughly in order of value per unit of effort. Each item names
 the files it touches so it can be picked up cold.
@@ -16,6 +16,15 @@ something ships.
 > **Deployed as of 2026-09-16:** rules and all indexes are live, including the
 > Seasons atomic commit and the three burst-rate floors. Nothing below is
 > blocked on a deploy.
+
+**§1, §2 and §5 closed on 2026-09-20** and are kept below with what actually
+shipped, rather than deleted — each leaves a named remainder worth not
+rediscovering. Numbered items are struck in place so the numbering other
+documents cite stays stable.
+
+**What's actually next:** §0 gates the most, §4 (the invite link's receiving
+half) is the largest thing that needs no infrastructure decision, and §7's four
+items are each an afternoon.
 
 ---
 
@@ -45,39 +54,41 @@ cannot do without it.
 
 ---
 
-## 1. Decide how long a finished run stays listed
+## 1. ✅ Done — the grace period, and the window that never moved
 
-`Game.visibilityGrace` is **3 hours** after `scheduledTime`, applied in two
-places that must agree: the Firestore query's cutoff, and `Game.isVisible(at:)`
-re-applied on every rebuild. Raising it (6h was floated) is a one-constant
-change in `Models/Game.swift`.
+`Game.visibilityGrace` is **4 hours** after `scheduledTime` (raised from three
+on 2026-09-20), applied in two places that must agree: the Firestore query's
+cutoff, and `Game.isVisible(at:)` re-applied on every rebuild.
 
-**The real issue is subtler and worth fixing at the same time: the query's
-cutoff is fixed when the listener attaches.** A session left open overnight
-keeps querying against last night's cutoff. `isVisible(at:)` hides those rows
-client-side, so nothing wrong is displayed — but the query keeps paying for
-them, and the `limit(to:)` budget is spent on runs that will never render.
+The subtler half is fixed too. The query's cutoff was fixed when the listener
+attached, and `ListenerSupervisor` only ever re-attached a listener that
+*failed* — so a healthy session left open overnight went on querying last
+night's window, paying for rows `isVisible(at:)` would hide and spending the
+`limit(to:)` budget on runs that never render.
 
-`GameService.attachListeners()` recomputes the cutoff every time it runs, so a
-re-attach picks up a fresh window — but it only runs on sign-in and on
-recovery, so a healthy long-lived session still holds its original cutoff.
+The supervisor already observed `willEnterForeground` and dropped the signal
+when nothing was broken; it now exposes `onForeground` alongside `onRetry`, and
+`GameService` re-attaches once its own window has drifted past an hour. See
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-Options, cheapest first: recompute on foreground via `scenePhase` and
-re-attach; or drop the range clause and filter entirely client-side (removes a
-composite index, costs more reads); or move retirement server-side with a
-scheduled Function writing `status: "completed"` — which is the automatic
-completion §0 gates, now that the host-triggered half has shipped.
+What's still open is the *server-side* version — a scheduled Function writing
+`status: "completed"` so a run retires without anyone's app being open. That is
+the automatic completion §0 gates.
 
-## 2. Backfill rules coverage for `games`, `friendships` and `users`
+## 2. ✅ Done — rules coverage for `games`, `friendships` and `users`
 
-`firestore-tests/` exists and works — 102 tests against the emulator — but
-covers **Seasons only**, because that was the phase that needed it. The
-original three collections have no automated rules coverage; `friendships` was
-walked through by hand once in August, `games` never.
+`firestore-tests/` covered **Seasons only** until 2026-09-20. The three original
+collections are backfilled: 39 tests across `games.test.mjs`,
+`friendships.test.mjs` and `users.test.mjs`, taking the suite from 102 to 141.
+All seven collections now have emulator coverage.
 
-The harness was the expensive part and it's already built. This is the cheapest
-remaining assurance work in the project. See
-[`gaps/TESTING.md`](gaps/TESTING.md).
+Mutation-tested on the way in — three rules deliberately weakened, exactly the
+three corresponding tests failed — because `assertFails` passes for any failure,
+including a malformed test. See [`gaps/TESTING.md`](gaps/TESTING.md).
+
+One thing it deliberately does not reach: whether `FriendService.sendRequest`
+*recovers* from the simultaneous-request refusal the rules now provably issue.
+That's a client concern, and still unverified.
 
 ## 3. Waitlist promotion — needs a Cloud Function
 
@@ -95,12 +106,16 @@ an `InviteJoinView` — **plus one real decision**: split the `games` read rule
 into `get`/`list`, or add an `inviteToken`. An unguessable ID is not an
 authorization model. Full detail in [`gaps/GAMES.md`](gaps/GAMES.md).
 
-## 5. Friends' public runs (Phase 4)
+## 5. ✅ Done — friends' public runs (Phase 4)
 
-`LocalRunsViewModel` gains `friendService`, `GameCard` grows an "N friends
-here" badge. **No rules, index, or listener** — a client-side intersection of
-two lists the app already holds, and `MainTabView` already has `friendService`
-to pass in. The highest value-to-effort item on this page.
+Shipped 2026-09-18 in `4b072e5`, and this page was simply stale about it:
+`LocalRunsViewModel` takes `friendService`, `GameCard` renders the "N friends
+here" badge, and `LocalRunsViewModelTests` covers the join from both sides of
+the stored pair. No rules, index or listener, as predicted.
+
+Still outstanding is the live two-account check — one friend joins a public run,
+the other sees the badge appear without a refresh. That needs a second signed-in
+device.
 
 ## 6. Confirm the tip-off default across time zones
 

@@ -237,16 +237,15 @@ for a ruleset it never evaluated is worse than no rules suite at all.
 
 There are **two** suites, in two languages, and neither can do the other's job.
 
-- **`hooprTests` — 457 test methods across 28 suites**, from a green
-  `-only-testing:hooprTests` run on 2026-09-18. All of them carry real coverage;
+- **`hooprTests` — 463 test methods across 28 suites**, from a green
+  `-only-testing:hooprTests` run on 2026-09-20. All of them carry real coverage;
   there is no scaffold left in `hooprTests/`.
-- **`firestore-tests/` — 102 tests**, run by `npm run test:rules` against the
-  Firestore emulator. This is the only place `firestore.rules` is *evaluated*
-  rather than read; see "A dry-run is not a test" above. (Counted directly from
-  the suite on 2026-09-17, including the two burst-rate-floor tests added to
-  `match-tickets.test.mjs` and the three added to `results.test.mjs` — not
-  re-run here, since this environment has no JDK for the emulator; see
-  `firestore-tests/README.md`.)
+- **`firestore-tests/` — 141 tests across nine files**, from a green
+  `npm run test:rules` run on 2026-09-20 against the Firestore emulator. This is
+  the only place `firestore.rules` is *evaluated* rather than read; see "A
+  dry-run is not a test" above. **All seven collections are covered** as of that
+  date — `games`, `friendships` and `users` were backfilled into the harness,
+  which had been Seasons-only.
 
   **`claim-race.test.mjs` is the one that races rather than asserts.** It runs
   two commits against one ticket, and two squads committing against *each
@@ -279,7 +278,7 @@ resolves real colours. A third measurement style would be one too many.
 | `FindAMatchViewModelTests` | 18 | `gameCountsByCourt` — the per-court/per-day join behind the map's heat colours and pin counts — plus `rankActive`, the **Now** segment's ordering: soonest run first, distance/name tiebreaks, `isVisible(at:)` filtering, and that every `ActiveCourt` has at least one game. |
 | `UserProfileTests` | 17 | Decoding, the radius coercion ladder, name validation. |
 | `SquadViewModelTests` | 17 | `invitableUids`, the roster sort, and the region derivation. |
-| `ServiceFailureTests` | 17 | Backoff schedule, per-listener recovery, read/write messaging, `FirestoreFailure` classification. |
+| `ServiceFailureTests` | 23 | Backoff schedule, per-listener recovery, read/write messaging, `FirestoreFailure` classification — and the stale query window: that the foreground hook fires while healthy (which `retryNow()` deliberately does not), and when `GameService` judges its cutoff worth re-attaching for. |
 | `MapTabDetentTests` | 17 | The bottom sheet's detent transitions. |
 | `FriendsViewModelTests` | 16 | `looksLikeUserId`, search-stream `merged`, `relationship`. |
 | `HomeViewModelTests` | 15 | `rankHotCourts` — ordering, the `displayName` tie-break, zero/absent counts dropped, the limit, unknown court ids ignored. |
@@ -310,6 +309,9 @@ resolves real colours. A third measurement style would be one too many.
 | `season-games.test.mjs` | What authorizes naming another squad — **both** tickets' `getAfter()` proof, not just the home one — the court/window pinning, and the forged-leader refusal. |
 | `arrival.test.mjs` | Self-add only, no undo, no duplicates, refused once a match leaves `scheduled`. |
 | `results.test.mjs` | Mutual confirmation, evaluated with **two distinct authenticated leaders** — agreement confirms, disagreement disputes, a leader cannot write the other's report or manufacture an agreement alone, a disputed match is resolved by re-reporting, and the per-leader 5s re-touch floor doesn't catch two different leaders' first reports arriving moments apart. |
+| `games.test.mjs` | The membership diff `squads` and `friendships` were both derived from — self-moves only, in both directions, plus the duplicate-roster hole, the disjoint rosters, the locked-in host, and the capacity ceiling over an unbounded waitlist. Also the read split between a public and a private run, the create bounds, and the two update paths kept disjoint: completion is host-only, one-way, un-backdatable, and cannot travel with a roster change. |
+| `friendships.test.mjs` | The asymmetric authority: the requester spends theirs at create, and only the *other* participant may accept. The ordered pair and its derived document ID, the participants-only read, the three deletes that are one operation — and the **simultaneous-request collision**, where the second create falls through to the `update` allowlist and is refused. |
+| `users.test.mjs` | The key allowlist that makes a world-readable profile safe, asserted on **create** as well as update — the half `email` originally escaped through. Plus owner-only writes, write-once `id`/`createdAt`, the radius and name bounds, deletion refused outright, and the profile/stats paths kept disjoint so a stats sync cannot smuggle a rename. |
 
 `UserProfileTests`, `GameTests` and
 `FriendshipTests` run through `Firestore.Decoder` — the same decoder the

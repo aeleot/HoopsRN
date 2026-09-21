@@ -186,6 +186,18 @@ the rest; `GameService` owns all encoding.
   every rebuild is the fix — and keeping it a pure function on the model is what
   makes it testable without Firestore.
 
+  It fixes what is *displayed*, not what is *queried*: the listener keeps
+  fetching those rows until something re-attaches it, which is why
+  `GameService` re-attaches on foreground once its window has drifted far
+  enough. See `ARCHITECTURE.md`.
+- **`visibilityGrace` is four hours** (raised from three on 2026-09-20): long
+  enough that a run which started late or went long is still joinable, short
+  enough that a morning game isn't listed into the afternoon. It is applied in
+  two places that must agree — the query's cutoff via `visibilityCutoff(from:)`,
+  and `isVisible(at:)` on every rebuild. `SeasonGame.visibilityGrace` is a
+  separate three-hour constant sized for a 3v3, and deliberately not tied to
+  this one.
+
 - **`inviteLink` is derived from the ID and exists on every run**, public or
   not — whether it's worth showing is a visibility question the views answer.
   The format itself lives in `Support/InviteLink.swift` rather than on the

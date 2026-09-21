@@ -1,7 +1,7 @@
 # Plan — Friends
 
-**Status:** Phases 1–3 shipped (1–2 on 2026-08-13, 3 on 2026-08-15, branch
-`map-tab`); Phases 4–5 proposed
+**Status:** Phases 1–4 shipped (1–2 on 2026-08-13, 3 on 2026-08-15, branch
+`map-tab`; 4 on 2026-09-18 in `4b072e5`); Phase 5 deferred on purpose
 **Drafted:** 2026-08-13 @ 5a1f834
 **Touches:** `firestore.rules`, `hoopr/Models/`, `hoopr/Services/`,
 `hoopr/ViewModels/`, `hoopr/Views/Tabs/`, `hoopr/Views/Profile/`,
@@ -554,7 +554,26 @@ the profile screen. **Still outstanding** — verified single-account so far
 (search, profile sheet, inbox, row menu, self-exclusion); the two-account half
 needs a second signed-in device.
 
-### Phase 4 — Friends' public games
+### Phase 4 — Friends' public games ✅ shipped
+
+> Built as described, in `4b072e5`. No rules, index or listener, exactly as
+> §4 predicted. Two deltas worth carrying forward:
+>
+> - **The join is two pure statics, not one.** §4's sketch was a single
+>   `friendUids(in game:)` method. Shipped splits it: `friendUids(from:
+>   currentUserId:)` resolves each edge from *your* side, and `friendIds(on:
+>   friendUids:)` intersects that with the roster. The split exists because a
+>   `Friendship` stores both participants, so the obvious union of `uidA`/`uidB`
+>   includes you — and a run you are on would count you as one of your own
+>   friends. Being two pure functions over plain values is what made that
+>   checkable; `LocalRunsViewModelTests` pins both.
+> - **The badge is its own line on `GameCard`, not a fourth `detail`.** That row
+>   is a plain `HStack` with no `ViewThatFits` ladder, so a fourth entry
+>   overflows at accessibility text sizes. It is also not the header badge:
+>   that slot holds at most one badge about *your own* relationship to the run,
+>   so folding them into one priority chain would mean a run you host could
+>   never show it. Drawn in `hooprPrimaryText` rather than `hooprOrange`, which
+>   fails AA as a foreground in light mode — see `gaps/ACCESSIBILITY.md`.
 
 `LocalRunsViewModel` gains `friendService`; `GameCard`'s Public Games rows in
 `LocalRunsTab` show a "friends here" badge per §4. No rules, index, or new
@@ -564,7 +583,8 @@ search or the ability to send requests, only an existing friends list.
 
 Ship-check: two accounts already friended (from Phase 1/2 testing), one
 joins a public run, the other sees the badge appear on that run in Local
-Runs without a refresh.
+Runs without a refresh. **Still outstanding** — the join is unit-tested from
+both sides, but the live two-account check needs a second signed-in device.
 
 ### Phase 5 — Later, not now
 
@@ -590,11 +610,15 @@ Follow `hooprTests/UserProfileTests.swift` and `GameTests.swift` — decode
 mirror the way `FirestoreRulesParityTests` does for `Game.status` (there's
 one shared constant worth pinning here too: none, actually — this schema has
 no numeric bound mirrored in both places the way roster size or radius is,
-so no new parity test is needed unless one gets added later). Manual
-two-account verification is the only way to see the other side of a
-friendship, same as `games`' roster testing today; there's still no
-emulator setup in the repo, so rules logic itself stays manually verified,
-consistent with the existing gap noted in `GAPS.md`.
+so no new parity test is needed unless one gets added later).
+
+> **Superseded on the rules half.** This paragraph originally said rules logic
+> "stays manually verified" because there was no emulator setup in the repo.
+> There is now: `firestore-tests/` arrived with Seasons, and
+> `friendships.test.mjs` backfilled this collection on 2026-09-20 — ten tests,
+> including the §2 collision. Manual two-account verification is still the only
+> way to watch the *other side* update live, which is a client concern the
+> emulator cannot reach.
 
 ## Documentation debt
 

@@ -37,6 +37,12 @@ claim race is run. `hooprTests/FirestoreRulesParityTests` is the third leg: it
 parses the rules as *text* and fails when a bound mirrored into Swift drifts from
 its copy here.
 
+**All seven collections have emulator coverage** as of 2026-09-20 — 141 tests.
+The suite was Seasons-only until then; `games.test.mjs`, `friendships.test.mjs`
+and `users.test.mjs` backfilled the three original collections, and were
+mutation-tested on the way in (three rules deliberately weakened, exactly three
+tests failed). See `../gaps/TESTING.md`.
+
 For how this is wired into the app at runtime, see `USER_PROFILE_WORKFLOW.md`.
 
 ---

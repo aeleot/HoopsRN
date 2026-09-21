@@ -191,6 +191,64 @@ export function commitMatch(db, game, overrides = {}) {
   return batch.commit();
 }
 
+/**
+ * A scheduled run, shaped exactly as `GameService.createGame` writes one.
+ *
+ * `status` is derived from the roster rather than defaulted, because the rules
+ * derive it too — a fixture that stored `open` next to a full roster would be
+ * refused by `statusMatchesRoster()` on the first update a test attempted, and
+ * the failure would look like the update's fault.
+ *
+ * Backdated timestamps, like `squadDocument`: this is a run that already
+ * exists. A test creating one *through* the rules passes `serverTimestamp()`
+ * instead, since create pins both to `request.time`.
+ */
+export function gameDocument(overrides = {}) {
+  const id = overrides.id ?? 'game-1';
+  const hostId = overrides.hostId ?? 'host';
+  const playerIds = overrides.playerIds ?? [hostId];
+  const maxPlayers = overrides.maxPlayers ?? 10;
+
+  return {
+    id,
+    hostId,
+    courtId: 'court-1',
+    scheduledTime: secondsFromNow(60 * 60),
+    isPublic: true,
+    maxPlayers,
+    status: playerIds.length >= maxPlayers ? 'full' : 'open',
+    playerIds,
+    queuedPlayerIds: [],
+    createdAt: secondsFromNow(-60),
+    updatedAt: secondsFromNow(-60),
+    ...overrides,
+  };
+}
+
+/**
+ * A profile, with every key the create allowlist admits and nothing else.
+ *
+ * The "nothing else" is the point: `email` was once written here, read by
+ * nothing, and visible to every signed-in account, because `users` is world-
+ * readable and Firestore has no field-level read ACLs. A fixture carrying a
+ * stray key would quietly stop testing that allowlist.
+ */
+export function profileDocument(overrides = {}) {
+  const id = overrides.id ?? 'owner';
+
+  return {
+    id,
+    userName: 'Elliot',
+    userNameLower: 'elliot',
+    homeCourtId: 'court-1',
+    preferredRadius: 10,
+    favoriteCourtIds: [],
+    createdAt: secondsFromNow(-60),
+    updatedAt: secondsFromNow(-60),
+    ...overrides,
+  };
+}
+
 export function friendshipDocument(uidA, uidB, status = 'accepted') {
   const [first, second] = orderedPair(uidA, uidB);
   return {

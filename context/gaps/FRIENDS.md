@@ -1,7 +1,7 @@
 # hoopsRN — Friends gaps
 
 **Scope:** —
-**Verified:** 2026-09-16 @ 8209408
+**Verified:** 2026-09-20 @ b7a94ae
 
 What's unfinished about `friendships` — discovery, requests, and the safety
 tooling that was deferred on purpose. Phases refer to `../plans/FRIENDS.md` §8.
@@ -10,9 +10,10 @@ tooling that was deferred on purpose. Phases refer to `../plans/FRIENDS.md` §8.
 and `UI_SHELL.md` own. It can't be diffed, so it's re-read by hand every pass.
 
 **Shipped:** the `friendships` collection and its rules (Phase 1), the Friends
-tab's respond-and-view half (Phase 2), and discovery — search by name prefix or
-exact ID, `PlayerProfileSheet`, `InboxSheet` with its badge (Phase 3). All
-deployed and running.
+tab's respond-and-view half (Phase 2), discovery — search by name prefix or
+exact ID, `PlayerProfileSheet`, `InboxSheet` with its badge (Phase 3) — and the
+friends'-public-runs badge (Phase 4, in `4b072e5`). All deployed and running.
+Phase 5 is the only one left, and it was deferred on purpose.
 
 ---
 
@@ -59,20 +60,21 @@ someone repeats those checks by hand. Backfilling `friendships` coverage into
 the existing harness is cheap now that the harness is the expensive part; see
 [`TESTING.md`](TESTING.md).
 
-**One case has never run at all, by hand or otherwise:** `sendRequest`'s
-simultaneous-request collision. Reaching it needs two accounts sending to each
-other before either sees the other's request. It is reachable from the UI since
-Phase 3 and still hasn't been done.
+**The `friendships` ruleset has emulator coverage** as of 2026-09-20 —
+`firestore-tests/friendships.test.mjs`, ten tests. That closes the *rules* half
+of the collision case below: the second create is refused, asserted rather than
+assumed.
+
+**The client half has still never run:** whether `sendRequest` catches that
+refusal and accepts instead of surfacing a `permission-denied`. Reaching it
+needs two accounts sending to each other before either sees the other's
+request. It is reachable from the UI since Phase 3 and still hasn't been done,
+and no emulator test can get to it.
 
 ---
 
 ## Still to build
 
-- **Phase 4 — friends' public runs.** `LocalRunsViewModel` gains
-  `friendService`, `GameCard` grows an "N friends here" badge. No rules, index,
-  or listener — a client-side intersection of two lists the app already holds,
-  and `MainTabView` already has `friendService` to pass in. The cheapest
-  remaining item in the feature.
 - **Friend profile detail.** `../plans/FRIENDS.md` §6 says tapping a friend
   shows name + home court. Not built, and it needs the visibility question in
   [`PROFILES.md`](PROFILES.md) settled first.

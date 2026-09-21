@@ -97,7 +97,7 @@ exist; the dictionary describes code that does.
 | Plan | Status |
 |---|---|
 | [`plans/SEASONS.md`](plans/SEASONS.md) | **Shipped.** All eight phases built and folded into the entries; §6 records where each went. Kept for §0 (why there is no server-side matchmaker), §7 (what's deliberately out of reach) and §8 (live risks). |
-| [`plans/FRIENDS.md`](plans/FRIENDS.md) | **Partly shipped.** Phases 1–3 (backend, UI, discovery) are built. Phase 4 (friends'-public-runs badge) and Phase 5 (safety tooling) are still proposals. |
+| [`plans/FRIENDS.md`](plans/FRIENDS.md) | **Partly shipped.** Phases 1–4 (backend, UI, discovery, the friends'-public-runs badge) are built. Only Phase 5 (safety tooling) is still a proposal, and it was deferred on purpose. |
 | [`plans/STATS_CARD.md`](plans/STATS_CARD.md) | **Partly shipped.** Phases 1–3 built; the card stays empty until something writes `status: "completed"` — see `gaps/GAMES.md`. |
 | [`plans/APP_SHELL_AND_HOME.md`](plans/APP_SHELL_AND_HOME.md) | **Shipped.** Bottom tab bar, Home tab, inline court search. Its §5 records the colour work a native tab bar forced — now tracked in `gaps/ACCESSIBILITY.md`. |
 | [`plans/LIVE_HEADCOUNT.md`](plans/LIVE_HEADCOUNT.md) | Proposed — live court occupancy via a `checkins` collection. |

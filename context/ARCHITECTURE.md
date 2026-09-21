@@ -292,6 +292,30 @@ flag, those successes would cancel the dead listener's re-attach and leave that
 list permanently empty. Recovery ends only when every listener that failed has
 reported back, and `errorMessage` survives until then for the same reason.
 
+### A healthy listener can still be stale
+
+`retryNow()` deliberately does nothing when nothing is broken, which is the
+right call for recovery and the wrong one for a **time-windowed** query.
+`GameService`'s two list listeners fix their `scheduledTime` cutoff when they
+attach and nothing moves it afterwards: a session left open overnight never
+fails, so it never re-attaches, so it goes on querying last night's window.
+`Game.isVisible(at:)` re-applies the cutoff on every rebuild, so nothing wrong is
+*displayed* — but the query still pays for those rows, and they still spend the
+`limit(to:)` budget that imminent runs should be getting.
+
+So the supervisor exposes a second hook, `onForeground`, which fires on every
+return whether or not anything is down. **What counts as stale is the owner's
+call**, not the supervisor's — `GameService` is the only service here with a
+time-windowed query, and it re-attaches once its window has drifted past
+`windowRefreshInterval` (an hour, against a four-hour `Game.visibilityGrace`).
+The two hooks are ordered — `onRetry` first — so a recovery re-attach resets the
+stamp before the staleness check reads it, and one foreground can never
+re-attach twice.
+
+Fixing this server-side instead would mean a scheduled Function writing
+`status: "completed"`, which is the infrastructure decision `ROADMAP.md` §0
+gates.
+
 ### `permission-denied` means two different things
 
 Firestore returns the same code for "the ruleset was never deployed" and "the

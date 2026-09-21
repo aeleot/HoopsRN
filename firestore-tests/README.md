@@ -42,6 +42,31 @@ Firestore's concurrency guarantees rather than on anybody's code.
 asserts exactly one wins. `context/plans/SEASONS.md` §2.2 is built entirely on
 that being true.
 
+## Coverage
+
+All seven collections, 141 tests. The suite was Seasons-only until 2026-09-20,
+when `games.test.mjs`, `friendships.test.mjs` and `users.test.mjs` backfilled
+the three original collections.
+
+## Writing a test here
+
+Two rules, both learned the hard way.
+
+**Seed past the rules, act through them.** `seed()` and `readRaw()` write and
+read with rules disabled, so a test can start from an accepted friendship or a
+claimed ticket without first performing the actions that produce them. A test
+that seeds *through* the rules is really testing the seed; one that acts with
+them disabled is testing nothing.
+
+**`assertFails` passes for any failure, including a malformed test.** A typo'd
+field name, a wrong document ID, a fixture that never got written — each of
+those produces a green `assertFails` that proves nothing about the rule it
+claims to cover. Two habits guard against it: assert the *positive* case
+alongside each refusal, so a broken fixture shows up as a failing
+`assertSucceeds`; and when adding a block of tests, weaken the rule on purpose
+once and confirm exactly the expected tests go red. The three suites added on
+2026-09-20 were checked that way.
+
 ## Test runner
 
 Node's built-in `node:test`, deliberately. This repository has no JavaScript
