@@ -3,8 +3,8 @@
 **Scope:** —
 **Verified:** 2026-09-16 @ 8209408
 
-The placeholder icon, the unmet licence obligation, and two scripts that can't
-be re-run cleanly.
+The missing accent colour, the unmet licence obligation, and two scripts that
+can't be re-run cleanly.
 
 `Scope: —` because this is a narrative over the asset catalogue and the court
 tooling, which `COURT_DATASET.md` and `BUILD_AND_CONFIG.md` own. It can't be
@@ -12,11 +12,21 @@ diffed, so it's re-read by hand every pass.
 
 ---
 
-## The app ships with a placeholder icon
+## ~~The app ships with a placeholder icon~~ — fixed 2026-09-20
 
-`AppIcon.appiconset` declares 14 image slots and contains **no images**;
-`AccentColor.colorset` has no colour defined. Nothing is broken by this, and
-nothing will flag it — it just ships looking unfinished.
+`AppIcon.appiconset` now carries three 1024×1024 images; `BUILD_AND_CONFIG.md`
+has what they are and how to re-render them.
+
+**This entry was wrong about the stakes, not just out of date.** It said
+"nothing is broken by this, and nothing will flag it — it just ships looking
+unfinished". An app with no 1024×1024 icon is rejected by App Store Connect at
+processing, before review ever sees it. It was never a cosmetic item; it was a
+hard submission blocker filed as a nice-to-have. Recorded here so the next
+"nothing will flag it" gets checked rather than believed.
+
+**`AccentColor.colorset` still has no colour defined**, and that part *is*
+cosmetic: nothing in the app reads it, because every colour comes from
+`Theme.swift`.
 
 ---
 

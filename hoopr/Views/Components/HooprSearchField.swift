@@ -92,7 +92,7 @@ struct HooprSearchField: View {
         case .fill:
             Color.hooprFill.clipShape(shape)
         case .glass:
-            Color.clear.glassEffect(.regular.interactive(), in: shape)
+            Color.clear.hooprGlass(in: shape)
         }
     }
 

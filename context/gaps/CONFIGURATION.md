@@ -27,22 +27,28 @@ agreed prefix (`hoops`) if the identifiers are ever renamed.
 
 ---
 
-## The deployment target excludes almost every device in use
+## ~~The deployment target excludes almost every device in use~~ — fixed 2026-09-20
 
-**iOS 26.5**, and no API the app calls requires it. Worth confirming this is
-intentional rather than an artifact of the Xcode version the project was
-created with — it is the single line most likely to be a mistake nobody has
-questioned.
+**iOS 18.0 now.** The claim this section used to make — "no API the app calls
+requires it" — was false: `glassEffect(_:in:)` (five sites) and `MKAddress`
+(one) are iOS 26. Both are gated now; see `../BUILD_AND_CONFIG.md`.
+
+**What's left is a real-device pass below iOS 26.** Nothing in the fallback path
+has run on anything but the iOS 26 simulator, so `Support/Glass.swift`'s
+`.ultraThinMaterial` branch and `MapTab`'s pre-26 Maps hand-off are both
+unexercised. The compiler proves they *build*; nobody has seen them.
 
 ---
 
-## The project claims platforms the UI doesn't support
+## ~~The project claims platforms the UI doesn't support~~ — fixed 2026-09-20
 
-`SUPPORTED_PLATFORMS` includes `macosx` and `xros`, and the device family is
-`1,2,7` (iPhone, iPad, Vision) — but the UI is iPhone-portrait-shaped
-throughout. `MapTab`'s sheet now sizes off `onGeometryChange` rather than
-`UIScreen.main.bounds`, so it at least follows its container; nothing else has
-been checked at another shape.
+`SUPPORTED_PLATFORMS` is `iphoneos iphonesimulator` and the device family is
+`1`. The UI is still iPhone-portrait-shaped throughout — that hasn't changed and
+isn't a gap any more, because the project no longer claims otherwise.
+
+Reversing it is one line per setting when an iPad layout actually exists.
+`XROS_DEPLOYMENT_TARGET` is still set and inert; `../BUILD_AND_CONFIG.md` says
+why it was left.
 
 ---
 

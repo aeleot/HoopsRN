@@ -27,12 +27,7 @@ struct GlassChip: View {
             .foregroundStyle(isActive ? Color.hooprOnBrand : Color.hooprPrimaryText)
             .padding(.horizontal, 14)
             .padding(.vertical, 9)
-            .glassEffect(
-                isActive
-                    ? .regular.tint(Color.hooprOrange).interactive()
-                    : .regular.interactive(),
-                in: .capsule
-            )
+            .hooprGlass(tint: isActive ? Color.hooprOrange : nil, in: .capsule)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)

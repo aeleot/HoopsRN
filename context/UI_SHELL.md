@@ -11,7 +11,8 @@
 `hoopr/Views/Components/GlassChip.swift`,
 `hoopr/Views/Components/StatsCard.swift`, `hoopr/Views/Seasons/`,
 `hoopr/Support/Theme.swift`,
-`hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`
+`hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`,
+`hoopr/Support/Glass.swift`
 **Verified:** 2026-09-18 @ de875eb
 
 Navigation structure and the visual conventions every screen follows. Read this
@@ -545,9 +546,17 @@ only once the identity block is gone. The fade is driven by two measurements —
 `onScrollGeometryChange` for the offset, `onGeometryChange` for the block's
 height, since that height moves with the reader's text size — crossing 0→1 over
 the last 32pt of the block's travel (`barProgress`). The glass is the same
-`.glassEffect(.regular, in: .rect)` the shell header floats on, extended past
-the top safe area, with the same load-bearing `contentShape` (a clear fill
-doesn't hit-test, and content scrolls directly underneath).
+surface the shell header floats on — `.hooprGlass(interactive: false, in: .rect)`
+— extended past the top safe area, with the same load-bearing `contentShape` (a
+clear fill doesn't hit-test, and content scrolls directly underneath).
+`interactive: false` because this is chrome, not a control: it has nothing to
+respond to a touch with.
+
+**Glass is never called directly.** `.hooprGlass(tint:interactive:in:)` in
+`Support/Glass.swift` wraps the one `#available(iOS 26)` for the whole app and
+falls back to `.ultraThinMaterial` below it — the floor is iOS 18. That covers
+this header, `GlassChip`, `HooprSearchField`'s glass ground, and the two map
+controls in `MAP_LAYER.md`.
 
 The handle is **rendered, not stored** — `userName` is a display name (see
 `UserProfile`), so it strips whitespace and prefixes an `@`. The uid comes from

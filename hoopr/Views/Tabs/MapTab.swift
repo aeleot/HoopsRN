@@ -379,7 +379,7 @@ struct MapTab: View {
                     .hooprFont(17, weight: .semibold, maximumSize: 20)
                     .foregroundStyle(Color.hooprOrange)
                     .frame(width: 46, height: 46)
-                    .glassEffect(.regular.interactive(), in: .circle)
+                    .hooprGlass(in: .circle)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Recenter map")
@@ -476,7 +476,7 @@ struct MapTab: View {
         .foregroundStyle(Color.hooprPrimaryText)
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
-        .glassEffect(.regular.interactive(), in: .capsule)
+        .hooprGlass(in: .capsule)
         .contentShape(Capsule())
         .gesture(sheetDragGesture(fromHandle: true))
         // The container's bottom edge already sits flush with the tab bar —
@@ -1024,12 +1024,24 @@ struct MapTab: View {
     /// but nothing about how to get to one, and every phone already has a
     /// router on it.
     private func openDirections(to court: Court) {
-        let item = MKMapItem(
-            location: CLLocation(latitude: court.latitude, longitude: court.longitude),
-            address: court.address.isEmpty
-                ? nil
-                : MKAddress(fullAddress: court.address, shortAddress: nil)
+        let coordinate = CLLocationCoordinate2D(
+            latitude: court.latitude,
+            longitude: court.longitude
         )
+        // `MKAddress` is iOS 26; the app's floor is 18. The older initialiser
+        // carries no address, so pre-26 Maps resolves the pin from the
+        // coordinate alone — the route is identical, the callout is terser.
+        let item: MKMapItem
+        if #available(iOS 26.0, *) {
+            item = MKMapItem(
+                location: CLLocation(latitude: court.latitude, longitude: court.longitude),
+                address: court.address.isEmpty
+                    ? nil
+                    : MKAddress(fullAddress: court.address, shortAddress: nil)
+            )
+        } else {
+            item = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
+        }
         item.name = court.displayName
         item.openInMaps(
             launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving]

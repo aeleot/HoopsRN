@@ -103,6 +103,7 @@ exist; the dictionary describes code that does.
 | [`plans/LIVE_HEADCOUNT.md`](plans/LIVE_HEADCOUNT.md) | Proposed — live court occupancy via a `checkins` collection. |
 | [`plans/SCALE_UP.md`](plans/SCALE_UP.md) | Proposed — multi-city scaling: the global public-games query fix, court-dataset delivery, and the sequencing around them. |
 | [`plans/BACKLOG.md`](plans/BACKLOG.md) | Proposed — enhancement stories across four tracks. Its Queue Up track shipped 2026-09-16; the rest stands. |
+| [`plans/LAUNCH_READINESS.md`](plans/LAUNCH_READINESS.md) | **Partly shipped.** The 2026-09-20 staff audit, ten items, none of them code defects. Items 1, 3, 6 and 10 landed the same day — **no submission blockers remain**. App Check (§2) is the highest-value item left. Its correction note records an availability claim the audit got wrong. |
 
 ---
 

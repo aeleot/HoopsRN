@@ -21,26 +21,38 @@ or assuming something is tested.
 |---|---|
 | Display name | **hoopsRN** (`INFOPLIST_KEY_CFBundleDisplayName`) |
 | Bundle ID | `Big-Boss-LLC.hoopr` (tests `…hooprTests`, UI tests `…hooprUITests`) |
-| Deployment target | **iOS 26.5** |
+| Deployment target | **iOS 18.0** |
 | Swift | 5.0 |
 | Version | `MARKETING_VERSION` 1.0, `CURRENT_PROJECT_VERSION` 1 |
-| Supported platforms | `iphoneos iphonesimulator macosx xros xrsimulator` |
-| Device family | `1,2,7` — iPhone, iPad, Vision |
+| Supported platforms | `iphoneos iphonesimulator` |
+| Device family | `1` — iPhone |
 | Info.plist | **none on disk** — `GENERATE_INFOPLIST_FILE = YES` |
 
 Because the Info.plist is generated, plist keys are build settings. The location
 permission string is `INFOPLIST_KEY_NSLocationWhenInUseUsageDescription` =
-"hoopsRN needs your location to find nearby basketball courts." Editing it means
+"hoopsRN uses your location to show courts and runs near you." Editing it means
 editing the build setting, not a file.
 
-The iOS 26.5 target is unusually restrictive for an app with no 26-only API
-requirement — see `GAPS.md`.
+**The target was iOS 26.5 until 2026-09-20**, and this page used to say the app
+had "no 26-only API requirement". That was wrong twice over: the app called
+`glassEffect(_:in:)` at five sites and `MKAddress` at one, all iOS 26. Dropping
+to 18.0 meant gating them, which is what `Support/Glass.swift` and
+`MapTab.openDirections` now do. **18.0, not 17.0**, because
+`onGeometryChange`/`onScrollGeometryChange` (four sites, two of them load-bearing
+for `MapTab`'s sheet) are iOS 18 and were left alone deliberately.
+
+`XROS_DEPLOYMENT_TARGET = 26.5` is still in all six configurations. It is inert
+now that `xros` is off `SUPPORTED_PLATFORMS`, and Xcode rewrites these keys on
+its own, so it was left rather than fought with. **It is not a statement that
+visionOS is supported.**
 
 **The product was renamed hoopsRN on 2026-08-15, and the rename was deliberately
-shallow.** What changed: the home-screen name (`CFBundleDisplayName`), the two
-user-facing strings that said "Hoopr" (the location prompt and the sign-in
-wordmark), the log subsystem (`com.hoopsrn`), the invite URL scheme
-(`hoopsrn://`), and the docs. What did **not** change, and still says `hoopr`:
+shallow.** What changed: the home-screen name (`CFBundleDisplayName`), the
+sign-in wordmark, the log subsystem (`com.hoopsrn`), the invite URL scheme
+(`hoopsrn://`), and the docs. **The location prompt was missed** — this page
+claimed it was renamed in 2026-08-15, but the build setting still read "hoopr
+uses your location…" until 2026-09-20. What did **not** change, and still says
+`hoopr`:
 the bundle ID, the Xcode target and scheme names, `CFBundleName`, the
 `hoopr/`, `hooprTests/` and `hooprUITests/` directories, the Swift module, and
 every `hoopr`-prefixed identifier in `Theme.swift` and `Typography.swift`. The
@@ -103,11 +115,31 @@ deleted, that script needs its own `npm install` in its own directory.
 
 ## Assets
 
-`Assets.xcassets` holds only `AppIcon.appiconset` (14 declared slots, **no
-images**) and `AccentColor.colorset` (**no colour defined**). Nothing in the app
-references an asset catalogue entry — every colour comes from `Theme.swift` and
-every icon is an SF Symbol. `.gitignore` covers the usual Xcode noise plus
-`node_modules/` and `*.xcworkspace`.
+`Assets.xcassets` holds `AppIcon.appiconset` and `AccentColor.colorset` (**no
+colour defined**). Nothing in the app *code* references an asset catalogue entry
+— every colour comes from `Theme.swift` and every in-app icon is an SF Symbol.
+`.gitignore` covers the usual Xcode noise plus `node_modules/` and
+`*.xcworkspace`.
+
+**The app icon shipped 2026-09-20.** Three 1024×1024 slots — `AppIcon.png`
+(light), `AppIcon-Dark.png`, `AppIcon-Tinted.png` — replacing the 14 declared-
+but-empty slots that would have failed submission outright. The 12 `mac` idiom
+slots went with the platform trim above.
+
+**It is the launch screen's mark, rendered.** `RootView.LaunchScreen` draws the
+`basketball.fill` SF Symbol in `hooprOrange` over `hooprBackground`; the icon is
+that same symbol at 1024, in the same two colours, so the home screen and the
+app's first frame agree. All three are opaque — App Store Connect rejects an
+icon with an alpha channel.
+
+Regenerating it is a build step nobody has automated: the generator lives
+outside the repo and the PNGs are committed. To re-render, draw
+`basketball.fill` at ~76% of a 1024 canvas, tint it with the `Theme.swift`
+values, and flatten onto an opaque background. Verify with:
+
+```bash
+sips -g hasAlpha hoopr/Assets.xcassets/AppIcon.appiconset/AppIcon.png
+```
 
 ## Repo tooling
 

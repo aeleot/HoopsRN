@@ -363,10 +363,17 @@ animates on the same `.spring(response: 0.35, dampingFraction: 0.85)`.
 
 ## Map chrome
 
-Everything floating over the map is **Liquid Glass** (`.glassEffect`): the
-filter chips, the recenter button, and the collapsed peek pill. An *active*
-filter chip tints the same glass with `Color.hooprOrange` rather than swapping to
-an opaque fill, so it reads as the same object lit up instead of a different one.
+Everything floating over the map is **Liquid Glass**: the filter chips, the
+recenter button, and the collapsed peek pill. An *active* filter chip tints the
+same glass with `Color.hooprOrange` rather than swapping to an opaque fill, so it
+reads as the same object lit up instead of a different one.
+
+**Every glass surface goes through `.hooprGlass(tint:interactive:in:)`**
+(`Support/Glass.swift`), never `.glassEffect` directly. `glassEffect` is iOS 26
+and the app's floor is 18, so the modifier holds the one `#available` and falls
+back to `.ultraThinMaterial` — translucent, because these all float over a moving
+map, and an opaque fill would turn a chip into a panel. The tint rides on top of
+the material so the "same object lit up" rule survives the fallback.
 
 The sheet is deliberately **not** glass. Small chrome you look past can be
 translucent; a list of courts is something you read, and reading it against a
@@ -473,6 +480,10 @@ buttons:
 
 - **Directions** — hands the court to Maps via `MKMapItem.openInMaps`, driving
   mode. The app knows where courts are and nothing about how to get to one.
+  Two constructions behind one `#available`: `MKMapItem(location:address:)` on
+  iOS 26, which carries the court's street address into the Maps callout, and
+  `MKMapItem(placemark:)` below it, which carries only the coordinate. **The
+  route is identical either way** — the address is a label, not an input.
 - **Start Run** — presents `CreateGameSheet` for that court. One button covers
   both entry points because both converge here. See `UI_SHELL.md`.
 

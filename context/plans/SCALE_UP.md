@@ -184,29 +184,22 @@ before the rest of this plan is even relevant. Both are already named in
 `GAPS.md`; repeating them here because a scaling plan that doesn't lead with
 them is incomplete.
 
-**S3.1 — Fix the iOS deployment target**
-`GAPS.md` already flags this: deployment target is **iOS 26.5**, which
-excludes nearly every device in current use, and nothing in the app calls a
-26-only API. Confirm the real minimum the app needs and lower
-`IPHONEOS_DEPLOYMENT_TARGET` accordingly in `project.pbxproj`.
-*Acceptance criteria:*
-- Target lowered to the actual minimum required by the SDKs in use (almost
-  certainly far below 26.5).
-- App builds and the existing test suites pass at the new target.
-- This ships *before* any marketing push or App Store optimization work —
-  it's a precondition for new users being able to install the app at all,
-  not a nice-to-have alongside them.
+**S3.1 — Fix the iOS deployment target — SHIPPED 2026-09-20**
+The target is **iOS 18.0**. This item's premise ("nothing in the app calls a
+26-only API") was false — six sites did, five of them `glassEffect` — and the
+fix was to gate them behind `Support/Glass.swift` rather than to discover the
+floor was already free. See `plans/LAUNCH_READINESS.md` §3.
+*Remaining:* the fallback path has never run below iOS 26. Tracked in
+`gaps/CONFIGURATION.md`, not here.
 
-**S3.2 — Ship a real app icon and accent color**
-`AppIcon.appiconset` declares 14 slots with no images; `AccentColor.colorset`
-has no color defined. The app currently presents the default placeholder icon
-on every device — a strong, free signal to a prospective new user that the
-app isn't finished.
-*Acceptance criteria:*
-- All required `AppIcon.appiconset` slots are populated.
-- `AccentColor` is set (or the unused colorset is removed if every color is
-  intentionally sourced from `Theme.swift` instead — either is fine, leaving
-  it half-declared isn't).
+**S3.2 — Ship a real app icon and accent color — ICON SHIPPED 2026-09-20**
+`AppIcon.appiconset` carries three 1024×1024 opaque images (light, dark,
+tinted), rendered from the same `basketball.fill` symbol the launch screen
+draws. This item also understated the stakes — an app with no icon is not "a
+signal that the app isn't finished", it is a build App Store Connect refuses.
+*Still open:* `AccentColor` is set (or the unused colorset is removed if every
+color is intentionally sourced from `Theme.swift` instead — either is fine,
+leaving it half-declared isn't).
 
 ---
 
@@ -427,7 +420,7 @@ convention `plans/FRIENDS.md` and `plans/LIVE_HEADCOUNT.md` already follow.
 | `COURT_DATASET.md` | The hosted-dataset layer alongside the bundled file, once S2.1 ships. |
 | `ARCHITECTURE.md` | No vendor-boundary change expected — everything here stays inside existing services, unlike `plans/LIVE_HEADCOUNT.md`'s `CheckInService` addition. |
 | `BUILD_AND_CONFIG.md` | The lowered deployment target (S3.1); the one-off backfill scripts (S1.3, S6.1) as documented manual operations. |
-| `GAPS.md` | Strike the iOS 26.5 and app-icon items once S3.1/S3.2 ship; strike the invite-receiving gap once Phase 2 ships; update the waitlist-promotion item to describe the client-self-promotion stopgap once S5.1 ships. |
+| `GAPS.md` | ~~Strike the iOS 26.5 and app-icon items once S3.1/S3.2 ship~~ — done 2026-09-20. Strike the invite-receiving gap once Phase 2 ships; update the waitlist-promotion item to describe the client-self-promotion stopgap once S5.1 ships. |
 | `INDEX.md` | This plan's status line, as phases complete. |
 
 ## See also

@@ -185,7 +185,7 @@ struct ProfileTopBar: View {
             // underneath.
             Rectangle()
                 .fill(.clear)
-                .glassEffect(.regular, in: .rect)
+                .hooprGlass(interactive: false, in: .rect)
                 .contentShape(Rectangle())
                 .opacity(progress)
                 .ignoresSafeArea(edges: .top)

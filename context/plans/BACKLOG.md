@@ -554,10 +554,11 @@ everywhere.
   someone toggles dark mode mid-session.
 - Contrast ratios verified for `hooprSecondaryText` on `hooprSurface` and for
   `hooprOnBrand` on both orange values.
-- **Scope note:** this is iPhone-portrait only. The build declares iPad and
-  Vision support (`SUPPORTED_PLATFORMS`, device family `1,2,7`) while the UI is
-  iPhone-shaped throughout. Either narrow the declaration or open a separate
-  story for real adaptive layout — don't let this one quietly become that.
+- **Scope note:** this is iPhone-portrait only, and since 2026-09-20 the build
+  says so — `SUPPORTED_PLATFORMS` is `iphoneos iphonesimulator` and the device
+  family is `1`. The declaration was narrowed rather than the UI widened, so
+  real adaptive layout is still a separate story; don't let this one quietly
+  become that.
 
 ---
 
