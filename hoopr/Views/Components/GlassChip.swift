@@ -25,8 +25,8 @@ struct GlassChip: View {
             // Black on the brand orange, never white: `hooprOnBrand` is the
             // only foreground that clears AA against it.
             .foregroundStyle(isActive ? Color.hooprOnBrand : Color.hooprPrimaryText)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
+            .padding(.horizontal, Spacing.Chip.horizontal)
+            .padding(.vertical, Spacing.Chip.vertical)
             .hooprGlass(tint: isActive ? Color.hooprOrange : nil, in: .capsule)
         }
         .buttonStyle(.plain)

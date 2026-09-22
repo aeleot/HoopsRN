@@ -16,7 +16,7 @@ struct StatsCard: View {
             Divider().overlay(Color.hooprBorder)
             stat(symbol: "clock.fill", label: "Last Run", value: lastCompletedText)
         }
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .frame(maxWidth: .infinity)
         .cardChrome()
     }
@@ -26,7 +26,7 @@ struct StatsCard: View {
             HStack(spacing: 4) {
                 Image(systemName: symbol)
                     .hooprFont(11)
-                    .foregroundStyle(Color.hooprOrange)
+                    .foregroundStyle(Color.hooprBrandAccent)
                     .accessibilityHidden(true)
                 Text(label)
                     .hooprFont(11, weight: .bold)

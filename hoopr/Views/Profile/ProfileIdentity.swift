@@ -66,7 +66,7 @@ struct ProfileIdentityBlock: View {
         PlayerAvatar(initial: initial, diameter: diameter)
             .overlay(
                 Circle()
-                    .stroke(Color.hooprOrange, lineWidth: 2)
+                    .stroke(Color.hooprBrandAccent, lineWidth: 2)
                     .frame(width: diameter + 8, height: diameter + 8)
             )
     }

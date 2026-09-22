@@ -33,7 +33,7 @@ struct ResultView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: Spacing.interCard) {
                 if let errorMessage = viewModel.errorMessage {
                     ErrorBanner(
                         message: errorMessage,
@@ -73,7 +73,7 @@ struct ResultView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 
@@ -198,7 +198,7 @@ struct ResultView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 
@@ -245,7 +245,7 @@ struct ResultView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
                     .stroke(
-                        isChosen ? Color.hooprOrange : Color.hooprBorder,
+                        isChosen ? Color.hooprBrandAccent : Color.hooprBorder,
                         lineWidth: isChosen ? 2 : 1
                     )
             )
@@ -299,7 +299,7 @@ struct ResultView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 

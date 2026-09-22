@@ -52,7 +52,7 @@ struct GameCard: View {
                 completeButton
             }
         }
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
         .confirmationDialog(
             "Cancel this run?",
@@ -86,7 +86,7 @@ struct GameCard: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "basketball.fill")
                 .hooprFont(18)
-                .foregroundStyle(Color.hooprOrange)
+                .foregroundStyle(Color.hooprBrandAccent)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(listing.courtName)
@@ -105,10 +105,10 @@ struct GameCard: View {
             if let badge = badge {
                 Text(badge.text)
                     .hooprFont(11, weight: .bold)
-                    .foregroundStyle(badge.tint)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(badge.tint.opacity(0.12)))
+                    .foregroundStyle(badge.foreground)
+                    .padding(.horizontal, Spacing.Pill.horizontal)
+                    .padding(.vertical, Spacing.Pill.vertical)
+                    .background(Capsule().fill(badge.wash.opacity(0.12)))
             }
         }
     }
@@ -140,10 +140,10 @@ struct GameCard: View {
     /// here is a different question — folding them into one priority chain
     /// would mean a run you host could never show it.
     ///
-    /// `hooprPrimaryText`, so it outweighs the grey details above it without
-    /// reaching for `hooprOrange` — which fails AA as a foreground in light
-    /// mode, a gap `gaps/ACCESSIBILITY.md` already tracks and a new surface
-    /// shouldn't add another instance of.
+    /// `hooprPrimaryText`, so it outweighs the grey details above it. (It
+    /// avoided orange when `hooprOrange` failed AA as a foreground; that
+    /// constraint went with `hooprBrandAccent`, so this now stands as a
+    /// hierarchy choice rather than an accessibility one.)
     private func friendsHere(_ text: String) -> some View {
         HStack(spacing: 5) {
             Image(systemName: "person.2.wave.2.fill")
@@ -175,7 +175,7 @@ struct GameCard: View {
                     .fill(Color.hooprFill)
 
                 Capsule()
-                    .fill(game.isFull ? Color.hooprSecondaryText : Color.hooprOrange)
+                    .fill(game.isFull ? Color.hooprSecondaryText : Color.hooprBrandAccent)
                     .frame(width: geo.size.width * filledFraction)
             }
         }
@@ -263,10 +263,17 @@ struct GameCard: View {
 
     /// At most one badge, in priority order — your own relationship to the run
     /// says more than its status does.
-    private var badge: (text: String, tint: Color)? {
-        if isHost { return ("HOSTING", Color.hooprOrange) }
-        if isWaitlisted { return ("WAITLIST", Color.hooprSecondaryText) }
-        if game.isFull { return ("FULL", Color.hooprSecondaryText) }
+    ///
+    /// **`foreground` and `wash` are separate colours**, because the text has
+    /// to be *read* and the ground behind it is a fill. HOSTING's text is
+    /// `hooprBrandAccent` (4.87:1 on its own 12% wash in light, 4.90:1 in
+    /// dark) over a wash of the vivid `hooprOrange`; drawn as orange on that
+    /// wash it measured 2.78:1 in light mode. The other two are secondary text
+    /// on a wash of itself, unchanged.
+    private var badge: (text: String, foreground: Color, wash: Color)? {
+        if isHost { return ("HOSTING", Color.hooprBrandAccent, Color.hooprOrange) }
+        if isWaitlisted { return ("WAITLIST", Color.hooprSecondaryText, Color.hooprSecondaryText) }
+        if game.isFull { return ("FULL", Color.hooprSecondaryText, Color.hooprSecondaryText) }
         return nil
     }
 }

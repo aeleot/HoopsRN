@@ -98,12 +98,13 @@ struct CourtGameRow: View {
     ///
     /// **Both pairings are ones `ThemeContrastTests` already proves.** The
     /// joinable state is `hooprOnBrand` on a filled `hooprOrange` capsule —
-    /// the primary-button pairing, asserted at 6.61:1 light and 7.15:1 dark.
-    /// It is deliberately *not* orange text on a 12%-orange tint, which is how
-    /// `GameCard` draws its own badges: `hooprOrange` as a foreground measures
-    /// 2.34:1 on `hooprFill` in light mode, a defect `GAPS.md` already tracks,
-    /// and 11pt bold is normal text by WCAG's reckoning rather than large.
-    /// A new surface shouldn't add an instance of a known failure.
+    /// the primary-button pairing, asserted at 6.62:1 light and 7.15:1 dark.
+    /// It is a *fill* rather than the tinted badge `GameCard` draws (which is
+    /// `hooprBrandAccent` text on a 12% orange wash) because "there's room"
+    /// is the decision this row is read for, and a solid capsule outweighs a
+    /// tinted one. The reason used to be that `hooprOrange` as a foreground
+    /// failed AA; that constraint went with `hooprBrandAccent`, and this stays
+    /// a hierarchy choice.
     ///
     /// Full is secondary text on fill, not a red: a full run isn't an error,
     /// and `hooprRed` is reserved for things that went wrong.

@@ -12,7 +12,7 @@
 `hoopr/Views/Components/StatsCard.swift`, `hoopr/Views/Seasons/`,
 `hoopr/Support/Theme.swift`,
 `hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`,
-`hoopr/Support/Glass.swift`
+`hoopr/Support/Glass.swift`, `hoopr/Support/Spacing.swift`
 **Verified:** 2026-09-20 @ 349d309
 
 Navigation structure and the visual conventions every screen follows. Read this
@@ -98,15 +98,26 @@ mounted behind `.opacity` + `.allowsHitTesting` to preserve map region and
 sheet state across switches. `TabView` retains tab content after first
 appearance, so that hack is gone and the behaviour is unchanged.
 
-**Selected tabs take `hooprOrange` via `.tint`; unselected stay in the system
-grey.** Know what this costs: `.tint` colours the selected item's glyph *and*
-its ~10pt label, which paints the brand as a **foreground** on a near-white
-glass ground. That is the AA gap `GAPS.md` tracks — roughly 2.55:1 against the
-4.5:1 floor — and the tab bar is now its most prominent instance. In light mode
-the selected label reads *lighter* than the unselected ones, inverting the
-hierarchy it is meant to signal. Shipped as a deliberate product decision;
-`ThemeContrastTests.testTabBarSelectionIsATrackedGap` records it in the failing
-direction and goes green the day a readable brand role lands.
+**Selected tabs take `hooprBrandAccent` via `.tint`; unselected stay in the
+system grey.** `.tint` colours the selected item's glyph *and* its ~10pt label,
+so the brand is drawn as a **foreground** on a near-white glass ground — which
+the filled `hooprOrange` fails as (3.17:1 on white). That was the AA gap
+`GAPS.md` used to track, with the tab bar as its most prominent instance: in
+light mode the selected label read *lighter* than the unselected ones, inverting
+the hierarchy it exists to signal. **It closed on 2026-09-21** when the tint
+moved to `hooprBrandAccent` (`#B8400F`, 5.56:1 on white); dark is unchanged,
+because there the accent *is* `hooprOrange`.
+
+**iOS 26 adjusts a tint before it paints it**, so the number to trust is the
+rendered one, not the nominal one. Sampled from the live app, `hooprOrange`
+rendered as `#E55E27` on the `#EDEDED` selection pill in light mode — **3.01:1**,
+the real figure; the "roughly 2.55:1" this paragraph used to quote was the
+nominal value for an orange since retuned — and as `#FF8F6A` on `#3A3A3A` in
+dark (5.09:1). With the accent, the **live app measures 5.32:1 in light**
+(`#AF3706` on `#EDEDED`) and 4.98:1 in dark, sampled from screenshots.
+`ThemeContrastTests.testTabBarSelectionClearsAA` asserts the nominal value on the
+grounds this code controls; the rendered figure has to be re-measured from a
+screenshot whenever the tint changes.
 
 **The profile button appears on all four tabs and nowhere else.** It is a
 shared `ProfileButton` component (`Views/Components/`) with two styles: `plain`
@@ -223,8 +234,9 @@ overflows at accessibility sizes) and **rather than the header badge** (that
 slot is at most one badge about *your own* relationship to the run — HOSTING →
 WAITLIST → FULL — and who else is here is a different question, so folding them
 into one chain would mean a run you host could never show it). It's drawn in
-`hooprPrimaryText` so it outweighs the grey details above it without reaching
-for `hooprOrange`, which fails AA as a foreground in light mode.
+`hooprPrimaryText` so it outweighs the grey details above it. (It avoided
+orange when `hooprOrange` failed AA as a foreground; that constraint went with
+`hooprBrandAccent`, so it stands as a hierarchy choice.)
 
 The intersection is a `nonisolated static` on `LocalRunsViewModel`, resolved
 once per rebuild alongside the distance rather than per row during scroll, and
@@ -635,7 +647,8 @@ keeps a light-only value from creeping back in.
 
 | Role | Used for |
 |---|---|
-| `hooprOrange` | Brand. Selected tab, selected profile pane, primary buttons, focused field borders, map pins, profile row icons and the avatar's ring, slider tint. Lifted in dark mode, where the light-mode orange reads muddy. |
+| `hooprOrange` | Brand **fill** — primary buttons, selected chips and pills (the selected profile pane, the queue sheet's day selector, the format chip), the tint on active glass, the win pill, and the 12–14% wash behind a badge or an icon tile. **A fill, never a mark:** as a foreground it is 3.17:1 on white, 2.91:1 on `hooprFill`, and 2.78:1 on its own wash. Lifted in dark mode, where the light-mode orange reads muddy. |
+| `hooprBrandAccent` | Brand **mark** — orange drawn as something *read*: text ("Sign up", a sheet's "Done", the HOSTING badge), glyphs, focus rings and selection strokes, the capacity bar, spinner / slider / date-picker tints, and the tab bar's selected item. `hooprOrange`'s own hue and saturation, deepened in light mode (`#B8400F`) until it clears 4.5:1 on every ground it is drawn on; in dark mode it *is* `hooprOrange`'s dark value, which already does. **Never a fill** — black on it is 3.78:1. `BrandMarkUsageTests` fails if a view draws `hooprOrange` in `foregroundStyle`, `tint` or `stroke`. |
 | `hooprDarkOrange` | The map's marker tint, via `UIColor(Color.hooprDarkOrange)`. |
 | `hooprRed` | Errors, Sign Out, "Remove home court", and the notification indicators — the inbox badge and the profile button's dot. Lightened in dark mode to hold contrast. |
 | `hooprOnBrand` | Content *on top of* the orange — button labels, the selected pane's title, the map pin's glyph. **Black**, and fixed: orange is a light colour in both appearances, so white on it measured 2.55:1 / 2.25:1 — under AA, on every primary button. Black clears 8.24:1 / 9.33:1. |
@@ -643,7 +656,11 @@ keeps a light-only value from creeping back in.
 | `hooprBackground` | The page behind everything. |
 | `hooprSurface` | Cards and sheets. Equal to the background in light mode (separation there comes from border + shadow); lifted in dark mode, where a shadow on black conveys nothing. |
 | `hooprFill` | Field and button fills, unselected chips, the empty half of a capacity bar. |
-| `hooprBorder` | Rules, dividers, unfocused borders, the sheet's drag handle. |
+| `hooprBorder` | Rules, dividers, unfocused borders, the sheet's drag handle. Deliberately faint (1.2:1 on white) — a hairline that tidies a card's edge, not a boundary. |
+| `hooprElevatedSurface` | A surface raised one level above a card — a card inside a sheet, a popover. **Dark carries the lift in the fill** (`#242426`, one visible step above a card and one below a field); **light cannot** — nothing is lighter than white — so it *is* white there and the lift comes from `hooprShadow`. Defined and asserted in Phase 1, not yet drawn anywhere. Whether light mode's page ground moves off pure white is a design decision the role does not make. |
+| `hooprHoverFill` | A row or control being touched or hovered, drawn over a card. Light `#ECECEC` matches the pill the iOS 26 tab bar draws behind its selected item (`#EDEDED`, sampled). Dark is deliberately no lighter than `#2E2E30` — primary text, secondary text and the accent must keep clearing 4.5:1 on it, and the accent is the ceiling. Not yet drawn anywhere. |
+| `hooprSeparatorStrong` | A line that has to be *seen* — a component boundary at the 3:1 WCAG 1.4.11 asks of one, on every ground in both appearances. Where `hooprBorder` is faint on purpose. Not yet drawn anywhere: switching a field outline to it is a visible change that belongs with the composition that wants it. |
+| `hooprHeat(tier:)` / `hooprOnHeat(tier:)` | The "how busy is this court today" ramp — five fixed fills, each paired with the label that reads on it. **One table**, so a fill and its label can't be retuned apart: black through tier 2, white from tier 3, where black stops clearing 4.5:1 (it was 4.01 and 3.43 on the two deepest, on the map pin's count). Fixed, not appearance-aware, on purpose — a data scale read against the map's own basemap. Views call `CourtHeat`, which owns the count-to-tier rule. |
 | `hooprPrimaryText` | Titles, values, primary labels. |
 | `hooprSecondaryText` | Labels, captions, unselected tab text. |
 | `hooprShadow(opacity:)` | Card and sheet shadows. Takes the *light-mode* opacity and deepens it in dark mode. |
@@ -674,6 +691,16 @@ diameter and the cap together, and `SeasonsAccessibilityTests` measures them
 against each other. The neutral pill shipped uncapped once and its glyph rendered
 taller than its own circle.
 
+**On squad home the form sits beside the record when it fits** —
+`SquadRecordLine`, "1–0 this season (W)" — and beneath it when it doesn't. That is a
+`ViewThatFits`, not a preference: five pills are 164pt before the record's own text is
+counted, and the header's text column is about 230pt at the default size, so one to
+three results fit beside the record and four or five, and every result at the
+accessibility sizes, take the column — the same rule the queue sheet's time chips
+follow. A season with a full five-result form therefore looks as it did before; the
+beside-the-record layout is what a short history gets. `SquadDetailView`'s Record card
+still stacks the form beneath the number.
+
 Type goes through `.hooprFont(_:weight:maximumSize:)` in
 `Support/Typography.swift`, never `.font(.system(size:))`. The design's literal
 point sizes are kept and scaled with `UIFontMetrics` against whichever text
@@ -688,6 +715,31 @@ device preference, not an account one — read by `hooprApp` and applied with
 `.preferredColorScheme` at the window root so it reaches sheets too. It's edited
 from the Appearance row on the profile screen, which is why that row sits
 outside `ProfileViewModel.EditableField`: nothing about it touches Firestore.
+
+### Spacing
+
+Named in `Support/Spacing.swift`, in two layers: a **scale** on a 4pt grid
+(`hairline` 2, `xs` 4, `sm` 8, `md` 12, `lg` 16, `xl` 20, `xxl` 24, `xxxl` 32) and
+the **roles** views should reach for — `pageMargin` (20), `cardPadding` (16),
+`interCard` (16), `interRow` (12), `section` (24), and the `Pill` and `Chip`
+paddings. The values were already the app's; what was missing was a name, and
+the absence is how the Runs tab came to inset its title 20pt and its cards 16.
+That tab now uses `pageMargin` throughout — the one intentional layout change
+of Phase 1.
+
+**Fixed points, not `@ScaledMetric`.** Text reflows and never shrinks; the space
+around it is deliberately not what grows with it, or a reader at
+`.accessibility3` loses a third of the width to margins.
+
+**What is not on the scale, on purpose:** corner radii (four in use — 10, 12,
+14, 16 — with no rule about which is which), fixed control heights (seven, for
+three kinds of button), `ProfileView`'s 10pt row gap, and `Chip`'s 14 × 9, which
+is optically tuned against its 13pt label. They are composition decisions.
+
+**Four screens still inset their content 16, not 20** — `InboxSheet`,
+`QueueSheet`, `GameDayView` and `ResultView`. Consistent within themselves, so
+there is no visible mismatch to fix, and moving them is a layout change on
+screens that get recomposed anyway. Don't "correct" them one at a time.
 
 ---
 
@@ -739,9 +791,21 @@ outside `ProfileViewModel.EditableField`: nothing about it touches Firestore.
   third that points at a screen the requests don't live on.
 - Every colour pairing the UI draws clears WCAG AA, and `ThemeContrastTests`
   holds the line. Contrast is arithmetic on two resolved colours, not taste —
-  if a new pairing appears, assert it there rather than eyeballing it. The one
-  known exception is `hooprOrange` used as a *foreground* in light mode, which
-  fails and is tracked in `GAPS.md`.
+  if a new pairing appears, assert it there rather than eyeballing it. Measure
+  the ground a mark *actually* sits on: HOSTING's orange text is on a 12% orange
+  wash, not on the card, and that is what took it to 2.78:1 while a check
+  against the card said 3.17.
+- **Orange is a fill or a mark, never both.** `hooprOrange` fills a surface that
+  carries `hooprOnBrand`; anything *read* in orange — text, a glyph, a stroke, a
+  spinner or control tint — is `hooprBrandAccent`. `BrandMarkUsageTests` reads
+  `Views/` and fails on `hooprOrange` inside `foregroundStyle`, `tint` or
+  `stroke`; it never fires on a fill, so a new orange button is free.
+- A mark and the wash behind it are two colours. A badge or icon tile draws its
+  mark in `hooprBrandAccent` over a wash of `hooprOrange`; sharing one tint
+  between them dulls the wash the moment the mark is deepened.
+- A label drawn on the heat ramp is `hooprOnHeat(tier:)`, never `hooprOnBrand`.
+- Spacing that means "the page margin", "a card's padding" or "the gap between
+  cards" is a `Spacing` role, not a literal.
 - A court is rendered through `Court.displayName`, never `name`. The stored name
   repeats "Basketball Court" in an app where everything is one.
 - Text locked in a frame that can't grow carries `maximumSize`; text that can

@@ -51,7 +51,7 @@ struct HomeTab: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: Spacing.section) {
                 header
 
                 if viewModel.hasStats {
@@ -80,7 +80,7 @@ struct HomeTab: View {
                     friendRequestBanner
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, Spacing.pageMargin)
             .padding(.bottom, 32)
         }
         .background(Color.hooprBackground)
@@ -147,7 +147,7 @@ struct HomeTab: View {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "basketball.fill")
                         .hooprFont(18)
-                        .foregroundStyle(Color.hooprOrange)
+                        .foregroundStyle(Color.hooprBrandAccent)
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text(listing.courtName)
@@ -166,10 +166,10 @@ struct HomeTab: View {
                     if let badge {
                         Text(badge.text)
                             .hooprFont(11, weight: .bold)
-                            .foregroundStyle(badge.tint)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Capsule().fill(badge.tint.opacity(0.12)))
+                            .foregroundStyle(badge.foreground)
+                            .padding(.horizontal, Spacing.Pill.horizontal)
+                            .padding(.vertical, Spacing.Pill.vertical)
+                            .background(Capsule().fill(badge.wash.opacity(0.12)))
                     }
                 }
 
@@ -185,7 +185,7 @@ struct HomeTab: View {
 
                 capacityBar(for: listing.game)
             }
-            .padding(16)
+            .padding(Spacing.cardPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .cardChrome()
         }
@@ -195,11 +195,12 @@ struct HomeTab: View {
     }
 
     /// Matches `GameCard`'s priority order — your own relationship to the run
-    /// says more than its status does.
-    private var badge: (text: String, tint: Color)? {
-        if viewModel.isHostingNextRun { return ("HOSTING", Color.hooprOrange) }
-        if viewModel.isWaitlistedOnNextRun { return ("WAITLIST", Color.hooprSecondaryText) }
-        if viewModel.nextRun?.game.isFull == true { return ("FULL", Color.hooprSecondaryText) }
+    /// says more than its status does — and its split of `foreground` from
+    /// `wash`, for the reason recorded there.
+    private var badge: (text: String, foreground: Color, wash: Color)? {
+        if viewModel.isHostingNextRun { return ("HOSTING", Color.hooprBrandAccent, Color.hooprOrange) }
+        if viewModel.isWaitlistedOnNextRun { return ("WAITLIST", Color.hooprSecondaryText, Color.hooprSecondaryText) }
+        if viewModel.nextRun?.game.isFull == true { return ("FULL", Color.hooprSecondaryText, Color.hooprSecondaryText) }
         return nil
     }
 
@@ -221,7 +222,7 @@ struct HomeTab: View {
                 Capsule().fill(Color.hooprFill)
 
                 Capsule()
-                    .fill(game.isFull ? Color.hooprSecondaryText : Color.hooprOrange)
+                    .fill(game.isFull ? Color.hooprSecondaryText : Color.hooprBrandAccent)
                     .frame(width: geo.size.width * filledFraction(for: game))
             }
         }
@@ -280,7 +281,7 @@ struct HomeTab: View {
             Text("Nothing scheduled anywhere today. Be the first.")
                 .hooprFont(13)
                 .foregroundStyle(Color.hooprSecondaryText)
-                .padding(16)
+                .padding(Spacing.cardPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .cardChrome()
         } else {
@@ -353,7 +354,7 @@ struct HomeTab: View {
             HStack(spacing: 12) {
                 Image(systemName: "person.2.fill")
                     .hooprFont(17)
-                    .foregroundStyle(Color.hooprOrange)
+                    .foregroundStyle(Color.hooprBrandAccent)
                     .frame(width: 38, height: 38)
                     .background(
                         RoundedRectangle(cornerRadius: 11)

@@ -22,5 +22,11 @@ enum AuthError: Error, Equatable {
     case notConfigured
     /// The project exists but email/password sign-in is switched off.
     case providerDisabled
+    /// The keychain refused to store or read the session. Sign-in itself
+    /// succeeded — Firebase only touches the keychain once the server has
+    /// accepted the credentials, which is why this never appears for a wrong
+    /// password. Almost always a build that carries no `application-identifier`
+    /// entitlement, so `securityd` denies every access group (`-34018`).
+    case keychainUnavailable
     case unknown(String)
 }

@@ -64,7 +64,7 @@ struct HooprSearchField: View {
     /// hairline is what separates the field from the surface behind it, so it's
     /// always drawn.
     private var strokeColor: Color? {
-        if isFocused.wrappedValue { return Color.hooprOrange }
+        if isFocused.wrappedValue { return Color.hooprBrandAccent }
         switch ground {
         case .fill:  return Color.hooprBorder
         case .glass: return nil

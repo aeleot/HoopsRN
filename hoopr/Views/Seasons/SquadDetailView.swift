@@ -38,7 +38,7 @@ struct SquadDetailView: View {
     var body: some View {
         ScrollView {
             if let squad {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: Spacing.interCard) {
                     crestHeader(squad)
                     recordCard
                     historyCard
@@ -50,7 +50,7 @@ struct SquadDetailView: View {
 
                     controls(squad)
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, Spacing.pageMargin)
                 .padding(.top, 8)
                 .padding(.bottom, 32)
             } else {
@@ -87,7 +87,7 @@ struct SquadDetailView: View {
 
             Spacer(minLength: 0)
         }
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 
@@ -126,7 +126,7 @@ struct SquadDetailView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 
@@ -169,7 +169,7 @@ struct SquadDetailView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 
@@ -266,7 +266,7 @@ struct SquadDetailView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 
@@ -337,7 +337,7 @@ struct SquadDetailView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 

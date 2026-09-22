@@ -162,16 +162,34 @@ here too — see the `title` note above.
 Added 2026-08-21. Every pin's disc is coloured by **how many games are
 scheduled at that court today**: an all-orange scale that *starts* on the
 brand orange for nothing scheduled and darkens and reddens in even steps to a
-saturated reddish orange for the busiest tier. `CourtHeat.swift` owns the
-five-stop lookup (`color(forGameCount:)`, clamped at both ends); nothing about
-the map's own code decides what the colours *are*, only what count goes in.
+saturated reddish orange for the busiest tier.
 
-**Stop 0 is `hooprOrange`'s light value, hardcoded** (`F79331`), not a
+**`CourtHeat.swift` is the rule; `Theme.swift` owns the colours** (moved there
+2026-09-21). `CourtHeat` turns a game count into a tier — `tier(forGameCount:)`,
+clamped at both ends — and exposes `color(forGameCount:)` and
+`labelColor(forGameCount:)`, which are the `hooprHeat(tier:)` and
+`hooprOnHeat(tier:)` roles for that tier. Nothing about the map's own code
+decides what the colours *are*, only what count goes in; Home's hot-court dot
+calls the same functions, so "how busy is this court" has one definition.
+
+**The fill and its label are one table, and the label is not `hooprOnBrand`.**
+The pin's count used to be black on every tier, which is 6.62:1 on the quietest
+and only **4.01:1 and 3.43:1** on tiers 3 and 4 — under the 4.5:1 a 12pt bold
+label needs, on exactly the courts busy enough to matter. It is black through
+tier 2 and **white from tier 3** now (5.24:1 and 6.12:1), the crossover being
+where black (4.74) and white (4.43) swap places. `configureAsCourt` sets the
+label colour on every call, active or not, for the same recycled-view reason it
+sets the text. `ThemeContrastTests.testEveryHeatTierCarriesItsLabel` holds every
+tier; `CourtHeatTests` pins where the flip is.
+
+**Stop 0 is `hooprOrange`'s light value, hardcoded** (`EE6730`), not a
 reference to the role — the palette is deliberately fixed rather than routed
-through `Theme.swift`'s light/dark provider, because it's a data scale read
-against the muted basemap in both appearances rather than chrome that should
-invert. `CourtHeatTests` pins the hex, which is what catches the two drifting
-apart if the brand orange is ever retuned again.
+through the light/dark provider, because it's a data scale read against the
+muted basemap in both appearances rather than chrome that should invert.
+`CourtHeatTests` pins the hex, which is what catches the two drifting apart if
+the brand orange is ever retuned again. (This section said `F79331` until
+2026-09-21 — the value before the 08-22 retune, left behind when the test moved
+on.)
 
 The scale was rebased onto the brand orange on 2026-08-22. It previously
 opened on a near-white cream (`FDECD8`) so a quiet court receded into the map;
@@ -654,6 +672,9 @@ nearby-list row — already open this card, so one button serves both. See
   ambiguity they carried; see "There is no clustering" before you do.
 - A pin's colour comes from `CourtHeat`, never from `hooprOrange`/
   `hooprDarkOrange` directly, and never changes on selection.
+- **A pin's count label comes from `CourtHeat.labelColor(forGameCount:)`, never
+  `hooprOnBrand`.** Black is 4.01:1 and 3.43:1 on the two deepest tiers; the
+  label is white from tier 3. `configureAsCourt` sets it on every call.
   `updateUIView`'s restyle loop must keep re-running `configureAsCourt` over
   the on-screen annotations — a loop that skips it silently stops recolouring
   pins the moment counts change without an annotation being added or removed.

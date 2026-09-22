@@ -60,7 +60,7 @@ struct CourtRow: View {
             Button(action: onToggleFavorite) {
                 Image(systemName: isFavorite ? "star.fill" : "star")
                     .hooprFont(17, maximumSize: 22)
-                    .foregroundStyle(isFavorite ? Color.hooprOrange : Color.hooprSecondaryText)
+                    .foregroundStyle(isFavorite ? Color.hooprBrandAccent : Color.hooprSecondaryText)
                     // Widen the tap target without widening the icon, so the
                     // star doesn't swallow taps meant for the row.
                     .frame(width: 40, height: 40)

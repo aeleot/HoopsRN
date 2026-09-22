@@ -37,7 +37,7 @@ struct PlayerAvatar: View {
                 }
             }
             .foregroundStyle(
-                initial.isEmpty ? Color.hooprSecondaryText : Color.hooprOrange
+                initial.isEmpty ? Color.hooprSecondaryText : Color.hooprBrandAccent
             )
         }
         .frame(width: diameter, height: diameter)

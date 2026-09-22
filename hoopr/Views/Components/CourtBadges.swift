@@ -78,8 +78,8 @@ struct CourtBadges: View {
                         .foregroundStyle(
                             amenity.isCaution ? Color.hooprRed : Color.hooprSecondaryText
                         )
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, Spacing.Pill.horizontal)
+                        .padding(.vertical, Spacing.Pill.vertical)
                         // The caution badge is outlined rather than filled so
                         // its text lands on the card ground rather than on
                         // `hooprFill`, where the red is at its tightest —

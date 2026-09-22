@@ -39,7 +39,7 @@ struct GameDayView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: Spacing.interCard) {
                 if viewModel.game.status == .cancelled {
                     cancelledBanner
                 }
@@ -103,7 +103,7 @@ struct GameDayView: View {
                 .foregroundStyle(Color.hooprSecondaryText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 
@@ -130,7 +130,7 @@ struct GameDayView: View {
         HStack(spacing: 12) {
             Image(systemName: "mappin.and.ellipse")
                 .hooprFont(18)
-                .foregroundStyle(Color.hooprOrange)
+                .foregroundStyle(Color.hooprBrandAccent)
 
             Text(viewModel.courtName)
                 .hooprFont(15, weight: .medium)
@@ -138,7 +138,7 @@ struct GameDayView: View {
 
             Spacer(minLength: 0)
         }
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 
@@ -170,7 +170,7 @@ struct GameDayView: View {
                 }
             }
         }
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 
@@ -179,7 +179,7 @@ struct GameDayView: View {
             if viewModel.game.hasArrived(uid) {
                 Image(systemName: "checkmark.circle.fill")
                     .hooprFont(18)
-                    .foregroundStyle(Color.hooprOrange)
+                    .foregroundStyle(Color.hooprBrandAccent)
                     .accessibilityLabel("Arrived")
             } else {
                 Image(systemName: "circle")
@@ -228,7 +228,7 @@ struct GameDayView: View {
                     .hooprFont(13, weight: .semibold)
             }
             .foregroundStyle(Color.hooprPrimaryText)
-            .padding(16)
+            .padding(Spacing.cardPadding)
             .cardChrome()
         }
         .buttonStyle(.plain)

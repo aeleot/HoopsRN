@@ -261,6 +261,15 @@ so it looks like a free answer, but at `rgb(214, 93, 43)` on white it measures
 **≈3.85:1** — clears AA Large (3.0), fails AA normal text (4.5). Tab bar labels
 are ~10pt. They need 4.5.
 
+> **Update 2026-09-21 — closed.** Built as `hooprBrandAccent` (`#B8400F`: the
+> brand's own hue and saturation, lightened as far as 4.5:1 allows, rather than
+> the `#B4491E` suggested below or the name `hooprOrangeText`) in Phase 1 of the
+> UI revamp. Both tests this section names —
+> `testBrandAsForegroundIsATrackedGap` and `testTabBarSelectionIsATrackedGap` —
+> were replaced by assertions that the accent clears, and the "2.55 / 2.34"
+> figures quoted here were the nominal values for an orange since retuned; what
+> the tab bar actually rendered was 3.01:1. See `gaps/ACCESSIBILITY.md`.
+
 ### The recommendation: a monochrome tab bar
 
 Do not tint the tab bar with the brand at all. Selected =

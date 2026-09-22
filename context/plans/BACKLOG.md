@@ -1014,6 +1014,13 @@ rather than by eyeballing hex values. The `design` skill is built for exactly
 this kind of comp. Pick one direction and land it as a single considered
 change, not another drip of one-role patches.
 
+> **Update 2026-09-21:** the AA gap below **closed on its own**, ahead of this
+> story, as `hooprBrandAccent` in Phase 1 of the UI revamp — the pin it
+> describes (`testBrandAsForegroundIsATrackedGap`) no longer exists. The
+> constraint that "every colour used as text or a thin glyph has to clear AA in
+> both appearances" still stands, and is now enforced by `BrandMarkUsageTests`
+> as well as `ThemeContrastTests`. See `gaps/ACCESSIBILITY.md`.
+
 *The AA gap folds into this, as a constraint rather than the driver:*
 `hooprOrange` currently fails WCAG AA as a **foreground** — 2.55:1 on
 `hooprBackground`/`hooprSurface`, 2.34:1 on `hooprFill` in light mode, both

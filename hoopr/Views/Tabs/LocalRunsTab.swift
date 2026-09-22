@@ -58,7 +58,7 @@ struct LocalRunsTab: View {
                         onRetry: viewModel.isRecovering ? { viewModel.retry() } : nil,
                         onDismiss: { viewModel.dismissError() }
                     )
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, Spacing.pageMargin)
                     .padding(.top, 12)
                 }
 
@@ -104,7 +104,7 @@ struct LocalRunsTab: View {
             ProfileButton(friendService: friendService, squadService: squadService, action: onOpenProfile)
                 .offset(x: 8)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, Spacing.pageMargin)
         .padding(.top, 8)
         .padding(.bottom, 4)
     }
@@ -127,10 +127,10 @@ struct LocalRunsTab: View {
                     .hooprFont(14)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .multilineTextAlignment(.leading)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, Spacing.pageMargin)
                     .padding(.bottom, 20)
             } else {
-                VStack(spacing: 12) {
+                VStack(spacing: Spacing.interRow) {
                     ForEach(listings) { listing in
                         // Resolved once, so the button that's rendered and the
                         // one that fires can't disagree — a confirmation
@@ -161,7 +161,7 @@ struct LocalRunsTab: View {
                         )
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, Spacing.pageMargin)
                 .padding(.bottom, 20)
             }
         }
@@ -196,7 +196,7 @@ struct LocalRunsTab: View {
                     .foregroundStyle(Color.hooprSecondaryText)
                     .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, Spacing.pageMargin)
             .padding(.vertical, 16)
             .contentShape(Rectangle())
         }

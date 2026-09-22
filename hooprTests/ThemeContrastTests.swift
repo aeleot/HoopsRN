@@ -15,8 +15,8 @@ import UIKit
 /// floor, on every primary button in the app.
 ///
 /// So the arithmetic below is ported (it's palette-independent — pure maths on
-/// two resolved colours) and the assertions are rewritten against the eleven
-/// roles that exist today. A ratio is arithmetic, not taste, which is exactly
+/// two resolved colours) and the assertions are rewritten against the roles
+/// that exist today. A ratio is arithmetic, not taste, which is exactly
 /// why it belongs in a test rather than in a design review.
 ///
 /// The pairings are the real ones, not every combination: a role is only
@@ -63,6 +63,56 @@ final class ThemeContrastTests: XCTestCase {
     ) {
         for (style, name) in [(UIUserInterfaceStyle.light, "light"), (.dark, "dark")] {
             let measured = ratio(foreground, on: background, style)
+            XCTAssertGreaterThanOrEqual(
+                measured, floor,
+                String(
+                    format: "%@ in %@ mode: %.2f:1, need %.2f:1",
+                    label, name, Double(measured), Double(floor)
+                ),
+                file: file, line: line
+            )
+        }
+    }
+
+    /// The colour a translucent wash actually *is*: `tint` at `alpha` over
+    /// `ground`, resolved for `style`.
+    ///
+    /// A badge is drawn as `tint.opacity(0.12)` over a card, so the ground its
+    /// text sits on is this composite, not the card — and it is darker and more
+    /// orange than the card, which is what quietly pushed HOSTING's orange text
+    /// to 2.78:1 while a check against `hooprSurface` said 3.17.
+    private func washed(
+        _ tint: Color, alpha: CGFloat, over ground: Color, _ style: UIUserInterfaceStyle
+    ) -> UIColor {
+        let traits = UITraitCollection(userInterfaceStyle: style)
+        var t: (r: CGFloat, g: CGFloat, b: CGFloat, a: CGFloat) = (0, 0, 0, 0)
+        var g: (r: CGFloat, g: CGFloat, b: CGFloat, a: CGFloat) = (0, 0, 0, 0)
+        UIColor(tint).resolvedColor(with: traits).getRed(&t.r, green: &t.g, blue: &t.b, alpha: &t.a)
+        UIColor(ground).resolvedColor(with: traits).getRed(&g.r, green: &g.g, blue: &g.b, alpha: &g.a)
+        return UIColor(
+            red: t.r * alpha + g.r * (1 - alpha),
+            green: t.g * alpha + g.g * (1 - alpha),
+            blue: t.b * alpha + g.b * (1 - alpha),
+            alpha: 1
+        )
+    }
+
+    /// `assertContrast` for a foreground on a translucent wash. Both
+    /// appearances, for the same reason.
+    private func assertContrast(
+        _ foreground: Color,
+        onWashOf tint: Color,
+        alpha: CGFloat,
+        over ground: Color,
+        atLeast floor: CGFloat,
+        _ label: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        for (style, name) in [(UIUserInterfaceStyle.light, "light"), (.dark, "dark")] {
+            let lf = luminance(UIColor(foreground), style)
+            let lb = luminance(washed(tint, alpha: alpha, over: ground, style), style)
+            let measured = (max(lf, lb) + 0.05) / (min(lf, lb) + 0.05)
             XCTAssertGreaterThanOrEqual(
                 measured, floor,
                 String(
@@ -198,73 +248,206 @@ final class ThemeContrastTests: XCTestCase {
         assertContrast(.hooprRed, on: .hooprFill, atLeast: aaText, "error text on fill")
     }
 
-    // MARK: - Known gap
+    // MARK: - Brand as a mark
 
-    /// `hooprOrange` is **not** asserted as a foreground, and that is a recorded
-    /// defect rather than an oversight — see `context/GAPS.md`.
+    /// **The tracked gap, closed by a role rather than a retune.**
     ///
-    /// It is drawn as a mark on pale grounds in a dozen places (profile row
-    /// icons, `PlayerAvatar`'s initials, the map's recenter glyph, `CourtRow`'s
-    /// filled star, `GameCard`'s basketball) where it measures 2.55:1 on
-    /// background and surface and 2.34:1 on fill in **light mode** — under both
-    /// the text and the graphic floor. Dark mode is fine (9.33 / 7.56 / 6.19),
-    /// because the orange is lifted and the grounds are dark.
+    /// `hooprOrange` is a *fill* — it measures 3.17:1 on white and 2.91:1 on
+    /// `hooprFill`, under the 4.5:1 a mark needs — so every text, glyph, focus
+    /// ring, selection stroke and control tint draws `hooprBrandAccent`
+    /// instead: the same hue and saturation, deepened until it reads. This is
+    /// the assertion that used to be a test pinning the *failing* ratio, which
+    /// is why it could go stale unnoticed (it passed on 2.29 and on 3.17 alike).
     ///
-    /// Fixing it needs a second brand role — a deepened orange for marks that
-    /// are read rather than filled, which is what the reverted palette's
-    /// `hooprBrandText` was — plus a sweep of those call sites. That is a design
-    /// decision and a wider change than the pairing this file was restored to
-    /// pin, so it is tracked rather than asserted. **Add the assertion here in
-    /// the same change that adds the role**; this comment is the reminder.
-    func testBrandAsForegroundIsATrackedGap() throws {
-        let lightOnFill = ratio(.hooprOrange, on: .hooprFill, .light)
-        XCTAssertLessThan(
-            lightOnFill, aaLarge,
-            """
-            hooprOrange now clears \(aaLarge):1 as a foreground on hooprFill in \
-            light mode (\(String(format: "%.2f", Double(lightOnFill))):1). If \
-            that is because a readable brand role landed, replace this test with \
-            real assertions and strike the gap from context/GAPS.md.
-            """
+    /// Every ground a mark is actually drawn on, both appearances: the page and
+    /// a card (the profile's rows, Login's "Sign up", the tab bar), a fill
+    /// (`PlayerAvatar`'s initial, `InviteLinkCard`'s link glyph), a raised
+    /// surface, and a pressed row. `BrandMarkUsageTests` is what stops a view
+    /// drawing `hooprOrange` in those places again.
+    func testBrandAccentClearsAAOnEveryGroundAMarkIsDrawnOn() {
+        assertContrast(.hooprBrandAccent, on: .hooprBackground, atLeast: aaText, "brand accent on background")
+        assertContrast(.hooprBrandAccent, on: .hooprSurface, atLeast: aaText, "brand accent on surface")
+        assertContrast(.hooprBrandAccent, on: .hooprFill, atLeast: aaText, "brand accent on fill")
+        assertContrast(.hooprBrandAccent, on: .hooprElevatedSurface, atLeast: aaText, "brand accent on elevated surface")
+        assertContrast(.hooprBrandAccent, on: .hooprHoverFill, atLeast: aaText, "brand accent on hover fill")
+    }
+
+    /// A badge's text and an icon tile's glyph sit on a **wash of the vivid
+    /// orange**, not on the card: HOSTING (12%) and the profile rows' and Home's
+    /// friend-request tiles (14%). The wash is darker and more orange than the
+    /// card, and it is the tightest ground the accent is drawn on — 4.76:1 in
+    /// light mode at 14% — which is why it is asserted separately.
+    func testBrandAccentClearsAAOnTheOrangeWashesBehindBadgesAndIconTiles() {
+        assertContrast(
+            .hooprBrandAccent, onWashOf: .hooprOrange, alpha: 0.12, over: .hooprSurface,
+            atLeast: aaText, "HOSTING badge text on its 12% orange wash"
+        )
+        assertContrast(
+            .hooprBrandAccent, onWashOf: .hooprOrange, alpha: 0.14, over: .hooprSurface,
+            atLeast: aaText, "icon-tile glyph on its 14% orange wash"
         )
     }
 
-    /// The tab bar's selected item, which became the **most prominent**
-    /// instance of the gap above when navigation moved to the bottom on
-    /// 2026-08-26.
+    /// **The tab bar's selected item — the pairing that was the gap's most
+    /// prominent instance, now passing.**
     ///
-    /// The old shell never hit this: its tab pills painted `hooprOrange` as a
-    /// *fill* with `hooprOnBrand` on top, which is the pairing
-    /// `testBrandButtonLabelClearsAA` pins at 6.61:1. A native tab bar inverts
-    /// that — `.tint(...)` colours the selected item's glyph **and** its label,
-    /// so the brand is now foreground on a near-white glass ground, at roughly
-    /// 10pt. That is normal text by WCAG's reckoning, so it needs 4.5:1 and
-    /// gets ~2.55:1.
+    /// `MainTabView` hands the system `hooprBrandAccent`, and this asserts that
+    /// nominal value on the grounds this code controls: the page (Home, Runs,
+    /// Seasons) and a card (the map's tab, whose band is `hooprSurface`).
     ///
-    /// Shipped knowingly: an orange selected tab was an explicit product
-    /// decision, and the alternatives both cost something real. A monochrome
-    /// bar passes but drops the brand from the app's most-seen control;
-    /// `hooprDarkOrange` only reaches ~3.85:1, which clears the graphic floor
-    /// and still misses the text one. The genuine fix is the deepened
-    /// `hooprOrange`-as-text role the gap above already calls for — roughly
-    /// `#B4491E`, which measures ~5.4:1 on white.
-    ///
-    /// Asserted in the failing direction on purpose, exactly like the test
-    /// above: **this goes green the day the gap closes**, which is the signal
-    /// to replace it with a real assertion.
-    func testTabBarSelectionIsATrackedGap() throws {
-        let lightOnBackground = ratio(.hooprOrange, on: .hooprBackground, .light)
-        XCTAssertLessThan(
-            lightOnBackground, aaText,
-            """
-            hooprOrange now clears \(aaText):1 as a foreground on \
-            hooprBackground in light mode \
-            (\(String(format: "%.2f", Double(lightOnBackground))):1). If a \
-            readable brand role landed, point MainTabView's .tint at it, \
-            replace this test with a real assertion, and strike the gap from \
-            context/GAPS.md.
-            """
+    /// **What it does not, and cannot, assert is what iOS 26 finally draws.**
+    /// The system adjusts a tint before painting it: sampled from screenshots,
+    /// `hooprOrange` rendered as `#E55E27` on a `#EDEDED` pill in light mode
+    /// (3.01:1 — the real on-screen figure, not the 2.55 this comment used to
+    /// quote) and as `#FF8F6A` on `#3A3A3A` in dark (5.09:1). The rendered value
+    /// is re-measured from a screenshot whenever the tint changes: with
+    /// `hooprBrandAccent` the live app measured 5.32:1 in light (`#AF3706` on
+    /// `#EDEDED`) and 4.98:1 in dark (`#FF8C68` on `#3A3A3A`).
+    func testTabBarSelectionClearsAA() {
+        assertContrast(.hooprBrandAccent, on: .hooprBackground, atLeast: aaText, "selected tab on the page")
+        assertContrast(.hooprBrandAccent, on: .hooprSurface, atLeast: aaText, "selected tab on the map tab's band")
+    }
+
+    /// A mark in the tinted-square icon tile of a destructive profile row —
+    /// Sign Out — on its own 14% red wash. Asserted because `ProfileRowTint`
+    /// gave the destructive case a wash of its own to keep, and a wash a role
+    /// owns is a pairing someone has to have measured.
+    func testDestructiveRowMarkClearsAAOnItsOwnWash() {
+        assertContrast(
+            .hooprRed, onWashOf: .hooprRed, alpha: 0.14, over: .hooprSurface,
+            atLeast: aaText, "Sign Out mark on its 14% red wash"
         )
+    }
+
+    /// WAITLIST and FULL badges: secondary text on a 12% wash of itself. Not new
+    /// colours — but the badge's tuple changed shape when HOSTING's foreground
+    /// and wash were split, and the pairing had never been measured.
+    func testWaitlistAndFullBadgesClearAAOnTheirOwnWash() {
+        assertContrast(
+            .hooprSecondaryText, onWashOf: .hooprSecondaryText, alpha: 0.12, over: .hooprSurface,
+            atLeast: aaText, "WAITLIST / FULL badge text on its 12% wash"
+        )
+    }
+
+    // MARK: - Elevation
+
+    /// **Dark mode's ladder — page, card, raised, field — and that every rung is
+    /// a step a reader can see.**
+    ///
+    /// Each rung is one visible step up: 1.23:1 from the page to a card, 1.10
+    /// to a raised surface, 1.11 to a field. The floor here is 1.08 — well below
+    /// what is drawn, so a one-value retune doesn't fail it, and well above 1.0,
+    /// which is what a collapsed ladder measures. Dark only, for the reason
+    /// `testCardSeparatesFromBackgroundInDarkMode` gives: a shadow on black
+    /// carries nothing, so the fill has to.
+    func testDarkElevationLadderRisesInVisibleSteps() {
+        let dark = UIUserInterfaceStyle.dark
+        let rungs: [(String, Color)] = [
+            ("page", .hooprBackground), ("card", .hooprSurface),
+            ("raised", .hooprElevatedSurface), ("field", .hooprFill),
+        ]
+        for (lower, upper) in zip(rungs, rungs.dropFirst()) {
+            XCTAssertGreaterThanOrEqual(
+                ratio(upper.1, on: lower.1, dark), 1.08,
+                "In dark mode the \(upper.0) must sit a visible step above the \(lower.0)"
+            )
+            XCTAssertGreaterThan(
+                luminance(UIColor(upper.1), dark), luminance(UIColor(lower.1), dark),
+                "In dark mode the \(upper.0) must be lighter than the \(lower.0), not darker"
+            )
+        }
+    }
+
+    /// Light mode has one raised level and it is white, so the raised surface
+    /// **equals** the card there by design — nothing is lighter than white, and
+    /// the lift comes from `hooprShadow` and `hooprSeparatorStrong` instead.
+    ///
+    /// Asserted so that it is a *recorded* decision. If light mode's page ground
+    /// ever moves off pure white (a design call this token phase does not make —
+    /// see the doc comment on `hooprElevatedSurface`), this is the test that
+    /// says the role now has a value to choose, and goes red on purpose.
+    func testLightRaisedSurfaceIsWhiteByDesign() {
+        XCTAssertEqual(
+            ratio(.hooprElevatedSurface, on: .hooprSurface, .light), 1.0, accuracy: 0.001,
+            "light-mode raised surface no longer equals the card — see hooprElevatedSurface before changing this"
+        )
+    }
+
+    /// A pressed or hovered row has to be **a visible step above the card it is
+    /// pressed on**, and its text has to survive being pressed.
+    ///
+    /// Deliberately *not* asserted against `hooprFill`: a pressed row is never
+    /// drawn on a field, and the brand accent's 4.5:1 caps how light the dark
+    /// value can go, which leaves it within 1.03:1 of a fill. Asserting a gap
+    /// there would encode a design the colour cannot have. What it must do is
+    /// stand off a card — primary text, secondary text and `hooprBrandAccent`
+    /// all clear 4.5:1 on it (4.61:1 for the accent in dark, against that
+    /// floor), which is what "a row stays readable while it is pressed" means.
+    func testHoverFillIsAVisibleStepAboveACardAndKeepsTextReadable() {
+        for (style, name) in [(UIUserInterfaceStyle.light, "light"), (.dark, "dark")] {
+            XCTAssertGreaterThanOrEqual(
+                ratio(.hooprHoverFill, on: .hooprSurface, style), 1.08,
+                "hover fill must be a visible step from a card in \(name) mode"
+            )
+        }
+        assertContrast(.hooprPrimaryText, on: .hooprHoverFill, atLeast: aaText, "primary text on hover fill")
+        assertContrast(.hooprSecondaryText, on: .hooprHoverFill, atLeast: aaText, "secondary text on hover fill")
+    }
+
+    /// Text on a raised surface. `hooprElevatedSurface` is a ground text is
+    /// drawn on, so it gets the same two assertions the other grounds have.
+    func testTextOnTheRaisedSurface() {
+        assertContrast(.hooprPrimaryText, on: .hooprElevatedSurface, atLeast: aaText, "primary text on raised surface")
+        assertContrast(.hooprSecondaryText, on: .hooprElevatedSurface, atLeast: aaText, "secondary text on raised surface")
+    }
+
+    /// **The strong separator is a component boundary, so it has to clear the
+    /// 3:1 that WCAG 1.4.11 asks of one** — on every ground it could sit on, in
+    /// both appearances. `hooprBorder` is deliberately faint (1.2:1 on white)
+    /// and would fail this; that is the whole reason the second role exists.
+    func testStrongSeparatorClearsTheGraphicFloorOnEveryGround() {
+        assertContrast(.hooprSeparatorStrong, on: .hooprBackground, atLeast: aaLarge, "strong separator on background")
+        assertContrast(.hooprSeparatorStrong, on: .hooprSurface, atLeast: aaLarge, "strong separator on surface")
+        assertContrast(.hooprSeparatorStrong, on: .hooprFill, atLeast: aaLarge, "strong separator on fill")
+        assertContrast(.hooprSeparatorStrong, on: .hooprElevatedSurface, atLeast: aaLarge, "strong separator on raised surface")
+        assertContrast(.hooprSeparatorStrong, on: .hooprHoverFill, atLeast: aaLarge, "strong separator on hover fill")
+    }
+
+    /// And the reason the role isn't just `hooprBorder`: the hairline is
+    /// *meant* to sit under the graphic floor. If this ever fails, the two roles
+    /// have converged and one of them is redundant.
+    func testHairlineBorderIsDeliberatelyFainterThanTheStrongSeparator() {
+        for (style, name) in [(UIUserInterfaceStyle.light, "light"), (.dark, "dark")] {
+            XCTAssertLessThan(
+                ratio(.hooprBorder, on: .hooprBackground, style),
+                ratio(.hooprSeparatorStrong, on: .hooprBackground, style),
+                "in \(name) mode the hairline must be fainter than the strong separator"
+            )
+        }
+    }
+
+    // MARK: - Heat
+
+    /// **Every tier of the heat ramp carries its label — the assertion that
+    /// found a real failure.**
+    ///
+    /// The map pin's count is drawn on these fills. It used to be
+    /// `hooprOnBrand` (black) on all five, which is 6.62:1 on the quietest and
+    /// only 4.01 and 3.43 on tiers 3 and 4: under the 4.5:1 a 12pt bold label
+    /// needs, on exactly the courts busy enough to matter. Nothing asserted it,
+    /// because the ramp lived outside `Theme.swift` and `CourtHeatTests` only
+    /// pinned the fills. `hooprOnHeat(tier:)` flips to white where black stops
+    /// clearing; this holds every tier to it, in both appearances (the ramp is
+    /// fixed, so they are equal — asserted through the shared helper anyway).
+    func testEveryHeatTierCarriesItsLabel() {
+        for tier in 0...Color.hooprHeatMaxTier {
+            assertContrast(
+                .hooprOnHeat(tier: tier),
+                on: .hooprHeat(tier: tier),
+                atLeast: aaText,
+                "pin count on heat tier \(tier)"
+            )
+        }
     }
 
     // MARK: - Surface separation

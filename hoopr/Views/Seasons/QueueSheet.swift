@@ -148,7 +148,7 @@ struct QueueSheet: View {
                 .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 
@@ -282,7 +282,7 @@ struct QueueSheet: View {
                 displayedComponents: .date
             )
             .datePickerStyle(.graphical)
-            .tint(Color.hooprOrange)
+            .tint(Color.hooprBrandAccent)
             .padding(.horizontal, 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Color.hooprBackground)
@@ -418,7 +418,7 @@ struct QueueSheet: View {
                     .hooprFont(20)
                     .foregroundStyle(
                         selectedCourtIds.contains(courtId)
-                            ? Color.hooprOrange
+                            ? Color.hooprBrandAccent
                             : Color.hooprSecondaryText
                     )
 

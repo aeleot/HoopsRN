@@ -180,12 +180,18 @@ blocking and reporting all need infrastructure the project doesn't have yet.
 - **VoiceOver** labels and values are set on controls, including the ones whose
   meaning is carried by an icon or a badge.
 
-One known exception is tracked in `GAPS.md`: the brand orange fails AA when used
-as a *foreground* colour in light mode. It is pinned by a test that will fail
-the moment it's fixed, so it cannot be quietly forgotten. The orange itself was
-softened on 2026-08-21 — a visual-only change, same hue, less saturated — ahead
-of a planned broader colour-scheme revision; it does not touch this gap and was
-not intended to.
+The one known exception this section used to carry — the brand orange failing AA
+when used as a *foreground* colour in light mode — was **closed on 2026-09-21**.
+The brand now comes in two forms: the vivid orange for filled surfaces such as
+buttons, and a deeper orange of the same hue for anything that is *read* — text,
+icons, outlines, the selected tab. Every ground the deeper orange is drawn on is
+asserted at 4.5:1 in both appearances, and a second test reads the interface
+source and fails if the vivid orange is drawn as text again. The same pass
+found and fixed one pairing that had never been asserted: the count on a busy
+court's map pin, which measured 3.4:1 on the deepest heat tier and is now white
+where black stopped clearing. (The vivid orange itself was softened on
+2026-08-21 and retuned on 2026-08-22; neither touched the gap, and neither was
+meant to.)
 
 ### Reliability
 
@@ -205,7 +211,7 @@ carries real coverage — there is no scaffold.
 
 | Suite | Tests | What it protects |
 |---|---|---|
-| **App logic** (`hooprTests`) | 463 across 28 suites | Every stored shape and every rule the app applies before it writes: capacity and scheduling bounds, roster membership, matchmaking's ranking and its claim policy, the matchmaking card's state, result derivation, WCAG contrast, court naming and badges, error classification, reconnection. |
+| **App logic** (`hooprTests`) | 481 across 30 suites | Every stored shape and every rule the app applies before it writes: capacity and scheduling bounds, roster membership, matchmaking's ranking and its claim policy, the matchmaking card's state, result derivation, WCAG contrast, court naming and badges, error classification, reconnection. |
 | **Security rules** (`firestore-tests`) | 141 | What the server actually *permits*, evaluated against the Firestore emulator rather than read. Covers **every collection** as of September 2026, including the matchmaking race run 15 rounds in both shapes, the atomic match commit, and the rate-limit floors (a brand-new document refused, a six-second-old one allowed). |
 
 Two things are worth calling out. **A rules dry-run is not a test** — it

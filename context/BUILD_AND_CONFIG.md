@@ -237,9 +237,11 @@ for a ruleset it never evaluated is worse than no rules suite at all.
 
 There are **two** suites, in two languages, and neither can do the other's job.
 
-- **`hooprTests` — 463 test methods across 28 suites**, from a green
-  `-only-testing:hooprTests` run on 2026-09-20. All of them carry real coverage;
-  there is no scaffold left in `hooprTests/`.
+- **`hooprTests` — 481 test methods across 30 suites**, from a green
+  `-only-testing:hooprTests` run on 2026-09-21 (counted from the `.xcresult`,
+  not from the log: interleaved output from parallel clones mangles the odd
+  line, and a log grep read this suite as 462 once). All of them carry real
+  coverage; there is no scaffold left in `hooprTests/`.
 - **`firestore-tests/` — 141 tests across nine files**, from a green
   `npm run test:rules` run on 2026-09-20 against the Firestore emulator. This is
   the only place `firestore.rules` is *evaluated* rather than read; see "A
@@ -262,9 +264,13 @@ reached as a pure function is, in this project, untestable — which is why
 `MatchmakingService`, and why `SeasonGameNotifications` decides what to schedule
 while `NotificationService` merely schedules it.
 
-Two suites are the deliberate exceptions, and both measure UIKit rather than
+Three suites are the deliberate exceptions. Two measure UIKit rather than
 logic: `TabBarLabelTests` renders a real tab bar, and `ThemeContrastTests`
-resolves real colours. A third measurement style would be one too many.
+resolves real colours. The third, `BrandMarkUsageTests`, reads the real
+`Views/` source tree the way `FirestoreRulesParityTests` reads
+`firestore.rules` — it is the only guard against a view drawing the brand fill
+as text, because a contrast test on a role cannot see a call site. A fourth
+measurement style would be one too many.
 
 | Suite | Cases | Guards |
 |---|---|---|
@@ -284,11 +290,13 @@ resolves real colours. A third measurement style would be one too many.
 | `HomeViewModelTests` | 15 | `rankHotCourts` — ordering, the `displayName` tie-break, zero/absent counts dropped, the limit, unknown court ids ignored. |
 | `SeasonGameNotificationsTests` | 13 | The scheduling plan: three reminders for a future match, none for one already started, stable identifiers across a reschedule. |
 | `ClaimPolicyTests` | 13 | Jitter, the three-attempt bound, and the backoff poll. |
-| `ThemeContrastTests` | 12 | Every colour pairing the UI actually draws, against WCAG AA — including all eight crest fills against `hooprOnCrest` — plus the tracked brand-as-foreground gaps asserted in the failing direction. |
+| `ThemeContrastTests` | 22 | Every colour pairing the UI actually draws, against WCAG AA — the crest fills against `hooprOnCrest`, `hooprBrandAccent` on every ground a mark sits on (including the 12% and 14% orange washes behind badges and icon tiles, the tightest at 4.76:1), the tab bar's selected item, every heat tier against its label, the elevation ladder, hover fill and strong separator. Replaced the two tests that pinned the brand-as-foreground gap in the failing direction. |
 | `MatchmakingViewModelTests` | 12 | `Phase.phase(ticket:nextGame:committedGame:hasSettlingTimedOut:)` — searching vs. settling vs. matched vs. idle, including a spent ticket that outlives its match by hours and a match that never arrives past `settlingGrace`. |
 | `CourtSearchTests` | 11 | Court name matching and ranking. |
 | `FriendshipTests` | 10 | Decoding, the derived document ID, direction. |
-| `CourtHeatTests` | 10 | `CourtHeat.color(forGameCount:)`'s five stops, its clamps, and the ramp's shape. |
+| `CourtHeatTests` | 13 | `CourtHeat`'s rule — count to tier, clamped at both ends — the five stops it resolves to, the ramp's shape, and where the pin label flips from black to white. |
+| `SpacingTests` | 3 | That every `Spacing` role which claims to be a step *is* one on `Spacing.scale`, that the scale rises, and that the roles keep their relative order. Not the values — those would just restate `Spacing.swift`. |
+| `BrandMarkUsageTests` | 2 | That no view draws `hooprOrange` as a mark (`foregroundStyle`, `tint`, `stroke`), by reading `hoopr/Views/` — balanced-paren aware, so a wrapped ternary is caught — and that the scanner itself can fail. |
 | `CourtFilterTests` | 10 | The court filter predicates. |
 | `SeasonsAccessibilityTests` | 8 | Dynamic Type behind the Seasons tab: that a fixed-diameter pill keeps its glyph inside its own circle at every content size, and that the cap making that true is load-bearing. |
 | `LocationServiceTests` | 6 | The home-location anchor. |

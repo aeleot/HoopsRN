@@ -108,13 +108,41 @@ struct ProfileRow: View {
     }
 }
 
+/// What a profile row's mark is drawn in, and what its icon tile's wash is.
+///
+/// **Two colours, because a mark and the ground behind it need different
+/// things.** The glyph and any title have to be *read*, so the brand case
+/// uses `hooprBrandAccent` (4.5:1 on the wash it sits on); the tile behind it
+/// is a fill, and stays the vivid `hooprOrange` at 14% — which is what the
+/// tile has always looked like, and what a single shared tint would have
+/// dulled the moment the mark was deepened. `destructive` needs no split:
+/// `hooprRed` reads on its own wash in both appearances.
+enum ProfileRowTint {
+    case brand
+    case destructive
+
+    var mark: Color {
+        switch self {
+        case .brand:       Color.hooprBrandAccent
+        case .destructive: Color.hooprRed
+        }
+    }
+
+    var wash: Color {
+        switch self {
+        case .brand:       Color.hooprOrange
+        case .destructive: Color.hooprRed
+        }
+    }
+}
+
 /// A row that performs something rather than showing something — sign out. Same
 /// chrome and the same left-hand square as `ProfileRow`, so the end of the list
 /// doesn't change shape, with the tint carrying the meaning instead of a value.
 struct ProfileActionRow: View {
     let symbol: String
     let title: String
-    var tint: Color = .hooprOrange
+    var tint: ProfileRowTint = .brand
     let action: () -> Void
 
     var body: some View {
@@ -124,7 +152,7 @@ struct ProfileActionRow: View {
 
                 Text(title)
                     .hooprFont(16, weight: .semibold)
-                    .foregroundStyle(tint)
+                    .foregroundStyle(tint.mark)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
 
@@ -145,16 +173,16 @@ struct ProfileActionRow: View {
 /// still scales, and the row grows to match.
 private struct ProfileRowIcon: View {
     let symbol: String
-    var tint: Color = .hooprOrange
+    var tint: ProfileRowTint = .brand
 
     var body: some View {
         Image(systemName: symbol)
             .font(.system(size: 16, weight: .semibold))
-            .foregroundStyle(tint)
+            .foregroundStyle(tint.mark)
             .frame(width: 38, height: 38)
             .background(
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(tint.opacity(0.14))
+                    .fill(tint.wash.opacity(0.14))
             )
             .accessibilityHidden(true)
     }
@@ -207,7 +235,7 @@ private extension View {
         ProfileActionRow(
             symbol: "rectangle.portrait.and.arrow.right",
             title: "Sign Out",
-            tint: .hooprRed
+            tint: .destructive
         ) {}
     }
     .padding(16)

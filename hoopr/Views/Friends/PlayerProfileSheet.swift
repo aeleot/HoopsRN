@@ -51,7 +51,7 @@ struct PlayerProfileSheet: View {
                     VStack(alignment: .leading, spacing: 10) {
                         rows
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, Spacing.pageMargin)
                     .padding(.top, 4)
                     .padding(.bottom, 8)
                 }
@@ -75,7 +75,7 @@ struct PlayerProfileSheet: View {
                     // on white.
                     Button("Done", action: onDismiss)
                         .fontWeight(.semibold)
-                        .foregroundStyle(Color.hooprOrange)
+                        .foregroundStyle(Color.hooprBrandAccent)
                 }
             }
         }
@@ -112,7 +112,7 @@ struct PlayerProfileSheet: View {
             PlayerAvatar(initial: row.initial, diameter: 56)
                 .overlay(
                     Circle()
-                        .stroke(Color.hooprOrange, lineWidth: 2)
+                        .stroke(Color.hooprBrandAccent, lineWidth: 2)
                         .frame(width: 62, height: 62)
                 )
 
@@ -132,7 +132,7 @@ struct PlayerProfileSheet: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, Spacing.pageMargin)
         .padding(.top, 8)
         .padding(.bottom, 20)
         .frame(maxWidth: .infinity)
@@ -219,7 +219,7 @@ struct PlayerProfileSheet: View {
                     }
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, Spacing.pageMargin)
             .padding(.top, 14)
             .padding(.bottom, 20)
         }

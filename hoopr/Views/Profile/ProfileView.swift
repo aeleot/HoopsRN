@@ -98,8 +98,7 @@ struct ProfileView: View {
     @AppStorage(AppearancePreference.storageKey)
     private var appearance: AppearancePreference = .system
 
-    /// The page margin, and the gap between rows.
-    private static let pageMargin: CGFloat = 20
+    /// The gap between rows. The page margin is `Spacing.pageMargin`.
     private static let rowSpacing: CGFloat = 10
 
     init(
@@ -194,7 +193,7 @@ struct ProfileView: View {
 
                 Section {
                     paneContent
-                        .padding(.horizontal, Self.pageMargin)
+                        .padding(.horizontal, Spacing.pageMargin)
                         .padding(.bottom, 40)
                 } header: {
                     paneHeader
@@ -237,7 +236,7 @@ struct ProfileView: View {
             initial: initials,
             userId: viewModel.userId
         )
-        .padding(.horizontal, Self.pageMargin)
+        .padding(.horizontal, Spacing.pageMargin)
         .padding(.top, 8)
         .padding(.bottom, 22)
         // Measured rather than assumed: the block's height moves with the
@@ -302,7 +301,7 @@ struct ProfileView: View {
                 )
             }
         }
-        .padding(.horizontal, Self.pageMargin)
+        .padding(.horizontal, Spacing.pageMargin)
         .padding(.top, 4)
         .padding(.bottom, 14)
         .background(Color.hooprBackground)
@@ -496,7 +495,7 @@ struct ProfileView: View {
             ProfileActionRow(
                 symbol: "rectangle.portrait.and.arrow.right",
                 title: "Sign Out",
-                tint: .hooprRed
+                tint: .destructive
             ) {
                 viewModel.signOut()
             }

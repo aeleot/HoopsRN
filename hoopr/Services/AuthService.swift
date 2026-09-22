@@ -92,6 +92,7 @@ final class AuthService: ObservableObject {
         case .networkError:                   return .network
         case .tooManyRequests:                return .tooManyRequests
         case .operationNotAllowed:            return .providerDisabled
+        case .keychainError:                  return .keychainUnavailable
         default:                              return .unknown(error.localizedDescription)
         }
     }

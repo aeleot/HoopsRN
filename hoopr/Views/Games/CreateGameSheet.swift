@@ -27,7 +27,7 @@ struct CreateGameSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: Spacing.interCard) {
                     courtSummary
 
                     if let inviteLink = viewModel.inviteLink {
@@ -45,7 +45,7 @@ struct CreateGameSheet: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                .padding(20)
+                .padding(Spacing.pageMargin)
             }
             .background(Color.hooprBackground)
             // The whole cycle is gated on `isSaving`, matching the profile
@@ -72,7 +72,7 @@ struct CreateGameSheet: View {
                     } else if viewModel.inviteLink != nil {
                         Button("Done", action: onCreated)
                             .fontWeight(.semibold)
-                            .foregroundStyle(Color.hooprOrange)
+                            .foregroundStyle(Color.hooprBrandAccent)
                     } else {
                         Button("Create") {
                             Task {
@@ -86,7 +86,7 @@ struct CreateGameSheet: View {
                         }
                         .fontWeight(.semibold)
                         .foregroundStyle(
-                            viewModel.canSave ? Color.hooprOrange : Color.hooprSecondaryText
+                            viewModel.canSave ? Color.hooprBrandAccent : Color.hooprSecondaryText
                         )
                         .disabled(!viewModel.canSave)
                     }
@@ -101,7 +101,7 @@ struct CreateGameSheet: View {
         HStack(spacing: 12) {
             Image(systemName: "basketball.fill")
                 .hooprFont(22)
-                .foregroundStyle(Color.hooprOrange)
+                .foregroundStyle(Color.hooprBrandAccent)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(viewModel.court.displayName)
@@ -158,7 +158,7 @@ struct CreateGameSheet: View {
                 )
                 .datePickerStyle(.compact)
                 .labelsHidden()
-                .tint(Color.hooprOrange)
+                .tint(Color.hooprBrandAccent)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 // A form left open long enough for its own tip-off to pass
@@ -254,7 +254,7 @@ struct CreateGameSheet: View {
             Image(systemName: symbol)
                 // Capped to the fixed 44pt hit target it's centred in.
                 .hooprFont(16, weight: .bold, maximumSize: 22)
-                .foregroundStyle(enabled ? Color.hooprOrange : Color.hooprSecondaryText.opacity(0.4))
+                .foregroundStyle(enabled ? Color.hooprBrandAccent : Color.hooprSecondaryText.opacity(0.4))
                 .frame(width: 44, height: 44)
                 .background(Color.hooprSurface)
                 .clipShape(Circle())

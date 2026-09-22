@@ -377,7 +377,7 @@ struct MapTab: View {
             } label: {
                 Image(systemName: "location.fill")
                     .hooprFont(17, weight: .semibold, maximumSize: 20)
-                    .foregroundStyle(Color.hooprOrange)
+                    .foregroundStyle(Color.hooprBrandAccent)
                     .frame(width: 46, height: 46)
                     .hooprGlass(in: .circle)
             }
@@ -529,7 +529,7 @@ struct MapTab: View {
                 .textCase(.uppercase)
                 .foregroundStyle(Color.hooprSecondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, Spacing.pageMargin)
                 .padding(.bottom, 8)
 
             if searchPaneCourts.isEmpty {
@@ -575,7 +575,7 @@ struct MapTab: View {
 
             Spacer(minLength: 8)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, Spacing.pageMargin)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
@@ -709,7 +709,7 @@ struct MapTab: View {
                             .minimumScaleFactor(0.7)
 
                         Rectangle()
-                            .fill(isSelected ? Color.hooprOrange : Color.hooprBorder)
+                            .fill(isSelected ? Color.hooprBrandAccent : Color.hooprBorder)
                             .frame(height: isSelected ? 2 : 1)
                     }
                     .frame(maxWidth: .infinity)
@@ -835,7 +835,7 @@ struct MapTab: View {
                 .gesture(sheetDragGesture(fromHandle: true))
 
             cardHeader(court: court)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, Spacing.pageMargin)
 
             // Scrolls, so a court with three runs is reachable by dragging the
             // sheet up rather than by the card growing past its detent.
@@ -852,7 +852,7 @@ struct MapTab: View {
                     CourtBadges(court: court)
                         .padding(.top, 2)
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, Spacing.pageMargin)
                 .padding(.top, 14)
                 // `sheetScroll`'s stack centres its children, which is right
                 // for full-width rows and wrong for this card — without it the
@@ -861,7 +861,7 @@ struct MapTab: View {
             }
 
             cardActions(court: court, hasRuns: !games.isEmpty)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, Spacing.pageMargin)
                 .padding(.top, 10)
                 .padding(.bottom, 14)
         }
@@ -871,7 +871,7 @@ struct MapTab: View {
     private func cardHeader(court: Court) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "basketball.fill")
-                .foregroundStyle(Color.hooprOrange)
+                .foregroundStyle(Color.hooprBrandAccent)
                 .hooprFont(20)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -893,7 +893,7 @@ struct MapTab: View {
                 Image(systemName: viewModel.isFavorite(court) ? "star.fill" : "star")
                     .hooprFont(19)
                     .foregroundStyle(
-                        viewModel.isFavorite(court) ? Color.hooprOrange : Color.hooprSecondaryText
+                        viewModel.isFavorite(court) ? Color.hooprBrandAccent : Color.hooprSecondaryText
                     )
             }
             .buttonStyle(.plain)

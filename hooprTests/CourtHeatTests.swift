@@ -30,9 +30,10 @@ final class CourtHeatTests: XCTestCase {
         return 0.299 * r + 0.587 * g + 0.114 * b
     }
 
-    /// Pinned to `hooprOrange`'s **light** value. `CourtHeat` hardcodes it
-    /// rather than referencing the role (see the type's note on why), so this
-    /// is the assertion that catches the two drifting apart silently.
+    /// Pinned to `hooprOrange`'s **light** value. The ramp hardcodes it rather
+    /// than referencing the role (see the note on `hooprHeat(tier:)` in
+    /// `Theme.swift` for why), so this is the assertion that catches the two
+    /// drifting apart silently.
     func testZeroGamesIsTheBrandOrange() {
         XCTAssertEqual(hex(CourtHeat.color(forGameCount: 0)), "EE6730")
     }
@@ -68,6 +69,49 @@ final class CourtHeatTests: XCTestCase {
 
     func testMaxTierMatchesTheStopCountUsedAbove() {
         XCTAssertEqual(CourtHeat.maxTier, 4)
+    }
+
+    // MARK: - The rule, now that the palette lives in Theme.swift
+
+    /// `CourtHeat` is the *rule* — count to tier — and `Theme.swift` owns the
+    /// colours. The rule is what the map and Home both call, so it has to clamp
+    /// the same way at both ends.
+    func testTiersClampToTheRamp() {
+        XCTAssertEqual(CourtHeat.tier(forGameCount: -3), 0)
+        XCTAssertEqual(CourtHeat.tier(forGameCount: 0), 0)
+        XCTAssertEqual(CourtHeat.tier(forGameCount: 2), 2)
+        XCTAssertEqual(CourtHeat.tier(forGameCount: CourtHeat.maxTier), CourtHeat.maxTier)
+        XCTAssertEqual(CourtHeat.tier(forGameCount: 40), CourtHeat.maxTier)
+    }
+
+    /// One definition, not two: the colour a count gets is the role for its
+    /// tier, so a retune in `Theme.swift` reaches the map pin and Home's dot
+    /// together.
+    func testTheColourForACountIsTheRoleForItsTier() {
+        for count in -1...9 {
+            XCTAssertEqual(
+                hex(CourtHeat.color(forGameCount: count)),
+                hex(.hooprHeat(tier: CourtHeat.tier(forGameCount: count))),
+                "count \(count)"
+            )
+            XCTAssertEqual(
+                hex(CourtHeat.labelColor(forGameCount: count)),
+                hex(.hooprOnHeat(tier: CourtHeat.tier(forGameCount: count))),
+                "label for count \(count)"
+            )
+        }
+    }
+
+    /// The label is black through tier 2 and white from tier 3 — where black
+    /// stops clearing 4.5:1 (4.01 on tier 3, 3.43 on tier 4) and white starts
+    /// to (5.24, 6.12). The contrast itself is `ThemeContrastTests`'s job; this
+    /// pins *where the flip is*, so a change to it is a decision and not a
+    /// side effect of retuning a fill.
+    func testTheCountLabelFlipsToWhiteWhereBlackStopsClearing() {
+        XCTAssertEqual(hex(CourtHeat.labelColor(forGameCount: 0)), "000000")
+        XCTAssertEqual(hex(CourtHeat.labelColor(forGameCount: 2)), "000000")
+        XCTAssertEqual(hex(CourtHeat.labelColor(forGameCount: 3)), "FFFFFF")
+        XCTAssertEqual(hex(CourtHeat.labelColor(forGameCount: 40)), "FFFFFF")
     }
 
     /// Busier must always mean darker. The exact-hex tests above would catch

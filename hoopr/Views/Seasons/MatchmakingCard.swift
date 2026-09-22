@@ -35,7 +35,7 @@ struct MatchmakingCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 
@@ -85,7 +85,7 @@ struct MatchmakingCard: View {
     /// refused if anyone were fast enough to take it.
     private var settlingState: some View {
         HStack(spacing: 10) {
-            ProgressView().tint(Color.hooprOrange)
+            ProgressView().tint(Color.hooprBrandAccent)
 
             Text("Match found")
                 .hooprFont(16, weight: .semibold)
@@ -102,7 +102,7 @@ struct MatchmakingCard: View {
     private var searchingState: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                ProgressView().tint(Color.hooprOrange)
+                ProgressView().tint(Color.hooprBrandAccent)
 
                 Text(viewModel.isWidening ? "Widening the search" : "Looking for a match")
                     .hooprFont(16, weight: .semibold)

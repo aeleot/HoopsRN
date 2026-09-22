@@ -42,7 +42,7 @@ struct CreateSquadSheet: View {
                     formatCard
                     regionNote
                 }
-                .padding(20)
+                .padding(Spacing.pageMargin)
             }
             .background(Color.hooprBackground)
             // The whole form is gated on the write, matching CreateGameSheet:
@@ -64,7 +64,7 @@ struct CreateSquadSheet: View {
                     } else {
                         Button("Create", action: create)
                             .fontWeight(.semibold)
-                            .foregroundStyle(canSave ? Color.hooprOrange : Color.hooprSecondaryText)
+                            .foregroundStyle(canSave ? Color.hooprBrandAccent : Color.hooprSecondaryText)
                             .disabled(!canSave)
                     }
                 }
@@ -117,7 +117,7 @@ struct CreateSquadSheet: View {
 
             Spacer(minLength: 0)
         }
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 
@@ -151,7 +151,7 @@ struct CreateSquadSheet: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 
@@ -165,7 +165,7 @@ struct CreateSquadSheet: View {
             colorGrid
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 
@@ -188,7 +188,7 @@ struct CreateSquadSheet: View {
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
                                 .stroke(
-                                    key == iconKey ? Color.hooprOrange : Color.hooprBorder,
+                                    key == iconKey ? Color.hooprBrandAccent : Color.hooprBorder,
                                     lineWidth: key == iconKey ? 2 : 1
                                 )
                         )
@@ -254,7 +254,7 @@ struct CreateSquadSheet: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 

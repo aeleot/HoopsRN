@@ -104,6 +104,8 @@ final class LoginViewModel: ObservableObject {
         case .tooManyRequests:   return "Too many attempts. Try again in a moment."
         case .notConfigured:     return FailureText.authNotConfigured
         case .providerDisabled:  return FailureText.providerDisabled
+        case .keychainUnavailable:
+            return "Signed in, but this device wouldn't store the session. Reinstall the app and try again."
         case .unknown(let description): return description
         }
     }

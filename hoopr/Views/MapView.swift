@@ -110,9 +110,12 @@ final class CourtMarkerView: MKAnnotationView {
         )
         disc.addSubview(glyph)
 
-        // Same role the glyph uses — black, the only foreground that clears AA
-        // against every stop of the heat ramp.
-        countLabel.textColor = UIColor(Color.hooprOnBrand)
+        // A placeholder: the right colour depends on the heat tier, so
+        // `configureAsCourt` sets it per court. The glyph above can stay
+        // `hooprOnBrand` because it only ever shows on a quiet court, which is
+        // the filled-orange pairing; a *label* also lands on the deep stops,
+        // where black is 4.01:1 and 3.43:1 and white is what clears.
+        countLabel.textColor = UIColor(CourtHeat.labelColor(forGameCount: 0))
         countLabel.textAlignment = .center
         // Fixed size rather than Dynamic Type, the same deliberate exception
         // `PlayerAvatar`'s initial takes: this is sized as a fraction of a
@@ -165,6 +168,8 @@ final class CourtMarkerView: MKAnnotationView {
         // annotation left behind.
         let isActive = gameCount > 0
         countLabel.text = isActive ? Self.countText(gameCount) : nil
+        // Every call, not only when active, for the same recycled-view reason.
+        countLabel.textColor = UIColor(CourtHeat.labelColor(forGameCount: gameCount))
         countLabel.isHidden = !isActive
         glyph.isHidden = isActive
 

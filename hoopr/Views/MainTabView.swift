@@ -172,11 +172,15 @@ struct MainTabView: View {
                 )
             }
         }
-        // Selected items take the brand orange; unselected ones stay in the
-        // system's grey. Worth knowing: this paints the brand as a *foreground*
-        // on a light ground, which is the pairing `GAPS.md` tracks as failing
-        // AA — see `ThemeContrastTests.testTabBarSelectionIsATrackedGap`.
-        .tint(Color.hooprOrange)
+        // Selected items take the brand mark; unselected ones stay in the
+        // system's grey. `hooprBrandAccent`, not `hooprOrange`: the tint colours
+        // the glyph *and* its ~10pt label, so this is the brand drawn as a
+        // foreground, which the filled orange fails as (3.17:1 on white).
+        // iOS 26 also adjusts a tint before drawing it — it rendered
+        // `hooprOrange` as `#E55E27` in light and `#FF8F6A` in dark — so the
+        // assertion in `ThemeContrastTests` is on the nominal value this hands
+        // over, and the rendered figure is re-measured from a screenshot.
+        .tint(Color.hooprBrandAccent)
     }
 
     private func openProfile() {

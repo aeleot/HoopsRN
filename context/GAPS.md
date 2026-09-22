@@ -25,7 +25,7 @@ something ships.
 | [`gaps/PROFILES.md`](gaps/PROFILES.md) | `users/{uid}`: the search-key backfill that completes one account at a time, what a world-readable profile leaks, what sign-in still can't do. |
 | [`gaps/RATE_LIMITING.md`](gaps/RATE_LIMITING.md) | What bounds how fast a client can write, what doesn't, and why most of it needs infrastructure the project doesn't have. |
 | [`gaps/TESTING.md`](gaps/TESTING.md) | What the two suites cover — all seven collections have rules coverage as of 2026-09-20 — what they still don't, and the recovery path never exercised for real. |
-| [`gaps/ACCESSIBILITY.md`](gaps/ACCESSIBILITY.md) | The one tracked WCAG failure — brand orange as a foreground in light mode, at 3.17:1 against a 4.5:1 text floor — pinned by a test that fails when it's fixed. |
+| [`gaps/ACCESSIBILITY.md`](gaps/ACCESSIBILITY.md) | Two screens that break at `.accessibility3` (`StatsCard` mid-word, the map's court card truncating its own name) and the pairings the suite doesn't assert. The brand-orange AA failure that used to lead this page **closed 2026-09-21**. |
 | [`gaps/ASSETS_AND_DATA.md`](gaps/ASSETS_AND_DATA.md) | The unmet ODbL licence obligation, two scripts that can't be re-run cleanly, the unset accent colour. (The placeholder icon was fixed 2026-09-20.) |
 | [`gaps/CONFIGURATION.md`](gaps/CONFIGURATION.md) | The half-finished hoopr→hoopsRN rename. The deployment target and the over-declared platforms were fixed 2026-09-20; what's left there is the iOS 18 fallback path nothing has run below iOS 26. |
 
@@ -38,17 +38,23 @@ readability. Until then it belongs in the closest existing one — not here.
 
 Comments and docs that contradict the code. **The code wins.**
 
-**Outstanding — four code comments, found 2026-09-21 and deliberately left
-alone**, because that pass was docs-only and each is a one-line comment edit.
-The correct figures are in [`gaps/ACCESSIBILITY.md`](gaps/ACCESSIBILITY.md),
-recomputed from `Theme.swift`.
+**Outstanding — one code comment, found 2026-09-21 and deliberately left
+alone**, because that pass was docs-only and this is a one-line comment edit:
 
 | Where | Says | Actually |
 |---|---|---|
 | `Support/InviteLink.swift:13` | "see `GAPS.md` §4" | This page has no numbered sections; the invite gap is in [`gaps/GAMES.md`](gaps/GAMES.md). |
-| `Views/Tabs/CourtGameRow.swift:104` | `hooprOrange` is 2.34:1 on `hooprFill` in light mode | 2.91:1. |
-| `Support/Theme.swift:62–64` | black clears 9.17 / 10.24 on `hooprOrange`, 7.42 / 9.17 on `hooprDarkOrange` | 6.62 / 7.15 and 5.46 / 5.89. Still AA, with far less margin — and the same file says 6.61 / 7.15 at line 30. |
-| `hooprTests/ThemeContrastTests.swift:208–210, 242` | 2.55 / 2.34 light, 9.33 / 7.56 / 6.19 dark, "gets ~2.55:1" | 3.17 / 2.91 light, 7.15 / 5.79 / 4.74 dark. |
+
+**Corrected in code on 2026-09-21**, because Phase 1 of the UI revamp edited the
+files anyway: the other three of that pass's four — `CourtGameRow.swift`'s
+"2.34:1 on `hooprFill`", `Theme.swift`'s black-on-orange figures (it said 9.17 /
+10.24 on `hooprOrange` and 7.42 / 9.17 on `hooprDarkOrange`; the values are 6.62
+/ 7.15 and 5.46 / 5.89), and `ThemeContrastTests`' "2.55 / 2.34 light" — plus a
+fifth nobody had listed: `MAP_LAYER.md` quoted the heat ramp's stop 0 as
+`F79331`, the value before the 2026-08-22 retune, while `CourtHeatTests` pinned
+`EE6730`. And one that was a *claim* rather than a number: `Theme.swift` said
+black was "the only foreground that clears AA against every stop of the heat
+ramp" on the map pin's count. It is 4.01:1 and 3.43:1 on the two deepest.
 
 **Corrected in the docs on 2026-09-21**, listed once so they aren't re-reported:
 

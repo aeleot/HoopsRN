@@ -94,7 +94,7 @@ struct SeasonsTab: View {
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: Spacing.interCard) {
                     header
 
                     if let errorMessage = viewModel.errorMessage {
@@ -115,7 +115,7 @@ struct SeasonsTab: View {
                         emptyState
                     }
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, Spacing.pageMargin)
                 .padding(.bottom, 32)
             }
             .background(Color.hooprBackground)
@@ -258,7 +258,7 @@ struct SeasonsTab: View {
 
     @ViewBuilder
     private func squadHome(_ squad: Squad) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: Spacing.interCard) {
             Button {
                 path.append(.squad(squad.id))
             } label: {
@@ -315,12 +315,7 @@ struct SeasonsTab: View {
                 // The record is a *query* over confirmed games, not a stored
                 // counter (plan §1.1), so it moves the moment two leaders
                 // agree on a result with nothing to invalidate.
-                Text(recordText)
-                    .hooprFont(13)
-                    .foregroundStyle(Color.hooprSecondaryText)
-
-                FormGuide(form: matchmaking.myForm)
-                    .padding(.top, 2)
+                SquadRecordLine(recordText: recordText, form: matchmaking.myForm)
             }
 
             Spacer(minLength: 0)
@@ -329,7 +324,7 @@ struct SeasonsTab: View {
                 .hooprFont(14, weight: .semibold)
                 .foregroundStyle(Color.hooprSecondaryText)
         }
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
         .accessibilityElement(children: .combine)
         .accessibilityHint("Opens squad details")
@@ -355,7 +350,7 @@ struct SeasonsTab: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
+        .padding(Spacing.cardPadding)
         .cardChrome()
     }
 
@@ -395,6 +390,44 @@ struct SeasonsTab: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+}
+
+/// The squad's record with its recent form beside it — "1–0 this season (W)".
+///
+/// **Beside when it fits, beneath when it doesn't.** The pills are fixed-diameter
+/// circles (`ResultPillMetrics`, and the cap is load-bearing), so five of them
+/// are 164pt wide before the record's own text is counted, and the column this
+/// sits in is about 230pt at the default text size. One to three results fit
+/// beside the record; four or five, and every result at the accessibility sizes,
+/// take the column instead — the same `ViewThatFits` rule the queue sheet's time
+/// chips follow and for the same reason: a row that stops fitting takes a column
+/// rather than being squeezed or clipped.
+///
+/// Stateless, and internal rather than private, so the width at which it flips
+/// can be rendered and looked at without standing up a `SeasonsTab`.
+struct SquadRecordLine: View {
+    let recordText: String
+    let form: [SeasonGame.Outcome]
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: Spacing.sm) {
+                record
+                FormGuide(form: form)
+            }
+
+            VStack(alignment: .leading, spacing: Spacing.hairline) {
+                record
+                FormGuide(form: form)
+            }
+        }
+    }
+
+    private var record: some View {
+        Text(recordText)
+            .hooprFont(13)
+            .foregroundStyle(Color.hooprSecondaryText)
     }
 }
 
