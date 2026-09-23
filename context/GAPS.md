@@ -25,7 +25,7 @@ something ships.
 | [`gaps/PROFILES.md`](gaps/PROFILES.md) | `users/{uid}`: the search-key backfill that completes one account at a time, what a world-readable profile leaks, what sign-in still can't do. |
 | [`gaps/RATE_LIMITING.md`](gaps/RATE_LIMITING.md) | What bounds how fast a client can write, what doesn't, and why most of it needs infrastructure the project doesn't have. |
 | [`gaps/TESTING.md`](gaps/TESTING.md) | What the two suites cover — all seven collections have rules coverage as of 2026-09-20 — what they still don't, and the recovery path never exercised for real. |
-| [`gaps/ACCESSIBILITY.md`](gaps/ACCESSIBILITY.md) | Two screens that break at `.accessibility3` (`StatsCard` mid-word, the map's court card truncating its own name) and the pairings the suite doesn't assert. The brand-orange AA failure that used to lead this page **closed 2026-09-21**. |
+| [`gaps/ACCESSIBILITY.md`](gaps/ACCESSIBILITY.md) | One screen that breaks at `.accessibility3` (the map's court card truncating its own name; `StatsCard`'s mid-word break **closed 2026-09-22**) and the pairings the suite doesn't assert. The brand-orange AA failure that used to lead this page **closed 2026-09-21**. |
 | [`gaps/ASSETS_AND_DATA.md`](gaps/ASSETS_AND_DATA.md) | The unmet ODbL licence obligation, two scripts that can't be re-run cleanly, the unset accent colour. (The placeholder icon was fixed 2026-09-20.) |
 | [`gaps/CONFIGURATION.md`](gaps/CONFIGURATION.md) | The half-finished hoopr→hoopsRN rename. The deployment target and the over-declared platforms were fixed 2026-09-20; what's left there is the iOS 18 fallback path nothing has run below iOS 26. |
 

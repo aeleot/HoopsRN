@@ -428,4 +428,114 @@ final class GameTests: XCTestCase {
         XCTAssertEqual(Distance.text(Distance.meters(miles: 12.4)), "12 mi")
         XCTAssertEqual(Distance.miles(Distance.meters(miles: 5)), 5, accuracy: 0.0001)
     }
+
+    // MARK: - Presentation strings the redesigned surfaces read
+
+    /// `timeText`, `dayText` and `spotsText` were added in UI revamp Phase 2b
+    /// and live here, beside `rosterText` and `scheduledText()`, because the
+    /// Home band and the Runs board both read them — a copy on either view
+    /// model would let the two disagree about what time the same run is at.
+
+    private func run(
+        players: [String] = ["a"],
+        maxPlayers: Int = 10,
+        at scheduledTime: Date = Date()
+    ) -> Game {
+        Game(
+            id: "game-1",
+            hostId: "host",
+            courtId: "court-a",
+            scheduledTime: scheduledTime,
+            isPublic: true,
+            maxPlayers: maxPlayers,
+            status: Game.status(playerCount: players.count, maxPlayers: maxPlayers),
+            playerIds: players,
+            queuedPlayerIds: [],
+            createdAt: scheduledTime,
+            updatedAt: scheduledTime,
+            completedAt: nil
+        )
+    }
+
+    // MARK: Day and time
+
+    /// The band sets the day and the time apart; `scheduledText()` joins them.
+    /// Both derive from `scheduledTime`, and this is what pins that they stay
+    /// consistent — a run reading "Tonight" in the band and "Tomorrow" on its
+    /// card would be worse than either being wrong.
+    func testTodayReadsAsTonight() {
+        let now = Date()
+        XCTAssertEqual(run(at: now).dayText(relativeTo: now), "Tonight")
+    }
+
+    func testTomorrowReadsAsTomorrow() {
+        let now = Date()
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: now)!
+        XCTAssertEqual(run(at: tomorrow).dayText(relativeTo: now), "Tomorrow")
+    }
+
+    /// Past the two days a pickup run is usually organised within, the label
+    /// is the date — the same call `scheduledText()` makes.
+    func testFurtherOutFallsBackToTheDate() {
+        let now = Date()
+        let later = Calendar.current.date(byAdding: .day, value: 4, to: now)!
+        let label = run(at: later).dayText(relativeTo: now)
+
+        XCTAssertNotEqual(label, "Tonight")
+        XCTAssertNotEqual(label, "Tomorrow")
+        XCTAssertFalse(label.isEmpty)
+    }
+
+    /// The boundary is the calendar day, not elapsed hours: a run at 11pm
+    /// tonight and one at 1am tomorrow are a different answer to "am I out
+    /// tonight?", two hours apart.
+    func testTheDayBoundaryIsTheCalendarDayNotElapsedHours() {
+        let calendar = Calendar.current
+        let lateTonight = calendar.date(bySettingHour: 23, minute: 0, second: 0, of: Date())!
+        let earlyTomorrow = calendar.date(byAdding: .hour, value: 2, to: lateTonight)!
+
+        XCTAssertEqual(run(at: lateTonight).dayText(relativeTo: lateTonight), "Tonight")
+        XCTAssertEqual(run(at: earlyTomorrow).dayText(relativeTo: lateTonight), "Tomorrow")
+    }
+
+    /// The time half carries no day, or the band would say it twice.
+    func testTimeTextCarriesNoDay() {
+        let text = run().timeText
+        XCTAssertFalse(text.contains("Tonight"))
+        XCTAssertFalse(text.contains("Today"))
+        XCTAssertFalse(text.contains("·"))
+    }
+
+    // MARK: Spots left
+
+    /// The redesign puts *spots left* where the capacity bar used to be: the
+    /// decision is whether you can still get on, which is one number.
+    func testSpotsLeftCountsDownFromCapacity() {
+        XCTAssertEqual(run(players: ["a"], maxPlayers: 10).spotsText, "9 spots left")
+    }
+
+    func testTheLastSpotIsSingular() {
+        let almostFull = run(players: Array(repeating: "p", count: 9), maxPlayers: 10)
+        XCTAssertEqual(almostFull.spotsText, "1 spot left")
+    }
+
+    func testAFullRunSaysFullRatherThanZeroSpots() {
+        let full = run(players: Array(repeating: "p", count: 10), maxPlayers: 10)
+        XCTAssertEqual(full.spotsText, "Full")
+    }
+
+    /// `openSlots` clamps, so a hand-edited over-full roster reads as full
+    /// rather than as a negative count.
+    func testAnOverFullRosterStillReadsAsFull() {
+        let overFull = run(players: Array(repeating: "p", count: 12), maxPlayers: 10)
+        XCTAssertEqual(overFull.spotsText, "Full")
+    }
+
+    /// Spots and roster answer different questions and must not be confused
+    /// for each other: one is "can I get on", the other is "who is on".
+    func testSpotsAndRosterStayDifferentStatements() {
+        let game = run(players: ["a", "b"], maxPlayers: 10)
+        XCTAssertEqual(game.spotsText, "8 spots left")
+        XCTAssertEqual(game.rosterText, "2 / 10 players")
+    }
 }

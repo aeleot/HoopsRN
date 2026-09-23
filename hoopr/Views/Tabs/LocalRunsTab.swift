@@ -1,20 +1,29 @@
 import SwiftUI
 
-/// The Local Runs tab: the runs you're in, and the public ones near you.
+/// The Runs tab: everything on the schedule, soonest first.
 ///
-/// Two collapsible sections over one scroll view rather than two lists — the
-/// sections are read together ("am I busy, and what else is on?"), and stacking
-/// them keeps a single scroll gesture in charge.
+/// **Redesigned in UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.2). It used
+/// to be two collapsible sections — *Queued Games* and *Public Games* — over
+/// one scroll view, on the reasoning that they are read together ("am I busy,
+/// and what else is on?"). That reasoning holds; the shape it produced did
+/// not. Two headers, two count capsules, two chevrons and a full-bleed rule
+/// spent the entire first viewport on furniture, and the first `Join` sat
+/// around 240pt down the page.
+///
+/// So the split is gone and the reading it served survives: **one list ordered
+/// by tip-off**, with the runs you're on marked by a rail down the card's
+/// leading edge, under a band that states how many games are on the schedule
+/// and where you stand on it. Rank replaced disclosure.
+///
+/// **This overturns a `UI_SHELL.md` invariant** — "a list screen is built from
+/// the `LocalRunsTab` parts: collapsible section header, one shared card, one
+/// write in flight". The shared card and the single write are untouched; the
+/// collapsible header is not. Confirmed with the user at Checkpoint 1 before
+/// any of this was written. The cost is real and recorded: you can no longer
+/// fold the public half away, and the hero's counts plus the rail are what
+/// replace it.
 struct LocalRunsTab: View {
     @StateObject private var viewModel: LocalRunsViewModel
-
-    /// Persisted rather than `@State`. This was written when a tab switch
-    /// unmounted the tab entirely and plain view state would reopen both
-    /// sections on every visit. Under a native `TabView` the tab stays mounted,
-    /// so `@State` would now survive a switch — but this still earns its keep
-    /// by carrying the choice across launches, which `@State` never did.
-    @AppStorage("localRuns.queuedExpanded") private var isQueuedExpanded = true
-    @AppStorage("localRuns.publicExpanded") private var isPublicExpanded = true
 
     /// Observed because `ProfileButton` reads it for its badge dot.
     @ObservedObject private var friendService: FriendService
@@ -25,17 +34,23 @@ struct LocalRunsTab: View {
 
     private let onOpenProfile: () -> Void
 
+    /// The empty board's one action. Handed up like Home's — switching tabs is
+    /// the shell's job.
+    private let onOpenMap: () -> Void
+
     init(
         gameService: GameService,
         courtService: CourtService,
         userProfileService: UserProfileService,
         friendService: FriendService,
         squadService: SquadService,
-        onOpenProfile: @escaping () -> Void
+        onOpenProfile: @escaping () -> Void,
+        onOpenMap: @escaping () -> Void
     ) {
         self.friendService = friendService
         self.squadService = squadService
         self.onOpenProfile = onOpenProfile
+        self.onOpenMap = onOpenMap
         _viewModel = StateObject(wrappedValue: LocalRunsViewModel(
             gameService: gameService,
             courtService: courtService,
@@ -47,7 +62,7 @@ struct LocalRunsTab: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                header
+                heroBand
 
                 if let errorMessage = viewModel.errorMessage {
                     ErrorBanner(
@@ -59,28 +74,10 @@ struct LocalRunsTab: View {
                         onDismiss: { viewModel.dismissError() }
                     )
                     .padding(.horizontal, Spacing.pageMargin)
-                    .padding(.top, 12)
+                    .padding(.top, Spacing.md)
                 }
 
-                section(
-                    title: "Queued Games",
-                    countText: viewModel.queuedCountText,
-                    isExpanded: $isQueuedExpanded,
-                    listings: viewModel.queued,
-                    emptyText: viewModel.queuedEmptyText
-                )
-
-                Rectangle()
-                    .fill(Color.hooprBorder)
-                    .frame(height: 1)
-
-                section(
-                    title: "Public Games",
-                    countText: viewModel.nearbyCountText,
-                    isExpanded: $isPublicExpanded,
-                    listings: viewModel.nearby,
-                    emptyText: viewModel.nearbyEmptyText
-                )
+                board
             }
             .padding(.bottom, 32)
         }
@@ -88,122 +85,196 @@ struct LocalRunsTab: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Header
+    // MARK: - The band
 
-    /// This tab used to borrow the shell's floating header for both its title
-    /// and its profile button. With the tab bar at the bottom that header is
-    /// gone, so the tab names itself.
-    private var header: some View {
-        HStack(alignment: .center) {
-            Text("Runs")
-                .hooprFont(28, weight: .bold, maximumSize: 40)
-                .foregroundStyle(Color.hooprPrimaryText)
+    /// The board's summary, and the screen's hero.
+    ///
+    /// The tab used to open on the word "Runs" at 28pt — the tab bar's own
+    /// label, restated as the largest thing on the screen. It states a number
+    /// instead: how many games are on the schedule, which is the question the
+    /// tab exists to answer and the only one that can't be answered by
+    /// scrolling.
+    ///
+    /// Written for a player, quietly: the board is *the schedule*, and the
+    /// line under it says where you stand on it — suited up, waitlisted, or a
+    /// free agent — rather than a count of rows.
+    private var heroBand: some View {
+        VStack(alignment: .leading, spacing: Spacing.lg) {
+            HStack(alignment: .top, spacing: Spacing.sm) {
+                Text(viewModel.eyebrowText)
+                    .hooprType(.label)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .padding(.top, Spacing.xs)
 
-            Spacer(minLength: 8)
+                Spacer(minLength: 0)
 
-            ProfileButton(friendService: friendService, squadService: squadService, action: onOpenProfile)
-                .offset(x: 8)
+                ProfileButton(friendService: friendService, squadService: squadService, action: onOpenProfile)
+            }
+
+            bandAnswer
         }
         .padding(.horizontal, Spacing.pageMargin)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
+        // The profile button's slot — the same point on every tab.
+        .padding(.top, ProfileButton.Slot.top)
+        .padding(.bottom, Spacing.xxl)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            Color.hooprHeroBand.ignoresSafeArea(edges: .top)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.hooprSeparatorStrong)
+                .frame(height: 1)
+        }
     }
-
-    // MARK: - Sections
 
     @ViewBuilder
-    private func section(
-        title: String,
-        countText: String,
-        isExpanded: Binding<Bool>,
-        listings: [LocalRunsViewModel.Listing],
-        emptyText: String
-    ) -> some View {
-        sectionHeader(title: title, countText: countText, isExpanded: isExpanded)
+    private var bandAnswer: some View {
+        if !viewModel.hasLoaded {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                placeholder(width: 150, height: 46)
+                placeholder(width: 210, height: 18)
+            }
+            .accessibilityLabel("Loading the schedule")
+        } else {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                let count = viewModel.timelineCount
+                let schedule = LocalRunsViewModel.scheduleText(count: count)
 
-        if isExpanded.wrappedValue {
-            if listings.isEmpty {
-                Text(emptyText)
-                    .hooprFont(14)
-                    .foregroundStyle(Color.hooprSecondaryText)
-                    .multilineTextAlignment(.leading)
-                    .padding(.horizontal, Spacing.pageMargin)
-                    .padding(.bottom, 20)
-            } else {
-                VStack(spacing: Spacing.interRow) {
-                    ForEach(listings) { listing in
-                        // Resolved once, so the button that's rendered and the
-                        // one that fires can't disagree — a confirmation
-                        // dialog reading "Cancel run" must not perform a join.
-                        let action = viewModel.action(for: listing)
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                    Text("\(count)")
+                        .hooprType(.numeral)
+                        .foregroundStyle(Color.hooprPrimaryText)
 
-                        GameCard(
-                            listing: listing,
-                            action: action,
-                            isHost: viewModel.isHost(listing),
-                            isWaitlisted: viewModel.isWaitlisted(listing),
-                            isPending: viewModel.pendingGameId == listing.id,
-                            // One write at a time, so a second tap can't race
-                            // the transaction already in flight.
-                            isDisabled: viewModel.pendingGameId != nil
-                                && viewModel.pendingGameId != listing.id,
-                            // Resolved at render, so the control appears on the
-                            // next rebuild after tip-off rather than on a timer
-                            // — the same cadence `Game.isVisible(at:)` retires a
-                            // run on, and the rule is the real gate anyway.
-                            canComplete: viewModel.canComplete(listing),
-                            onAction: {
-                                Task { await viewModel.perform(action, on: listing) }
-                            },
-                            onComplete: {
-                                Task { await viewModel.complete(listing) }
-                            }
-                        )
-                    }
+                    Text(schedule)
+                        .hooprType(.headline)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(.horizontal, Spacing.pageMargin)
-                .padding(.bottom, 20)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(count) \(schedule)")
+
+                rosterLine
             }
         }
     }
 
-    private func sectionHeader(
-        title: String,
-        countText: String,
-        isExpanded: Binding<Bool>
-    ) -> some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isExpanded.wrappedValue.toggle()
+    /// Where you stand, marked with the rail your runs carry below.
+    ///
+    /// The rail is the same mark as `GameCard`'s, in the same accent and
+    /// width, so the band is what teaches it: the line that says "you're
+    /// suited up" is drawn the way the runs you're suited up for are. A free
+    /// agent has no runs to point at, so no rail — and the line drops to
+    /// secondary, because it's a state rather than news.
+    ///
+    /// It replaced "you're in 2 · within 14 miles" in 13pt grey, which read as
+    /// a footnote and put the radius — a fact about the board — on the line
+    /// about you. The radius left the band; see `eyebrowText`.
+    private var rosterLine: some View {
+        HStack(spacing: Spacing.sm) {
+            if viewModel.hasRosterSpot {
+                Capsule()
+                    .fill(Color.hooprBrandAccent)
+                    .frame(width: 3)
             }
-        } label: {
-            HStack(spacing: 10) {
-                Text(title)
-                    .hooprFont(18, weight: .bold)
-                    .foregroundStyle(Color.hooprPrimaryText)
 
-                Text(countText)
-                    .hooprFont(12, weight: .semibold)
-                    .foregroundStyle(Color.hooprSecondaryText)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Color.hooprFill))
+            Text(viewModel.rosterText)
+                .hooprType(.body)
+                .fontWeight(viewModel.hasRosterSpot ? .semibold : .regular)
+                .foregroundStyle(viewModel.hasRosterSpot ? Color.hooprPrimaryText : Color.hooprSecondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        // Lets the rail take the text's height, however many lines it wraps to.
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityElement(children: .combine)
+    }
 
-                Spacer()
+    private func placeholder(width: CGFloat, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 6, style: .continuous)
+            .fill(Color.hooprHoverFill)
+            .frame(width: width, height: height)
+    }
 
-                Image(systemName: "chevron.right")
-                    .hooprFont(14, weight: .semibold)
-                    .foregroundStyle(Color.hooprSecondaryText)
-                    .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
+    // MARK: - The board
+
+    /// One list, ordered by tip-off. No sections, no disclosure.
+    @ViewBuilder
+    private var board: some View {
+        if !viewModel.hasLoaded {
+            // Distinct from "nothing on": the listener hasn't answered.
+            Text("Checking the schedule…")
+                .hooprType(.body)
+                .foregroundStyle(Color.hooprSecondaryText)
+                .padding(.horizontal, Spacing.pageMargin)
+                .padding(.top, Spacing.xxl)
+        } else if viewModel.timeline.isEmpty {
+            emptyBoard
+        } else {
+            VStack(spacing: Spacing.interRow) {
+                ForEach(viewModel.timeline) { entry in
+                    // Resolved once, so the button that's rendered and the
+                    // one that fires can't disagree — a confirmation
+                    // dialog reading "Cancel run" must not perform a join.
+                    let action = viewModel.action(for: entry.listing)
+
+                    GameCard(
+                        listing: entry.listing,
+                        action: action,
+                        isHost: viewModel.isHost(entry.listing),
+                        isWaitlisted: viewModel.isWaitlisted(entry.listing),
+                        isYours: entry.isYours,
+                        isPending: viewModel.pendingGameId == entry.id,
+                        // One write at a time, so a second tap can't race
+                        // the transaction already in flight.
+                        isDisabled: viewModel.pendingGameId != nil
+                            && viewModel.pendingGameId != entry.id,
+                        // Resolved at render, so the control appears on the
+                        // next rebuild after tip-off rather than on a timer
+                        // — the same cadence `Game.isVisible(at:)` retires a
+                        // run on, and the rule is the real gate anyway.
+                        canComplete: viewModel.canComplete(entry.listing),
+                        onAction: {
+                            Task { await viewModel.perform(action, on: entry.listing) }
+                        },
+                        onComplete: {
+                            Task { await viewModel.complete(entry.listing) }
+                        }
+                    )
+                }
             }
             .padding(.horizontal, Spacing.pageMargin)
-            .padding(.vertical, 16)
-            .contentShape(Rectangle())
+            .padding(.top, Spacing.xl)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
-        .accessibilityValue(isExpanded.wrappedValue ? "Expanded" : "Collapsed")
-        .accessibilityHint("Double tap to \(isExpanded.wrappedValue ? "collapse" : "expand")")
+    }
+
+    /// Loaded, and genuinely nothing on.
+    ///
+    /// A composition rather than a grey sentence: the screen that has nothing
+    /// to show is also the screen best placed to say what to do about it, and
+    /// starting a run is the one thing that fixes an empty board. This is the
+    /// only filled button on the tab, and it exists only in this state.
+    private var emptyBoard: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text(viewModel.emptyBoardText)
+                .hooprType(.body)
+                .foregroundStyle(Color.hooprSecondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button(action: onOpenMap) {
+                Text("Start one")
+                    .hooprType(.body)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.hooprOnBrand)
+                    .padding(.horizontal, Spacing.xl)
+                    .frame(minHeight: 44)
+                    .background(Color.hooprOrange)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Spacing.pageMargin)
+        .padding(.top, Spacing.xxl)
     }
 }
 
@@ -215,6 +286,7 @@ struct LocalRunsTab: View {
         userProfileService: UserProfileService(authService: authService),
         friendService: FriendService(authService: authService),
         squadService: SquadService(authService: authService),
-        onOpenProfile: {}
+        onOpenProfile: {},
+        onOpenMap: {}
     )
 }

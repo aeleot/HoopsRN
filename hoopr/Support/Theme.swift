@@ -277,6 +277,27 @@ extension Color {
         dark: UIColor(red: 36 / 255, green: 36 / 255, blue: 38 / 255, alpha: 1)
     )
 
+    /// The ground a screen's hero stands on — the full-bleed band at the top
+    /// of Home, Runs and Seasons, closed by a `hooprSeparatorStrong` baseline.
+    ///
+    /// **It is the thing that replaces the card.** The redesign stops drawing a
+    /// box around every section; what used to say "these belong together" with
+    /// four edges and a shadow now says it with one region and one line. So
+    /// this role is a *text ground*, which no filled region in the app was
+    /// before — every pairing drawn on it is asserted in `ThemeContrastTests`.
+    ///
+    /// It resolves to values the palette already proves rather than new ones:
+    /// `hooprFill` in light (nothing is lighter than the white page, so the
+    /// band reads as a faint region and the baseline carries the boundary),
+    /// `hooprElevatedSurface` in dark (where a fill *can* carry lift, and the
+    /// band sits one step above a card). It is named for the job rather than
+    /// spelled as either of those at the call site, because a view saying
+    /// "field ground" where it means "hero band" is how a palette drifts.
+    static let hooprHeroBand = Color.hoopr(
+        light: UIColor(white: 245 / 255, alpha: 1),
+        dark: UIColor(red: 36 / 255, green: 36 / 255, blue: 38 / 255, alpha: 1)
+    )
+
     /// A filled but unemphasised region: text-field backgrounds, unselected
     /// chips, the empty half of a capacity bar.
     static let hooprFill = Color.hoopr(

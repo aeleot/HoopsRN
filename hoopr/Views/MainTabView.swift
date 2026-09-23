@@ -143,7 +143,11 @@ struct MainTabView: View {
                     userProfileService: userProfileService,
                     friendService: friendService,
                     squadService: squadService,
-                    onOpenProfile: openProfile
+                    onOpenProfile: openProfile,
+                    onOpenMap: {
+                        courtToShowOnMap = nil
+                        selectedScreen = .map
+                    }
                 )
             }
 

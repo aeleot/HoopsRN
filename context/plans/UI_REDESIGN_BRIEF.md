@@ -1,6 +1,6 @@
 # Design Brief — UI Revamp, Phase 2a
 
-**Status:** drafted, awaiting Checkpoint 1 — **no view code written**
+**Status:** **Checkpoint 1 answered 2026-09-22** (§7.5) — 2b in progress, Home first
 **Drafted:** 2026-09-21 @ 1a2710d + the uncommitted Phase 1 tree
 **Touches (proposed):** `hoopr/Support/Typography.swift`, `hoopr/Support/Theme.swift`,
 `hoopr/Views/` (every screen in §5), `hoopr/ViewModels/` (derived properties only —
@@ -12,8 +12,8 @@
 > against. Measurements it cites are from `UI_REVAMP_AUDIT.md`; the record of
 > what shipped goes in `UI_REVAMP_CHANGELOG.md`.
 
-**Checkpoint 1 is at [§7](#7--checkpoint-1). Nothing below it gets built until
-that is answered.**
+**Checkpoint 1 was answered on 2026-09-22 — see [§7.5](#75--checkpoint-1-answered).**
+The four decisions there override the "designed to" column wherever they differ.
 
 ---
 
@@ -913,6 +913,28 @@ The prompt says to **wait** on these rather than decide them (§ *Wait vs stop*)
 On your answer I write **Home end to end** (code, four states, both appearances,
 `.accessibility3`), then stop again at **Checkpoint 2** with its before/after
 pairs and 2e evidence before touching any other screen.
+
+---
+
+## 7.5 — Checkpoint 1, answered
+
+Answered 2026-09-22. Everything not listed here was accepted as the §7.1
+"designed to" column states it.
+
+| Question | Answer | Effect |
+|---|---|---|
+| **A3 · Runs' collapsible sections** | **One ordered list.** Disclosure is replaced by rank: ordered by tip-off, your runs railed, counts in the hero. | §5.2 builds as written. `UI_SHELL.md`'s "collapsible section header" clause is **overturned for Runs** and must be restated there when 2b ships — the shared card and the one-write-in-flight clauses are untouched. The lost fold-away is the written §2e utility exception. |
+| **A7 · The waitlist line** | **Say it on the card.** | §5.2's line ships, worded as a current limitation rather than a dead end. Closes §2d's objection on that card. |
+| **A9 · The Join state** | **A public run has been created on the booted simulator** by the user. | `Join` is photographable on a real screen. The render harness stays the fallback for **WAITLIST** and **FULL**, which still exist in no screenshot; the changelog will say which states are screens and which are component renders. |
+| **A8 · ODbL attribution** | **In scope** — ships with the map. | §5.3 gains it: one `caption` line in the map sheet's rest state, under the court list. Closes the one ledger gap a redesign can close. |
+
+**Not asked, and therefore built as §7.1 states them:** A1 (Login is a first
+impression), A2 (**the greeting is removed**), A4 (the map is the `keep`), A5
+(Seasons' empty state is the model), A6 (**spots left**, not N/M), A10 (light
+mode's page ground stays white).
+
+**Checkpoint 2 is still ahead:** Home ships end to end first, then stops for
+its before/after pairs and §2e evidence before any other screen is touched.
 
 ---
 

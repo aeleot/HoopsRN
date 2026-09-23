@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 @testable import hoopr
 
 /// Pins `HomeViewModel.rankHotCourts`, the one piece of derived logic on the
@@ -33,6 +34,74 @@ final class HomeViewModelTests: XCTestCase {
             osmType: nil,
             osmId: nil
         )
+    }
+
+    // MARK: - The stats card
+
+    /// "1 wk", not "1 wks" — which is what the card said before 2026-09-22.
+    func testTheStreakIsSingularAtOneWeek() {
+        XCTAssertEqual(StatsCard.streakText(weeks: 1), "1 wk")
+        XCTAssertEqual(StatsCard.streakText(weeks: 3), "3 wks")
+        XCTAssertEqual(StatsCard.streakText(weeks: 0), "0 wks")
+    }
+
+    /// VoiceOver reads "wk" as letters, so the spoken form spells it out.
+    func testTheSpokenStreakSpellsOutWeeks() {
+        XCTAssertEqual(StatsCard.spokenStreak(weeks: 1), "1 week streak")
+        XCTAssertEqual(StatsCard.spokenStreak(weeks: 4), "4 week streak")
+    }
+
+    /// The three stats, in the order and with the icons the card has always
+    /// had — the redesign briefly cut them to a sentence, and the user noticed
+    /// the icons were gone.
+    @MainActor
+    func testTheCardCarriesItsThreeStatsWithTheirIcons() {
+        let card = StatsCard(completedCount: 2, participationStreak: 1, lastCompletedText: "Yesterday")
+
+        XCTAssertEqual(card.stats.map(\.label), ["Runs", "Streak", "Last Run"])
+        XCTAssertEqual(card.stats.map(\.value), ["2", "1 wk", "Yesterday"])
+        XCTAssertEqual(card.stats.map(\.symbol), ["basketball.fill", "flame.fill", "clock.fill"])
+        XCTAssertEqual(card.stats.map(\.spoken), ["2 runs", "1 week streak", "last run yesterday"])
+    }
+
+    // MARK: - The card cannot break mid-word
+
+    /// **The row is used wherever it fits, which is up to `.xxxLarge`.** The
+    /// old card gave each stat an equal third — 93pt at the default size, when
+    /// "Yesterday" needs 92, and 116 one step up — which is how it came to
+    /// break "Last / Run" mid-word. The columns now hug their content, so the
+    /// question is only whether the *sum* fits.
+    func testTheStatsRowFitsThroughTheLargestNonAccessibilitySize() {
+        for category in [UIContentSizeCategory.large, .extraLarge, .extraExtraLarge, .extraExtraExtraLarge] {
+            XCTAssertLessThanOrEqual(
+                StatsCardMetrics.rowWidth(at: category), StatsCardMetrics.innerWidth,
+                "the row should still fit at \(category.rawValue)"
+            )
+        }
+    }
+
+    /// And from the first accessibility size it can't, so `ViewThatFits`
+    /// stacks it. If this ever stops being true the stack is unreachable, and
+    /// the only thing left guarding the words is luck.
+    func testTheStatsCardStacksAtAccessibilitySizes() {
+        XCTAssertGreaterThan(
+            StatsCardMetrics.rowWidth(at: .accessibilityMedium), StatsCardMetrics.innerWidth
+        )
+    }
+
+    /// In the stack each value has the card's whole width, and even the widest
+    /// one at the largest text size fits it on one line — so there is no size
+    /// at which a stat has to break inside a word.
+    func testEveryStatFitsOnOneLineInTheStackAtEverySize() {
+        for category in [UIContentSizeCategory.accessibilityExtraLarge, .accessibilityExtraExtraExtraLarge] {
+            for column in StatsCardMetrics.worstCase {
+                XCTAssertLessThanOrEqual(
+                    StatsCardMetrics.width(of: column.value, role: .headline, at: category),
+                    StatsCardMetrics.innerWidth,
+                    "\"\(column.value)\" would have to break at \(category.rawValue)"
+                )
+            }
+        }
     }
 
     // MARK: - Ranking

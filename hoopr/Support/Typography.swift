@@ -132,3 +132,156 @@ private struct ScaledSystemFont: ViewModifier {
         )
     }
 }
+
+// MARK: - Type roles
+
+/// What a size is *for*, written down once.
+///
+/// `hooprFont` fixed the scaling problem — a literal size that still respects
+/// Dynamic Type — but left every call site choosing its own number, so the app
+/// grew six spellings of the same uppercase section label at two sizes and two
+/// weights (`context/plans/UI_REVAMP_AUDIT.md` §2.4). These roles are the
+/// vocabulary above the numbers: a view says what a piece of text *is*, and
+/// this file decides how big that is.
+///
+/// **Constraint 2 still holds.** Every role resolves to a `hooprFont` call, so
+/// there is one scaling curve in the app and `HooprFontMetrics` stays the only
+/// arithmetic. A call site that needs a size this table doesn't have keeps
+/// using `.hooprFont` directly — the roles are a vocabulary, not a lock.
+///
+/// **The display tier is not capped, and that is deliberate.** `numeral` and
+/// `display` reflow; a cap is a clipped word at the accessibility sizes, and
+/// the hero is the one place in the app where a clipped word would take the
+/// screen's whole answer with it. What guards them instead is a metrics type
+/// per hero (`HomeHeroMetrics`), measured against the frame it lives in — the
+/// pattern `ResultPillMetrics` established.
+///
+/// **What the ladder does at `.accessibility3`, measured** (the values
+/// `HooprFontMetrics` produces on iOS 26.5, not an estimate):
+///
+/// | role | default | AX3 | × |
+/// |---|---|---|---|
+/// | `numeral` | 44 | 65.3 | 1.49 |
+/// | `display` | 40 | 59.7 | 1.49 |
+/// | `title` | 28 | 47.0 | 1.68 |
+/// | `caption` | 13 | 29.0 | 2.23 |
+///
+/// The *smallest* roles grow most, so the hero-to-caption ratio falls from
+/// 3.4× to 2.3× — **a third of the hierarchy scales away**. That is why the
+/// redesign carries rank with layers and position (the hero band) rather than
+/// with point size alone: at `.accessibility3` the hero is still the hero
+/// because of where it sits.
+nonisolated enum HooprTextRole: CaseIterable {
+    /// The one number a screen exists to deliver: time to tip-off, spots left,
+    /// a W–L record. Tabular, so a counting number doesn't jitter its own
+    /// layout as it changes.
+    case numeral
+    /// The one *phrase* a screen exists to deliver, where the answer is words
+    /// rather than a number — a court name, an outcome.
+    case display
+    /// A screen or squad's name, where that name is information rather than a
+    /// restatement of the tab it sits on.
+    case title
+    /// The subject of a block within a screen.
+    case headline
+    /// A list row's primary line.
+    case subhead
+    /// Supporting sentences.
+    case body
+    /// Secondary metadata — the quiet line under a row.
+    case caption
+    /// The uppercase section label. **One spelling**, replacing the six the
+    /// audit found.
+    case label
+    /// Text inside a fixed capsule — HOSTING, WAITLIST, FULL.
+    case badge
+
+    var size: CGFloat {
+        switch self {
+        case .numeral:  return 44
+        case .display:  return 40
+        case .title:    return 28
+        case .headline: return 20
+        case .subhead:  return 17
+        case .body:     return 15
+        case .caption:  return 13
+        case .label:    return 12
+        case .badge:    return 11
+        }
+    }
+
+    var weight: Font.Weight {
+        switch self {
+        case .numeral, .display, .title, .label, .badge: return .bold
+        case .headline, .subhead:                        return .semibold
+        case .body, .caption:                            return .regular
+        }
+    }
+
+    /// Only the two uppercase roles cap, and only because they live inside
+    /// capsules and header rows that can't grow. Everything else reflows.
+    var maximumSize: CGFloat? {
+        switch self {
+        case .label: return 16
+        case .badge: return 14
+        default:     return nil
+        }
+    }
+
+    /// The same weight as `weight`, in UIKit's spelling.
+    ///
+    /// `Font.Weight` carries no way to read its value back out, so a metrics
+    /// type that wants to *measure* text in this role — rather than draw it —
+    /// has nothing to hand `UIFont`. This is that bridge, and it is written as
+    /// a switch over the same cases so the two can't drift: a role whose
+    /// `weight` changes without this changing is a measurement that no longer
+    /// describes what the screen draws.
+    var uiFontWeight: UIFont.Weight {
+        switch self {
+        case .numeral, .display, .title, .label, .badge: return .bold
+        case .headline, .subhead:                        return .semibold
+        case .body, .caption:                            return .regular
+        }
+    }
+
+    /// Fixed-width digits. Only the numeral tier: applying it to body text
+    /// would change how every sentence in the app renders.
+    var usesTabularFigures: Bool { self == .numeral }
+
+    /// Uppercased through `textCase`, not by uppercasing the string, so the
+    /// accessibility label keeps its natural casing and VoiceOver doesn't
+    /// spell the word out letter by letter.
+    var isUppercase: Bool { self == .label || self == .badge }
+
+    var kerning: CGFloat {
+        switch self {
+        case .label: return 0.6
+        case .badge: return 0.4
+        default:     return 0
+        }
+    }
+}
+
+extension View {
+    /// Applies a type role. See `HooprTextRole`.
+    func hooprType(_ role: HooprTextRole) -> some View {
+        modifier(HooprTypeRole(role: role))
+    }
+}
+
+private struct HooprTypeRole: ViewModifier {
+    let role: HooprTextRole
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        let sized = content.hooprFont(role.size, weight: role.weight, maximumSize: role.maximumSize)
+
+        if role.usesTabularFigures {
+            sized.monospacedDigit()
+        } else if role.isUppercase {
+            sized.textCase(.uppercase).kerning(role.kerning)
+        } else {
+            sized
+        }
+    }
+}
