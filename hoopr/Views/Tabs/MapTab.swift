@@ -300,14 +300,22 @@ struct MapTab: View {
 
             Spacer()
         }
-        // The map runs under the status bar; its chrome starts below it.
-        .padding(.top, 8)
+        // The map runs under the status bar; its chrome starts below it — at
+        // whatever height centres the search row on the profile button's slot,
+        // so the button is where every other tab has it.
+        .padding(.top, ProfileButton.Slot.centerY - Self.searchFieldHeight / 2)
         // Keep the chrome clear of the sheet, whatever height it's at — and of
         // the tab bar, which the sheet now sits on top of.
         .padding(.bottom, max(0, sheetHeight - sheetOffset) + tabBarInset)
         .animation(.easeInOut(duration: 0.2), value: isSearchFocused)
     }
 
+    /// Named because the chrome's top inset is computed from it.
+    private static let searchFieldHeight: CGFloat = 46
+
+    /// The field keeps the map chrome's 14pt inset on the leading side; the
+    /// trailing side takes the page margin every tab has, so the profile
+    /// button lands where it does on Home, Runs and Seasons.
     private var searchRow: some View {
         HStack(spacing: 10) {
             HooprSearchField(
@@ -315,6 +323,7 @@ struct MapTab: View {
                 placeholder: "Search courts or a city",
                 isFocused: $isSearchFocused,
                 ground: .glass,
+                height: Self.searchFieldHeight,
                 // Court and city names are proper nouns.
                 capitalization: .words,
                 onClear: { viewModel.clearSearch() }
@@ -322,7 +331,8 @@ struct MapTab: View {
 
             ProfileButton(friendService: friendService, squadService: squadService, action: onOpenProfile)
         }
-        .padding(.horizontal, 14)
+        .padding(.leading, 14)
+        .padding(.trailing, Spacing.pageMargin)
     }
 
     private var filterChips: some View {
@@ -503,11 +513,46 @@ struct MapTab: View {
             listTabs
 
             if viewModel.isCurrentListEmpty {
-                emptyState
+                emptyStateContent
             } else if viewModel.selectedTab == .now {
                 activeList
             } else {
                 nearbyList
+            }
+
+            if viewModel.isCurrentListEmpty,
+               viewModel.selectedTab == .now,
+               viewModel.datasetError == nil,
+               viewModel.nearestCourtForNewRun != nil {
+                Spacer()
+                    .frame(height: 60)
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if viewModel.isCurrentListEmpty,
+               viewModel.selectedTab == .now,
+               viewModel.datasetError == nil,
+               let court = viewModel.nearestCourtForNewRun {
+                VStack(spacing: 0) {
+                    Divider()
+                        .overlay(Color.hooprBorder)
+
+                    Button {
+                        startingRunAt = court
+                    } label: {
+                        Text("Start a run")
+                            .hooprFont(15, weight: .semibold, maximumSize: 22)
+                            .foregroundStyle(Color.hooprOnBrand)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(Color.hooprOrange)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, Spacing.pageMargin)
+                    .padding(.vertical, 12)
+                }
+                .background(Color.hooprSurface)
             }
         }
     }
@@ -722,12 +767,11 @@ struct MapTab: View {
 
     /// Shown when the current segment has nothing in it.
     ///
-    /// The `.now` segment gets a button, the others don't. With no runs booked
-    /// anywhere, an empty Now list is the most common state this tab has — and
-    /// the only lever the interface has on that cold start is to make starting
-    /// a run the obvious next move rather than apologising for the emptiness.
-    /// Follows `HomeTab`'s `noRunCard`, which answers the same problem.
-    private var emptyState: some View {
+    /// The `.now` segment shows the icon and title; the button is pinned to
+    /// the bottom via `safeAreaInset` so it stays accessible even when the
+    /// sheet is collapsed. Follows `HomeTab`'s `noRunCard`, which answers the
+    /// same problem.
+    private var emptyStateContent: some View {
         VStack(spacing: 6) {
             Spacer()
 
@@ -747,27 +791,6 @@ struct MapTab: View {
                     .hooprFont(13)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .multilineTextAlignment(.center)
-            }
-
-            // Only when there's somewhere to send them. Filters or a failed
-            // dataset can leave no court to start at, and a button that can't
-            // act is worse than no button.
-            if viewModel.selectedTab == .now,
-               viewModel.datasetError == nil,
-               let court = viewModel.nearestCourtForNewRun {
-                Button {
-                    startingRunAt = court
-                } label: {
-                    Text("Start a run")
-                        .hooprFont(15, weight: .semibold, maximumSize: 22)
-                        .foregroundStyle(Color.hooprOnBrand)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(Color.hooprOrange)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 12)
             }
 
             Spacer()
