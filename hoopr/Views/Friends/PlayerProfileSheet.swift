@@ -48,7 +48,7 @@ struct PlayerProfileSheet: View {
                 identityHeader
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 10) {
+                    DividedRows(leadingInset: ProfileRow.textInset) {
                         rows
                     }
                     .padding(.horizontal, Spacing.pageMargin)
@@ -107,6 +107,11 @@ struct PlayerProfileSheet: View {
     /// away: a sheet opens at a height it has to live within, so the identity
     /// takes a band across the top instead of the full-width block a screen
     /// with its own scroll can afford.
+    ///
+    /// **The relationship is the header's one strong line** (UI revamp Phase 2b,
+    /// `UI_REDESIGN_BRIEF.md` §5.10): it is what this sheet is opened to
+    /// resolve, so it sits under the name rather than in small grey type above
+    /// the buttons. The handle wraps to two lines instead of shrinking.
     private var identityHeader: some View {
         HStack(spacing: 14) {
             PlayerAvatar(initial: row.initial, diameter: 56)
@@ -116,18 +121,35 @@ struct PlayerProfileSheet: View {
                         .frame(width: 62, height: 62)
                 )
 
-            if row.isResolved {
-                Text(row.handle.isEmpty ? row.nameForProse : row.handle)
-                    .hooprFont(24, weight: .bold, maximumSize: 30)
-                    .foregroundStyle(Color.hooprPrimaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-            } else {
-                // Held space rather than a name, while the lookup is in flight.
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(Color.hooprFill)
-                    .frame(width: 150, height: 18)
-                    .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                if row.isResolved {
+                    Text(row.handle.isEmpty ? row.nameForProse : row.handle)
+                        .hooprType(.title)
+                        .foregroundStyle(Color.hooprPrimaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    // Held space rather than a name, while the lookup is in
+                    // flight.
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(Color.hooprFill)
+                        .frame(width: 150, height: 18)
+                        .accessibilityHidden(true)
+                }
+
+                if let status = statusText {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Image(systemName: status.symbol)
+                            .hooprType(.caption)
+                            .foregroundStyle(Color.hooprBrandAccent)
+                            .accessibilityHidden(true)
+                        Text(status.text)
+                            .hooprType(.subhead)
+                            .foregroundStyle(Color.hooprPrimaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
             }
 
             Spacer(minLength: 0)
@@ -191,12 +213,6 @@ struct PlayerProfileSheet: View {
                 .frame(height: 1)
 
             VStack(spacing: 10) {
-                if let status = statusText {
-                    Label(status.text, systemImage: status.symbol)
-                        .hooprFont(14, weight: .medium)
-                        .foregroundStyle(Color.hooprSecondaryText)
-                }
-
                 HStack(spacing: 10) {
                     ForEach(actions, id: \.self) { action in
                         FriendActionButton(
@@ -226,14 +242,17 @@ struct PlayerProfileSheet: View {
         .background(Color.hooprBackground)
     }
 
-    /// The line above the buttons, naming the state the buttons act on. `.none`
-    /// has none — "Add Friend" already says everything there is to say.
+    /// The header's relationship line, naming the state the buttons act on.
+    /// `.none` says so plainly rather than saying nothing — in the header it
+    /// answers "what are we to each other", which "Add Friend" at the bottom
+    /// only implies. `.you` is filtered out of search and has no line.
     private var statusText: (text: String, symbol: String)? {
         switch row.relationship {
         case .friends:  ("You're friends", "checkmark.circle.fill")
         case .incoming: ("Sent you a request", "envelope.fill")
         case .outgoing: ("Request sent", "clock.fill")
-        case .none, .you: nil
+        case .none:     ("Not friends yet", "person.fill.questionmark")
+        case .you:      nil
         }
     }
 }

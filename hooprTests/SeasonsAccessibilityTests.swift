@@ -24,97 +24,15 @@ import XCTest
 ///
 /// **This suite found a real bug.** The neutral history badge shipped in Phase 6
 /// with `hooprFont(13, weight: .bold)` and no `maximumSize` inside a fixed 28pt
-/// circle. `testAnUncappedPillFontWouldOverflowItsCircle` is that bug, kept as
-/// the reason the cap exists.
+/// circle, and rendered taller than its own circle. The lettered result pills
+/// and their four tests were retired on 2026-09-23, when the form guide and
+/// squad detail's history moved to text-free dots (`FormDot`), which carry no
+/// glyph to overflow. The lesson stands for anything else locked in a frame.
 final class SeasonsAccessibilityTests: XCTestCase {
 
     /// The size a reader with large accessibility text is at. The same one
     /// `TabBarLabelTests` measures, so the two files agree on "large".
     private let accessibility3 = UIContentSizeCategory.accessibilityExtraLarge
-
-    /// The widest thing either pill ever renders. "W" is wider than "L", "!",
-    /// "–" or "·", so a pill that fits this fits all of them.
-    private let widestGlyph = "W"
-
-    // MARK: - The pills
-
-    func testAResultPillKeepsItsLetterInsideItsCircleAtAccessibility3() {
-        let size = HooprFontMetrics.scaledSize(
-            ResultPillMetrics.fontSize,
-            maximumSize: ResultPillMetrics.maximumFontSize,
-            at: accessibility3
-        )
-
-        XCTAssertLessThanOrEqual(
-            size, ResultPillMetrics.maximumFontSize,
-            "the cap isn't being applied"
-        )
-
-        let rendered = measure(widestGlyph, atSize: size, weight: .bold)
-
-        XCTAssertLessThanOrEqual(
-            rendered.width, ResultPillMetrics.diameter,
-            "\"\(widestGlyph)\" renders \(rendered.width.rounded())pt wide in a \(ResultPillMetrics.diameter)pt pill"
-        )
-        XCTAssertLessThanOrEqual(
-            rendered.height, ResultPillMetrics.diameter,
-            "\"\(widestGlyph)\" renders \(rendered.height.rounded())pt tall in a \(ResultPillMetrics.diameter)pt pill"
-        )
-    }
-
-    func testAnUncappedPillFontWouldOverflowItsCircle() {
-        // The bug this file exists for, stated as a measurement: without
-        // `maximumSize` the badge's own text is taller than the badge. A cap is
-        // normally the lesser evil — `Typography` says to omit it wherever the
-        // layout can reflow — and a fixed-diameter circle is precisely where it
-        // cannot.
-        let uncapped = HooprFontMetrics.scaledSize(
-            ResultPillMetrics.fontSize,
-            at: accessibility3
-        )
-        let rendered = measure(widestGlyph, atSize: uncapped, weight: .bold)
-
-        XCTAssertGreaterThan(
-            rendered.height, ResultPillMetrics.diameter,
-            "If this ever passes, the cap on the result pills is no longer doing anything and the comment explaining it is wrong."
-        )
-    }
-
-    func testEveryPillGlyphFitsNotJustTheWidest() {
-        let size = HooprFontMetrics.scaledSize(
-            ResultPillMetrics.fontSize,
-            maximumSize: ResultPillMetrics.maximumFontSize,
-            at: accessibility3
-        )
-
-        // W and L from `SeasonGame.Outcome`, then the three neutral glyphs
-        // `SquadDetailView` renders for disputed, cancelled and unreported.
-        for glyph in ["W", "L", "!", "–", "·"] {
-            let rendered = measure(glyph, atSize: size, weight: .bold)
-            XCTAssertLessThanOrEqual(
-                rendered.width, ResultPillMetrics.diameter,
-                "\"\(glyph)\" is \(rendered.width.rounded())pt wide in a \(ResultPillMetrics.diameter)pt pill"
-            )
-        }
-    }
-
-    func testThePillsFitAtEveryContentSizeNotOnlyTheOneWeChecked() {
-        // A cap set for accessibility3 that happens to fail at accessibility5
-        // would be a bug this file was built to miss.
-        for category in Self.everyCategory {
-            let size = HooprFontMetrics.scaledSize(
-                ResultPillMetrics.fontSize,
-                maximumSize: ResultPillMetrics.maximumFontSize,
-                at: category
-            )
-            let rendered = measure(widestGlyph, atSize: size, weight: .bold)
-
-            XCTAssertLessThanOrEqual(
-                rendered.height, ResultPillMetrics.diameter,
-                "a pill clips at \(category.rawValue)"
-            )
-        }
-    }
 
     // MARK: - The crest
 
@@ -178,21 +96,6 @@ final class SeasonsAccessibilityTests: XCTestCase {
         XCTAssertEqual(
             mapped.count, DynamicTypeSize.allCases.count,
             "two Dynamic Type sizes map to the same content size category"
-        )
-    }
-
-    // MARK: - Harness
-
-    private static let everyCategory: [UIContentSizeCategory] = [
-        .extraSmall, .small, .medium, .large, .extraLarge, .extraExtraLarge,
-        .extraExtraExtraLarge, .accessibilityMedium, .accessibilityLarge,
-        .accessibilityExtraLarge, .accessibilityExtraExtraLarge,
-        .accessibilityExtraExtraExtraLarge,
-    ]
-
-    private func measure(_ text: String, atSize size: CGFloat, weight: UIFont.Weight) -> CGSize {
-        (text as NSString).size(
-            withAttributes: [.font: UIFont.systemFont(ofSize: size, weight: weight)]
         )
     }
 }

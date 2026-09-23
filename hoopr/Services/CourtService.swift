@@ -22,6 +22,26 @@ final class CourtService: ObservableObject {
     /// Set when the bundled dataset couldn't be read. `nil` on success.
     @Published private(set) var loadError: String?
 
+    /// The dataset's own licence notice — "Court data © OpenStreetMap
+    /// contributors, ODbL 1.0" — kept rather than discarded.
+    ///
+    /// **It was decoded and then dropped** (`gaps/ASSETS_AND_DATA.md`): the
+    /// court data is derived from OpenStreetMap under the ODbL, which requires
+    /// the attribution to be shown, and nothing could show it because nothing
+    /// kept it. Read from the dataset rather than restated in a view so the
+    /// notice travels with the data it describes — a rebuilt `courts.json`
+    /// with a different source carries its own.
+    ///
+    /// Not `@Published`: `load()` runs synchronously in `init`, so the value is
+    /// set before anything can observe it and never changes afterwards.
+    private(set) var attribution: String?
+
+    /// Where the attribution points. OpenStreetMap's own guidance is that the
+    /// notice links to its copyright page, which names the licence and where
+    /// the data can be obtained — the two things ODbL §4.3 asks a notice to
+    /// make a user aware of.
+    static let attributionURL = URL(string: "https://www.openstreetmap.org/copyright")!
+
     init() {
         load()
     }
@@ -37,6 +57,7 @@ final class CourtService: ObservableObject {
             let data = try Data(contentsOf: url)
             let dataset = try JSONDecoder().decode(CourtDataset.self, from: data)
             courts = dataset.courts.sorted { $0.name < $1.name }
+            attribution = dataset.attribution
             loadError = nil
             logger.debug("Loaded \(self.courts.count) courts (dataset v\(dataset.version))")
         } catch {

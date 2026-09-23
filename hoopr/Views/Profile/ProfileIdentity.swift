@@ -4,6 +4,11 @@ import UIKit
 /// Who you are, set large at the top of the profile and scrolled past like any
 /// other content.
 ///
+/// **In the band, since UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.9): the
+/// handle at `display`, and under it the one fact that identifies you *to other
+/// people* — your home court, which is what a friend sees next to your name.
+/// The uid stays, demoted to a caption, keeping its copy-on-tap.
+///
 /// This replaces the pinned orange slab the screen used to open with. A fixed
 /// fraction of the screen painted in the brand colour spent the most valuable
 /// real estate on the page restating something the user already knows, and it
@@ -19,6 +24,10 @@ struct ProfileIdentityBlock: View {
     let initial: String
     /// `nil` while the session resolves.
     let userId: String?
+    /// The home court's name, when one is set. Omitted rather than shown as
+    /// "Not set": the Home Court row below is where it's set, and a hero line
+    /// saying what's missing isn't a fact about you.
+    var homeCourt: String? = nil
 
     /// Drives the uid's copy glyph, which reverts to itself after a beat.
     @State private var didCopy = false
@@ -39,16 +48,32 @@ struct ProfileIdentityBlock: View {
         VStack(spacing: 14) {
             avatar
 
-            VStack(spacing: 4) {
+            VStack(spacing: 6) {
                 Text(handle)
-                    // Uncapped, unlike the old header's type: nothing pins this
-                    // block's height any more, so it may grow as far as the
-                    // reader's text size takes it.
-                    .hooprFont(30, weight: .bold)
+                    // Uncapped and wrapping: nothing pins this block's height,
+                    // so it may grow as far as the reader's text size takes it.
+                    // (It shrank to fit with `minimumScaleFactor(0.6)` before
+                    // the revamp; the app no longer shrinks text anywhere.)
+                    .hooprType(.display)
                     .foregroundStyle(Color.hooprPrimaryText)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.6)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let homeCourt {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Image.court
+                            .hooprType(.caption)
+                            .foregroundStyle(Color.hooprBrandAccent)
+                            .accessibilityHidden(true)
+                        Text(homeCourt)
+                            .hooprType(.body)
+                            .foregroundStyle(Color.hooprSecondaryText)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Home court, \(homeCourt)")
+                }
 
                 if let userId {
                     copyableUserId(userId)
@@ -108,6 +133,7 @@ struct ProfileIdentityBlock: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .sensoryFeedback(.success, trigger: didCopy) { _, new in new }
         .accessibilityLabel("Copy user ID")
         .accessibilityValue(userId)
     }
@@ -159,7 +185,7 @@ struct ProfileTopBar: View {
                     .hooprFont(17, weight: .semibold, maximumSize: 22)
                     .foregroundStyle(Color.hooprPrimaryText)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .truncationMode(.tail)
             }
             // Fades in with the bar. Hidden from VoiceOver throughout: the
             // handle is announced by the identity block, and a title that
@@ -174,6 +200,16 @@ struct ProfileTopBar: View {
         .padding(.trailing, 6)
         .frame(height: 52)
         .frame(maxWidth: .infinity)
+        // At rest the bar is the top row of the identity band, so it takes the
+        // band's ground — not under the status bar, which stays the page
+        // colour exactly as it does over every tab's band. Without this the
+        // bar was a strip of page between the status bar and the band: the
+        // "cuts off abruptly towards the top" the user flagged on squad detail
+        // (2026-09-23). It fades out as the glass fades in.
+        .background {
+            Color.hooprHeroBand
+                .opacity(1 - progress)
+        }
         .background(alignment: .top) {
             // Same glass the shell header floats on, so arriving at the profile
             // from the map doesn't change what a bar is made of. Extended past
@@ -204,11 +240,15 @@ struct ProfileTopBar: View {
             Image(systemName: "tray.fill")
                 .hooprFont(17, weight: .medium, maximumSize: 22)
                 .foregroundStyle(Color.hooprPrimaryText)
+                // A new request bounces the tray once (UI revamp Phase 3);
+                // answering one doesn't.
+                .hooprBounce(onRiseOf: unansweredCount)
                 .frame(width: 44, height: 44)
                 .overlay(alignment: .topTrailing) {
                     if unansweredCount > 0 {
                         Text(badgeText)
                             .hooprFont(11, weight: .bold, maximumSize: 13)
+                            .hooprNumericTransition(unansweredCount)
                             // `hooprOnRed`, not `hooprOnBrand`: this is the one
                             // label in the app on a red fill, and red is the one
                             // ground that inverts between appearances.
@@ -221,8 +261,10 @@ struct ProfileTopBar: View {
                             // its shape.
                             .overlay(Capsule().stroke(Color.hooprBackground, lineWidth: 2))
                             .offset(x: -2, y: 4)
+                            .transition(.hooprPop)
                     }
                 }
+                .animation(.hooprSnap, value: unansweredCount > 0)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -250,7 +292,8 @@ struct ProfileTopBar: View {
         ProfileIdentityBlock(
             handle: "@Elliot",
             initial: "EA",
-            userId: "dQw4w9WgXcQaBcDeFgHiJkLmNoPq"
+            userId: "dQw4w9WgXcQaBcDeFgHiJkLmNoPq",
+            homeCourt: "East End Park"
         )
         .padding(20)
 

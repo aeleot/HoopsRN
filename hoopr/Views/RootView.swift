@@ -69,7 +69,7 @@ struct RootView: View {
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: viewModel.destination)
+        .animation(.hooprSwap, value: viewModel.destination)
     }
 }
 

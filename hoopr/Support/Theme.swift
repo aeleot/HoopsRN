@@ -177,6 +177,60 @@ extension Color {
         UIColor(red: red / 255, green: green / 255, blue: blue / 255, alpha: 1)
     }
 
+    // MARK: - Form guide
+
+    /// A win in `FormGuide`'s row of five dots. Green for a win and red for a
+    /// loss, at the user's direction (2026-09-22), replacing the orange "W"
+    /// pill.
+    ///
+    /// **Each played dot clears 3:1**, the floor WCAG 1.4.11 sets for a
+    /// graphic you need to read, on every ground the guide is drawn on: the
+    /// hero band and a card. Win is 3.15:1 on the light band, which sets how
+    /// light this green can go. Its dark value is the same hue lifted, as
+    /// `hooprOrange`'s is.
+    ///
+    /// **The colours can't carry win and loss alone, and that was measured.**
+    /// For a red-green colour-blind reader, two fills differ only in how light
+    /// they are, and WCAG counts that as a second cue at 3:1 between them. With
+    /// both dots held to 3:1 against the band, the widest gap reachable is
+    /// 1.95:1 in light and 2.25:1 in dark. So the record numeral says how many
+    /// of each, VoiceOver reads the order, and with iOS's *Differentiate
+    /// Without Color* setting on, each played dot carries a ✓ or ✕.
+    /// `ThemeContrastTests` asserts all of it.
+    static let hooprFormWin = Color.hoopr(
+        light: UIColor(red: 46 / 255, green: 158 / 255, blue: 74 / 255, alpha: 1),
+        dark: UIColor(red: 74 / 255, green: 222 / 255, blue: 128 / 255, alpha: 1)
+    )
+
+    /// A loss in `FormGuide`. A role of its own rather than `hooprRed`, which
+    /// is for errors: a loss is a result, not a failure. Light mode shares the
+    /// error red's value. Dark mode is deeper than the error red's `#FF6961`,
+    /// which is only 1.62:1 away from the win green in lightness. This is
+    /// 2.25:1, the widest gap that keeps both dots at 3:1 on the band.
+    static let hooprFormLoss = Color.hoopr(
+        light: UIColor(red: 185 / 255, green: 14 / 255, blue: 10 / 255, alpha: 1),
+        dark: UIColor(red: 229 / 255, green: 72 / 255, blue: 77 / 255, alpha: 1)
+    )
+
+    /// A slot not yet played. The squad has fewer than five confirmed results.
+    ///
+    /// **Deliberately quieter than a played dot, at about 2:1 on the band
+    /// rather than 3:1.** It is a placeholder, not a result. The record
+    /// numeral beside it already says how many games were played, and a grey
+    /// as heavy as the win and loss dots would read as a third kind of
+    /// result. `ThemeContrastTests` holds it visible, and below both played
+    /// dots.
+    static let hooprFormUnplayed = Color.hoopr(
+        light: UIColor(red: 174 / 255, green: 174 / 255, blue: 178 / 255, alpha: 1),
+        dark: UIColor(red: 84 / 255, green: 84 / 255, blue: 86 / 255, alpha: 1)
+    )
+
+    /// The ✓ or ✕ drawn on a played dot when *Differentiate Without Color* is
+    /// on. White in light mode, black in dark: the dark dots are light
+    /// colours, so the label flips, as `hooprOnRed`'s does. It is at least
+    /// 3.44:1 on either dot in either appearance.
+    static let hooprOnFormResult = Color.hoopr(light: .white, dark: UIColor(white: 0, alpha: 1))
+
     // MARK: - Heat
 
     /// The "how busy is this court **today**" ramp: five fills, each paired
@@ -296,6 +350,21 @@ extension Color {
     static let hooprHeroBand = Color.hoopr(
         light: UIColor(white: 245 / 255, alpha: 1),
         dark: UIColor(red: 36 / 255, green: 36 / 255, blue: 38 / 255, alpha: 1)
+    )
+
+    /// The ground of a grouped form — a sheet whose fields sit in panels
+    /// (`FormPanel`), the way an iOS inset-grouped list does. The panels are
+    /// `hooprSurface`, so the page steps *down* around them: grey under white
+    /// in light, black under the lifted card in dark.
+    ///
+    /// Like `hooprHeroBand`, it resolves to values the palette already proves
+    /// — `hooprFill` in light, `hooprBackground` in dark — so every text and
+    /// mark pairing drawn on it is one `ThemeContrastTests` already holds, and
+    /// it is named for the job so a view never says "field" where it means
+    /// "page".
+    static let hooprGroupedBackground = Color.hoopr(
+        light: UIColor(white: 245 / 255, alpha: 1),
+        dark: UIColor(white: 0, alpha: 1)
     )
 
     /// A filled but unemphasised region: text-field backgrounds, unselected

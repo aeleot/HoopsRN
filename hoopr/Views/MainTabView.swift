@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct MainTabView: View {
     /// The four top-level destinations. Named `Screen` rather than `Tab`
@@ -65,6 +66,29 @@ struct MainTabView: View {
         self.seasonGameService = seasonGameService
         self.notificationService = notificationService
         self.recentCourtsStore = recentCourtsStore
+
+        Self.configureTabBarAppearance()
+    }
+
+    /// Gives the bar a fixed, opaque presence instead of the system's default
+    /// floating glass, which reads as translucent chrome rather than a
+    /// permanent fixture. `hooprFill` — the "filled but unemphasised region"
+    /// role already used for field backgrounds — is the surface; the selected
+    /// item sits on `hooprHoverFill`, the same "selected without being loud"
+    /// role a pressed row uses.
+    ///
+    /// Set on `UITabBar.appearance()` rather than a per-instance property:
+    /// SwiftUI's `TabView` still bridges to `UITabBarController` on iPhone, so
+    /// the proxy default is what the bar it builds actually reads. Idempotent,
+    /// so calling it from every `init()` is harmless.
+    private static func configureTabBarAppearance() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(Color.hooprFill)
+        appearance.selectionIndicatorTintColor = UIColor(Color.hooprHoverFill)
+
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
     }
 
     var body: some View {
@@ -185,6 +209,11 @@ struct MainTabView: View {
         // assertion in `ThemeContrastTests` is on the nominal value this hands
         // over, and the rendered figure is re-measured from a screenshot.
         .tint(Color.hooprBrandAccent)
+        // Belt-and-suspenders with `configureTabBarAppearance()`: this is the
+        // SwiftUI-native path to the same fixed, opaque bar, for whichever
+        // rendering path the system takes for the four-item `Tab` builder.
+        .toolbarBackground(Color.hooprFill, for: .tabBar)
+        .toolbarBackgroundVisibility(.visible, for: .tabBar)
     }
 
     private func openProfile() {

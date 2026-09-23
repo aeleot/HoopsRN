@@ -20,6 +20,11 @@ card in Queued Games (shipped 2026-08-15), and that's the whole of it:
 and the `games` read rule still refuses a non-member — so a recipient who taps
 the link gets nothing. **An invite-only run still holds only its host.**
 
+*Since 2026-09-23 the app says so wherever it offers the link* — the create
+sheet's Invite-only caption, its invite step (which leads with a "Send the court
+and time" share instead), and `InviteLinkCard`'s note. That makes the gap
+honest, not closed.
+
 What's left, and the middle item is a decision rather than a task:
 
 - Register `hoopsrn` under `CFBundleURLSchemes` — the scheme `InviteLink`

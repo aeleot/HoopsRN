@@ -131,6 +131,32 @@ final class LocalRunsViewModel: ObservableObject {
     /// delete.
     @Published private(set) var pendingGameId: String?
 
+    /// The last write the user made here that the server accepted, for the
+    /// haptic that confirms it (UI revamp Phase 3).
+    ///
+    /// **Set by a successful write and nothing else.** A roster that changes
+    /// because the listener re-emitted — someone else joining, the app coming
+    /// back to the foreground — is never a confirmation, so it never buzzes.
+    /// The serial makes a second join after a leave a change even though the
+    /// action is the same as last time's.
+    struct Confirmation: Equatable {
+        let kind: ConfirmationKind
+        let serial: Int
+    }
+
+    enum ConfirmationKind: Equatable {
+        case action(Action)
+        case completed
+    }
+
+    @Published private(set) var lastConfirmation: Confirmation?
+    private var confirmationSerial = 0
+
+    private func confirm(_ kind: ConfirmationKind) {
+        confirmationSerial += 1
+        lastConfirmation = Confirmation(kind: kind, serial: confirmationSerial)
+    }
+
     private let gameService: GameService
     private var cancellables = Set<AnyCancellable>()
 
@@ -407,6 +433,7 @@ final class LocalRunsViewModel: ObservableObject {
             }
             // The listener re-emits the roster the server actually stored, so
             // there's nothing to apply optimistically here.
+            confirm(.action(action))
         } catch {
             // `GameService` already reported it; `errorMessage` is mirrored.
         }
@@ -431,6 +458,7 @@ final class LocalRunsViewModel: ObservableObject {
 
         do {
             try await gameService.completeGame(id: listing.id)
+            confirm(.completed)
         } catch {
             // `GameService` already reported it; `errorMessage` is mirrored.
         }

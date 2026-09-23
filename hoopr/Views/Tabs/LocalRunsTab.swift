@@ -83,6 +83,11 @@ struct LocalRunsTab: View {
         }
         .background(Color.hooprBackground)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // On the screen, not the list: cancelling the last run empties the
+        // board in the same update that confirms the cancel.
+        .sensoryFeedback(trigger: viewModel.lastConfirmation) { _, new in
+            new?.kind.feedback
+        }
     }
 
     // MARK: - The band
@@ -145,6 +150,7 @@ struct LocalRunsTab: View {
                     Text("\(count)")
                         .hooprType(.numeral)
                         .foregroundStyle(Color.hooprPrimaryText)
+                        .hooprNumericTransition(count)
 
                     Text(schedule)
                         .hooprType(.headline)
@@ -240,8 +246,14 @@ struct LocalRunsTab: View {
                             Task { await viewModel.complete(entry.listing) }
                         }
                     )
+                    .transition(.hooprLift)
+                    .hooprScrollLift()
                 }
             }
+            // A run arriving or leaving the board moves the others out of its
+            // way rather than jumping them — keyed on which runs are listed, so
+            // a roster changing inside a card doesn't re-run it.
+            .animation(.hooprSwap, value: viewModel.timeline.map(\.id))
             .padding(.horizontal, Spacing.pageMargin)
             .padding(.top, Spacing.xl)
         }
@@ -270,7 +282,7 @@ struct LocalRunsTab: View {
                     .background(Color.hooprOrange)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.hooprPress)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Spacing.pageMargin)

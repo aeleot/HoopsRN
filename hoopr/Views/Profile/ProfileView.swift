@@ -98,9 +98,6 @@ struct ProfileView: View {
     @AppStorage(AppearancePreference.storageKey)
     private var appearance: AppearancePreference = .system
 
-    /// The gap between rows. The page margin is `Spacing.pageMargin`.
-    private static let rowSpacing: CGFloat = 10
-
     init(
         authService: AuthService,
         userProfileService: UserProfileService,
@@ -230,15 +227,27 @@ struct ProfileView: View {
 
     // MARK: - Identity
 
+    /// The identity as the screen's band (`UI_REDESIGN_BRIEF.md` M2): the same
+    /// ground and baseline every screen opens on, continuing up through the top
+    /// bar at rest (`ProfileTopBar`), so the page opens on one band rather
+    /// than a bar, a strip of page, then the block.
     private var identity: some View {
         ProfileIdentityBlock(
             handle: handle,
             initial: initials,
-            userId: viewModel.userId
+            userId: viewModel.userId,
+            homeCourt: viewModel.homeCourtName
         )
         .padding(.horizontal, Spacing.pageMargin)
-        .padding(.top, 8)
-        .padding(.bottom, 22)
+        .padding(.top, Spacing.sm)
+        .padding(.bottom, Spacing.xxl)
+        .frame(maxWidth: .infinity)
+        .background(Color.hooprHeroBand, ignoresSafeAreaEdges: [])
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.hooprSeparatorStrong)
+                .frame(height: 1)
+        }
         // Measured rather than assumed: the block's height moves with the
         // reader's text size, and it's what decides when the top bar's title
         // has a reason to appear.
@@ -302,8 +311,12 @@ struct ProfileView: View {
             }
         }
         .padding(.horizontal, Spacing.pageMargin)
-        .padding(.top, 4)
-        .padding(.bottom, 14)
+        .padding(.top, Spacing.md)
+        // On the Profile pane the selector's own hairline is the header's
+        // edge; a second rule 14pt under it read as a doubled line once rows
+        // scrolled beneath (device, 2026-09-23). The Friends pane's search
+        // field sits below the selector, so its edge still needs one.
+        .padding(.bottom, pane == .friends ? 14 : 0)
         .background(Color.hooprBackground)
         .overlay(alignment: .bottom) {
             // Only once something is actually scrolling under the header —
@@ -311,67 +324,67 @@ struct ProfileView: View {
             Rectangle()
                 .fill(Color.hooprBorder)
                 .frame(height: 1)
-                .opacity(barProgress)
+                .opacity(pane == .friends ? barProgress : 0)
         }
     }
 
-    /// A segmented control rather than the shell's glass pills: those float
-    /// over a live map and need to refract it, while this sits on a flat page
-    /// where a solid selection is simply easier to read.
+    /// Two labels with an underline under the selected one — the map list's
+    /// Now / Nearby / Saved treatment, so the app has one way of switching
+    /// between views of the same thing.
+    ///
+    /// **No filled ground** (brief §5.9). It was an orange pill sliding over a
+    /// grey track: the screen's loudest shape, for a choice between two
+    /// halves of one page. The underline still slides between the two.
     private var paneSelector: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 0) {
             ForEach(Pane.allCases, id: \.self) { item in
                 let isSelected = pane == item
 
                 Button {
                     isSearchFocused = false
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(.hooprSpring) {
                         pane = item
                     }
                 } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: item.symbol)
-                            .hooprFont(12, weight: .medium, maximumSize: 15)
+                    VStack(spacing: Spacing.sm) {
+                        HStack(spacing: 6) {
+                            Image(systemName: item.symbol)
+                                .hooprFont(13, weight: .semibold, maximumSize: 18)
 
-                        Text(item.title)
-                            .hooprFont(14, weight: .semibold, maximumSize: 18)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                            // Wraps rather than shrinking — the pane's old
+                            // `minimumScaleFactor(0.8)` goes with the pill.
+                            Text(item.title)
+                                .hooprType(.subhead)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .foregroundStyle(isSelected ? Color.hooprPrimaryText : Color.hooprSecondaryText)
 
-                        // No badge here. This segment used to carry a dot for
-                        // waiting requests, which was only honest while the
-                        // inbox was inside the pane it selects. The inbox is in
-                        // the top bar now and its badge is visible from both
-                        // panes, so a second indicator would point at a place
-                        // the requests no longer live.
-                    }
-                    .padding(.vertical, 9)
-                    .frame(maxWidth: .infinity)
-                    .foregroundStyle(
-                        isSelected ? Color.hooprOnBrand : Color.hooprSecondaryText
-                    )
-                    .background {
-                        if isSelected {
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color.hooprOrange)
-                                // One shape moved between the two pills rather
-                                // than two shapes fading, so the selection
-                                // slides.
-                                .matchedGeometryEffect(id: "pane", in: paneSelection)
+                        ZStack {
+                            Color.clear.frame(height: 2)
+                            if isSelected {
+                                Capsule()
+                                    .fill(Color.hooprBrandAccent)
+                                    .frame(height: 2)
+                                    // One shape moved between the two labels
+                                    // rather than two fading, so the
+                                    // selection slides.
+                                    .matchedGeometryEffect(id: "pane", in: paneSelection)
+                            }
                         }
                     }
-                    .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(item.title)
                 .accessibilityAddTraits(isSelected ? [.isSelected] : [])
             }
         }
-        .padding(4)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.hooprFill)
-        )
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.hooprBorder)
+                .frame(height: 1)
+        }
     }
 
     // MARK: - Panes
@@ -381,6 +394,7 @@ struct ProfileView: View {
         switch pane {
         case .profile:
             profileFields
+                .padding(.top, Spacing.xl)
 
         case .friends:
             FriendsPaneContent(
@@ -392,9 +406,11 @@ struct ProfileView: View {
     }
 
     /// The profile as one column of rows: every field on a line of its own,
-    /// each led by its symbol, values free to run the width of the page.
+    /// each led by its symbol, values free to run the width of the page —
+    /// grouped by subject under labels, with hairlines between the rows
+    /// (`DividedRows`) instead of a card around each one.
     private var profileFields: some View {
-        VStack(alignment: .leading, spacing: 22) {
+        VStack(alignment: .leading, spacing: Spacing.section) {
             // Errors raised outside a sheet — a profile load, a sign-out — used
             // to surface in a pinned bottom bar. There isn't one any more, so
             // they lead the pane instead, where they're read before the fields
@@ -403,7 +419,7 @@ struct ProfileView: View {
                 ErrorBanner(message: errorMessage)
             }
 
-            section("Your Game") {
+            section("Your game") {
                 // The setting the rest of the app is organised around, so it
                 // leads — first row, and the only one carrying a second fact.
                 ProfileRow(
@@ -487,19 +503,19 @@ struct ProfileView: View {
                     value: viewModel.dateJoinedText,
                     placeholder: "—"
                 )
-            }
 
-            // The end of the list, not a bar of its own: the rows already run
-            // to the bottom of the screen, and a pinned bar over them would be
-            // a permanent reminder of the one action nobody comes here for.
-            ProfileActionRow(
-                symbol: "rectangle.portrait.and.arrow.right",
-                title: "Sign Out",
-                tint: .destructive
-            ) {
-                viewModel.signOut()
+                // The end of the list, not a bar of its own: the rows already
+                // run to the bottom of the screen, and a pinned bar over them
+                // would be a permanent reminder of the one action nobody comes
+                // here for.
+                ProfileActionRow(
+                    symbol: "rectangle.portrait.and.arrow.right",
+                    title: "Sign Out",
+                    tint: .destructive
+                ) {
+                    viewModel.signOut()
+                }
             }
-            .padding(.top, 4)
         }
     }
 
@@ -510,19 +526,21 @@ struct ProfileView: View {
         return "\(count) \(viewModel.favoriteCourtUnitText)"
     }
 
-    /// A titled group of rows, using the same section heading as the Local Runs
-    /// tab so the two screens read as one app.
+    /// A group of rows under a `label`, the section heading every redesigned
+    /// screen uses (Seasons' roster, squad detail's history).
     private func section<Content: View>(
         _ title: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: Self.rowSpacing) {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(title)
-                .hooprFont(18, weight: .bold)
-                .foregroundStyle(Color.hooprPrimaryText)
-                .padding(.bottom, 2)
+                .hooprType(.label)
+                .foregroundStyle(Color.hooprSecondaryText)
+                .accessibilityAddTraits(.isHeader)
 
-            content()
+            DividedRows(leadingInset: ProfileRow.textInset) {
+                content()
+            }
         }
     }
 

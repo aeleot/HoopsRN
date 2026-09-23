@@ -80,11 +80,12 @@ struct CourtRow: View {
     private func titleLine(badgeLimit: Int?) -> some View {
         HStack(spacing: 8) {
             // One line, never two. Wrapping would reintroduce exactly the
-            // height variance this layout exists to remove.
-            Text(court.displayName)
+            // height variance this layout exists to remove. Past the badges,
+            // the name itself sheds "Park" and then its court number before
+            // it is cut (`CourtName`) — the badges still go first.
+            CourtName(name: court.displayName)
                 .hooprFont(16, weight: .semibold)
                 .foregroundStyle(Color.hooprPrimaryText)
-                .lineLimit(1)
 
             CourtBadges(court: court, limit: badgeLimit)
         }

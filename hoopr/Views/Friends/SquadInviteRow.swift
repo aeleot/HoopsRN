@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// One pending squad invite, with Join/Decline inline.
+/// One pending squad invite, with Join/Decline inline — a row in the inbox's
+/// `DividedRows`, not a card (UI revamp Phase 2b).
 ///
 /// Lives here rather than in `Views/Seasons/` because the inbox is now its
 /// only home — squad invites used to render inline on Squad home, where a
@@ -28,33 +29,42 @@ struct SquadInviteRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.squadName)
-                    .hooprFont(15, weight: .semibold)
+                    .hooprType(.subhead)
                     .foregroundStyle(Color.hooprPrimaryText)
 
                 Text(row.squad.map { "\($0.format.displayName) · \($0.rosterText)" } ?? "Invited you to join")
-                    .hooprFont(13)
+                    .hooprType(.caption)
                     .foregroundStyle(Color.hooprSecondaryText)
             }
 
             Spacer(minLength: 8)
 
-            HStack(spacing: 8) {
-                Button("Join", action: onAccept)
-                    .buttonStyle(.plain)
-                    .hooprFont(14, weight: .semibold)
-                    .foregroundStyle(Color.hooprOnBrand)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(Capsule().fill(Color.hooprOrange))
+            // Each drawn at its label's size inside a full 44pt target, so a
+            // row stays compact without shrinking what a thumb has to hit.
+            HStack(spacing: 4) {
+                Button(action: onAccept) {
+                    Text("Join")
+                        .hooprFont(14, weight: .semibold)
+                        .foregroundStyle(Color.hooprOnBrand)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Capsule().fill(Color.hooprOrange))
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.hooprPress)
 
-                Button("Decline", action: onDecline)
-                    .buttonStyle(.plain)
-                    .hooprFont(14)
-                    .foregroundStyle(Color.hooprRed)
+                Button(action: onDecline) {
+                    Text("Decline")
+                        .hooprFont(14)
+                        .foregroundStyle(Color.hooprRed)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
             .disabled(isBlocked)
         }
-        .padding(12)
-        .cardChrome(cornerRadius: 12)
+        .padding(.vertical, 8)
     }
 }

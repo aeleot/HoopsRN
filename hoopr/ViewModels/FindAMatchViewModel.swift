@@ -377,12 +377,23 @@ final class FindAMatchViewModel: ObservableObject {
     /// Safe to call per render: it's one `CLLocation.distance(from:)`, not the
     /// whole-dataset sort that `ranked(courts:from:)` does.
     func distanceText(for court: Court) -> String {
+        Distance.text(distanceMeters(to: court))
+    }
+
+    /// The number alone — "0.7" — for the card, which sets the number and its
+    /// unit at different weights. Same measurement as `distanceText`, so the
+    /// two can't disagree.
+    func distanceValueText(for court: Court) -> String {
+        Distance.valueText(distanceMeters(to: court))
+    }
+
+    private func distanceMeters(to court: Court) -> CLLocationDistance {
         let from = CLLocation(
             latitude: searchOrigin.latitude,
             longitude: searchOrigin.longitude
         )
         let to = CLLocation(latitude: court.latitude, longitude: court.longitude)
-        return Distance.text(from.distance(from: to))
+        return from.distance(from: to)
     }
 
     // MARK: - Derivation
@@ -656,11 +667,39 @@ final class FindAMatchViewModel: ObservableObject {
         LocalRunsViewModel.action(for: game, currentUserId: gameService.currentUserId)
     }
 
+    /// Your standing on a run, for the card's badge — the same two questions
+    /// `GameCard` asks, answered by `Game` from the same signed-in uid, so a
+    /// run you host reads HOSTING on the map exactly as it does on Runs.
+    func isHost(_ game: Game) -> Bool {
+        game.isHost(gameService.currentUserId)
+    }
+
+    func isWaitlisted(_ game: Game) -> Bool {
+        game.hasWaitlisted(gameService.currentUserId)
+    }
+
+    /// The court dataset's licence notice, for the list's footer. See
+    /// `CourtService.attribution`.
+    var dataAttribution: String? {
+        courtService.attribution
+    }
+
+    var dataAttributionURL: URL {
+        CourtService.attributionURL
+    }
+
     /// The run with a roster write in flight, if any. One at a time, matching
     /// `LocalRunsViewModel`: the button that started it shows a spinner and
     /// every other one is disabled, so a double tap can't queue two conflicting
     /// transactions.
     @Published private(set) var pendingGameId: String?
+
+    /// The last roster write the user made from the court card that the
+    /// server accepted — `LocalRunsViewModel.lastConfirmation`'s twin, for the
+    /// same haptic, and set the same way: by a successful write, never by the
+    /// listener.
+    @Published private(set) var lastConfirmation: LocalRunsViewModel.Confirmation?
+    private var confirmationSerial = 0
 
     func perform(_ action: LocalRunsViewModel.Action, on game: Game) async {
         guard pendingGameId == nil, action != .none else { return }
@@ -681,6 +720,11 @@ final class FindAMatchViewModel: ObservableObject {
             }
             // The listener re-emits the roster the server actually stored, so
             // there's nothing to apply optimistically here.
+            confirmationSerial += 1
+            lastConfirmation = LocalRunsViewModel.Confirmation(
+                kind: .action(action),
+                serial: confirmationSerial
+            )
         } catch {
             // `GameService` already reported it.
         }

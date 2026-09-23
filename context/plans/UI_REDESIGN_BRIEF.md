@@ -121,6 +121,13 @@ that squad.
   body text, and never a control that needs its own contrast ratio. Phase 4's
   `MeshGradient` treatment is built *into* this band, not laid behind the old
   layout.
+- **Measured against, and not built as a ground (2026-09-22).** The band needs
+  secondary text, the profile button and its baseline, and no crest tint strong
+  enough to read as the squad's colour keeps those at AA: at 14% the secondary
+  text is 4.26:1 on gold in dark mode, and the baseline falls under 3:1 on red
+  and gold even at 10%. The squad's colour is carried by the crest instead —
+  large and full-strength in the band. Phase 4's gradient will meet the same
+  arithmetic.
 
 ### Not a motif: the heat ramp
 
@@ -465,7 +472,10 @@ Recomposing it would be change for its own sake, and §2d calls that out by name
 tab's composition:
 
 - **The court detail card** (archetype A1 within the sheet). Hero: the court
-  name at `display` with **distance as a numeral**. It currently truncates
+  name at `display` with **distance as a numeral**. *(Built at `title`, not
+  `display`, with the distance's number weighted rather than set as a numeral:
+  at the `.medium` detent the sheet has ~155pt for the header and the runs. See
+  the changelog.)* It currently truncates
   *both* of its own lines at `.accessibility3` — "East En…" and "Durham · 0.…" —
   because the star and close buttons scale with the text and take the width the
   name needs (`UI_REVAMP_AUDIT.md` §7.4 defect 2), against `MAP_LAYER.md`'s own
@@ -474,8 +484,11 @@ tab's composition:
 - **`CourtGameRow` / the card's `runRow`** takes the Runs row treatment (§5.2)
   so a run reads identically on both surfaces — which `UI_SHELL.md` already
   requires and `LocalRunsViewModel.action(for:)` already guarantees.
-- **The heat ramp reaches the rows.** `CourtRow` states busyness as grey text
-  today; it gets the same `hooprHeat(tier:)` dot the pins use.
+- ~~**The heat ramp reaches the rows.** `CourtRow` states busyness as grey
+  text today; it gets the same `hooprHeat(tier:)` dot the pins use.~~
+  **Wrong, and dropped (2026-09-22).** `CourtRow` shows no busyness at all;
+  `CourtGameRow` is the row with runs, and a leading dot there moves its text
+  column off the Nearby row's, which `MAP_LAYER.md` guards. See the changelog.
 
 **The ODbL attribution (assumption A8).** The bundled court dataset requires
 attribution and it is displayed **nowhere** — an outstanding licensing
@@ -503,7 +516,10 @@ card = 3 of 5** (hero, section order, disclosure).
   about the pool. An empty pool is **the default experience in a new city, not
   the edge case** (`gaps/SEASONS.md`); the existing copy is honest and is kept.
 - **idle** → the record is the hero: **W–L as scoreboard numerals** in M3's
-  crest-coloured band, form pills beside it.
+  crest-coloured band, form pills beside it. *(Built in a neutral band — see
+  M3's measurement — and the form became five green / red / grey dots pinned
+  to the band's bottom-right with no caption beside the numeral: the user's
+  call, 2026-09-22. See the changelog.)*
 
 **Primary action:** `Queue up`, in the band. Today it is two cards down.
 
@@ -579,7 +595,10 @@ this brief's answer to that is the type role each is allowed.
 
 **What gets harder:** nothing — invite buttons move from mid-page into the
 roster rows they belong to. **Axes changed: 4 of 5** (hero, container, order,
-action placement).
+action placement). *(Built 2026-09-23: pending invites join the roster rows; the
+friends you could invite stay a labelled list under it, since they aren't on the
+roster. The bar is hidden and the band carries the back button so it starts
+where the tab's does — the user's call. See the changelog.)*
 
 ---
 
@@ -607,7 +626,9 @@ window closes.
 **What gets harder:** nothing. **Axes changed: 4 of 5.**
 **Not verifiable in the simulator** — needs a live match (`UI_REVAMP_AUDIT.md`
 §7.3). Its evidence row will be a component render, and the changelog will say
-so.
+so. *(Built 2026-09-23 as described; the countdown reads as a label over the
+numeral — "Tip-off in" / "1h 42m" — because the one-line form doesn't fit one
+line at 44pt. Cancel match gained a confirmation. See the changelog.)*
 
 ---
 
@@ -623,7 +644,9 @@ string in the product and it is currently set **smaller than the word "Seasons"
 on the tab it came from**.
 
 **Hero:** the outcome at `display` scale, with the score as `numeral`s when one
-was entered, on M3's winning crest colour.
+was entered, on M3's winning crest colour. *(Built 2026-09-23 with the winning
+crest drawn above the outcome instead: M3's tinted ground was measured below AA
+on the Seasons tab. See the changelog.)*
 **Primary action (reporting state):** the two crest buttons, large and centred —
 A5, one question, one control. They are "the only place a `SquadCrest` is not
 decorative" (`UI_SHELL.md`) and keep their explicit labels.
@@ -687,6 +710,9 @@ something worse. **Checkpoint 1 decides.**
 
 **What gets harder:** nothing — the form stays two fields and one tap.
 **Not verifiable without a sign-out** (`UI_REVAMP_AUDIT.md` § Not verified).
+*(Built 2026-09-23 as designed, except that the form sits on the page ground:
+in dark mode `hooprElevatedSurface` is the band's own value. See the
+changelog.)*
 
 ---
 
@@ -729,7 +755,8 @@ only recourse (`gaps/FRIENDS.md`). The redesign adds no affordance implying
 otherwise.
 
 **What gets harder:** nothing. Every row keeps its tap count; the identity gains
-a fact.
+a fact. *(Built 2026-09-23 as designed; the selector became an underline, and
+the top bar takes the band's ground at rest. See the changelog.)*
 **Axes changed: 3 of 5** (container primitive — the largest single drop in the
 app, section order/grouping, disclosure) **+ hero content**. Like Login, its
 hero *identity* does not change; unlike Login, its container change is drastic.
@@ -783,7 +810,11 @@ Both surfaces present it as usable. The redesign must not. The proposed framing:
 the invite step leads with **the court and time as the thing to send a friend**,
 and the link is offered below as a copyable reference **labelled with what it
 actually does today**. The wording is a §2d obligation, not a stylistic choice,
-and it is written once and used on both surfaces.
+and it is written once and used on both surfaces. *(Built 2026-09-23, with a
+"Send the court and time" share button; every sheet in the table shipped. See
+the changelog. `CreateGameSheet` was rebuilt the same day as an inset-grouped
+form at the user's request — "not very structured", "more text and not a lot
+of icons" — which overrides this table's "one form on one surface" for it.)*
 
 ---
 

@@ -30,12 +30,18 @@ cosmetic: nothing in the app reads it, because every colour comes from
 
 ---
 
-## The ODbL attribution is decoded and then discarded
+## ~~The ODbL attribution is decoded and then discarded~~ — closed 2026-09-22
 
-The attribution string is decoded into `CourtDataset` and then **dropped** —
-`CourtService` keeps only `courts`, and there is no `attribution` property
-anywhere to display. **That is a licence obligation currently unmet**, and
-closing it means holding the value as well as rendering it.
+**Closed.** `CourtService.attribution` now keeps the dataset's own notice, and
+the map sheet shows it at the foot of every court list and in the empty state,
+linked to OpenStreetMap's copyright page (`CourtService.attributionURL`). The
+text is read from `courts.json`, not restated, so a rebuilt dataset carries its
+own. `CourtCardLayoutTests` asserts the notice survives the load. It is not on
+the court detail card — one findable notice on the tab is the standard for an
+app — which is the one place a stricter reading of ODbL §4.3 could ask for more.
+
+*(Previously: the string was decoded into `CourtDataset` and then dropped, and
+this entry had once claimed a `CourtService.attribution` that did not exist.)*
 
 *(This entry claimed the string was "loaded into `CourtService.attribution`"
 until 2026-08-21. No such property has ever existed. `CourtService` now

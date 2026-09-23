@@ -429,6 +429,22 @@ final class GameTests: XCTestCase {
         XCTAssertEqual(Distance.miles(Distance.meters(miles: 5)), 5, accuracy: 0.0001)
     }
 
+    /// Home's band and the map's court card set the number and the unit at
+    /// different weights, so they read the two halves separately. The joined
+    /// form must still be exactly the halves put back together — the rounding
+    /// rule lives in one place, and the split can't round differently from the
+    /// string every other surface shows.
+    func testTheSplitDistanceRejoinsToTheSameString() {
+        for miles in [0.04, 0.7, 1.24, 9.94, 9.96, 12.4, 104.6] {
+            let meters = Distance.meters(miles: miles)
+            XCTAssertEqual(
+                "\(Distance.valueText(meters)) \(Distance.unit)", Distance.text(meters),
+                "the split and joined forms disagree at \(miles) mi"
+            )
+        }
+        XCTAssertEqual(Distance.valueText(Distance.meters(miles: 0.7)), "0.7")
+    }
+
     // MARK: - Presentation strings the redesigned surfaces read
 
     /// `timeText`, `dayText` and `spotsText` were added in UI revamp Phase 2b
@@ -463,9 +479,23 @@ final class GameTests: XCTestCase {
     /// Both derive from `scheduledTime`, and this is what pins that they stay
     /// consistent — a run reading "Tonight" in the band and "Tomorrow" on its
     /// card would be worse than either being wrong.
-    func testTodayReadsAsTonight() {
-        let now = Date()
-        XCTAssertEqual(run(at: now).dayText(relativeTo: now), "Tonight")
+    func testAnEveningRunTodayReadsAsTonight() {
+        let calendar = Calendar.current
+        let morning = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: Date())!
+        let evening = calendar.date(bySettingHour: 19, minute: 30, second: 0, of: morning)!
+        XCTAssertEqual(run(at: evening).dayText(relativeTo: morning), "Tonight")
+    }
+
+    /// "Tonight · 11:15 AM" was on the device (2026-09-23). Before 5 PM a
+    /// same-day run is "Today" — the word `scheduledText()` already used.
+    func testAMorningRunTodayReadsAsToday() {
+        let calendar = Calendar.current
+        let early = calendar.date(bySettingHour: 8, minute: 0, second: 0, of: Date())!
+        let lateMorning = calendar.date(bySettingHour: 11, minute: 15, second: 0, of: early)!
+        let fiveOClock = calendar.date(bySettingHour: Game.eveningStartHour, minute: 0, second: 0, of: early)!
+
+        XCTAssertEqual(run(at: lateMorning).dayText(relativeTo: early), "Today")
+        XCTAssertEqual(run(at: fiveOClock).dayText(relativeTo: early), "Tonight")
     }
 
     func testTomorrowReadsAsTomorrow() {

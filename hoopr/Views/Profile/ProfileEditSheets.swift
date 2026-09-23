@@ -1,5 +1,34 @@
 import SwiftUI
 
+// MARK: - One recipe for the five sheets
+//
+// UI revamp Phase 2b (`UI_REDESIGN_BRIEF.md` §5.11): these five sheets carried
+// five card recipes — a filled panel here, an always-orange field border there
+// — and two margins. Now every sheet sets its content on the page at
+// `Spacing.pageMargin`, under the navigation bar, with no panel around it; a
+// text field is `editSheetField(isFocused:)`; a heading is a `label`; a value
+// the sheet exists to change is a numeral.
+
+private extension View {
+    /// A text field's ground and edge, shared by every field on these sheets:
+    /// `hooprFill` with a `hooprSeparatorStrong` edge (3:1 — the fill alone is
+    /// 1.09:1 on the white page), a 2pt accent ring while focused.
+    func editSheetField(isFocused: Bool) -> some View {
+        self
+            .padding(.horizontal, 16)
+            .frame(minHeight: 52)
+            .background(Color.hooprFill)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        isFocused ? Color.hooprBrandAccent : Color.hooprSeparatorStrong,
+                        lineWidth: isFocused ? 2 : 1
+                    )
+            )
+    }
+}
+
 /// Edits the stored `userName`. Kept as a sheet rather than an inline field so
 /// every editable attribute uses the same interaction as more are added.
 struct EditUserNameSheet: View {
@@ -14,7 +43,7 @@ struct EditUserNameSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: Spacing.sm) {
                 TextField("Your name", text: $draft)
                     .hooprFont(17, maximumSize: 24)
                     .foregroundStyle(Color.hooprPrimaryText)
@@ -24,26 +53,21 @@ struct EditUserNameSheet: View {
                     .textContentType(.name)
                     .textInputAutocapitalization(.words)
                     #endif
-                    .padding(.horizontal, 16)
-                    .frame(height: 52)
-                    .background(Color.hooprFill)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.hooprBrandAccent, lineWidth: 1)
-                    )
+                    .editSheetField(isFocused: isFieldFocused)
                     .onSubmit { if canSave { onSave() } }
 
                 if let errorMessage {
                     Text(errorMessage)
-                        .hooprFont(13)
+                        .hooprType(.caption)
                         .foregroundStyle(Color.hooprRed)
+                        .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 Spacer()
             }
-            .padding(Spacing.pageMargin)
+            .padding(.horizontal, Spacing.pageMargin)
+            .padding(.top, Spacing.lg)
             .background(Color.hooprBackground)
             .navigationTitle("Username")
             #if os(iOS) || os(visionOS)
@@ -105,11 +129,12 @@ struct HomeCourtPickerSheet: View {
 
                 if let errorMessage {
                     Text(errorMessage)
-                        .hooprFont(13)
+                        .hooprType(.caption)
                         .foregroundStyle(Color.hooprRed)
+                        .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, Spacing.pageMargin)
-                        .padding(.bottom, 8)
+                        .padding(.bottom, Spacing.sm)
                 }
 
                 if trimmedQuery.isEmpty {
@@ -149,7 +174,7 @@ struct HomeCourtPickerSheet: View {
             capitalization: .words
         )
         .padding(.horizontal, Spacing.pageMargin)
-        .padding(.vertical, 16)
+        .padding(.vertical, Spacing.lg)
     }
 
     private var suggestionList: some View {
@@ -162,18 +187,20 @@ struct HomeCourtPickerSheet: View {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(court.displayName)
-                                    .hooprFont(16, weight: .medium)
+                                    .hooprType(.subhead)
                                     .foregroundStyle(Color.hooprPrimaryText)
                                     .multilineTextAlignment(.leading)
+                                    .fixedSize(horizontal: false, vertical: true)
                                 Text(court.city)
-                                    .hooprFont(13)
+                                    .hooprType(.caption)
                                     .foregroundStyle(Color.hooprSecondaryText)
                             }
                             Spacer()
                             if court.id == selectedCourtId {
                                 Image(systemName: "checkmark")
-                                    .hooprFont(15, weight: .semibold)
+                                    .hooprFont(15, weight: .semibold, maximumSize: 20)
                                     .foregroundStyle(Color.hooprBrandAccent)
+                                    .accessibilityLabel("Your home court")
                             }
                         }
                         .padding(.horizontal, Spacing.pageMargin)
@@ -201,9 +228,13 @@ struct HomeCourtPickerSheet: View {
                     onSelect(nil)
                 } label: {
                     Text("Remove home court")
-                        .hooprFont(15, weight: .medium)
+                        .hooprType(.body)
+                        .fontWeight(.semibold)
                         .foregroundStyle(Color.hooprRed)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
             }
 
             Spacer()
@@ -212,11 +243,12 @@ struct HomeCourtPickerSheet: View {
 
     private func message(_ text: String) -> some View {
         Text(text)
-            .hooprFont(14)
+            .hooprType(.body)
             .foregroundStyle(Color.hooprSecondaryText)
             .multilineTextAlignment(.center)
-            .padding(.horizontal, 32)
-            .padding(.top, 24)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, Spacing.pageMargin)
+            .padding(.top, Spacing.xxl)
             .frame(maxWidth: .infinity)
     }
 }
@@ -235,51 +267,49 @@ struct EditRadiusSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                VStack(spacing: 16) {
-                    Text("Search radius for nearby courts")
-                        .hooprFont(15)
+            VStack(alignment: .leading, spacing: Spacing.lg) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
+                    Text("Nearby courts within")
+                        .hooprType(.label)
                         .foregroundStyle(Color.hooprSecondaryText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
 
+                    // The value this sheet exists to change, as the numeral.
+                    // Tabular (the role's own), so the slider below doesn't
+                    // shift as the number changes width mid-drag.
                     Text(UserProfile.radiusText(radius))
-                        .hooprFont(34, weight: .bold)
+                        .hooprType(.numeral)
                         .foregroundStyle(Color.hooprPrimaryText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        // Fixed width digits, so the slider below doesn't
-                        // shift as the number changes width mid-drag.
-                        .monospacedDigit()
-
-                    HStack(spacing: 12) {
-                        Text(UserProfile.radiusText(range.lowerBound))
-                            .hooprFont(13)
-                            .foregroundStyle(Color.hooprSecondaryText)
-
-                        // Steps by whole miles so the stored value always
-                        // matches what the profile row renders.
-                        Slider(value: $radius, in: range, step: 1)
-                            .tint(Color.hooprBrandAccent)
-                            .accessibilityLabel("Search radius in miles")
-
-                        Text(UserProfile.radiusText(range.upperBound))
-                            .hooprFont(13)
-                            .foregroundStyle(Color.hooprSecondaryText)
-                    }
                 }
-                .padding(16)
-                .background(Color.hooprFill)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .accessibilityElement(children: .combine)
+
+                HStack(spacing: Spacing.md) {
+                    Text(UserProfile.radiusText(range.lowerBound))
+                        .hooprType(.caption)
+                        .foregroundStyle(Color.hooprSecondaryText)
+
+                    // Steps by whole miles so the stored value always
+                    // matches what the profile row renders.
+                    Slider(value: $radius, in: range, step: 1)
+                        .tint(Color.hooprBrandAccent)
+                        .accessibilityLabel("Search radius in miles")
+
+                    Text(UserProfile.radiusText(range.upperBound))
+                        .hooprType(.caption)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                }
 
                 if let errorMessage {
                     Text(errorMessage)
-                        .hooprFont(13)
+                        .hooprType(.caption)
                         .foregroundStyle(Color.hooprRed)
+                        .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 Spacer()
             }
-            .padding(Spacing.pageMargin)
+            .padding(.horizontal, Spacing.pageMargin)
+            .padding(.top, Spacing.lg)
             .background(Color.hooprBackground)
             // Matches the court picker: the whole cycle is gated on `isSaving`,
             // so the value can't move out from under an in-flight write.
@@ -330,7 +360,7 @@ struct ChangePasswordSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: Spacing.lg) {
                 if didSend {
                     sent
                 } else {
@@ -338,8 +368,9 @@ struct ChangePasswordSheet: View {
 
                     if let errorMessage {
                         Text(errorMessage)
-                            .hooprFont(13)
+                            .hooprType(.caption)
                             .foregroundStyle(Color.hooprRed)
+                            .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -348,7 +379,8 @@ struct ChangePasswordSheet: View {
 
                 Spacer()
             }
-            .padding(Spacing.pageMargin)
+            .padding(.horizontal, Spacing.pageMargin)
+            .padding(.top, Spacing.lg)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.hooprBackground)
             .navigationTitle("Password")
@@ -377,30 +409,32 @@ struct ChangePasswordSheet: View {
     }
 
     private var explanation: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             Image(systemName: "envelope.badge")
                 .hooprFont(22, maximumSize: 28)
                 .foregroundStyle(Color.hooprBrandAccent)
+                .accessibilityHidden(true)
 
             Text("We'll email a reset link to")
-                .hooprFont(15)
+                .hooprType(.body)
                 .foregroundStyle(Color.hooprSecondaryText)
 
+            // Wraps rather than shrinking — it used `minimumScaleFactor(0.7)`,
+            // which the app no longer uses anywhere — and breaks in the middle
+            // only if even two lines won't hold it.
             Text(email)
-                .hooprFont(17, weight: .semibold)
+                .hooprType(.headline)
                 .foregroundStyle(Color.hooprPrimaryText)
                 .lineLimit(2)
-                .minimumScaleFactor(0.7)
+                .truncationMode(.middle)
+                .fixedSize(horizontal: false, vertical: true)
 
             Text("hoopsRN never stores your password, so you'll choose the new one on the link's page. Opening it signs you out on your other devices.")
-                .hooprFont(13)
+                .hooprType(.caption)
                 .foregroundStyle(Color.hooprSecondaryText)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Color.hooprFill)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private var sendButton: some View {
@@ -420,7 +454,7 @@ struct ChangePasswordSheet: View {
             .background(Color.hooprOrange)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.hooprPress)
         .disabled(isSending)
     }
 
@@ -431,18 +465,17 @@ struct ChangePasswordSheet: View {
                 .foregroundStyle(Color.hooprBrandAccent)
 
             Text("Check your inbox")
-                .hooprFont(22, weight: .bold)
+                .hooprType(.title)
                 .foregroundStyle(Color.hooprPrimaryText)
 
             Text("We sent a link to \(email). It expires in an hour — start again from here if it does.")
-                .hooprFont(14)
+                .hooprType(.body)
                 .foregroundStyle(Color.hooprSecondaryText)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 24)
-        .padding(.horizontal, 8)
+        .padding(.top, Spacing.xxl)
     }
 }
 
@@ -461,7 +494,7 @@ struct AppearanceSheet: View {
                     Button {
                         // Animated because the whole app recolours behind the
                         // sheet — an instant swap reads as a glitch.
-                        withAnimation(.easeInOut(duration: 0.2)) {
+                        withAnimation(.hooprSwap) {
                             preference = option
                         }
                     } label: {
@@ -508,19 +541,20 @@ struct AppearanceSheet: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(option.title)
-                    .hooprFont(16, weight: .medium)
+                    .hooprType(.subhead)
                     .foregroundStyle(Color.hooprPrimaryText)
                 Text(option.subtitle)
-                    .hooprFont(13)
+                    .hooprType(.caption)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer(minLength: 8)
 
             if isSelected {
                 Image(systemName: "checkmark")
-                    .hooprFont(15, weight: .semibold)
+                    .hooprFont(15, weight: .semibold, maximumSize: 20)
                     .foregroundStyle(Color.hooprBrandAccent)
             }
         }

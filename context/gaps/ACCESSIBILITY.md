@@ -35,12 +35,17 @@ switch and `HomeViewModelTests` pins them, including that even the widest value
 fits one line of the stack at the largest size. Seen at `.accessibility3` in the
 live app. (`Views/Components/StatsCard.swift`.)
 
-**The map's court card truncates both of its own lines.** `cardHeader`'s name
-renders as "East En…" and its metadata line as "Durham · 0.…", because the star
-and close buttons scale with the text and take the width the name needs. The
-name is `lineLimit(2)` but never reaches a second line — the `HStack` runs out
-of width first. `MAP_LAYER.md`'s rule for `CourtRow` is *"badges are shed, the
-name is not"*; the card has no equivalent ladder. (`MapTab.cardHeader`.)
+~~**The map's court card truncates both of its own lines.**~~ **Closed
+2026-09-22.** The name rendered as "East En…" and the metadata line as
+"Durham · 0.…", because the star and close buttons scaled with the text and took
+the width the name needed. Now the controls sit in fixed 44pt targets with
+capped glyphs, the court glyph is dropped at every accessibility size, and a
+name that still doesn't fit sheds a trailing "Park" and then its court number
+before any letters are cut (`CourtName` — the user's rule for the map; the Runs
+tab shows the full name). At `.accessibility3` the card reads "East End", not
+"East En…". The header also scrolls with the card's body, so the pinned action
+row can't be pushed below the `.medium` fold. `CourtNameTests` and
+`CourtCardLayoutTests` pin it. Seen in the live app at `.accessibility3`.
 
 **`GameCard` — and Home's next-run card, which copies it — collapses.** Three
 things at once, seen on a real populated card: the **HOSTING badge breaks
@@ -58,6 +63,24 @@ same 8 × 4 it always was.
 Reproduce all three with
 `xcrun simctl ui booted content_size accessibility-extra-large`; the third needs at
 least one run on the account.
+
+---
+
+## The form guide's order is colour-only by default
+
+Seasons' last-five form is five dots, green for a win and red for a loss (the
+user's call, 2026-09-22). To a red-green colour-blind reader two fills differ
+only in lightness. WCAG accepts that as a second cue at 3:1 between them, and
+**no pair reaches it while both dots clear 3:1 on the band**: 1.95:1 in light
+and 2.25:1 in dark at best (`ThemeContrastTests` pins the gap). So with default
+settings that reader gets the **counts** from the record numeral beside the dots
+but not the **order**. VoiceOver reads the order. iOS's *Differentiate Without
+Color* marks each played dot with a ✓ or ✕, and that is the fix today. Squad
+detail's history list does not have this gap: every row spells its result out
+("Won", "Lost") beside the dot. If it
+should hold without the setting, the next step is a shape cue drawn always
+(for example a hollow loss dot). That's a design call, not a retune. Detail in
+`UI_SHELL.md` → *The crest and the form guide*.
 
 ---
 

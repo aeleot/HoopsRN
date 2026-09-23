@@ -156,6 +156,51 @@ final class MapTabDetentTests: XCTestCase {
         XCTAssertEqual(SheetGeometry.nextDetent(from: .collapsed, projecting: 10_000), .collapsed)
     }
 
+    // MARK: - A court card's fitted medium
+
+    /// The map's container on an iPhone 17 once the map stopped above the tab
+    /// bar: `.medium` is ~215pt, which left a court card ~112pt to scroll —
+    /// the name and distance, then half a run.
+    private let cardGeometry = SheetGeometry(containerHeight: 645)
+
+    private func fitted(_ height: CGFloat?) -> SheetGeometry {
+        SheetGeometry(containerHeight: cardGeometry.containerHeight, fittedMediumHeight: height)
+    }
+
+    /// The list, and a card that hasn't measured yet, rest at a third.
+    func testWithoutAFittedHeightMediumIsStillAThird() {
+        XCTAssertEqual(fitted(nil).restingMediumHeight, cardGeometry.mediumHeight)
+        XCTAssertEqual(fitted(nil).sheetHeight(detent: .medium, drag: 0), 215, accuracy: 0.5)
+    }
+
+    /// A card whose lead needs more than a third rests tall enough to show it
+    /// — the fix for a run cut in half at `.medium`.
+    func testACardThatNeedsMoreRoomRestsTallerAtMedium() {
+        let geometry = fitted(262)
+        XCTAssertEqual(geometry.sheetHeight(detent: .medium, drag: 0), 262)
+        XCTAssertEqual(geometry.sheetOffset(detent: .medium, drag: 0), 0)
+    }
+
+    /// A card with only a name and "No runs here today" keeps the list's
+    /// height — it never rests *shorter* than a third.
+    func testACardThatNeedsLessRoomKeepsTheListsHeight() {
+        XCTAssertEqual(fitted(180).restingMediumHeight, cardGeometry.mediumHeight)
+    }
+
+    /// A card taller than the expanded sheet (huge text, a long waitlist note)
+    /// is capped there, and scrolls.
+    func testAFittedHeightNeverExceedsExpanded() {
+        XCTAssertEqual(fitted(900).restingMediumHeight, cardGeometry.expandedHeight)
+    }
+
+    /// Dragging a taller card down stops at its own resting height before the
+    /// sheet starts to leave the screen, exactly as the list does at a third.
+    func testDraggingAFittedCardDownFloorsAtItsRestingHeight() {
+        let geometry = fitted(262)
+        XCTAssertEqual(geometry.sheetHeight(detent: .expanded, drag: 10_000), 262)
+        XCTAssertEqual(geometry.sheetOffset(detent: .medium, drag: 30), 30)
+    }
+
     // MARK: - Display detent
 
     /// The bug this rule exists for: a court tapped while the list sits

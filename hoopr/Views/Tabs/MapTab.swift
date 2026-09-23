@@ -22,6 +22,8 @@ struct MapTab: View {
     /// points — a map pin and a nearby-list row — open the same detail card, so
     /// one button there covers both without duplicating a control.
     @State private var startingRunAt: Court?
+    /// Counts runs this screen has started, for the success haptic.
+    @State private var runsStarted = 0
 
     /// Live finger travel for the sheet drag; zero whenever the sheet is settled.
     @State private var sheetDrag: CGFloat = 0
@@ -67,6 +69,11 @@ struct MapTab: View {
     /// Where the sheet was resting before search took it to `.expanded`, so
     /// dismissing the keyboard puts it back rather than stranding it open.
     @State private var detentBeforeSearch: SheetDetent?
+
+    /// The height of the selected court card's lead — its header and its first
+    /// run — as last laid out. Feeds `SheetGeometry.fittedMediumHeight`, so the
+    /// card rests tall enough to show a run whole. See `cardFittedHeight`.
+    @State private var cardLeadHeight: CGFloat = 0
 
     /// Whether the map has already moved to the device's first fix. Guards a
     /// one-shot: `initialFix` only publishes once, but a view can be re-created
@@ -127,8 +134,28 @@ struct MapTab: View {
     /// All of the sheet's arithmetic, rebuilt whenever the container resizes.
     /// The view keeps the state and the gestures; `SheetGeometry` does the maths.
     private var geometry: SheetGeometry {
-        SheetGeometry(containerHeight: containerHeight)
+        SheetGeometry(
+            containerHeight: containerHeight,
+            fittedMediumHeight: sheetState.selectedCourt == nil ? nil : cardFittedHeight
+        )
     }
+
+    /// What the court card needs at `.medium`: its fixed handle and action row,
+    /// the lead it measured (header, then the first run or "No runs here
+    /// today"), and a gap so the row isn't flush against the buttons. A court
+    /// with nothing but a name fits the plain medium height and keeps it.
+    private var cardFittedHeight: CGFloat? {
+        guard cardLeadHeight > 0 else { return nil }
+        return Self.cardHandleHeight + Self.cardScrollTopInset + cardLeadHeight
+            + Spacing.md + Self.cardActionsHeight
+    }
+
+    /// The court card's fixed chrome, named so the view and the arithmetic
+    /// above can't drift: the grab handle (10 + 5 + 14) and the pinned action
+    /// row (10 + 48 + 14). The buttons are a fixed 48pt; their labels cap.
+    private static let cardHandleHeight: CGFloat = 10 + 5 + 14
+    private static let cardScrollTopInset: CGFloat = 2
+    private static let cardActionsHeight: CGFloat = 10 + 48 + 14
 
     private var mediumHeight: CGFloat { geometry.mediumHeight }
 
@@ -266,8 +293,15 @@ struct MapTab: View {
                     // The run lands in Local Runs on the listener that's
                     // already open; the map has nothing to update.
                 },
-                onCancel: { startingRunAt = nil }
+                onCancel: { startingRunAt = nil },
+                onConfirmed: { runsStarted += 1 }
             )
+        }
+        // Here rather than in the sheet: a public run dismisses it in the same
+        // update the write confirms in (UI revamp Phase 3).
+        .sensoryFeedback(.success, trigger: runsStarted)
+        .sensoryFeedback(trigger: viewModel.lastConfirmation) { _, new in
+            new?.kind.feedback
         }
     }
 
@@ -307,7 +341,7 @@ struct MapTab: View {
         // Keep the chrome clear of the sheet, whatever height it's at — and of
         // the tab bar, which the sheet now sits on top of.
         .padding(.bottom, max(0, sheetHeight - sheetOffset) + tabBarInset)
-        .animation(.easeInOut(duration: 0.2), value: isSearchFocused)
+        .animation(.hooprSpring, value: isSearchFocused)
     }
 
     /// Named because the chrome's top inset is computed from it.
@@ -344,7 +378,7 @@ struct MapTab: View {
                         label: filter.label,
                         isActive: viewModel.isActive(filter)
                     ) {
-                        withAnimation(.easeInOut(duration: 0.15)) {
+                        withAnimation(.hooprSnap) {
                             viewModel.toggle(filter)
                         }
                     }
@@ -409,7 +443,7 @@ struct MapTab: View {
         .padding(.bottom, max(0, sheetHeight - sheetOffset) + peekBottomInset)
         .opacity(isHidden ? 0 : 1)
         .allowsHitTesting(!isHidden)
-        .animation(.easeInOut(duration: 0.2), value: isHidden)
+        .animation(.hooprSnap, value: isHidden)
     }
 
     // MARK: - Sheet
@@ -548,7 +582,7 @@ struct MapTab: View {
                             .background(Color.hooprOrange)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.hooprPress)
                     .padding(.horizontal, Spacing.pageMargin)
                     .padding(.vertical, 12)
                 }
@@ -607,10 +641,9 @@ struct MapTab: View {
     private func searchResultRow(_ court: Court) -> some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(court.displayName)
+                CourtName(name: court.displayName)
                     .hooprFont(16, weight: .semibold)
                     .foregroundStyle(Color.hooprPrimaryText)
-                    .lineLimit(1)
 
                 Text("\(court.city) · \(viewModel.distanceText(for: court)) away")
                     .hooprFont(13)
@@ -676,6 +709,8 @@ struct MapTab: View {
 
                 rowDivider
             }
+
+            attributionFooter
         }
     }
 
@@ -698,6 +733,38 @@ struct MapTab: View {
 
                 rowDivider
             }
+
+            attributionFooter
+        }
+    }
+
+    /// The court data's licence notice, at the foot of every court list.
+    ///
+    /// **An outstanding licence obligation until 2026-09-22.** The courts are
+    /// derived from OpenStreetMap under the ODbL, which requires the
+    /// attribution to be shown; the dataset carried the notice and nothing
+    /// displayed it (`gaps/ASSETS_AND_DATA.md`). The text is the dataset's own
+    /// — `CourtService.attribution`, not a copy — and it links to
+    /// OpenStreetMap's copyright page, which is what their attribution
+    /// guidance asks of a notice.
+    ///
+    /// At the end of the list rather than pinned: it must be findable, not
+    /// take the room a court row would at the `.medium` detent.
+    @ViewBuilder
+    private var attributionFooter: some View {
+        if let attribution = viewModel.dataAttribution {
+            Link(destination: viewModel.dataAttributionURL) {
+                Text(attribution)
+                    .hooprType(.caption)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, Spacing.pageMargin)
+            .padding(.top, Spacing.lg)
+            .padding(.bottom, Spacing.sm)
+            .accessibilityHint("Opens the OpenStreetMap copyright page")
         }
     }
 
@@ -739,19 +806,21 @@ struct MapTab: View {
                 let isSelected = viewModel.selectedTab == tab
 
                 Button {
-                    withAnimation(.easeInOut(duration: 0.15)) {
+                    withAnimation(.hooprSpring) {
                         viewModel.selectedTab = tab
                     }
                 } label: {
                     VStack(spacing: 7) {
-                        // Three tabs divide one row evenly, so the labels
-                        // shrink to fit rather than wrapping into each other
-                        // at the accessibility sizes.
+                        // Three tabs divide one row evenly. The 17pt cap is
+                        // what keeps "Nearby" inside a third of the width at
+                        // every text size — it used to shrink to fit as well
+                        // (`minimumScaleFactor(0.7)`), which the cap had
+                        // already made dead code; the app no longer shrinks
+                        // text anywhere.
                         Text(tab.title)
                             .hooprFont(13, weight: isSelected ? .bold : .medium, maximumSize: 17)
                             .foregroundStyle(isSelected ? Color.hooprPrimaryText : Color.hooprSecondaryText)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.7)
 
                         Rectangle()
                             .fill(isSelected ? Color.hooprBrandAccent : Color.hooprBorder)
@@ -794,6 +863,10 @@ struct MapTab: View {
             }
 
             Spacer()
+
+            // The pins above are still the court data even when this segment
+            // lists none of it, so the notice doesn't leave with the rows.
+            attributionFooter
         }
         .padding(.horizontal, 32)
         .frame(maxWidth: .infinity)
@@ -838,11 +911,21 @@ struct MapTab: View {
     /// surface material is the footnote — so today's runs come first and
     /// `CourtBadges` moves below them.
     ///
-    /// Three bands, and the split is load-bearing at the `.medium` detent,
-    /// where the sheet has ~256pt: a fixed header, a **scrolling** middle, and
-    /// a **pinned** action row. Letting the whole card scroll would put "Start
-    /// Run" below the fold — you'd have to scroll to find the primary action on
-    /// a screen that exists to start runs.
+    /// Two fixed pieces and a scroll, and the split is load-bearing at the
+    /// `.medium` detent: the grab handle, a **scrolling** body — the court's
+    /// name and details, its runs, its badges — and a **pinned** action row.
+    /// Letting the whole card scroll would put "Start Run" below the fold —
+    /// you'd have to scroll to find the primary action on a screen that exists
+    /// to start runs. (The name used to be a fixed third band; see the note in
+    /// the body for why it scrolls now.)
+    ///
+    /// **The card sets its own `.medium` height** (2026-09-23). The list's
+    /// medium is a third of the container, ~215pt since the map stopped above
+    /// the tab bar, which left this body ~112pt: the name and distance, then
+    /// half a run. The card now measures its lead — header plus first run —
+    /// and the sheet rests tall enough for it (`cardFittedHeight`,
+    /// `SheetGeometry.fittedMediumHeight`). Further runs and the badges still
+    /// scroll.
     @ViewBuilder
     private func courtCard(court: Court) -> some View {
         let games = viewModel.gamesToday(at: court)
@@ -857,26 +940,50 @@ struct MapTab: View {
                 .contentShape(Rectangle())
                 .gesture(sheetDragGesture(fromHandle: true))
 
-            cardHeader(court: court)
-                .padding(.horizontal, Spacing.pageMargin)
-
             // Scrolls, so a court with three runs is reachable by dragging the
             // sheet up rather than by the card growing past its detent.
+            //
+            // **The header scrolls too, since 2026-09-22.** It used to be a
+            // fixed band above this, and that only held while the name was
+            // capped at two lines — which is what truncated it to "East En…"
+            // at `.accessibility3`. Once the name wraps in full, a fixed header
+            // at that size is taller than the `.medium` sheet, and it pushed
+            // the pinned action row below the fold: the one thing this layout
+            // exists to prevent. The action row is what's load-bearing, so the
+            // header gives way instead — at the top of the scroll it reads
+            // exactly as it did, and it only moves if you scroll the runs.
             sheetScroll {
                 VStack(alignment: .leading, spacing: 10) {
-                    if games.isEmpty {
-                        noRunsToday
-                    } else {
-                        ForEach(games) { game in
-                            runRow(game)
+                    // The lead — what the card must show whole at `.medium` —
+                    // measured, so the sheet can rest tall enough for it.
+                    VStack(alignment: .leading, spacing: 10) {
+                        cardHeader(court: court)
+                            .padding(.bottom, 4)
+
+                        if let first = games.first {
+                            runRow(first)
+                        } else {
+                            noRunsToday
                         }
+                    }
+                    .onGeometryChange(for: CGFloat.self) { proxy in
+                        proxy.size.height
+                    } action: { height in
+                        guard abs(height - cardLeadHeight) > 0.5 else { return }
+                        withAnimation(.hooprSpring) {
+                            cardLeadHeight = height
+                        }
+                    }
+
+                    ForEach(games.dropFirst()) { game in
+                        runRow(game)
                     }
 
                     CourtBadges(court: court)
                         .padding(.top, 2)
                 }
                 .padding(.horizontal, Spacing.pageMargin)
-                .padding(.top, 14)
+                .padding(.top, Self.cardScrollTopInset)
                 // `sheetScroll`'s stack centres its children, which is right
                 // for full-width rows and wrong for this card — without it the
                 // copy floats mid-sheet while the header above it is flush left.
@@ -891,33 +998,86 @@ struct MapTab: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// The court's name, where it is, and the two controls that belong to it.
+    ///
+    /// **The name gives way, and it gives way in the right order.** It shared
+    /// one `HStack` with the star and close buttons, both of which scaled with
+    /// the reader's text size — so at `.accessibility3` they took the width the
+    /// name needed and the card showed "East En…" and "Durham · 0.…"
+    /// (`plans/UI_REVAMP_AUDIT.md` §7.4). Now the buttons sit in fixed 44pt
+    /// targets with capped glyphs, and a name that still doesn't fit sheds its
+    /// least informative parts before any letters go: "East End Park" reads
+    /// "East End" at `.accessibility3`, not "East En…". (It wrapped to several
+    /// lines for one build; the user preferred one compact row, with the full
+    /// name left to the Runs tab.)
+    ///
+    /// The name is set in the `title` tier — up from 17pt — because it is what
+    /// the card is about. Not `display`: every point this header takes is a
+    /// point the sheet has to rise at `.medium` to show the first run whole
+    /// (`cardFittedHeight`), and the runs are what the card leads with.
     private func cardHeader(court: Court) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "basketball.fill")
-                .foregroundStyle(Color.hooprBrandAccent)
-                .hooprFont(20)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(court.displayName)
-                    .hooprFont(17, weight: .semibold)
-                    .foregroundStyle(Color.hooprPrimaryText)
-                    .lineLimit(2)
-
-                Text("\(court.city) · \(viewModel.distanceText(for: court)) away")
-                    .hooprFont(13)
-                    .foregroundStyle(Color.hooprSecondaryText)
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            // One row, always: the name gives way rather than the header
+            // growing. A name that doesn't fit beside the controls sheds
+            // "Park", then its court number, then is cut (`CourtName`) — the
+            // full name is what the Runs tab shows.
+            HStack(alignment: .center, spacing: Spacing.sm) {
+                CourtTitle(name: court.displayName, isHeader: true, fit: .fitsOneLine)
+                    .layoutPriority(1)
+                Spacer(minLength: 0)
+                cardControls(court: court)
             }
 
-            Spacer(minLength: 8)
+            courtMeta(court)
+        }
+    }
 
+    /// City and distance, each with its icon, on a line that wraps rather than
+    /// truncates — the same treatment as Home's band, so a distance reads the
+    /// same wherever it appears.
+    private func courtMeta(_ court: Court) -> some View {
+        FlowLayout(spacing: Spacing.lg, lineSpacing: Spacing.xs) {
+            HStack(spacing: 6) {
+                Image(systemName: "building.2.fill")
+                    .hooprType(.caption)
+                Text(court.city)
+                    .hooprType(.body)
+            }
+            .foregroundStyle(Color.hooprSecondaryText)
+
+            HStack(spacing: 6) {
+                Image(systemName: "location.fill")
+                    .hooprType(.caption)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                Text("\(Text(viewModel.distanceValueText(for: court)).fontWeight(.semibold).foregroundStyle(Color.hooprPrimaryText)) \(Distance.unit) away")
+                    .hooprType(.body)
+                    .foregroundStyle(Color.hooprSecondaryText)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(viewModel.distanceText(for: court)) away")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Favourite and close. Fixed 44pt targets with capped glyphs: these are
+    /// controls inside a frame that can't grow, which is the one case
+    /// `hooprFont`'s `maximumSize` exists for — and letting them grow is what
+    /// took the name's width.
+    private func cardControls(court: Court) -> some View {
+        HStack(spacing: 0) {
             Button {
-                viewModel.toggleFavorite(court)
+                withAnimation(.hooprSnap) {
+                    viewModel.toggleFavorite(court)
+                }
             } label: {
                 Image(systemName: viewModel.isFavorite(court) ? "star.fill" : "star")
-                    .hooprFont(19)
+                    .hooprFont(19, maximumSize: 24)
+                    .contentTransition(.symbolEffect(.replace))
                     .foregroundStyle(
                         viewModel.isFavorite(court) ? Color.hooprBrandAccent : Color.hooprSecondaryText
                     )
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(viewModel.isFavorite(court) ? "Remove favorite" : "Add favorite")
@@ -926,9 +1086,11 @@ struct MapTab: View {
                 dismissDetail()
             } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .hooprFont(24)
+                    .hooprFont(24, maximumSize: 30)
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Close")
@@ -940,62 +1102,154 @@ struct MapTab: View {
     /// This is the only place either the map or the Runs tab performs a roster
     /// action from — which is why the Now segment's rows carry no buttons of
     /// their own and route here instead.
+    ///
+    /// **Read in the same order as a run on the Runs board** (UI revamp Phase
+    /// 2b): the time first, as the row's rank, then whether there is room as a
+    /// number, then your standing — HOSTING / WAITLIST / FULL, in `GameCard`'s
+    /// priority — and the same waitlist note. It stays a compact row rather
+    /// than a `GameCard` because every run here is at *this* court: the card's
+    /// court name and distance would repeat the header right above it.
+    ///
+    /// Two layouts: the action beside the facts, or — when the time, badge and
+    /// button can't share a line — the action below at full width, so nothing
+    /// has to wrap mid-word to make room for a button.
     private func runRow(_ game: Game) -> some View {
         let action = viewModel.action(for: game)
         let isPending = viewModel.pendingGameId == game.id
         let isBlocked = viewModel.pendingGameId != nil && !isPending
 
-        return HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(game.scheduledText())
-                    .hooprFont(14, weight: .semibold)
-                    .foregroundStyle(Color.hooprPrimaryText)
-                    .lineLimit(1)
-
-                Text(game.rosterText)
-                    .hooprFont(12)
-                    .foregroundStyle(Color.hooprSecondaryText)
+        return ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: Spacing.md) {
+                // Sized before the spacer, not alongside it. Without the
+                // priority the HStack split the leftover width evenly between
+                // the facts and the spacer, handing the time and its badge
+                // ~100pt: "HOSTIN / G" on the device (2026-09-23), and a row
+                // tall enough to fall below the `.medium` sheet's fold.
+                runFacts(game)
+                    .layoutPriority(1)
+                Spacer(minLength: Spacing.sm)
+                runAction(action, on: game, isPending: isPending, isBlocked: isBlocked, fullWidth: false)
             }
 
-            Spacer(minLength: 8)
-
-            if action != .none {
-                Button {
-                    if action == .cancel {
-                        runPendingCancel = game
-                    } else {
-                        Task { await viewModel.perform(action, on: game) }
-                    }
-                } label: {
-                    Group {
-                        if isPending {
-                            ProgressView()
-                                .tint(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
-                        } else {
-                            Text(action.title)
-                                .hooprFont(13, weight: .semibold, maximumSize: 18)
-                        }
-                    }
-                    .foregroundStyle(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
-                    .padding(.horizontal, 14)
-                    .frame(height: 32)
-                    .background(action.isDestructive ? Color.hooprFill : Color.hooprOrange)
-                    .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .disabled(isPending || isBlocked)
-                .opacity(isBlocked ? 0.5 : 1)
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                runFacts(game)
+                runAction(action, on: game, isPending: isPending, isBlocked: isBlocked, fullWidth: true)
             }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.vertical, Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardChrome(cornerRadius: 12)
     }
 
+    private func runFacts(_ game: Game) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                Text(game.timeText)
+                    .hooprType(.headline)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .foregroundStyle(Color.hooprPrimaryText)
+
+                if let badge = runBadge(for: game) {
+                    // One word, one line, never broken. If it can't fit beside
+                    // the time and the button, `ViewThatFits` in `runRow`
+                    // moves the button below instead.
+                    Text(badge.text)
+                        .hooprType(.badge)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .foregroundStyle(badge.foreground)
+                        .padding(.horizontal, Spacing.Pill.horizontal)
+                        .padding(.vertical, Spacing.Pill.vertical)
+                        .background(Capsule().fill(badge.wash.opacity(0.12)))
+                }
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: "person.2.fill")
+                    .hooprType(.caption)
+                    .foregroundStyle(Color.hooprSecondaryText)
+
+                if game.isFull {
+                    Text("Full")
+                        .hooprType(.body)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                } else {
+                    Text("\(Text("\(game.openSlots)").fontWeight(.semibold).foregroundStyle(Color.hooprPrimaryText)) \(game.openSlots == 1 ? "spot left" : "spots left")")
+                        .hooprType(.body)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(game.spotsText)
+
+            // Same note, same words as `GameCard`: a waitlist place never
+            // promotes (`gaps/GAMES.md`), and the map is the other surface a
+            // player can join from.
+            if viewModel.isWaitlisted(game) {
+                Text("Waitlist spots don't move up yet — ask the host if someone drops.")
+                    .hooprType(.caption)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.leading)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func runAction(
+        _ action: LocalRunsViewModel.Action,
+        on game: Game,
+        isPending: Bool,
+        isBlocked: Bool,
+        fullWidth: Bool
+    ) -> some View {
+        if action != .none {
+            Button {
+                if action == .cancel {
+                    runPendingCancel = game
+                } else {
+                    Task { await viewModel.perform(action, on: game) }
+                }
+            } label: {
+                Group {
+                    if isPending {
+                        ProgressView()
+                            .tint(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
+                    } else {
+                        Text(action.title)
+                            .hooprFont(13, weight: .semibold, maximumSize: 18)
+                            .lineLimit(1)
+                    }
+                }
+                .foregroundStyle(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
+                .padding(.horizontal, 14)
+                .frame(maxWidth: fullWidth ? .infinity : nil)
+                .frame(minHeight: 36)
+                .background(action.isDestructive ? Color.hooprFill : Color.hooprOrange)
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.hooprPress)
+            .disabled(isPending || isBlocked)
+            .opacity(isBlocked ? 0.5 : 1)
+        }
+    }
+
+    /// `GameCard`'s badge rule, in its priority order — your own relationship
+    /// to the run says more than its status does — and its split of the text
+    /// colour from the wash behind it, for the contrast reason recorded there.
+    private func runBadge(for game: Game) -> (text: String, foreground: Color, wash: Color)? {
+        if viewModel.isHost(game) { return ("Hosting", Color.hooprBrandAccent, Color.hooprOrange) }
+        if viewModel.isWaitlisted(game) { return ("Waitlist", Color.hooprSecondaryText, Color.hooprSecondaryText) }
+        if game.isFull { return ("Full", Color.hooprSecondaryText, Color.hooprSecondaryText) }
+        return nil
+    }
+
     private var noRunsToday: some View {
         Text("No runs here today.")
-            .hooprFont(13)
+            .hooprType(.body)
             .foregroundStyle(Color.hooprSecondaryText)
     }
 
@@ -1021,7 +1275,7 @@ struct MapTab: View {
                 .background(Color.hooprFill)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.hooprPress)
 
             Button {
                 startingRunAt = court
@@ -1039,7 +1293,7 @@ struct MapTab: View {
                 .background(Color.hooprOrange)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.hooprPress)
         }
     }
 
@@ -1110,7 +1364,7 @@ struct MapTab: View {
     }
 
     private func settle(to detent: SheetDetent) {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+        withAnimation(.hooprSpring) {
             switch sheetState {
             case .rest:
                 sheetState = .rest(detent)
@@ -1127,7 +1381,7 @@ struct MapTab: View {
         if recenter {
             recenterTrigger = RecenterTrigger(center: court.coordinate)
         }
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+        withAnimation(.hooprSpring) {
             // Detail reads best at the medium detent — expanded leaves a card
             // stranded in whitespace.
             let fallback: SheetDetent = sheetState.detent == .collapsed ? .collapsed : .medium
@@ -1137,7 +1391,7 @@ struct MapTab: View {
 
     private func dismissDetail() {
         guard sheetState.selectedCourt != nil else { return }
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+        withAnimation(.hooprSpring) {
             sheetState = .rest(sheetState.detent)
         }
     }

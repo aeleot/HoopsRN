@@ -215,6 +215,9 @@ struct GameCard: View {
                     .monospacedDigit()
                     .lineLimit(1)
                     .foregroundStyle(Color.hooprPrimaryText)
+                    // Someone joining rolls the number down in place: a live
+                    // count, animated on change only.
+                    .hooprNumericTransition(game.openSlots)
 
                 Text(game.openSlots == 1 ? "spot" : "spots")
                     .hooprType(.caption)
@@ -363,7 +366,7 @@ struct GameCard: View {
             .background(action.isDestructive ? Color.hooprFill : Color.hooprOrange)
             .clipShape(RoundedRectangle(cornerRadius: 10))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.hooprPress)
         .disabled(isPending || isDisabled)
         .opacity(isDisabled && !isPending ? 0.5 : 1)
     }
@@ -407,7 +410,7 @@ struct GameCard: View {
                     .stroke(Color.hooprBorder, lineWidth: 1)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.hooprPress)
         .disabled(isPending || isDisabled)
         .opacity(isDisabled && !isPending ? 0.5 : 1)
     }
@@ -426,5 +429,26 @@ struct GameCard: View {
         if isWaitlisted { return ("Waitlist", Color.hooprSecondaryText, Color.hooprSecondaryText) }
         if game.isFull { return ("Full", Color.hooprSecondaryText, Color.hooprSecondaryText) }
         return nil
+    }
+}
+
+extension LocalRunsViewModel.ConfirmationKind {
+    /// What a confirmed write on a run feels like (UI revamp Phase 3), on the
+    /// Runs board and the map's court card alike. Getting on a run, or
+    /// finishing one, is a success; leaving and cancelling take something away
+    /// and are a light tap — deliberate, not celebrated.
+    ///
+    /// Fired off a view model's `lastConfirmation`, which only a write the user
+    /// made and the server accepted sets — a roster changing under the
+    /// listener never buzzes.
+    var feedback: SensoryFeedback? {
+        switch self {
+        case .action(.join), .action(.joinWaitlist), .completed:
+            return .success
+        case .action(.leave), .action(.cancel):
+            return .impact(weight: .light)
+        case .action(.none):
+            return nil
+        }
     }
 }

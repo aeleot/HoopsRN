@@ -31,6 +31,12 @@ private enum QueueDay: String, CaseIterable, Identifiable {
 /// obvious thing taps Save. Everything else is there for the leader who wants
 /// something else.
 ///
+/// **Redesigned in UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.11): one
+/// form on one surface instead of three cards — the squad, the window (summed
+/// up as a numeral line over its two rows), the courts — each under a `label`,
+/// the rows separated by hairlines. The time rows' `ViewThatFits` ladder is
+/// kept exactly; the brief names it as the pattern.
+///
 /// The Save button and the inline hint both read `MatchTicket.validate`, the way
 /// `CreateGameSheet` reads `Game.validate` — one function, mirroring the create
 /// rule condition for condition, so the button is never enabled for a write the
@@ -75,26 +81,28 @@ struct QueueSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: Spacing.section) {
                     intro
                     windowSection
                     courtsSection
 
                     if let hint {
                         Text(hint)
-                            .hooprFont(13)
+                            .hooprType(.caption)
                             .foregroundStyle(Color.hooprSecondaryText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
                     if let saveError {
                         Text(saveError)
-                            .hooprFont(13)
+                            .hooprType(.caption)
                             .foregroundStyle(Color.hooprRed)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                .padding(16)
+                .padding(.horizontal, Spacing.pageMargin)
+                .padding(.top, Spacing.sm)
+                .padding(.bottom, Spacing.xxl)
             }
             .background(Color.hooprBackground)
             .navigationTitle("Find a match")
@@ -125,94 +133,89 @@ struct QueueSheet: View {
 
     // MARK: - Sections
 
+    /// Which squad, and what queueing does — the form's heading, not a card.
     private var intro: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(spacing: Spacing.md) {
                 SquadCrest(squad: squad, size: SquadCrest.Size.card)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(squad.name)
-                        .hooprFont(17, weight: .semibold)
+                        .hooprType(.headline)
                         .foregroundStyle(Color.hooprPrimaryText)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text("\(squad.format.displayName) · \(squad.region)")
-                        .hooprFont(13)
+                        .hooprType(.caption)
                         .foregroundStyle(Color.hooprSecondaryText)
                 }
             }
+            .accessibilityElement(children: .combine)
 
             Text("We'll look for another squad who can play one of your courts inside your window.")
-                .hooprFont(14)
+                .hooprType(.body)
                 .foregroundStyle(Color.hooprSecondaryText)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.cardPadding)
-        .cardChrome()
     }
 
-    /// Header, card, footnote — the grouped-list shape iOS uses for a form
-    /// section, with the explanation *below* the card rather than crammed
-    /// inside it above the fields.
+    /// Label, the day, the window as a numeral line, the two rows that set it,
+    /// then the footnote — the grouped-form shape, without the card around the
+    /// middle.
     private var windowSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             sectionTitle("When")
-            windowCard
+            daySelector
+
+            windowSummary
+                .padding(.top, Spacing.xs)
+
+            DividedRows {
+                timeRow("From", picker: fromPicker)
+                timeRow("Until", picker: untilPicker)
+            }
 
             Text("Any time in this range works — tip-off lands on the earliest slot you and your opponent both have free.")
-                .hooprFont(12)
+                .hooprType(.caption)
                 .foregroundStyle(Color.hooprSecondaryText)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 4)
         }
     }
 
-    /// A segmented control over two field rows — the same shape Calendar's
-    /// New Event uses, and the reason this stopped being a loose pile of
-    /// pills and floating labels. Rows run the full width of the card, so a
-    /// label sits on the leading edge and its picker on the trailing one,
-    /// which is where iOS has trained everyone to look for it.
-    ///
-    /// `spacing: 0` with padding on each child rather than a stack spacing:
-    /// the dividers have to touch the card's edges, and a stack gap would
-    /// hold them off it.
-    private var windowCard: some View {
-        VStack(spacing: 0) {
-            daySelector
-                .padding(12)
+    /// The window as the number it is — "6:00 PM – 10:00 PM" — so it reads at
+    /// a glance rather than across two compact pickers. On one line when it
+    /// fits, the two ends stacked when it doesn't.
+    private var windowSummary: some View {
+        let start = customStart.formatted(date: .omitted, time: .shortened)
+        let end = customEnd.formatted(date: .omitted, time: .shortened)
 
-            // Full-bleed under the selector, because that's a boundary
-            // between two kinds of control. The one between the rows below
-            // is inset to the label, the way list separators are.
-            Rectangle()
-                .fill(Color.hooprBorder)
-                .frame(height: 1)
-
-            timeRow("From", picker: fromPicker)
-
-            Rectangle()
-                .fill(Color.hooprBorder)
-                .frame(height: 1)
-                .padding(.leading, 14)
-
-            timeRow("Until", picker: untilPicker)
+        return ViewThatFits(in: .horizontal) {
+            Text("\(start) – \(end)")
+                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("\(start) –")
+                Text(end)
+            }
         }
-        .cardChrome()
+        .hooprType(.title)
+        .monospacedDigit()
+        .foregroundStyle(Color.hooprPrimaryText)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("From \(start) until \(end)")
     }
 
-    /// The app's own segmented control, matched to `ProfileView`'s pane
-    /// selector: equal-width segments on a `hooprFill` track, one orange
-    /// shape sliding between them rather than two fading in and out. Equal
-    /// width is the part the old pill row got wrong — three chips sized to
-    /// their own text read as three unrelated buttons.
+    /// Three labels with a sliding accent underline — `ProfileView`'s pane
+    /// selector and the map list's tabs, so the app switches between things
+    /// one way. It was an orange pill sliding on a grey track, and its labels
+    /// shrank to fit (`minimumScaleFactor(0.8)`); they wrap now.
     ///
     /// The third segment is the one that isn't just a toggle: it opens a
     /// calendar, and once a date is chosen it *becomes* that date. Tapping it
     /// again reopens the calendar rather than doing nothing, which is the
     /// only way to change a date that is now the control's own label.
     private var daySelector: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 0) {
             ForEach(QueueDay.allCases) { day in
                 let isSelected = selectedDay == day
 
@@ -220,28 +223,32 @@ struct QueueSheet: View {
                     if day == .custom {
                         beginPickingCustomDate()
                     } else {
-                        withAnimation(.easeInOut(duration: 0.2)) {
+                        withAnimation(.hooprSpring) {
                             selectDay(day)
                         }
                     }
                 } label: {
-                    Text(title(for: day))
-                        .hooprFont(14, weight: .semibold, maximumSize: 18)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .padding(.vertical, 9)
-                        .frame(maxWidth: .infinity)
-                        .foregroundStyle(
-                            isSelected ? Color.hooprOnBrand : Color.hooprSecondaryText
-                        )
-                        .background {
+                    VStack(spacing: Spacing.sm) {
+                        Text(title(for: day))
+                            .hooprType(.subhead)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .foregroundStyle(
+                                isSelected ? Color.hooprPrimaryText : Color.hooprSecondaryText
+                            )
+
+                        ZStack {
+                            Color.clear.frame(height: 2)
                             if isSelected {
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(Color.hooprOrange)
+                                Capsule()
+                                    .fill(Color.hooprBrandAccent)
+                                    .frame(height: 2)
                                     .matchedGeometryEffect(id: "day", in: daySelection)
                             }
                         }
-                        .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(title(for: day))
@@ -249,11 +256,11 @@ struct QueueSheet: View {
                 .accessibilityAddTraits(isSelected ? [.isSelected] : [])
             }
         }
-        .padding(4)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.hooprFill)
-        )
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.hooprBorder)
+                .frame(height: 1)
+        }
     }
 
     /// "Today", "Tomorrow", and either "Custom date" or the date itself.
@@ -320,14 +327,13 @@ struct QueueSheet: View {
                 picker
             }
         }
-        .padding(.horizontal, 14)
         .padding(.vertical, 11)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func timeRowLabel(_ label: String) -> some View {
         Text(label)
-            .hooprFont(16)
+            .hooprType(.body)
             .foregroundStyle(Color.hooprPrimaryText)
             .lineLimit(1)
     }
@@ -359,12 +365,13 @@ struct QueueSheet: View {
     }
 
     private var courtsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(alignment: .firstTextBaseline) {
                 sectionTitle("Where")
                 Spacer()
                 Text("\(selectedCourtIds.count) of \(MatchTicket.courtCountRange.upperBound)")
-                    .hooprFont(13)
+                    .hooprType(.caption)
+                    .monospacedDigit()
                     .foregroundStyle(Color.hooprSecondaryText)
             }
 
@@ -374,35 +381,27 @@ struct QueueSheet: View {
                 isFocused: $isCourtSearchFocused
             )
 
-            VStack(spacing: 0) {
-                if offeredCourtIds.isEmpty {
-                    // The bundled dataset loads synchronously and holds 214
-                    // courts, so an empty list with no search typed means it
-                    // failed to load rather than that nothing is nearby. A
-                    // sentence, because an empty card under a "Where" heading
-                    // reads as a broken screen.
-                    Text(courtsEmptyText)
-                        .hooprFont(13)
-                        .foregroundStyle(Color.hooprSecondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                } else {
+            if offeredCourtIds.isEmpty {
+                // The bundled dataset loads synchronously and holds 214
+                // courts, so an empty list with no search typed means it
+                // failed to load rather than that nothing is nearby. A
+                // sentence, because an empty list under a "Where" heading
+                // reads as a broken screen.
+                Text(courtsEmptyText)
+                    .hooprType(.body)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, Spacing.sm)
+            } else {
+                DividedRows(leadingInset: 26 + 12) {
                     ForEach(offeredCourtIds, id: \.self) { courtId in
                         courtRow(courtId)
-                        if courtId != offeredCourtIds.last {
-                            Divider().overlay(Color.hooprBorder)
-                        }
                     }
                 }
-            }
-            .padding(.vertical, 4)
-            .cardChrome()
 
-            if !offeredCourtIds.isEmpty {
                 Text(courtsHintText)
-                    .hooprFont(12)
+                    .hooprType(.caption)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -415,29 +414,32 @@ struct QueueSheet: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: selectedCourtIds.contains(courtId) ? "checkmark.circle.fill" : "circle")
-                    .hooprFont(20)
+                    .hooprFont(20, maximumSize: 26)
                     .foregroundStyle(
                         selectedCourtIds.contains(courtId)
                             ? Color.hooprBrandAccent
                             : Color.hooprSecondaryText
                     )
+                    // As wide as the glyph's cap, so the names line up at
+                    // every text size.
+                    .frame(width: 26)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(viewModel.courtName(id: courtId))
-                        .hooprFont(15, weight: .medium)
+                        .hooprType(.subhead)
                         .foregroundStyle(Color.hooprPrimaryText)
                         .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     if let court = viewModel.court(id: courtId) {
                         Text(court.city)
-                            .hooprFont(12)
+                            .hooprType(.caption)
                             .foregroundStyle(Color.hooprSecondaryText)
                     }
                 }
 
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .contentShape(Rectangle())
         }
@@ -447,9 +449,9 @@ struct QueueSheet: View {
 
     private func sectionTitle(_ text: String) -> some View {
         Text(text)
-            .hooprFont(13, weight: .semibold)
+            .hooprType(.label)
             .foregroundStyle(Color.hooprSecondaryText)
-            .textCase(.uppercase)
+            .accessibilityAddTraits(.isHeader)
     }
 
     // MARK: - State
@@ -568,7 +570,7 @@ struct QueueSheet: View {
         customDate = day
         isPickingCustomDate = false
 
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(.hooprSpring) {
             selectedDay = .custom
         }
     }

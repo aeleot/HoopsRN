@@ -104,6 +104,58 @@ final class HomeViewModelTests: XCTestCase {
         }
     }
 
+    // MARK: - Choosing the next run
+
+    private func queuedRun(
+        _ id: String,
+        at scheduledTime: Date,
+        status: Game.Status = .open
+    ) -> Game {
+        Game(
+            id: id,
+            hostId: "host",
+            courtId: "court-a",
+            scheduledTime: scheduledTime,
+            isPublic: false,
+            maxPlayers: 10,
+            status: status,
+            playerIds: ["host"],
+            queuedPlayerIds: [],
+            createdAt: scheduledTime,
+            updatedAt: scheduledTime,
+            completedAt: status == .completed ? scheduledTime : nil
+        )
+    }
+
+    /// **The bug this guards was live on 2026-09-22.** A run the host had
+    /// marked complete stayed in `queuedGames` — the listener doesn't filter by
+    /// status — and Home's hero announced it as tonight's run while the map
+    /// said the same court had nothing on.
+    func testACompletedRunIsNeverTheNextRun() {
+        let now = Date()
+        let finished = queuedRun("finished", at: now.addingTimeInterval(-60 * 60), status: .completed)
+        let later = queuedRun("later", at: now.addingTimeInterval(2 * 60 * 60))
+
+        XCTAssertEqual(HomeViewModel.nextRun(from: [finished, later], at: now)?.id, "later")
+        XCTAssertNil(HomeViewModel.nextRun(from: [finished], at: now))
+    }
+
+    /// Past the grace window a run ages out of Home exactly when it ages out
+    /// of the Runs tab and the map — they all ask `isVisible(at:)`.
+    func testARunPastTheGraceWindowIsNotTheNextRun() {
+        let now = Date()
+        let stale = queuedRun("stale", at: now.addingTimeInterval(-(Game.visibilityGrace + 60)))
+        XCTAssertNil(HomeViewModel.nextRun(from: [stale], at: now))
+    }
+
+    /// A run that has started but isn't over still counts — it's the one
+    /// you're late for.
+    func testARunUnderwayIsStillTheNextRun() {
+        let now = Date()
+        let underway = queuedRun("underway", at: now.addingTimeInterval(-30 * 60))
+        XCTAssertEqual(HomeViewModel.nextRun(from: [underway], at: now)?.id, "underway")
+    }
+
     // MARK: - Ranking
 
     func testOrdersByGameCountDescending() {

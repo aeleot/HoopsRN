@@ -154,7 +154,7 @@ private struct ScaledSystemFont: ViewModifier {
 /// the hero is the one place in the app where a clipped word would take the
 /// screen's whole answer with it. What guards them instead is a metrics type
 /// per hero (`HomeHeroMetrics`), measured against the frame it lives in — the
-/// pattern `ResultPillMetrics` established.
+/// pattern the (since retired) `ResultPillMetrics` established.
 ///
 /// **What the ladder does at `.accessibility3`, measured** (the values
 /// `HooprFontMetrics` produces on iOS 26.5, not an estimate):

@@ -62,6 +62,22 @@ nonisolated struct SheetGeometry: Equatable {
     /// it. See `MapTab.tabBarInset` for why the subtraction is load-bearing.
     let containerHeight: CGFloat
 
+    /// A court card's own resting height at `.medium`: tall enough for its
+    /// name, its first run and its buttons. `nil` for the list.
+    ///
+    /// **Why the card needs one (2026-09-23).** `.medium` is a third of the
+    /// container, and the container lost the tab bar's band when the map
+    /// started stopping above the bar — so `.medium` went from ~256pt to
+    /// ~215pt, and the card's scroll area to ~112pt. A court's name and
+    /// distance take ~63pt of that and a run row ~72pt, so a run was cut in
+    /// half until the sheet was dragged up: the user's "the full details are
+    /// half shown until the view is expanded." A fraction can't know how tall
+    /// a card is; the card can.
+    ///
+    /// Never below `mediumHeight` (a card with nothing to show keeps the list's
+    /// height) and never above `expandedHeight`.
+    var fittedMediumHeight: CGFloat? = nil
+
     /// Finger travel past which a drag settles to the next detent.
     static let detentThreshold: CGFloat = 60
 
@@ -69,12 +85,21 @@ nonisolated struct SheetGeometry: Equatable {
     /// rather than tracking the finger 1:1.
     static let rubberBandLimit: CGFloat = 40
 
+    /// A third of the container: the list's resting height.
     var mediumHeight: CGFloat { containerHeight / 3 }
     var expandedHeight: CGFloat { containerHeight * 0.78 }
 
+    /// Where the sheet actually rests at `.medium` — `mediumHeight`, or a court
+    /// card's fitted height when it has one. Everything below measures from
+    /// this, so dragging a taller card behaves exactly as dragging the list.
+    var restingMediumHeight: CGFloat {
+        guard let fitted = fittedMediumHeight else { return mediumHeight }
+        return min(max(mediumHeight, fitted), expandedHeight)
+    }
+
     func baseHeight(for detent: SheetDetent) -> CGFloat {
         switch detent {
-        case .collapsed, .medium: return mediumHeight
+        case .collapsed, .medium: return restingMediumHeight
         case .expanded:           return expandedHeight
         }
     }
@@ -83,16 +108,16 @@ nonisolated struct SheetGeometry: Equatable {
     /// its top edge tracks your finger instead of the whole panel sliding.
     func sheetHeight(detent: SheetDetent, drag: CGFloat) -> CGFloat {
         let base = baseHeight(for: detent)
-        return min(max(base - drag, mediumHeight), expandedHeight)
+        return min(max(base - drag, restingMediumHeight), expandedHeight)
     }
 
     /// Only non-zero heading to or from `.collapsed`, where the sheet leaves the
     /// screen entirely rather than shrinking below its medium height.
     func sheetOffset(detent: SheetDetent, drag: CGFloat) -> CGFloat {
-        let base: CGFloat = detent == .collapsed ? mediumHeight : 0
+        let base: CGFloat = detent == .collapsed ? restingMediumHeight : 0
         let travel: CGFloat = detent == .collapsed
             ? drag
-            : max(0, drag - (baseHeight(for: detent) - mediumHeight))
+            : max(0, drag - (baseHeight(for: detent) - restingMediumHeight))
         return rubberBanded(base + travel)
     }
 
@@ -103,8 +128,8 @@ nonisolated struct SheetGeometry: Equatable {
         if offset < 0 {
             return -Self.resistance(-offset)
         }
-        if offset > mediumHeight {
-            return mediumHeight + Self.resistance(offset - mediumHeight)
+        if offset > restingMediumHeight {
+            return restingMediumHeight + Self.resistance(offset - restingMediumHeight)
         }
         return offset
     }

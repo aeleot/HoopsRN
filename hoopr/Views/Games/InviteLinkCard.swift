@@ -59,6 +59,7 @@ struct InviteLinkCard: View {
                     HStack(spacing: 4) {
                         Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
                             .hooprFont(12, weight: .semibold, maximumSize: 16)
+                            .contentTransition(.symbolEffect(.replace))
                         Text(didCopy ? "Copied" : "Copy")
                             .hooprFont(12, weight: .semibold, maximumSize: 16)
                     }
@@ -87,20 +88,23 @@ struct InviteLinkCard: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // A copy has nothing on screen to show for itself but this glyph, so
+        // it's felt too — only on the copy, not when the glyph reverts.
+        .sensoryFeedback(.success, trigger: didCopy) { _, new in new }
         .accessibilityLabel("Copy invite link. Opening it does not work yet.")
         .accessibilityValue(didCopy ? "Copied" : link)
     }
 
     private func copy() {
         UIPasteboard.general.string = link
-        withAnimation(.easeInOut(duration: 0.15)) {
+        withAnimation(.hooprSnap) {
             didCopy = true
         }
         // Reverts on its own; a copy affordance that stays "copied" stops
         // reading as a button.
         Task {
             try? await Task.sleep(for: .seconds(1.6))
-            withAnimation(.easeInOut(duration: 0.15)) {
+            withAnimation(.hooprSnap) {
                 didCopy = false
             }
         }

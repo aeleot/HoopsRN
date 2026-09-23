@@ -16,15 +16,21 @@ extension View {
     /// separation is carried entirely by that hairline and a very soft lift; in
     /// dark mode the surface rises off pure black and `hooprShadow` quadruples
     /// the opacity to compensate.
-    func cardChrome(cornerRadius: CGFloat = 16) -> some View {
+    ///
+    /// `isShown` fades the chrome rather than adding or removing it, so a view
+    /// that only sometimes earns a card (`MatchmakingCard`, which is one only
+    /// when there's a match) keeps its identity and can animate the change.
+    func cardChrome(cornerRadius: CGFloat = 16, isShown: Bool = true) -> some View {
         background(
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(Color.hooprSurface)
                 .shadow(color: Color.hooprShadow(opacity: 0.06), radius: 8, x: 0, y: 2)
+                .opacity(isShown ? 1 : 0)
         )
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius)
                 .stroke(Color.hooprBorder, lineWidth: 1)
+                .opacity(isShown ? 1 : 0)
         )
     }
 }

@@ -103,12 +103,13 @@ struct InboxSheet: View {
 
         if rows.isEmpty {
             Text(emptyText)
-                .hooprFont(14)
+                .hooprType(.body)
                 .foregroundStyle(Color.hooprSecondaryText)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 20)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, Spacing.pageMargin)
+                .padding(.bottom, Spacing.lg)
         } else {
-            VStack(spacing: 10) {
+            DividedRows(leadingInset: FriendRow<EmptyView>.textInset) {
                 ForEach(rows) { row in
                     FriendRow(
                         row: row,
@@ -119,8 +120,8 @@ struct InboxSheet: View {
                     }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 20)
+            .padding(.horizontal, Spacing.pageMargin)
+            .padding(.bottom, Spacing.lg)
         }
     }
 
@@ -128,7 +129,7 @@ struct InboxSheet: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader(title: "Squad invites", count: squadViewModel.incomingInvites.count)
 
-            VStack(spacing: 10) {
+            DividedRows(leadingInset: SquadCrest.Size.card + 12) {
                 ForEach(squadViewModel.incomingInvites) { row in
                     SquadInviteRow(
                         row: row,
@@ -138,30 +139,33 @@ struct InboxSheet: View {
                     )
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 20)
+            .padding(.horizontal, Spacing.pageMargin)
+            .padding(.bottom, Spacing.lg)
         }
     }
 
+    /// A `label` with its count at the trailing edge, as the Friends pane and
+    /// Seasons' roster head their lists. The count used to sit in a filled
+    /// capsule beside an 18pt bold title.
     private func sectionHeader(title: String, count: Int) -> some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .firstTextBaseline) {
             Text(title)
-                .hooprFont(18, weight: .bold)
-                .foregroundStyle(Color.hooprPrimaryText)
-
-            Text("\(count)")
-                .hooprFont(12, weight: .semibold)
+                .hooprType(.label)
                 .foregroundStyle(Color.hooprSecondaryText)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Capsule().fill(Color.hooprFill))
 
             Spacer()
+
+            Text("\(count)")
+                .hooprType(.caption)
+                .monospacedDigit()
+                .foregroundStyle(Color.hooprSecondaryText)
+                .hooprNumericTransition(count)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 20)
-        .padding(.bottom, 12)
+        .padding(.horizontal, Spacing.pageMargin)
+        .padding(.top, Spacing.xxl)
+        .padding(.bottom, Spacing.xs)
         .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 
     /// Every action the relationship offers, inline — this is the screen whose
@@ -188,7 +192,7 @@ struct InboxSheet: View {
                 .foregroundStyle(Color.hooprSecondaryText)
 
             Text(viewModel.inboxEmptyText)
-                .hooprFont(15)
+                .hooprType(.body)
                 .foregroundStyle(Color.hooprSecondaryText)
                 .multilineTextAlignment(.center)
         }

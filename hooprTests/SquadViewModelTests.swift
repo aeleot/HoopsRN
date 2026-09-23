@@ -335,3 +335,23 @@ final class SquadViewModelTests: XCTestCase {
         )
     }
 }
+
+/// The Seasons band reads the squad's record aloud as a sentence — added with
+/// the UI revamp's Phase 2b band, where the record became the screen's numeral.
+final class SeasonsRecordSpeechTests: XCTestCase {
+
+    func testAnUnplayedSeasonSaysSo() {
+        XCTAssertEqual(SquadRecordLine.spokenRecord(wins: 0, losses: 0), "No games played yet this season")
+    }
+
+    func testTheRecordReadsAsASentence() {
+        XCTAssertEqual(SquadRecordLine.spokenRecord(wins: 3, losses: 2), "3 wins, 2 losses this season")
+    }
+
+    /// Singular at one, both ways — "1 wins" is the kind of thing that makes a
+    /// record sound machine-made at exactly the moment it matters.
+    func testOneWinAndOneLossAreSingular() {
+        XCTAssertEqual(SquadRecordLine.spokenRecord(wins: 1, losses: 0), "1 win, 0 losses this season")
+        XCTAssertEqual(SquadRecordLine.spokenRecord(wins: 0, losses: 1), "0 wins, 1 loss this season")
+    }
+}

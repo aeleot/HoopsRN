@@ -14,7 +14,7 @@ import UIKit
 /// shown it unless one of those courts happened to be the next run.
 ///
 /// So the cap is asserted against the whole dataset rather than against the
-/// example. This is the `ResultPillMetrics` / `SeasonsAccessibilityTests`
+/// example. This is the (since retired) `ResultPillMetrics` / `SeasonsAccessibilityTests`
 /// pattern: the number a layout depends on is measured, not eyeballed.
 @MainActor
 final class HomeHeroMetricsTests: XCTestCase {
@@ -85,11 +85,13 @@ final class HomeHeroMetricsTests: XCTestCase {
         }
     }
 
-    /// The empty state's answer is words, not a number, and it is allowed to
-    /// wrap — this just pins that it wraps rather than needing a cap.
-    func testTheEmptyAnswerReflowsWithinTwoLines() {
-        let lines = HomeHeroMetrics.lineCount(of: "Nothing on tonight", role: .display, at: axl)
-        XCTAssertLessThanOrEqual(lines, 2)
+    /// The empty state's answer is words, not a number. It moved from the
+    /// display tier to `title` (2026-09-22) — this pins that it still fits one
+    /// line at the default size and wraps rather than needing a cap at the
+    /// accessibility sizes.
+    func testTheEmptyAnswerFitsOneLineAndReflowsWithoutACap() {
+        XCTAssertEqual(HomeHeroMetrics.lineCount(of: "No run tonight", role: .title, at: .large), 1)
+        XCTAssertLessThanOrEqual(HomeHeroMetrics.lineCount(of: "No run tonight", role: .title, at: axl), 2)
     }
 
     // MARK: - The measurement itself

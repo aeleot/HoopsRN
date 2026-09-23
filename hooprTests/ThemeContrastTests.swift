@@ -440,6 +440,89 @@ final class ThemeContrastTests: XCTestCase {
         )
     }
 
+    // MARK: - Grouped forms
+
+    /// The grouped ground resolves to proven values — `hooprFill` in light,
+    /// the page in dark — so it can't quietly become a value nobody measured.
+    func testTheGroupedGroundResolvesToTheValuesItClaims() {
+        let light = UITraitCollection(userInterfaceStyle: .light)
+        let dark = UITraitCollection(userInterfaceStyle: .dark)
+        XCTAssertEqual(
+            UIColor(Color.hooprGroupedBackground).resolvedColor(with: light),
+            UIColor(Color.hooprFill).resolvedColor(with: light)
+        )
+        XCTAssertEqual(
+            UIColor(Color.hooprGroupedBackground).resolvedColor(with: dark),
+            UIColor(Color.hooprBackground).resolvedColor(with: dark)
+        )
+    }
+
+    /// What `CreateGameSheet` draws on the ground itself, outside its panels:
+    /// the court's name and glyph, its address, and an error.
+    func testEveryPairingDrawnOnTheGroupedGround() {
+        assertContrast(.hooprPrimaryText, on: .hooprGroupedBackground, atLeast: aaText, "court name on the grouped ground")
+        assertContrast(.hooprSecondaryText, on: .hooprGroupedBackground, atLeast: aaText, "address on the grouped ground")
+        assertContrast(.hooprBrandAccent, on: .hooprGroupedBackground, atLeast: aaText, "court glyph on the grouped ground")
+        assertContrast(.hooprRed, on: .hooprGroupedBackground, atLeast: aaText, "an error on the grouped ground")
+    }
+
+    /// A panel is told from the ground by its fill alone — no edge, no
+    /// shadow — so the two must differ in both appearances.
+    func testAPanelSeparatesFromTheGroupedGroundInBothAppearances() {
+        for (style, name) in [(UIUserInterfaceStyle.light, "light"), (.dark, "dark")] {
+            XCTAssertGreaterThan(
+                ratio(.hooprSurface, on: .hooprGroupedBackground, style), 1.05,
+                "in \(name) mode a panel must step off the grouped ground"
+            )
+        }
+    }
+
+    // MARK: - The form guide's dots
+
+    /// A played dot is a graphic you have to read to know the result, so each
+    /// one clears WCAG 1.4.11's 3:1 on both grounds the guide is drawn on:
+    /// Seasons' band and `SquadDetailView`'s card. The win green on the light
+    /// band (3.15:1) is the binding case. It sets how light that green can go.
+    func testEveryPlayedFormDotClearsTheGraphicFloorOnItsGrounds() {
+        for ground in [Color.hooprHeroBand, .hooprSurface] {
+            assertContrast(.hooprFormWin, on: ground, atLeast: aaLarge, "win dot")
+            assertContrast(.hooprFormLoss, on: ground, atLeast: aaLarge, "loss dot")
+        }
+    }
+
+    /// The unplayed dot is a placeholder, so it is held to *visible* (2:1) and
+    /// to *quieter than either result* in both appearances, not to 3:1. A grey
+    /// as heavy as the win and loss dots would read as a third kind of result.
+    func testTheUnplayedDotIsVisibleButQuieterThanEitherResult() {
+        for ground in [Color.hooprHeroBand, .hooprSurface] {
+            assertContrast(.hooprFormUnplayed, on: ground, atLeast: 2.0, "unplayed dot")
+
+            for style in [UIUserInterfaceStyle.light, .dark] {
+                let unplayed = ratio(.hooprFormUnplayed, on: ground, style)
+                XCTAssertLessThan(unplayed, ratio(.hooprFormWin, on: ground, style), "unplayed vs win, \(style.rawValue)")
+                XCTAssertLessThan(unplayed, ratio(.hooprFormLoss, on: ground, style), "unplayed vs loss, \(style.rawValue)")
+            }
+        }
+    }
+
+    /// **The finding, pinned.** To a red-green colour-blind reader the two dots
+    /// differ only in lightness, and WCAG counts lightness as a second cue at
+    /// 3:1. That isn't reachable while both dots clear 3:1 on the band. The
+    /// widest gap is 1.95:1 in light and 2.25:1 in dark, which is why
+    /// *Differentiate Without Color* marks the dots. This holds the gap
+    /// where it is, so a retune can't close it without failing here.
+    func testWinAndLossStayAsFarApartInLightnessAsTheFloorAllows() {
+        assertContrast(.hooprFormWin, on: .hooprFormLoss, atLeast: 1.9, "win against loss")
+    }
+
+    /// The ✓ and ✕ that *Differentiate Without Color* draws are graphics, so
+    /// 3:1 on the dot they sit on. White on the light dots, black on the dark
+    /// ones. The weakest is white on the light green, at 3.44:1.
+    func testTheDifferentiateWithoutColorMarkReadsOnBothResults() {
+        assertContrast(.hooprOnFormResult, on: .hooprFormWin, atLeast: aaLarge, "✓ on the win dot")
+        assertContrast(.hooprOnFormResult, on: .hooprFormLoss, atLeast: aaLarge, "✕ on the loss dot")
+    }
+
     /// **The strong separator is a component boundary, so it has to clear the
     /// 3:1 that WCAG 1.4.11 asks of one** — on every ground it could sit on, in
     /// both appearances. `hooprBorder` is deliberately faint (1.2:1 on white)

@@ -1,5 +1,20 @@
 import SwiftUI
 
+/// Sign in and sign up — the one screen in the app with no data on it.
+///
+/// **Redesigned in UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.8,
+/// assumption A1). The brand keeps its place as the screen's hero, and gains
+/// the one fact a first-time user lacks: what the app is for
+/// (`LoginBrandBand`). It becomes the same band every other screen opens on,
+/// filling the top of the screen; the form sits under it at the bottom, where
+/// a one-handed thumb is. When the keyboard comes up the band gives way first,
+/// and at the largest text sizes the whole screen scrolls rather than
+/// clipping.
+///
+/// **The form is on the page ground, not `hooprElevatedSurface`** as the brief
+/// drew it. In dark mode the band *is* the elevated surface's value, so a form
+/// on it would read as the band continuing. On the page ground it separates
+/// from the band in both appearances, as every other screen's content does.
 struct LoginView: View {
     @StateObject private var viewModel: LoginViewModel
     @FocusState private var focusedField: Field?
@@ -14,86 +29,137 @@ struct LoginView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(spacing: 0) {
+                    LoginBrandBand()
+                        .frame(maxHeight: .infinity)
 
-            VStack(spacing: 8) {
-                Image(systemName: "basketball.fill")
-                    .hooprFont(44)
-                    .foregroundStyle(Color.hooprBrandAccent)
-
-                Text("hoopsRN")
-                    .hooprFont(34, weight: .bold)
-                    .foregroundStyle(Color.hooprPrimaryText)
-
-                Text(viewModel.mode.title)
-                    .hooprFont(15)
-                    .foregroundStyle(Color.hooprSecondaryText)
-            }
-            .padding(.bottom, 32)
-
-            VStack(spacing: 12) {
-                field(placeholder: "Email", text: $viewModel.email, field: .email, isSecure: false)
-                field(placeholder: "Password", text: $viewModel.password, field: .password, isSecure: true)
-            }
-
-            if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-                    .hooprFont(13)
-                    .foregroundStyle(Color.hooprRed)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 12)
-            }
-
-            Button {
-                submit()
-            } label: {
-                ZStack {
-                    if viewModel.isBusy {
-                        ProgressView()
-                            .tint(Color.hooprOnBrand)
-                    } else {
-                        Text(viewModel.mode.actionLabel)
-                            // Capped to the button's fixed 52pt height.
-                            .hooprFont(17, weight: .semibold, maximumSize: 24)
-                    }
+                    form
                 }
-                .foregroundStyle(Color.hooprOnBrand)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(viewModel.canSubmit ? Color.hooprOrange : Color.hooprOrange.opacity(0.4))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                // At least the screen's height, so the band fills whatever the
+                // form doesn't use; taller only when the text is too large to
+                // fit, and then it scrolls.
+                .frame(minHeight: proxy.size.height, alignment: .top)
             }
-            .disabled(!viewModel.canSubmit)
-            .padding(.top, 24)
-
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    viewModel.toggleMode()
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Text(viewModel.mode.switchPrompt)
-                        .foregroundStyle(Color.hooprSecondaryText)
-                    Text(viewModel.mode.switchAction)
-                        .foregroundStyle(Color.hooprBrandAccent)
-                        .fontWeight(.semibold)
-                }
-                .hooprFont(14)
-            }
-            .padding(.top, 20)
-
-            Spacer()
-            Spacer()
+            .scrollBounceBehavior(.basedOnSize)
+            .scrollDismissesKeyboard(.interactively)
         }
-        .padding(.horizontal, 28)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.hooprBackground)
         .onTapGesture {
             focusedField = nil
         }
     }
 
+    // MARK: - The form
+
+    /// Two fields and one button — the task — under a title that says which
+    /// of the two it is, with the way to the other one quiet at the end.
+    private var form: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text(viewModel.mode.title)
+                .hooprType(.headline)
+                .foregroundStyle(Color.hooprPrimaryText)
+                // Wraps rather than truncating: the band above is the flexible
+                // part, and at `.accessibility3` a squeezed title read "Create
+                // your accou…" (render, 2026-09-23).
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+
+            field(placeholder: "Email", text: $viewModel.email, field: .email, isSecure: false)
+            field(placeholder: "Password", text: $viewModel.password, field: .password, isSecure: true)
+
+            if let errorMessage = viewModel.errorMessage {
+                Text(errorMessage)
+                    .hooprType(.caption)
+                    .foregroundStyle(Color.hooprRed)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            submitButton
+                .padding(.top, Spacing.sm)
+
+            modeSwitch
+                .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, Spacing.pageMargin)
+        .padding(.top, Spacing.xxl)
+        .padding(.bottom, Spacing.xl)
+    }
+
+    /// Filled when it can go, and a quiet fill with readable text when it
+    /// can't. It used to fade the orange to 40% under the same black label,
+    /// which in dark mode left the label barely distinguishable from the
+    /// button it was on.
+    private var submitButton: some View {
+        Button {
+            submit()
+        } label: {
+            ZStack {
+                if viewModel.isBusy {
+                    ProgressView()
+                        .tint(Color.hooprOnBrand)
+                } else {
+                    Text(viewModel.mode.actionLabel)
+                        // Capped to the button's fixed 52pt height.
+                        .hooprFont(17, weight: .semibold, maximumSize: 24)
+                }
+            }
+            .foregroundStyle(viewModel.canSubmit ? Color.hooprOnBrand : Color.hooprSecondaryText)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .background(viewModel.canSubmit ? Color.hooprOrange : Color.hooprFill)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.hooprPress)
+        .disabled(!viewModel.canSubmit)
+    }
+
+    private var modeSwitch: some View {
+        Button {
+            withAnimation(.hooprSwap) {
+                viewModel.toggleMode()
+            }
+        } label: {
+            // One line when it fits, the prompt over the action when it
+            // doesn't — at `.accessibility3` the side-by-side version wrapped
+            // the prompt into a ragged column beside "Sign up" (render,
+            // 2026-09-23).
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 4) {
+                    switchPrompt
+                    switchAction
+                }
+                VStack(spacing: 2) {
+                    switchPrompt
+                    switchAction
+                }
+            }
+            .hooprType(.body)
+            .multilineTextAlignment(.center)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var switchPrompt: some View {
+        Text(viewModel.mode.switchPrompt)
+            .foregroundStyle(Color.hooprSecondaryText)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var switchAction: some View {
+        Text(viewModel.mode.switchAction)
+            .foregroundStyle(Color.hooprBrandAccent)
+            .fontWeight(.semibold)
+    }
+
+    /// **The unfocused edge is `hooprSeparatorStrong`, at 3:1.** It was the
+    /// faint `hooprBorder` hairline around a `hooprFill` ground — 1.09:1 fill
+    /// on white and 1.2:1 edge — so in light mode the two fields a new user
+    /// has to find were barely drawn. `UI_SHELL.md` held that switch back for
+    /// "the composition that wants it"; this is that composition.
     @ViewBuilder
     private func field(
         placeholder: String,
@@ -101,6 +167,8 @@ struct LoginView: View {
         field: Field,
         isSecure: Bool
     ) -> some View {
+        let isFocused = focusedField == field
+
         Group {
             if isSecure {
                 SecureField(placeholder, text: text)
@@ -129,8 +197,8 @@ struct LoginView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(
-                    focusedField == field ? Color.hooprBrandAccent : Color.hooprBorder,
-                    lineWidth: 1
+                    isFocused ? Color.hooprBrandAccent : Color.hooprSeparatorStrong,
+                    lineWidth: isFocused ? 2 : 1
                 )
         )
         .onSubmit {
@@ -147,6 +215,51 @@ struct LoginView: View {
         guard viewModel.canSubmit else { return }
         focusedField = nil
         Task { await viewModel.submit() }
+    }
+}
+
+/// The login screen's hero: the glyph, the name at `display`, and one line
+/// saying what the app is for — the only screen where the product itself is
+/// what needs explaining (assumption A1). Centred, because this band is the
+/// whole of a screen with one task, not the top of a list.
+///
+/// Its own view, taking nothing, so it can be rendered without an
+/// `AuthService` — and so Phase 4's `MeshGradient` has one place to land.
+struct LoginBrandBand: View {
+    /// What a first-time user doesn't know yet. Both halves are true today:
+    /// the court dataset covers the Triangle, and Seasons ships.
+    static let pitch = "Pickup basketball across the Triangle. Find a run tonight, or play a season with your squad."
+
+    var body: some View {
+        VStack(spacing: Spacing.md) {
+            Spacer(minLength: Spacing.xxxl)
+
+            Image(systemName: "basketball.fill")
+                .hooprFont(44, maximumSize: 64)
+                .foregroundStyle(Color.hooprBrandAccent)
+                .accessibilityHidden(true)
+
+            Text("hoopsRN")
+                .hooprType(.display)
+                .foregroundStyle(Color.hooprPrimaryText)
+                .accessibilityAddTraits(.isHeader)
+
+            Text(Self.pitch)
+                .hooprType(.body)
+                .foregroundStyle(Color.hooprSecondaryText)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: Spacing.xxl)
+        }
+        .padding(.horizontal, Spacing.pageMargin)
+        .frame(maxWidth: .infinity)
+        .background(Color.hooprHeroBand)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.hooprSeparatorStrong)
+                .frame(height: 1)
+        }
     }
 }
 

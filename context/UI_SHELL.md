@@ -119,6 +119,20 @@ dark (5.09:1). With the accent, the **live app measures 5.32:1 in light**
 grounds this code controls; the rendered figure has to be re-measured from a
 screenshot whenever the tint changes.
 
+**The bar itself is opaque, not the system's default floating glass** — set
+in `MainTabView.configureTabBarAppearance()` via `UITabBarAppearance`
+(`configureWithOpaqueBackground()`, `backgroundColor = hooprFill`,
+`selectionIndicatorTintColor = hooprHoverFill`), applied to
+`UITabBar.appearance()` in `init()` since SwiftUI's `TabView` still bridges to
+`UITabBarController` on iPhone. `.toolbarBackground(Color.hooprFill, for:
+.tabBar)` / `.toolbarBackgroundVisibility(.visible, for: .tabBar)` sit
+alongside it as the SwiftUI-native path to the same result. `hooprFill` (the
+existing "filled but unemphasised region" role) is what gives the bar its own
+presence against whatever's behind it — translucent chrome was reading as no
+bar at all — and `hooprHoverFill` behind the selected item is the same
+"selected without being loud" role a pressed row already uses. Added
+2026-09-22.
+
 **The profile button appears on all four tabs and nowhere else.** It is a
 shared `ProfileButton` component (`Views/Components/`) with one appearance — the
 map's glass variant is gone — and one position, `ProfileButton.Slot`: the 44pt
@@ -130,13 +144,11 @@ directly rather than a view model so the dot stays live while the profile is
 closed. An inbox you can only discover by already being inside it isn't a
 notification.
 
-Each tab now names itself, since there is no shared header to do it: Home
-carries the `"Let's hoop <name>."` greeting the header used to, and Runs
-carries a plain `"Runs"` title. Home's header row centers vertically against
-`ProfileButton`, matching Runs; the greeting is pinned to one line and shrinks
-(`.minimumScaleFactor`) rather than wrapping, so the button's position never
-depends on name length — a name past the 50-character ceiling truncates
-rather than wrapping or shrinking to illegibility.
+Each tab names itself in its band's `label` row, beside `ProfileButton` in its
+shared `Slot` — "Tonight", "Runs", "This season". (Home's `"Let's hoop
+<name>."` greeting, which shrank to fit with `minimumScaleFactor`, was removed
+in the UI revamp, assumption A2; **no text in the app shrinks to fit any more**
+— the last three `minimumScaleFactor` calls went on 2026-09-23.)
 
 `courtToShowOnMap` is a `@State Court?` handed to `MapTab` as a binding. Home's
 hot-court rows write to it and switch tabs; `MapTab` consumes it and writes back
@@ -306,6 +318,17 @@ URL, so it's a string to send while the receiving half is built (`GAPS.md` §4).
 
 ## `SeasonsTab`
 
+> **Stale as of 2026-09-22 — the composition below is the pre-redesign one.**
+> UI revamp Phase 2b rebuilt this tab: the 28pt "Seasons" title is gone, the
+> squad's crest, name and **record** sit in a full-bleed band like Home's and
+> Runs', the record set as the screen's numeral with its form beside it, and the
+> roster and other squads are rows rather than cards. `MatchmakingCard` keeps
+> its card only in its matched state. The band is neutral rather than the
+> squad's colour, for a measured contrast reason recorded in `SeasonsTab`. The
+> reasons below — squad invites living in the inbox, other squads getting rows,
+> the four matchmaking states being states rather than destinations — still
+> hold. Restamped when Phase 2b lands; see `plans/UI_REVAMP_CHANGELOG.md`.
+
 The fourth tab: squads, matchmaking, and the record that comes out of them. One
 `NavigationStack` over a scroll view, with two sheets and three pushes.
 
@@ -360,6 +383,18 @@ already `Hashable` and already in hand at every call site. The stack and its
 `Route` enum belong to `SeasonsTab`, so `GameDayView` and `SquadDetailView` take
 an `onOpenResult` closure rather than reaching for the path, the same way
 `MatchmakingCard` takes `onOpenGameDay`.
+
+**Squad detail hides the navigation bar and carries its own back button**
+(`BandBackButton`, the user's call, 2026-09-23). With the bar showing, the band
+started below it and the bar's strip of page background sat between the status
+bar and the band — "cuts off abruptly towards the top". Hidden, the band starts
+at the safe area exactly where the tab's does, and the back button sits in the
+band's first row in `ProfileButton.Slot`'s frame, mirrored to the leading edge.
+Verified on the device: the left-edge swipe still pops with the bar hidden, the
+button pops, and mid-push the two bands' crest, name and record line up. The
+screen keeps its `navigationTitle` for VoiceOver and adds an `.escape` action.
+`GameDayView` and `ResultView` do the same since their redesign (2026-09-23), so
+every push in the Seasons stack opens on a band that starts where the tab's does.
 
 **Squad invites are no longer answered here.** They used to render inline on
 squad home — a leader can invite from squad detail, but without somewhere to
@@ -439,10 +474,13 @@ results. Clearing the field restores the friends list in the same frame —
 `reactToQueryEdit` handles that undebounced, so an empty field never sits on
 stale results.
 
-**Rows are `FriendRow`**, a compact ~68pt card (avatar, name, `@handle`, one
-trailing control) with the same chrome every card in the app carries. It
-replaced the tall `FriendCard`, which put a full-width button under every name
-and made twelve friends read as twelve forms. The trailing control is passed in
+**Rows are `FriendRow`** — avatar, name, `@handle`, one trailing control — **on
+the page, not in a card** (UI revamp Phase 2b, 2026-09-23): the lists put them
+in `DividedRows`, a hairline between each starting under the name
+(`FriendRow.textInset`). It replaced the tall `FriendCard`, which put a
+full-width button under every name and made twelve friends read as twelve
+forms; the card chrome it kept until the revamp was an inline, unnamed copy of
+the card recipe. The trailing control is passed in
 as a `@ViewBuilder`, so one row serves the friends list, the search results and
 both inbox sections without a mode flag.
 
@@ -519,11 +557,41 @@ appears in the UI.
 A **public** run dismisses the sheet on save; it arrives in Local Runs on the
 listener that's already open. A **private** one doesn't — `createGame` returns
 the new document ID, `CreateGameViewModel.inviteLink` is set from it, and the
-sheet swaps the form for an invite step titled "Run Created" with the same
-`InviteLinkCard` the queued card uses. Cancel is dropped there and Create
-becomes Done: the run already exists, so offering Cancel would read as
-"discard it". The link is repeated on the card in Queued Games, so leaving
-without copying costs nothing.
+sheet swaps the form for an invite step titled "Run Created". Cancel is dropped
+there and Create becomes Done: the run already exists, so offering Cancel would
+read as "discard it".
+
+**The invite step leads with what works** (UI revamp Phase 2b, brief §5.11 — a
+correctness fix): the link opens nothing and an invite-only run holds only its
+host (`gaps/GAMES.md`), so the step says so under its title ("Invites don't work
+yet, so send your players the court and time"), shows the court and time in a
+panel, and offers **"Send the court and time"** through the system share sheet
+(`CreateGameViewModel.shareText`: "Pickup run at East End Park, Durham —
+Tonight at 7:30 PM"). The link sits last in that panel as a reference, in the
+same `InviteLinkCard` the Runs card uses — with its "doesn't work yet" note
+switched off **here only**, because the line under the title has just said it;
+on the Runs card nothing else does. The Invite-only option on the form says the
+same before the run exists ("Hidden. Just you until invites work."); it used to
+promise "a link to share with the players you want in". `CreateGameCopyTests`
+pins both.
+
+**The form is an inset-grouped form** (rebuilt 2026-09-23, the user's call: the
+Phase 2b version was "not very structured", with "more text and not a lot of
+icons"). The court is the heading (`CourtTitle`, over its address with a pin),
+on `hooprGroupedBackground`; under it, three `FormPanel`s — **when** (Day,
+Tip-off), **how many** (Players), **who can join** (Public, Invite only). Every
+row is the same shape, `FormRow`: an accent glyph in a 28pt column, a title,
+and the value or control at the trailing edge, stacking under the title at the
+largest text sizes. **Day** opens a strip of chips — Today, Thu 24, … — for
+every day the rules allow (30 on), and picking one keeps the time
+(`CreateGameViewModel.tipOff(on:keepingTimeOf:within:)`, which moves a time
+already past to the next quarter hour the rules allow). **Tip-off** opens a
+time wheel. One picker is open at a time and neither by default, so the three
+taps with the defaults accepted are unchanged. **Players** is `− n +` at the
+trailing edge with the format ("5-on-5") under the title, one adjustable element
+to VoiceOver. **Public / Invite only** are two option rows with a radio mark and
+one short line each. A same-day time before 5 PM reads "Today", from 5 PM
+"Tonight" — `Game.dayText(for:)`, shared with Home and Runs.
 
 `InviteLink` (in `Support/`) owns the `hoopsrn://game/{id}` format — one
 definition, because the create flow holds a bare document ID and the card holds
@@ -532,8 +600,9 @@ side alone.
 
 ## `ProfileView`
 
-**Two panes, one screen.** A `Pane` enum — `.profile`, `.friends` — behind a
-segmented control. The pairing isn't arbitrary: both panes answer "who am I in
+**Two panes, one screen.** A `Pane` enum — `.profile`, `.friends` — behind two
+labels with a sliding accent underline (the map list's Now / Nearby / Saved
+treatment; it was an orange pill on a grey track until the revamp). The pairing isn't arbitrary: both panes answer "who am I in
 this app", one about your own settings and one about the people attached to
 them, and it's what lets a friend request be visible from the same place you go
 to change your home court. The screen holds **two view models** for that reason,
@@ -607,17 +676,26 @@ replaced `ProfileCard`, and the mosaic went with it. That layout sized every
 card to its slot — a `.feature` `Home Court` spanning two tiles, `Email` full
 width between two pairs — which meant a card's *height* carried meaning its
 content didn't, and a long court name had to shrink to fit a tile rather than
-simply be read. A row is the opposite trade: one field per line, symbol in a
-tinted square on the left, label over value, chevron when it leads somewhere,
-values free to run the width of the page.
+simply be read. A row is the opposite trade: one field per line, a symbol on
+the left, label over value, chevron when it leads somewhere, values free to run
+the width of the page.
+
+**Since UI revamp Phase 2b the rows sit on the page** (`UI_REDESIGN_BRIEF.md`
+§5.9). Each field used to carry its own card *and* a tinted icon tile — 7 panels
+and 14 shapes in one screenful, the boxiest screen in the app. Now the rows are
+grouped under `label`s ("Your game", "Account") inside `DividedRows`, the symbol
+is a plain secondary mark in a fixed 28pt column, and the identity above is the
+screen's band: the handle at `display`, the home court under it (the one fact
+that identifies you to other people), the uid demoted to a caption. At rest the
+top bar takes the band's ground, so the page opens on one band rather than a
+bar, a strip of page and then the block.
 
 **Rows state no height at all** — the mosaic's `@ScaledMetric` floors
 (`tileHeight`, `featureHeight`) are gone with it. A row is as tall as its own
 content, which is what lets a value wrap or scale at large Dynamic Type sizes
 without a caller predicting it. Nothing interlocks any more, so nothing needs a
-floor. Chrome is the app's usual card — 14pt radius, `hooprSurface`, 1pt
-`hooprBorder`, a 6% shadow — shared with `ProfileActionRow` through one
-`profileRowChrome()` helper so the tappable rows and Sign Out can't drift.
+floor. `ProfileRow` and `ProfileActionRow` share `ProfileRowSymbol`, so the
+tappable rows and Sign Out keep one leading column.
 
 A row's `detail` (the home court's city) is a trailing fragment on the *value*
 line, set off with a middot — and it's dropped **whole** rather than truncated
@@ -650,7 +728,7 @@ to, via the same `onTap: nil` mechanism.
 along its top; a pinned bar over a page that already scrolls to the bottom is a
 permanent reminder of the one action nobody comes here for — and it made no
 sense at all under the Friends pane. It's a `ProfileActionRow` tinted
-`hooprRed`. Errors raised outside a sheet (a profile load, a sign-out) used to
+`hooprRed`, the last row of the Account group. Errors raised outside a sheet (a profile load, a sign-out) used to
 surface in that bar and now lead the Profile pane, where they're read before
 the fields they're about.
 
@@ -671,19 +749,23 @@ keeps a light-only value from creeping back in.
 
 | Role | Used for |
 |---|---|
-| `hooprOrange` | Brand **fill** — primary buttons, selected chips and pills (the selected profile pane, the queue sheet's day selector, the format chip), the tint on active glass, the win pill, and the 12–14% wash behind a badge or an icon tile. **A fill, never a mark:** as a foreground it is 3.17:1 on white, 2.91:1 on `hooprFill`, and 2.78:1 on its own wash. Lifted in dark mode, where the light-mode orange reads muddy. |
+| `hooprOrange` | Brand **fill** — primary buttons, selected chips and pills (the selected profile pane, the queue sheet's day selector, the format chip), the tint on active glass, and the 12–14% wash behind a badge. **A fill, never a mark:** as a foreground it is 3.17:1 on white, 2.91:1 on `hooprFill`, and 2.78:1 on its own wash. Lifted in dark mode, where the light-mode orange reads muddy. |
 | `hooprBrandAccent` | Brand **mark** — orange drawn as something *read*: text ("Sign up", a sheet's "Done", the HOSTING badge), glyphs, focus rings and selection strokes, the capacity bar, spinner / slider / date-picker tints, and the tab bar's selected item. `hooprOrange`'s own hue and saturation, deepened in light mode (`#B8400F`) until it clears 4.5:1 on every ground it is drawn on; in dark mode it *is* `hooprOrange`'s dark value, which already does. **Never a fill** — black on it is 3.78:1. `BrandMarkUsageTests` fails if a view draws `hooprOrange` in `foregroundStyle`, `tint` or `stroke`. |
 | `hooprDarkOrange` | The map's marker tint, via `UIColor(Color.hooprDarkOrange)`. |
 | `hooprRed` | Errors, Sign Out, "Remove home court", and the notification indicators — the inbox badge and the profile button's dot. Lightened in dark mode to hold contrast. |
 | `hooprOnBrand` | Content *on top of* the orange — button labels, the selected pane's title, the map pin's glyph. **Black**, and fixed: orange is a light colour in both appearances, so white on it measured 2.55:1 / 2.25:1 — under AA, on every primary button. Black clears 8.24:1 / 9.33:1. |
 | `hooprOnRed` | The one label drawn on a solid red fill (the inbox badge's count). The only role here that inverts, because `hooprRed` is deep in light mode and lightened in dark: white passes light and fails dark, black the reverse. |
+| `hooprFormWin` / `hooprFormLoss` | The form guide's played dots — green a win, red a loss (the user's call, 2026-09-22). Each clears the 3:1 graphic floor on the band and on a card, in both appearances; win on the light band (3.15:1) sets how light the green can go. `hooprFormLoss` is a role of its own rather than `hooprRed`: a loss is a result, not an error, and dark mode's error red sits too close to the win green in lightness (1.62:1 against 2.25:1). |
+| `hooprFormUnplayed` | A form slot not yet played. **About 2:1, deliberately below the played dots** — a placeholder, not a third kind of result. |
+| `hooprOnFormResult` | The ✓ / ✕ drawn on a played dot when *Differentiate Without Color* is on. White in light mode, black in dark (the dark dots are light colours), like `hooprOnRed`. |
 | `hooprBackground` | The page behind everything. |
 | `hooprSurface` | Cards and sheets. Equal to the background in light mode (separation there comes from border + shadow); lifted in dark mode, where a shadow on black conveys nothing. |
 | `hooprFill` | Field and button fills, unselected chips, the empty half of a capacity bar. |
+| `hooprGroupedBackground` | The ground of an inset-grouped form — `CreateGameSheet` — whose `FormPanel`s are `hooprSurface`, so the page steps *down* around them: `hooprFill`'s value in light, the page's black in dark. Resolves to those proven values on purpose, so every pairing drawn on it is already asserted; `ThemeContrastTests` pins that and that a panel steps off it in both appearances. |
 | `hooprBorder` | Rules, dividers, unfocused borders, the sheet's drag handle. Deliberately faint (1.2:1 on white) — a hairline that tidies a card's edge, not a boundary. |
 | `hooprElevatedSurface` | A surface raised one level above a card — a card inside a sheet, a popover. **Dark carries the lift in the fill** (`#242426`, one visible step above a card and one below a field); **light cannot** — nothing is lighter than white — so it *is* white there and the lift comes from `hooprShadow`. Defined and asserted in Phase 1, not yet drawn anywhere. Whether light mode's page ground moves off pure white is a design decision the role does not make. |
 | `hooprHoverFill` | A row or control being touched or hovered, drawn over a card. Light `#ECECEC` matches the pill the iOS 26 tab bar draws behind its selected item (`#EDEDED`, sampled). Dark is deliberately no lighter than `#2E2E30` — primary text, secondary text and the accent must keep clearing 4.5:1 on it, and the accent is the ceiling. Not yet drawn anywhere. |
-| `hooprSeparatorStrong` | A line that has to be *seen* — a component boundary at the 3:1 WCAG 1.4.11 asks of one, on every ground in both appearances. Where `hooprBorder` is faint on purpose. Not yet drawn anywhere: switching a field outline to it is a visible change that belongs with the composition that wants it. |
+| `hooprSeparatorStrong` | A line that has to be *seen* — a component boundary at the 3:1 WCAG 1.4.11 asks of one, on every ground in both appearances. Where `hooprBorder` is faint on purpose. Drawn as every hero band's baseline, the Login fields' unfocused outline, `WinnerButton`'s edge, game day's not-yet-arrived circle and the create sheet's unselected radio — each where a boundary has to be seen, not merely tidied. |
 | `hooprHeat(tier:)` / `hooprOnHeat(tier:)` | The "how busy is this court today" ramp — five fixed fills, each paired with the label that reads on it. **One table**, so a fill and its label can't be retuned apart: black through tier 2, white from tier 3, where black stops clearing 4.5:1 (it was 4.01 and 3.43 on the two deepest, on the map pin's count). Fixed, not appearance-aware, on purpose — a data scale read against the map's own basemap. Views call `CourtHeat`, which owns the count-to-tier rule. |
 | `hooprPrimaryText` | Titles, values, primary labels. |
 | `hooprSecondaryText` | Labels, captions, unselected tab text. |
@@ -708,22 +790,36 @@ buttons, where the crest is the control. Where a crest carries the meaning alone
 — the match card's crest-vs-crest row — the **row** gets the label, not the
 crest.
 
-`FormGuide` renders the last five results as W/L pills and `NeutralResultPill`
-covers everything that isn't a result. Both are fixed-diameter circles, which is
-precisely the case `maximumSize` exists for: `ResultPillMetrics` holds the
-diameter and the cap together, and `SeasonsAccessibilityTests` measures them
-against each other. The neutral pill shipped uncapped once and its glyph rendered
-taller than its own circle.
+`FormGuide` renders the last five confirmed results as **five dots** — green a
+win, red a loss, grey for a game not yet played, most recent on the left — so the
+row is always five long (the user's call, 2026-09-22; it replaced W/L letter
+pills). **Colour is the only cue drawn by default, and that is measured, not
+overlooked:** WCAG accepts lightness as a second cue at 3:1 between the two
+fills, and that isn't reachable while both dots clear 3:1 on the band (1.95:1
+light, 2.25:1 dark at best). So the record numeral beside the dots gives the
+counts, VoiceOver reads the order, and with iOS's *Differentiate Without Color*
+on each played dot grows (16 → 22pt) and carries a ✓ or ✕. `ThemeContrastTests`
+pins every one of those numbers, and `FormGuideTests` covers the padding and the
+spoken form.
 
-**On squad home the form sits beside the record when it fits** —
-`SquadRecordLine`, "1–0 this season (W)" — and beneath it when it doesn't. That is a
-`ViewThatFits`, not a preference: five pills are 164pt before the record's own text is
-counted, and the header's text column is about 230pt at the default size, so one to
-three results fit beside the record and four or five, and every result at the
-accessibility sizes, take the column — the same rule the queue sheet's time chips
-follow. A season with a full five-result form therefore looks as it did before; the
-beside-the-record layout is what a short history gets. `SquadDetailView`'s Record card
-still stacks the form beneath the number.
+**The lettered pills are gone.** `FormPill` (W/L) and `NeutralResultPill` (!, –, ·)
+were retired on 2026-09-23 when squad detail's history moved to the same dots:
+each history row is a `FormDot` (green, red, or grey for anything unconfirmed)
+beside the result **spelled out** — "Won", "Lost", "Results don't match",
+"Cancelled" — so the list never relies on colour. The neutral pill's history is
+worth keeping: it shipped with no `maximumSize` in a fixed 28pt circle and its
+glyph rendered taller than the circle; a dot carries no glyph to overflow.
+
+**On squad home the dots are pinned to the band's bottom-right corner** (the
+user's call, 2026-09-22): the record numeral holds the left edge with no caption,
+the dots hold the right, and their bottoms sit on the numeral's baseline. A
+`ViewThatFits` moves them beneath the numeral, still right-aligned, only when
+they don't fit beside it. They do fit beside even a "10–10" at `.accessibility3`.
+The larger *Differentiate Without Color* dots stack at that size (366pt of
+362pt, measured in `FormGuideTests`). Squad detail draws the same line — the
+crest row and the record line are shared components (`SquadIdentity`,
+`SquadRecordLine` in `SquadBand.swift`), so the push opens on the band that was
+tapped.
 
 Type goes through `.hooprFont(_:weight:maximumSize:)` in
 `Support/Typography.swift`, never `.font(.system(size:))`. The design's literal
@@ -739,6 +835,72 @@ device preference, not an account one — read by `hooprApp` and applied with
 `.preferredColorScheme` at the window root so it reaches sheets too. It's edited
 from the Appearance row on the profile screen, which is why that row sits
 outside `ProfileViewModel.EditableField`: nothing about it touches Firestore.
+
+### Motion
+
+**One vocabulary, in `Support/Motion.swift`** (UI revamp Phase 3). A change
+says what *kind* of change it is and the file decides how it moves:
+`.hooprSpring` for something the user moved (a selection sliding, a panel
+opening, the map's sheet on a detent), `.hooprSnap` for a control's own state
+(a radio, a chip, a count, a press), `.hooprSwap` for content replacing content
+(the matchmaking card's states, the create sheet's invite step). Entrances use
+`.hooprLift` — fade in while rising 8pt, with a quicker fade out for what they
+replace — and small things on top of others use `.hooprPop`. **No view writes
+its own duration or spring**; the one exception left is `MainTabView`, which a
+parallel session owns.
+
+**Reduce Motion turns every kind into the same 0.15s cross-fade**, stops
+entrances travelling, stops pressed buttons shrinking and symbols bouncing, and
+turns the zoom pushes back into ordinary pushes. The static members read
+`UIAccessibility.isReduceMotionEnabled`, because an action closure has no
+environment; `MotionTests` pins the rules through the pure functions.
+
+**Nothing animates on first appearance.** Every animation hangs off a change —
+`withAnimation` in an action, `.animation(_:value:)` keyed on a value, a
+transition on an insertion — so a screen draws in its final state the first
+time.
+
+What it's used for:
+
+- **Press feedback:** `.buttonStyle(.hooprPress)` on every button that draws
+  its own fill — it shrinks to 97% and dims while held.
+- **Live counts roll:** `hooprNumericTransition(_:)` on spots left, the Runs
+  count, the record, arrivals on game day, the inbox badge and the friends and
+  inbox counts. Not on the radius numeral, which tracks a slider and must not
+  lag it.
+- **Symbols:** the invite link's and the user ID's copy glyph, the create
+  sheet's radio marks, the map card's star and game day's arrival circles swap
+  with `.symbolEffect(.replace)`; the inbox tray bounces once when a request
+  *arrives* (`hooprBounce(onRiseOf:)`), not when one is answered.
+- **Card to detail:** squad detail zooms out of the band's squad or its row,
+  and game day out of the match card (`hooprZoomSource` /
+  `hooprZoomDestination`, iOS 18's zoom navigation transition).
+- **Lists:** Runs' cards fade and shrink slightly as they cross the scroll
+  view's edges (`hooprScrollLift`), and a run arriving or leaving moves the
+  others rather than jumping them.
+- **Haptics** (`.sensoryFeedback`), only for changes the user caused: joining
+  a run, joining a waitlist or marking one complete is `.success`; leaving or
+  cancelling is a light impact; starting a run, copying a link, marking yourself
+  here and a search turning into a match are `.success`. The run haptics hang off
+  `lastConfirmation` on `LocalRunsViewModel` and `FindAMatchViewModel`, which
+  only a write the server accepted sets — a roster changing under the listener
+  never buzzes. Match found is keyed on the card going *from searching* to
+  matched, so opening the tab onto an existing match is silent.
+
+### The court glyph
+
+A court is marked with **`Image.court`** (`Views/Components/CourtSymbol.swift`):
+a basketball court from above — a three-point arc and the key at each end, the
+centre circle, the half-court line — knocked out of a filled tile. **SF Symbols
+has no basketball court**; the app used `sportscourt.fill` until 2026-09-23,
+and the user pointed out it is a soccer pitch. It is a custom symbol
+(`Assets.xcassets/hoopr.court.fill.symbolset`), drawn by
+`tools/make_court_symbol.swift` — regenerate it there, never edit the SVG — so
+it sizes with `.hooprType(_:)`, sits on a text baseline and takes
+`.foregroundStyle` as the system glyph did. It draws about **1.36× wider than
+its point size** (the old glyph was 1.56×), which `CourtCardLayoutTests`
+measures. Drawn by `CourtTitle` (Home's band, the map's court card, the create
+sheet), the profile's home-court line, and the create sheet's invite step.
 
 ### Spacing
 
@@ -760,10 +922,9 @@ around it is deliberately not what grows with it, or a reader at
 three kinds of button), `ProfileView`'s 10pt row gap, and `Chip`'s 14 × 9, which
 is optically tuned against its 13pt label. They are composition decisions.
 
-**Four screens still inset their content 16, not 20** — `InboxSheet`,
-`QueueSheet`, `GameDayView` and `ResultView`. Consistent within themselves, so
-there is no visible mismatch to fix, and moving them is a layout change on
-screens that get recomposed anyway. Don't "correct" them one at a time.
+**Every screen now insets its content `Spacing.pageMargin` (20).** The last
+four at 16 — `InboxSheet`, `QueueSheet`, `GameDayView`, `ResultView` — moved
+with their Phase 2b redesigns on 2026-09-23.
 
 ---
 
@@ -803,7 +964,9 @@ screens that get recomposed anyway. Don't "correct" them one at a time.
   literal colour in a view is a bug — it won't invert.
 - Font sizes go through `.hooprFont(...)`. The deliberate exceptions are sized
   as a fraction of a fixed shape and commented as such: `PlayerAvatar`'s initial
-  and glyph, and `ProfileRow`'s leading symbol square.
+  and glyph, `SquadCrest`'s glyph, and `FormDot`'s ✓ / ✕. (`ProfileRow`'s
+  symbol left the list with its tinted square in the Phase 2b revamp; it now
+  scales through `hooprFont` up to a cap that fits its column.)
 - Read-only profile fields are expressed by omitting `onTap`, not by a
   disabled-state flag.
 - Profile rows are sized by their content. Don't give one a fixed height:
@@ -827,7 +990,7 @@ screens that get recomposed anyway. Don't "correct" them one at a time.
   spinner or control tint — is `hooprBrandAccent`. `BrandMarkUsageTests` reads
   `Views/` and fails on `hooprOrange` inside `foregroundStyle`, `tint` or
   `stroke`; it never fires on a fill, so a new orange button is free.
-- A mark and the wash behind it are two colours. A badge or icon tile draws its
+- A mark and the wash behind it are two colours. A badge draws its
   mark in `hooprBrandAccent` over a wash of `hooprOrange`; sharing one tint
   between them dulls the wash the moment the mark is deepened.
 - A label drawn on the heat ramp is `hooprOnHeat(tier:)`, never `hooprOnBrand`.

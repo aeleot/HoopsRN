@@ -8,6 +8,13 @@ import SwiftUI
 /// and a picker would invite someone to choose a pool they can't actually get
 /// to. It's stated as context instead, so nobody has to wonder why their squad
 /// only ever sees Durham opponents.
+///
+/// **Redesigned in UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.11). Four
+/// cards became one form: **the crest preview is the hero** — the one crest in
+/// the app that is feedback rather than decoration — centred at the top, large,
+/// over the name as it will read; then Name, Crest and Format under `label`s on
+/// the page. This is where a squad's colour (M3) is chosen, so the preview is
+/// the thing the two grids are edited against.
 struct CreateSquadSheet: View {
     @ObservedObject var viewModel: SquadViewModel
 
@@ -35,14 +42,16 @@ struct CreateSquadSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: Spacing.section) {
                     preview
-                    nameCard
-                    crestCard
-                    formatCard
+                    nameSection
+                    crestSection
+                    formatSection
                     regionNote
                 }
-                .padding(Spacing.pageMargin)
+                .padding(.horizontal, Spacing.pageMargin)
+                .padding(.top, Spacing.sm)
+                .padding(.bottom, Spacing.xxl)
             }
             .background(Color.hooprBackground)
             // The whole form is gated on the write, matching CreateGameSheet:
@@ -87,53 +96,66 @@ struct CreateSquadSheet: View {
 
     // MARK: - Preview
 
-    /// The crest at hero size with the name beside it, so the two grids below
+    /// The crest as the form's hero, centred and larger than anywhere else in
+    /// the app, with the name under it as it will read — so the two grids below
     /// are edited against the thing they're editing rather than against an
     /// abstract swatch.
     private var preview: some View {
-        HStack(spacing: 14) {
+        VStack(spacing: Spacing.sm) {
             // The one crest in the app that isn't merely decorative: it is the
             // only feedback that the two grids below did anything, and the
             // grids announce their own selections one at a time rather than the
             // pairing. Labelled rather than hidden for that reason alone.
-            SquadCrest(iconKey: iconKey, colorKey: colorKey, size: SquadCrest.Size.hero)
+            SquadCrest(iconKey: iconKey, colorKey: colorKey, size: Self.previewCrestSize)
                 .accessibilityHidden(false)
                 .accessibilityLabel("Crest: \(Self.iconName(iconKey)) in \(colorKey)")
+                .padding(.bottom, Spacing.xs)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(Squad.normalizedName(name).isEmpty ? "Your squad" : Squad.normalizedName(name))
-                    .hooprFont(20, weight: .bold)
-                    .foregroundStyle(
-                        Squad.normalizedName(name).isEmpty
-                            ? Color.hooprSecondaryText
-                            : Color.hooprPrimaryText
-                    )
-                    .lineLimit(2)
+            Text(Squad.normalizedName(name).isEmpty ? "Your squad" : Squad.normalizedName(name))
+                .hooprType(.title)
+                .foregroundStyle(
+                    Squad.normalizedName(name).isEmpty
+                        ? Color.hooprSecondaryText
+                        : Color.hooprPrimaryText
+                )
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
 
-                Text("\(format.displayName) · 0–0")
-                    .hooprFont(13)
-                    .foregroundStyle(Color.hooprSecondaryText)
-            }
-
-            Spacer(minLength: 0)
+            Text("\(format.displayName) · 0–0")
+                .hooprType(.caption)
+                .monospacedDigit()
+                .foregroundStyle(Color.hooprSecondaryText)
         }
-        .padding(Spacing.cardPadding)
-        .cardChrome()
+        .frame(maxWidth: .infinity)
+        .padding(.top, Spacing.md)
     }
+
+    /// Half again the hero crest: this is the one screen where the crest is the
+    /// subject. Every proportion inside `SquadCrest` derives from its size.
+    private static let previewCrestSize: CGFloat = SquadCrest.Size.hero * 1.5
 
     // MARK: - Name
 
-    private var nameCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
+    /// The field's edge is `hooprSeparatorStrong` (3:1), as Login's are: a
+    /// `hooprFill` ground on the white page is 1.09:1, so without it the one
+    /// field on the form was barely drawn.
+    private var nameSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             fieldTitle("Name")
 
             TextField("Rim Reapers", text: $name)
                 .textFieldStyle(.plain)
-                .hooprFont(16)
+                .hooprFont(16, maximumSize: 24)
                 .foregroundStyle(Color.hooprPrimaryText)
-                .padding(12)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 48)
                 .background(Color.hooprFill)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.hooprSeparatorStrong, lineWidth: 1)
+                )
                 .onChange(of: name) { _, _ in hasEdited = true }
 
             // The hint restates the bound the rules enforce, so a rejected name
@@ -142,31 +164,28 @@ struct CreateSquadSheet: View {
                 Text(SquadService.message(
                     for: problem, whileDoing: "naming your squad", context: .write
                 ))
-                .hooprFont(13)
+                .hooprType(.caption)
                 .foregroundStyle(Color.hooprRed)
+                .fixedSize(horizontal: false, vertical: true)
             } else {
                 Text("\(Squad.nameLengthRange.lowerBound)–\(Squad.nameLengthRange.upperBound) characters.")
-                    .hooprFont(13)
+                    .hooprType(.caption)
                     .foregroundStyle(Color.hooprSecondaryText)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.cardPadding)
-        .cardChrome()
     }
 
     // MARK: - Crest
 
-    private var crestCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
+    private var crestSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             fieldTitle("Crest")
 
             iconGrid
             colorGrid
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.cardPadding)
-        .cardChrome()
     }
 
     private var iconGrid: some View {
@@ -193,7 +212,7 @@ struct CreateSquadSheet: View {
                                 )
                         )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.hooprPress)
                 .accessibilityLabel(Self.iconName(key))
                 .accessibilityAddTraits(key == iconKey ? [.isSelected] : [])
             }
@@ -223,7 +242,7 @@ struct CreateSquadSheet: View {
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.hooprPress)
                 .accessibilityLabel(key.capitalized)
                 .accessibilityAddTraits(key == colorKey ? [.isSelected] : [])
             }
@@ -243,19 +262,17 @@ struct CreateSquadSheet: View {
 
     // MARK: - Format
 
-    private var formatCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
+    private var formatSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             fieldTitle("Format")
 
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 ForEach(SquadFormat.allCases, id: \.self) { option in
                     formatChip(option)
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.cardPadding)
-        .cardChrome()
     }
 
     /// 1v1 and 5v5 render as "soon" rather than being hidden: the schema
@@ -268,22 +285,22 @@ struct CreateSquadSheet: View {
         } label: {
             VStack(spacing: 2) {
                 Text(option.displayName)
-                    .hooprFont(15, weight: .semibold)
+                    .hooprType(.subhead)
 
                 if !option.isAvailable {
                     Text("soon")
-                        .hooprFont(11)
+                        .hooprType(.caption)
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .padding(.vertical, 6)
             .foregroundStyle(chipForeground(option))
             .background(
                 RoundedRectangle(cornerRadius: 10)
                     .fill(option == format ? Color.hooprOrange : Color.hooprFill)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.hooprPress)
         .disabled(!option.isAvailable)
         .accessibilityLabel(
             option.isAvailable
@@ -307,21 +324,23 @@ struct CreateSquadSheet: View {
     private var regionNote: some View {
         if let region = viewModel.regionForNewSquad {
             Text("Your squad will queue for matches in \(region).")
-                .hooprFont(13)
+                .hooprType(.caption)
                 .foregroundStyle(Color.hooprSecondaryText)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             Text("We couldn't work out which city to queue you in, so a squad can't be created yet. Open the map once to let the app find your nearest court.")
-                .hooprFont(13)
+                .hooprType(.caption)
                 .foregroundStyle(Color.hooprRed)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private func fieldTitle(_ text: String) -> some View {
         Text(text)
-            .hooprFont(13, weight: .semibold)
+            .hooprType(.label)
             .foregroundStyle(Color.hooprSecondaryText)
-            .textCase(.uppercase)
+            .accessibilityAddTraits(.isHeader)
     }
 }

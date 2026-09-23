@@ -191,25 +191,11 @@ struct HomeTab: View {
 
     /// Where. The glyph is a court rather than a pin: the line names *which
     /// court*, and a pin next to the distance below would say "location"
-    /// twice.
-    ///
-    /// Aligned on the first text baseline, so when a long court name wraps —
-    /// five in the dataset need three or four lines at `.accessibility3`
-    /// (`HomeHeroMetrics`) — the glyph stays with the first line.
+    /// twice. `CourtTitle` is shared with the map's court card, and owns the
+    /// rule for when the glyph has to make room for a long name.
     private func courtLine(_ listing: LocalRunsViewModel.Listing) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
-            Image(systemName: "sportscourt.fill")
-                .hooprType(.headline)
-                .foregroundStyle(Color.hooprBrandAccent)
-                .accessibilityHidden(true)
-
-            Text(listing.courtName)
-                .hooprType(.title)
-                .foregroundStyle(Color.hooprPrimaryText)
-                .lineLimit(HomeHeroMetrics.courtNameLineLimit)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            CourtTitle(name: listing.courtName)
             Spacer(minLength: 0)
         }
     }
@@ -317,31 +303,54 @@ struct HomeTab: View {
         .padding(.top, Spacing.xs)
     }
 
-    /// Nothing booked. The answer is a phrase rather than a number, so it
-    /// takes the display tier and the action that fixes it sits right under
-    /// it — the hot list below the baseline says *where*, so this doesn't
-    /// repeat it.
+    /// Nothing booked.
+    ///
+    /// **A quieter sibling of the booked state, not a louder one** (reworked
+    /// 2026-09-22 at the user's request). It first set "Nothing on tonight" in
+    /// the 40pt display tier over a full-width button, and a statement that
+    /// size, in the band where a tip-off time normally sits, read as a
+    /// headline about nothing. Now it has the booked state's own shape: the
+    /// icon-and-title line the court name uses, at the same `title` size; one
+    /// line saying what the button leads to; and the button on the band's
+    /// left edge, where "Your runs ›" sits when there is a run. It is still
+    /// the largest thing on the screen, which is what the answer should be.
     private var openAnswer: some View {
-        VStack(alignment: .leading, spacing: Spacing.lg) {
-            Text("Nothing on tonight")
-                .hooprType(.display)
-                .foregroundStyle(Color.hooprPrimaryText)
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                Image(systemName: "figure.basketball")
+                    .hooprType(.headline)
+                    .foregroundStyle(Color.hooprBrandAccent)
+                    .accessibilityHidden(true)
+
+                Text("No run tonight")
+                    .hooprType(.title)
+                    .foregroundStyle(Color.hooprPrimaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text("Join one nearby or start your own.")
+                .hooprType(.body)
+                .foregroundStyle(Color.hooprSecondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
             Button {
                 onOpenMap(nil)
             } label: {
-                Text("Find a court")
-                    .hooprType(.body)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.hooprOnBrand)
-                    .padding(.horizontal, Spacing.xl)
-                    .frame(minHeight: 44)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.hooprOrange)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                HStack(spacing: 6) {
+                    Image(systemName: "map.fill")
+                        .hooprFont(14, weight: .semibold, maximumSize: 20)
+                    Text("Find a court")
+                        .hooprType(.body)
+                        .fontWeight(.semibold)
+                }
+                .foregroundStyle(Color.hooprOnBrand)
+                .padding(.horizontal, Spacing.xl)
+                .frame(minHeight: 44)
+                .background(Color.hooprOrange)
+                .clipShape(Capsule())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.hooprPress)
+            .padding(.top, Spacing.sm)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -540,7 +549,7 @@ struct HomeTab: View {
 /// can grow. Clipping the screen's own answer is the one thing it must not do
 /// (`UI_REVAMP_PROMPT.md` §2c, "reflow, don't clip").
 ///
-/// The same shape as `ResultPillMetrics`: the number the layout depends on
+/// The same shape as the retired `ResultPillMetrics`: the number the layout depends on
 /// lives beside the view that draws it, and a test asks whether it still
 /// holds.
 nonisolated enum HomeHeroMetrics {

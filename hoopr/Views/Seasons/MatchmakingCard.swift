@@ -6,37 +6,103 @@ import SwiftUI
 /// already describes this space as "the one card that matters right now — *next
 /// match*, *searching*, or *find a match*", so all three live in one card that
 /// swaps its contents rather than three screens a user has to navigate between.
+///
+/// **The swap is a transition, not a cut** (UI revamp Phase 3). The states used
+/// to replace each other in a single frame — the most consequential change on
+/// the tab, "we found you a match", drawn exactly like a re-render. Now the
+/// outgoing state fades as the incoming one lifts in (`hooprLift`), the card's
+/// edge fades in with a match, and the card's height follows on `hooprSwap`.
+/// Keyed on the *kind* of state, so an update inside one — the opponent's
+/// crest arriving, the search clock ticking — never re-runs it. A search turning
+/// into a match also gives a success haptic (`feedback(from:to:)`).
 struct MatchmakingCard: View {
     @ObservedObject private var viewModel: MatchmakingViewModel
 
     private let squad: Squad
     private let onQueue: () -> Void
     private let onOpenGameDay: (SeasonGame) -> Void
+    /// Where the push into game day zooms out of (`hooprZoomSource`).
+    private let zoomNamespace: Namespace.ID
 
     init(
         viewModel: MatchmakingViewModel,
         squad: Squad,
+        zoomNamespace: Namespace.ID,
         onQueue: @escaping () -> Void,
         onOpenGameDay: @escaping (SeasonGame) -> Void
     ) {
         self.viewModel = viewModel
         self.squad = squad
+        self.zoomNamespace = zoomNamespace
         self.onQueue = onQueue
         self.onOpenGameDay = onOpenGameDay
     }
 
+    /// The zoom source ID for a match, shared with the push's destination.
+    static func zoomID(for game: SeasonGame) -> String { "game-\(game.id)" }
+
+    /// The card is always a zoom source — a modifier that came and went with
+    /// the match would give the card a new identity at exactly the moment it
+    /// should be animating — and only a match's ID is one a push asks for.
+    private static func zoomSourceID(for phase: MatchmakingViewModel.Phase) -> String {
+        if case .matched(let game) = phase { return zoomID(for: game) }
+        return "matchmaking"
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            switch viewModel.phase {
-            case .idle:              idleState
-            case .searching:         searchingState
-            case .settling:          settlingState
-            case .matched(let game): matchState(game)
+        let phase = viewModel.phase
+        let isMatched = Self.kind(of: phase) == .matched
+
+        ZStack(alignment: .topLeading) {
+            switch phase {
+            case .idle:              idleState.transition(.hooprLift)
+            case .searching:         searchingState.transition(.hooprLift)
+            case .settling:          settlingState.transition(.hooprLift)
+            case .matched(let game): matchState(game).transition(.hooprLift)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.cardPadding)
-        .cardChrome()
+        // **A card only when there's a match** (UI revamp Phase 2b). A match is
+        // one tappable unit — the whole body opens game day — so it earns its
+        // edges; "Find a match" and the search are a section of the page under
+        // the band, and a box around them grouped nothing the heading doesn't.
+        .padding(isMatched ? Spacing.cardPadding : 0)
+        .cardChrome(isShown: isMatched)
+        .hooprZoomSource(id: Self.zoomSourceID(for: phase), in: zoomNamespace)
+        .animation(.hooprSwap, value: Self.kind(of: phase))
+        .sensoryFeedback(trigger: phase) { old, new in
+            Self.feedback(from: old, to: new)
+        }
+    }
+
+    /// The four states without the match they carry — what the transition is
+    /// keyed on.
+    enum Kind: Hashable {
+        case idle, searching, settling, matched
+    }
+
+    nonisolated static func kind(of phase: MatchmakingViewModel.Phase) -> Kind {
+        switch phase {
+        case .idle:      .idle
+        case .searching: .searching
+        case .settling:  .settling
+        case .matched:   .matched
+        }
+    }
+
+    /// **Match found is the one change here worth a haptic**, and only when
+    /// it's news: a search (or the moment after one) turning into a match.
+    /// Opening the tab onto a match that already exists goes `idle → matched`
+    /// as the listeners arrive, and says nothing — a buzz on every visit would
+    /// be the "programmatic rebuild" Phase 3 rules out.
+    nonisolated static func feedback(
+        from old: MatchmakingViewModel.Phase,
+        to new: MatchmakingViewModel.Phase
+    ) -> SensoryFeedback? {
+        switch (kind(of: old), kind(of: new)) {
+        case (.searching, .matched), (.settling, .matched): .success
+        default: nil
+        }
     }
 
     // MARK: - Find a match
@@ -44,11 +110,11 @@ struct MatchmakingCard: View {
     private var idleState: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Find a match")
-                .hooprFont(16, weight: .semibold)
+                .hooprType(.headline)
                 .foregroundStyle(Color.hooprPrimaryText)
 
             Text("Queue your squad and we'll pair you with another one nearby.")
-                .hooprFont(14)
+                .hooprType(.body)
                 .foregroundStyle(Color.hooprSecondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -61,7 +127,7 @@ struct MatchmakingCard: View {
                         .padding(.vertical, 12)
                         .background(Capsule().fill(Color.hooprOrange))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.hooprPress)
                 .padding(.top, 2)
             } else {
                 // Not an error and not a disabled button with no explanation:
@@ -88,7 +154,7 @@ struct MatchmakingCard: View {
             ProgressView().tint(Color.hooprBrandAccent)
 
             Text("Match found")
-                .hooprFont(16, weight: .semibold)
+                .hooprType(.headline)
                 .foregroundStyle(Color.hooprPrimaryText)
 
             Spacer(minLength: 0)
@@ -105,7 +171,7 @@ struct MatchmakingCard: View {
                 ProgressView().tint(Color.hooprBrandAccent)
 
                 Text(viewModel.isWidening ? "Widening the search" : "Looking for a match")
-                    .hooprFont(16, weight: .semibold)
+                    .hooprType(.headline)
                     .foregroundStyle(Color.hooprPrimaryText)
 
                 Spacer(minLength: 0)
@@ -253,8 +319,9 @@ struct MatchmakingCard: View {
                         }
                     }
                 }
+                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.hooprPress)
 
             if !viewModel.duplicateGames.isEmpty {
                 // The window between a game landing and both tickets being

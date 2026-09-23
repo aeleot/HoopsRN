@@ -273,6 +273,29 @@ final class HomeViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
+    // MARK: - Choosing the next run
+
+    /// The soonest run you're on that is still worth showing.
+    ///
+    /// **Filtered by `isVisible(at:)`, which this used not to be — and the
+    /// gap only mattered once the redesign made this run the screen's hero.**
+    /// The queued listener selects by roster and time window, not by status
+    /// (`GameService`), so a run the host has marked complete stays in
+    /// `queuedGames` for the rest of `Game.visibilityGrace`. The Runs tab and
+    /// the map's court card both drop it with `isVisible(at:)`. Home took
+    /// `queuedGames.first` as it came, so for up to four hours after a run was
+    /// recorded as over, the biggest thing on the app's first screen announced
+    /// it as tonight's — with its spots left and a way in. Seen in the live app
+    /// on 2026-09-22 with the map saying "No runs here today" about the same
+    /// court.
+    ///
+    /// The listener delivers runs soonest-first, so the first visible one is
+    /// the answer. `nonisolated static` so the rule can be tested without a
+    /// service, like `rankHotCourts` below.
+    nonisolated static func nextRun(from games: [Game], at now: Date = Date()) -> Game? {
+        games.first { $0.isVisible(at: now) }
+    }
+
     // MARK: - Ranking
 
     /// Today's busiest courts, most games first.
@@ -358,9 +381,7 @@ final class HomeViewModel: ObservableObject {
     /// element is the run to show. A run that started an hour ago is still the
     /// one you're at, which is why this doesn't skip past it to the next one.
     private func rebuildNextRun(queued: [Game]? = nil) {
-        let games = queued ?? gameService.queuedGames
-
-        guard let game = games.first else {
+        guard let game = Self.nextRun(from: queued ?? gameService.queuedGames) else {
             nextRun = nil
             isHostingNextRun = false
             isWaitlistedOnNextRun = false

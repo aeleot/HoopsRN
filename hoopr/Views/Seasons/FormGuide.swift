@@ -1,100 +1,125 @@
 import SwiftUI
 
-/// The last five confirmed results as W/L pills — plan §5's "cheapest possible
-/// way to make a record feel like a season rather than two integers."
+/// The last five confirmed results as five dots: green a win, red a loss, and
+/// grey for a game not yet played. That replaced the orange "W" and grey "L"
+/// pills at the user's direction (2026-09-22). A squad with two results shows
+/// two coloured dots and three grey ones, so the row is always five long.
 ///
-/// Most recent first, matching `SeasonGame.form(for:in:limit:)`, which is where
-/// the ordering is decided and tested. This view draws what it is handed and
-/// derives nothing.
+/// Most recent first, from the left, matching `SeasonGame.form(for:in:limit:)`,
+/// which is where the ordering is decided and tested. This view draws what it
+/// is handed and derives nothing but the padding.
+///
+/// **Colour isn't the only cue, though by default it is the only one
+/// drawn.** Win and loss can't be told apart by lightness alone while both
+/// stay readable on the band (measured; see `hooprFormWin`). So:
+/// - the record numeral beside the dots says how many of each;
+/// - VoiceOver reads the order;
+/// - with iOS's *Differentiate Without Color* setting on, each played dot
+///   grows to carry a ✓ or ✕.
 struct FormGuide: View {
     let form: [SeasonGame.Outcome]
 
+    @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
+
+    /// How many results the guide shows, and so how many dots it always draws.
+    nonisolated static let length = 5
+
     var body: some View {
-        if !form.isEmpty {
-            HStack(spacing: 6) {
-                ForEach(Array(form.enumerated()), id: \.offset) { _, outcome in
-                    FormPill(outcome: outcome)
+        HStack(spacing: FormDotMetrics.spacing) {
+            ForEach(Array(Self.slots(for: form).enumerated()), id: \.offset) { _, outcome in
+                FormDot(outcome: outcome, isMarked: differentiateWithoutColor)
+            }
+        }
+        // Five dots announced one by one read as five unrelated shapes.
+        // Combined, they read as the sentence a sighted user gets from the
+        // shape of the row. With no results there is nothing to say that the
+        // record beside it hasn't ("No games played yet this season").
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Self.spokenForm(form))
+        .accessibilityHidden(form.isEmpty)
+    }
+
+    /// `form` as exactly `length` slots, played results first and `nil` for
+    /// each game not yet played. A longer `form` is cut to the most recent.
+    nonisolated static func slots(for form: [SeasonGame.Outcome]) -> [SeasonGame.Outcome?] {
+        let played = form.prefix(length).map { Optional($0) }
+        return played + Array(repeating: nil, count: length - played.count)
+    }
+
+    /// "Recent form, most recent first: win, loss". The grey slots aren't read.
+    /// They are placeholders, and the record already says how many games were
+    /// played.
+    nonisolated static func spokenForm(_ form: [SeasonGame.Outcome]) -> String {
+        let results = form.prefix(length).map { $0 == .win ? "win" : "loss" }
+        return "Recent form, most recent first: \(results.joined(separator: ", "))"
+    }
+}
+
+/// The geometry of a form dot.
+///
+/// Fixed rather than scaled with Dynamic Type: a dot carries no text, so there
+/// is nothing in it to enlarge. The marked size is the exception. When
+/// *Differentiate Without Color* puts a ✓ or ✕ inside, the dot grows so the
+/// glyph reads. The glyph keeps `.system(size:)`, as `SquadCrest`'s does,
+/// because it is locked inside a frame that can't grow.
+enum FormDotMetrics {
+    static let diameter: CGFloat = 16
+    static let markedDiameter: CGFloat = 22
+    static let glyphSize: CGFloat = 11
+    static let spacing = Spacing.sm
+}
+
+/// One slot in the form guide: a win, a loss, or `nil` for not yet played.
+struct FormDot: View {
+    let outcome: SeasonGame.Outcome?
+    /// Draws the ✓ or ✕ inside, for *Differentiate Without Color*.
+    var isMarked: Bool = false
+
+    private var diameter: CGFloat {
+        isMarked ? FormDotMetrics.markedDiameter : FormDotMetrics.diameter
+    }
+
+    var body: some View {
+        Circle()
+            .fill(fill)
+            .frame(width: diameter, height: diameter)
+            .overlay {
+                if isMarked, let glyph {
+                    Image(systemName: glyph)
+                        .font(.system(size: FormDotMetrics.glyphSize, weight: .heavy))
+                        .foregroundStyle(Color.hooprOnFormResult)
                 }
             }
-            // Five circles announced one by one read as five unrelated letters.
-            // Combined, they read as the sentence a sighted user gets from the
-            // shape of the row.
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Recent form, most recent first: \(spokenForm)")
+    }
+
+    private var fill: Color {
+        switch outcome {
+        case .win: Color.hooprFormWin
+        case .loss: Color.hooprFormLoss
+        case nil: Color.hooprFormUnplayed
         }
     }
 
-    private var spokenForm: String {
-        form.map { $0 == .win ? "win" : "loss" }.joined(separator: ", ")
-    }
-}
-
-/// The geometry both result pills share.
-///
-/// **The cap is load-bearing, not decoration.** A pill is a fixed-diameter
-/// circle, which is exactly the case `Typography` names as needing
-/// `maximumSize`: the frame can't grow, so uncapped text at the accessibility
-/// sizes renders outside its own circle. `SeasonsAccessibilityTests` measures
-/// these three numbers against each other and fails if a letter stops fitting —
-/// the neutral pill shipped uncapped in Phase 6 and that test is what found it.
-enum ResultPillMetrics {
-    static let diameter: CGFloat = 28
-    static let fontSize: CGFloat = 13
-    static let maximumFontSize: CGFloat = 17
-}
-
-/// One confirmed result. W or L, and nothing else means either.
-struct FormPill: View {
-    let outcome: SeasonGame.Outcome
-
-    var body: some View {
-        Text(outcome.rawValue)
-            .hooprFont(
-                ResultPillMetrics.fontSize,
-                weight: .bold,
-                maximumSize: ResultPillMetrics.maximumFontSize
-            )
-            .foregroundStyle(outcome == .win ? Color.hooprOnBrand : Color.hooprSecondaryText)
-            .frame(width: ResultPillMetrics.diameter, height: ResultPillMetrics.diameter)
-            .background(
-                Circle().fill(outcome == .win ? Color.hooprOrange : Color.hooprFill)
-            )
-            .accessibilityLabel(outcome == .win ? "Win" : "Loss")
-    }
-}
-
-/// A match with no confirmed result — disputed, cancelled, or still waiting.
-///
-/// Deliberately *not* a W/L pill and deliberately not coloured like one: a match
-/// nobody confirmed is not a loss, and must never look like one at a glance. The
-/// glyph is a placeholder for a result rather than a result, so the spoken label
-/// carries the whole meaning.
-struct NeutralResultPill: View {
-    let glyph: String
-    let label: String
-
-    var body: some View {
-        Text(glyph)
-            .hooprFont(
-                ResultPillMetrics.fontSize,
-                weight: .bold,
-                maximumSize: ResultPillMetrics.maximumFontSize
-            )
-            .foregroundStyle(Color.hooprSecondaryText)
-            .frame(width: ResultPillMetrics.diameter, height: ResultPillMetrics.diameter)
-            .background(Circle().fill(Color.hooprFill))
-            .accessibilityLabel(label)
+    private var glyph: String? {
+        switch outcome {
+        case .win: "checkmark"
+        case .loss: "xmark"
+        case nil: nil
+        }
     }
 }
 
 #Preview {
     VStack(alignment: .leading, spacing: 16) {
         FormGuide(form: [.win, .win, .loss, .win, .loss])
-        FormGuide(form: [.loss])
-        HStack(spacing: 6) {
-            NeutralResultPill(glyph: "!", label: "Results don't match")
-            NeutralResultPill(glyph: "–", label: "Cancelled")
-            NeutralResultPill(glyph: "·", label: "No result yet")
+        FormGuide(form: [.win, .loss])
+        FormGuide(form: [])
+        // What *Differentiate Without Color* draws. The environment value is
+        // read-only, so the preview draws the dots directly.
+        HStack(spacing: FormDotMetrics.spacing) {
+            FormDot(outcome: .win, isMarked: true)
+            FormDot(outcome: .loss, isMarked: true)
+            FormDot(outcome: nil, isMarked: true)
         }
     }
     .padding()

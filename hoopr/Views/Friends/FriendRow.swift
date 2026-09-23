@@ -1,13 +1,17 @@
 import SwiftUI
 
-/// One person, as a compact card: avatar, name over a subtitle, and whatever
-/// control the list they're in calls for.
+/// One person, as a row: avatar, name over a subtitle, and whatever control
+/// the list they're in calls for.
 ///
 /// Replaces the tall `FriendCard` this tab used to stack. A friends list is a
 /// list of *people*, and a full-width button under each name made twelve friends
-/// read as twelve forms. The chrome is still the app's card — `hooprSurface`, a
-/// 1pt `hooprBorder`, the same 6% shadow `GameCard` and `ProfileRow` carry — at
-/// roughly a third of the height.
+/// read as twelve forms.
+///
+/// **A row, not a card, since UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md`
+/// §5.9). It carried an inline, unnamed copy of the card recipe (radius 14,
+/// border, shadow) around every person; the lists now put these in
+/// `DividedRows`, with the hairline starting under the name
+/// (`FriendRow.textInset`).
 ///
 /// Deliberately state-free, like `GameCard`: it renders what it's handed and
 /// reports taps. The trailing control is supplied by the caller rather than
@@ -26,6 +30,10 @@ struct FriendRow<Trailing: View>: View {
     @ViewBuilder let trailing: Trailing
 
     private static var avatarDiameter: CGFloat { 44 }
+
+    /// Where a `DividedRows` hairline starts, so it runs under the name rather
+    /// than the avatar.
+    static var textInset: CGFloat { avatarDiameter + 12 }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -51,29 +59,19 @@ struct FriendRow<Trailing: View>: View {
 
             trailing
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color.hooprSurface)
-                .shadow(color: Color.hooprShadow(opacity: 0.06), radius: 8, x: 0, y: 2)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.hooprBorder, lineWidth: 1)
-        )
+        .padding(.vertical, 10)
     }
 
     private var identity: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(row.displayName)
-                .hooprFont(16, weight: .semibold)
+                .hooprType(.subhead)
                 .foregroundStyle(Color.hooprPrimaryText)
                 .lineLimit(1)
 
             if !subtitle.isEmpty {
                 Text(subtitle)
-                    .hooprFont(13)
+                    .hooprType(.caption)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .lineLimit(1)
             }
@@ -112,7 +110,7 @@ struct FriendRow<Trailing: View>: View {
         lastCompletedAt: nil
     )
 
-    return VStack(spacing: 10) {
+    return DividedRows(leadingInset: 56) {
         FriendRow(
             row: .init(uid: "abc", profile: profile, relationship: .friends),
             subtitle: "Durham Central Park",

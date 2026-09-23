@@ -305,23 +305,41 @@ nonisolated extension Game {
     /// as supporting detail, so they need the halves separately — derived from
     /// the same `scheduledTime`, so they cannot disagree.
     var timeText: String {
-        Self.timeFormatter.string(from: scheduledTime)
+        Self.timeText(for: scheduledTime)
     }
 
-    /// "Tonight" / "Tomorrow" / "Sat, Aug 15".
+    /// The hour a same-day run starts reading as "Tonight".
+    static let eveningStartHour = 17
+
+    /// `timeText` for a time that isn't a run yet — the create sheet's pick.
+    static func timeText(for date: Date) -> String {
+        timeFormatter.string(from: date)
+    }
+
+    /// "Tonight" / "Today" / "Tomorrow" / "Sat, Aug 15".
     ///
     /// The same three-way split `scheduledText()` makes, so a run never reads
-    /// as "Today" on one surface and "Sat" on another. "Tonight" rather than
-    /// "Today" because the surfaces that use it are read on the way out of the
-    /// door; a morning run still reads correctly, just warmly.
+    /// as "Today" on one surface and "Sat" on another. **"Tonight" from 5 PM,
+    /// "Today" before it** (2026-09-23): the create sheet showed "Tonight" over
+    /// "11:15 AM" on the device, and Home and Runs had the same wart for any
+    /// morning run. 5 PM is where Seasons' own "Tonight" window starts
+    /// (`QueueWindow.tonight`).
     func dayText(relativeTo now: Date = Date()) -> String {
+        Self.dayText(for: scheduledTime, relativeTo: now)
+    }
+
+    /// `dayText` for a time that isn't a run yet — the create sheet's pick —
+    /// so a run reads the same before and after it exists.
+    static func dayText(for date: Date, relativeTo now: Date = Date()) -> String {
         let calendar = Calendar.current
-        if calendar.isDate(scheduledTime, inSameDayAs: now) { return "Tonight" }
+        if calendar.isDate(date, inSameDayAs: now) {
+            return calendar.component(.hour, from: date) >= Self.eveningStartHour ? "Tonight" : "Today"
+        }
         if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now),
-           calendar.isDate(scheduledTime, inSameDayAs: tomorrow) {
+           calendar.isDate(date, inSameDayAs: tomorrow) {
             return "Tomorrow"
         }
-        return Self.dayFormatter.string(from: scheduledTime)
+        return dayFormatter.string(from: date)
     }
 
     /// "9 spots left" / "1 spot left" / "Full".

@@ -334,6 +334,18 @@ Three accessors do the work, and mixing them up is the bug this shape invites:
 lands; `mediumHeight` is a third of it and `expandedHeight` 0.78 of it.
 `UIScreen.main` is deprecated on iOS 26 and is no longer read anywhere.
 
+**A court card sets its own `.medium` height** (2026-09-23,
+`SheetGeometry.fittedMediumHeight` → `restingMediumHeight`). Since the map
+stopped above the tab bar, a third of the container is ~215pt on an iPhone 17,
+which left the card's scroll body ~112pt: the name and distance (~63pt), then
+**half a run** (~72pt) — "the full details are half shown until the view is
+expanded", the user's report. The card now measures its lead (header plus the
+first run, or "No runs here today") and rests at handle + lead + a 12pt gap +
+action row, never below a third and never above `.expanded`. Measured: a
+hosted run rests at 273pt (lead 158pt), 443pt at `.accessibility3`; a court with
+no runs stays at ~215pt. Every drag and rubber-band limit measures from
+`restingMediumHeight`, so a taller card drags exactly like the list.
+
 **`containerHeight` is the usable height, not the full one.** The same
 `onGeometryChange` also reads `safeAreaInsets.bottom` into `tabBarInset` — both
 in one `SheetMetrics` value, so neither lags a frame behind the other — and
@@ -518,9 +530,38 @@ in flight at a time via `pendingGameId`, the same `GameCard`/`LocalRunsTab`
 convention: the acting row shows a spinner and every other row's button goes
 inert. This is the **only** place besides the Runs tab either surface performs
 a roster action from — the `Now` segment's own rows carry no buttons and route
-here instead. The runs list and the card body around it scroll independently
-of the header and the pinned action row below, so "Start Run"/"Directions"
-never end up below the fold behind a long list of today's games.
+here instead. The card body scrolls and the action row below it is pinned, so
+"Start Run"/"Directions" never end up below the fold behind a long list of
+today's games — or behind a long court name.
+
+**The header scrolls with the body, since 2026-09-22 (UI revamp Phase 2b).** It
+used to be a fixed band above the scroll, and that only held while the name was
+capped at two lines — which is what truncated it to "East En…" at
+`.accessibility3`. The name now wraps in full (the `title` role, via the shared
+`CourtTitle`), and a fixed header that tall exceeded the `.medium` sheet and
+pushed the pinned action row below the fold. The pinned row is what's
+load-bearing, so the header gives way: at the top of the scroll it reads as it
+always did.
+
+**Court names on the map fit one line and shed parts rather than wrap** (the
+user's call, 2026-09-22 — the full name is one tap away and is what the Runs
+tab shows). `CourtName` is the rule, used by the card header, `CourtRow`,
+`CourtGameRow` and the search rows: a name that doesn't fit sheds a trailing
+"Park", then its `#N` court number, and only then is cut with an ellipsis.
+"Park" goes first because the number is what tells sibling courts apart
+("Long Meadow Park #1" and "#3"), and only a *trailing* "Park" goes — four names
+carry it mid-name ("Lake Park Trail") where it is part of the place. In
+`CourtRow` the badges are still shed before the name is touched. The card's star
+and close buttons are fixed 44pt targets with capped glyphs, and `CourtTitle`
+drops its court glyph at every accessibility size, where the name needs the
+width more — measured with the symbol's drawn width, which is about 1.56× its
+font size. At `.accessibility3` "East End Park" reads "East End".
+`CourtNameTests` and `CourtCardLayoutTests` pin the rule.
+
+**Each run row reads like a run on the Runs board** — time first as the row's
+rank, spots left as a number, the same HOSTING / WAITLIST / FULL badge in
+`GameCard`'s priority, and the same waitlist-doesn't-promote note. It stays a
+compact row rather than a `GameCard` because every run here is at *this* court.
 
 **There is no address row, deliberately.** In this dataset `address` is the city
 and state — "Durham, NC" — which the metadata line above it already says. It's
@@ -549,6 +590,15 @@ knowing before touching it: **a caution is never the badge that gets dropped.**
 the chip a player most needs. Cautions are kept first and the leftover slots
 filled with features, then re-emitted in display order. `CourtBadgesTests` pins
 this.
+
+### The data's licence notice
+
+The court data is derived from OpenStreetMap under the ODbL, and **the notice is
+shown at the foot of every court list and in the empty state** — the dataset's
+own string, `CourtService.attribution`, linked to OpenStreetMap's copyright
+page. At the end of the list rather than pinned, because it must be findable
+without taking the room a court row would at `.medium`. Until 2026-09-22 the
+string was decoded and discarded (`gaps/ASSETS_AND_DATA.md`).
 
 ## `CourtRow` — one height for every court
 
@@ -637,6 +687,11 @@ nearby-list row — already open this card, so one button serves both. See
 - Annotations are diffed by `court.id`. Never `removeAnnotations(mapView.annotations)`.
 - Every `setRegion` goes through `biasedNorth(_:)`. Centring on the raw region
   puts the target under the sheet.
+- The court card's `.medium` is **fitted, not a fraction** — don't hard-code a
+  height budget for the card again; the ~155pt the card's comments once assumed
+  went stale the moment the container shrank. If you add something to the card
+  that must be seen without scrolling, put it inside the measured lead in
+  `courtCard`.
 - A `.detail` state never renders `.collapsed` — that is the bug `displayDetent`
   exists for. It otherwise keeps the detent it will restore to, so tapping a
   court from a full-height list doesn't shrink the sheet under the reader's

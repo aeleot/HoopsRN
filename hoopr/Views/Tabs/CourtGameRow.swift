@@ -31,10 +31,11 @@ struct CourtGameRow: View {
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(court.displayName)
+                // Sheds "Park", then the court number, before it is cut —
+                // the map's rule (`CourtName`), shared with `CourtRow`.
+                CourtName(name: court.displayName)
                     .hooprFont(16, weight: .semibold)
                     .foregroundStyle(Color.hooprPrimaryText)
-                    .lineLimit(1)
 
                 Text(metaText)
                     .hooprFont(13)

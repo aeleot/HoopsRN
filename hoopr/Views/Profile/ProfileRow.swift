@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// One field of the profile, as a full-width row: a symbol in a tinted square
-/// on the left, the field's label over its value, and a chevron when the row
-/// leads somewhere.
+/// One field of the profile, as a row on the page: a symbol, the field's label
+/// over its value, and a chevron when the row leads somewhere.
 ///
 /// Replaces the `ProfileCard` mosaic this screen used to stack. The mosaic sized
 /// every card to its slot and made the page a puzzle of interlocking heights —
@@ -10,6 +9,13 @@ import SwiftUI
 /// court name had to shrink to fit a tile rather than simply being read. A row
 /// is the opposite trade: one column, one field per line, values free to run the
 /// width of the screen.
+///
+/// **A row, not a card (UI revamp Phase 2b, `UI_REDESIGN_BRIEF.md` §5.9).** The
+/// row fixed the mosaic and kept the card: every field had its own
+/// `profileRowChrome()` *and* a tinted icon tile, which made the profile the
+/// boxiest screen in the app — 7 panels and 14 shapes in one screenful. Now the
+/// rows sit on the page, separated by hairlines (`DividedRows`), and the symbol
+/// is a plain mark in the secondary colour.
 ///
 /// **Every row is the same height, and none of them states one.** The height
 /// comes from a label over a single line of value, so it moves with the
@@ -35,6 +41,10 @@ struct ProfileRow: View {
     var detail: String?
     var onTap: (() -> Void)?
 
+    /// Where a `DividedRows` hairline should start so it runs under the text,
+    /// not the symbol: the symbol's column plus the gap after it.
+    static let textInset: CGFloat = ProfileRowSymbol.width + 14
+
     var body: some View {
         if let onTap {
             Button(action: onTap) { row }
@@ -48,12 +58,11 @@ struct ProfileRow: View {
 
     private var row: some View {
         HStack(spacing: 14) {
-            ProfileRowIcon(symbol: symbol)
+            ProfileRowSymbol(symbol: symbol)
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .hooprFont(12, weight: .semibold)
-                    .kerning(0.3)
+                    .hooprType(.caption)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .lineLimit(1)
 
@@ -65,13 +74,12 @@ struct ProfileRow: View {
             if onTap != nil {
                 Image(systemName: "chevron.right")
                     .hooprFont(13, weight: .semibold, maximumSize: 17)
-                    .foregroundStyle(Color.hooprSecondaryText.opacity(0.7))
+                    .foregroundStyle(Color.hooprSecondaryText)
             }
         }
-        .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .profileRowChrome()
+        .contentShape(Rectangle())
     }
 
     /// The value and its detail on one line, with the detail dropped whole
@@ -89,7 +97,7 @@ struct ProfileRow: View {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
                     valueText
                     Text("· \(detail)")
-                        .hooprFont(13)
+                        .hooprType(.caption)
                         .foregroundStyle(Color.hooprSecondaryText)
                         .lineLimit(1)
                 }
@@ -101,44 +109,33 @@ struct ProfileRow: View {
 
     private var valueText: some View {
         Text(value ?? placeholder)
-            .hooprFont(16, weight: .semibold)
+            .hooprType(.subhead)
             .foregroundStyle(value == nil ? Color.hooprSecondaryText : Color.hooprPrimaryText)
             .lineLimit(1)
             .truncationMode(.tail)
     }
 }
 
-/// What a profile row's mark is drawn in, and what its icon tile's wash is.
+/// What a profile row's mark is drawn in.
 ///
-/// **Two colours, because a mark and the ground behind it need different
-/// things.** The glyph and any title have to be *read*, so the brand case
-/// uses `hooprBrandAccent` (4.5:1 on the wash it sits on); the tile behind it
-/// is a fill, and stays the vivid `hooprOrange` at 14% — which is what the
-/// tile has always looked like, and what a single shared tint would have
-/// dulled the moment the mark was deepened. `destructive` needs no split:
-/// `hooprRed` reads on its own wash in both appearances.
+/// The brand case is the ordinary row's secondary mark — quiet, since there
+/// are eight of them on one screen and none is more important than its label.
+/// `destructive` is `hooprRed`, which reads on the page in both appearances.
 enum ProfileRowTint {
     case brand
     case destructive
 
     var mark: Color {
         switch self {
-        case .brand:       Color.hooprBrandAccent
-        case .destructive: Color.hooprRed
-        }
-    }
-
-    var wash: Color {
-        switch self {
-        case .brand:       Color.hooprOrange
+        case .brand:       Color.hooprSecondaryText
         case .destructive: Color.hooprRed
         }
     }
 }
 
-/// A row that performs something rather than showing something — sign out. Same
-/// chrome and the same left-hand square as `ProfileRow`, so the end of the list
-/// doesn't change shape, with the tint carrying the meaning instead of a value.
+/// A row that performs something rather than showing something — sign out. The
+/// same symbol column as `ProfileRow`, so the end of the list doesn't change
+/// shape, with the tint carrying the meaning instead of a value.
 struct ProfileActionRow: View {
     let symbol: String
     let title: String
@@ -148,67 +145,43 @@ struct ProfileActionRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 14) {
-                ProfileRowIcon(symbol: symbol, tint: tint)
+                ProfileRowSymbol(symbol: symbol, tint: tint)
 
                 Text(title)
-                    .hooprFont(16, weight: .semibold)
+                    .hooprType(.subhead)
                     .foregroundStyle(tint.mark)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Spacer(minLength: 8)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 16)
+            .padding(.vertical, 14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .profileRowChrome()
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 }
 
-/// The tinted square every row leads with. Fixed size on purpose — like
-/// `PlayerAvatar`, the glyph is a fraction of a shape, so scaling it with the
-/// reader's text size would push it past its own container. The text beside it
-/// still scales, and the row grows to match.
-private struct ProfileRowIcon: View {
+/// The mark every row leads with, in a fixed-width column so the labels line
+/// up. It scales with the reader's text size up to a cap that still fits the
+/// column; the tinted tile it used to sit in is gone.
+struct ProfileRowSymbol: View {
+    static let width: CGFloat = 28
+
     let symbol: String
     var tint: ProfileRowTint = .brand
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.system(size: 16, weight: .semibold))
+            .hooprFont(17, weight: .semibold, maximumSize: 24)
             .foregroundStyle(tint.mark)
-            .frame(width: 38, height: 38)
-            .background(
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(tint.wash.opacity(0.14))
-            )
+            .frame(width: Self.width)
             .accessibilityHidden(true)
     }
 }
 
-private extension View {
-    /// The card the app draws everywhere — `hooprSurface`, a 1pt `hooprBorder`,
-    /// the same 6% shadow `FriendRow` and `GameCard` carry. Shared by both row
-    /// kinds so a tappable row and an action row can't drift apart.
-    func profileRowChrome() -> some View {
-        self
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.hooprSurface)
-                    .shadow(color: Color.hooprShadow(opacity: 0.06), radius: 8, x: 0, y: 2)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(Color.hooprBorder, lineWidth: 1)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
-}
-
 #Preview {
-    VStack(spacing: 10) {
+    DividedRows(leadingInset: ProfileRow.textInset) {
         ProfileRow(
             symbol: "basketball.fill",
             label: "Home Court",
@@ -228,7 +201,7 @@ private extension View {
         ProfileRow(
             symbol: "envelope.fill",
             label: "Email",
-            value: "aeleot11@gmail.com",
+            value: "player@example.com",
             placeholder: "Not set"
         )
 
@@ -238,6 +211,6 @@ private extension View {
             tint: .destructive
         ) {}
     }
-    .padding(16)
+    .padding(20)
     .background(Color.hooprBackground)
 }

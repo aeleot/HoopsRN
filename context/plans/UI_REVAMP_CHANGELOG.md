@@ -1,8 +1,13 @@
 # Changelog — UI Revamp
 
 **Status:** in progress — Phase 1 shipped; Phase 2a answered; **Phase 2b:
-Home and Runs shipped** (Checkpoint 2 passed after a blind read sent Home
-back once); the map, Seasons, Login, Profile and the sheets not started
+every screen and sheet in the brief shipped** — Home, Runs, the map's court
+card, the four Seasons screens, Login, Profile, Friends, `PlayerProfileSheet`
+and all of §5.11's sheets (Checkpoint 2 passed after a blind read sent Home
+back once); Start a Run since rebuilt as a grouped form, and the court glyph
+redrawn as a basketball court, from user feedback. Blind reads beyond Home and
+Runs not run. **Phase 3 (motion) built** — see its entry; its live pass is
+outstanding
 **Drafted:** 2026-09-21 @ 1a2710d
 **Touches:** `hoopr/Support/Theme.swift`, `hoopr/Support/Spacing.swift` (new),
 `hoopr/Support/CourtHeat.swift`, `hoopr/Views/` (30 files: the 22 the accent sweep
@@ -13,6 +18,95 @@ docs named under each entry
 > record `UI_REVAMP_PROMPT.md` asks for after every phase: **what changed, what
 > was deliberately left alone, and why.** Phase 2 adds its 2e evidence row per
 > screen here. Measurements it cites live in `UI_REVAMP_AUDIT.md`.
+
+---
+
+## Phase 3 — Motion language (2026-09-23)
+
+Built-in SwiftUI only; no dependency added.
+
+### What changed
+
+- **One vocabulary** (`Support/Motion.swift`): three kinds of change —
+  `hooprSpring` (the user moved something), `hooprSnap` (a control's own
+  state), `hooprSwap` (content replacing content) — plus `hooprLift` for
+  entrances, `hooprPop` for a badge, `HooprPressStyle` for press feedback,
+  `hooprNumericTransition` for counts, `hooprBounce(onRiseOf:)` for a symbol,
+  `hooprScrollLift` for a list's edges, and `hooprZoomSource` /
+  `hooprZoomDestination` for card-to-detail pushes. **Every hand-written
+  duration and spring in the views is gone** (20 call sites) except
+  `MainTabView`'s two, which a parallel session has uncommitted work in.
+- **`MatchmakingCard`'s four states transition** instead of cutting: the
+  outgoing state fades as the incoming one lifts in, the card's edge fades in
+  with a match (`cardChrome(isShown:)`, so the card keeps its identity), and the
+  height follows. Keyed on the *kind* of state, so the opponent's crest arriving
+  or the search clock ticking never re-runs it.
+- **Zoom pushes:** squad detail grows out of the Seasons band's squad (or its
+  row under "Your other squads"), game day out of the match card, and each
+  shrinks back on the way out.
+- **Numbers roll** when they change: spots left, the Runs count, the record,
+  game day's arrivals, the inbox badge, the friends and inbox counts, the create
+  sheet's player count.
+- **Symbols:** copy confirmations, the create sheet's radio marks, the map
+  card's star and game day's arrival circles replace rather than swap; the inbox
+  tray bounces once when a request arrives.
+- **Press feedback** on every button that draws its own fill (25 of them).
+- **Runs:** cards fade and shrink slightly at the scroll view's edges, and a run
+  arriving or leaving moves the others.
+- **Haptics**, only for changes the user caused: joining a run (or its
+  waitlist) and completing one are a success, leaving or cancelling a light
+  tap, and starting a run, copying a link, marking yourself here and match
+  found are a success. The run ones come from a new `lastConfirmation` on
+  `LocalRunsViewModel` and `FindAMatchViewModel`, **set only by a write the
+  server accepted** — the listener re-emitting a roster never buzzes. Match
+  found fires only going *from searching* to matched.
+
+### Acceptance
+
+- **Reduce Motion:** every kind becomes one 0.15s cross-fade; entrances stop
+  travelling; presses only dim; bounces stop; zoom pushes become plain pushes.
+- **Nothing animates on first appearance** — by construction: every animation
+  hangs off a change (`withAnimation` in an action, `.animation(_:value:)`, an
+  insertion's transition, `onChange` for the bounce).
+- **Interruptible and reversible:** springs retarget from wherever they are,
+  and the zoom pushes dismiss interactively.
+- **120Hz:** springs are frame-rate independent; the eased durations are
+  0.15–0.28s.
+
+### Deliberately left alone, and why
+
+- **`MainTabView`'s two animations** — a parallel session has uncommitted work
+  in that file.
+- **No scroll edge effect** (`scrollEdgeEffectStyle`, iOS 26). The system
+  already draws the soft edge under the tab bar; the bands at the top of each
+  tab scroll with their content and aren't bars.
+- **No zoom from a run card** — a `GameCard` doesn't open anything.
+- **The radius numeral doesn't roll** — it follows a slider, and a roll would
+  make it lag the thumb.
+- **Friend request actions have no haptic.** Not in the phase's list, and the
+  inbox answers them in place already; easy to add with the same pattern.
+- **A cold launch into an active search cross-fades once** from "Find a match"
+  to the search, as the ticket listener answers. The flash of the wrong state
+  was already there; it's now a fade instead of a cut. Telling the two apart
+  needs a "ticket loaded" flag on `MatchmakingViewModel`, a read this phase
+  doesn't add.
+
+### Evidence
+
+- **Tests:** `MotionTests` (13, new) — Reduce Motion collapses every kind to
+  the same fade; the kinds are distinct springs; durations stay short and exits
+  beat entrances; presses only dim under Reduce Motion; the tray bounces only
+  on a rise; match found fires from searching or settling and is silent from
+  idle, in place, on queueing and on cancelling; the run haptics by action; two
+  identical actions are two confirmations; marking yourself here fires once.
+  Full suite: **623 passed, 0 failed**.
+- **Live** (iPhone 17, dark): Home, Seasons (the card's idle state inside its
+  new container) and the Runs card drew correctly. **The rest of the live pass
+  was stopped**: the user was using the simulator at the same time — the
+  screen changed tab under a tap — and a stray tap on Runs could have landed on
+  "Cancel run".
+- **Not verified:** the zoom pushes, transitions and rolls in motion; Reduce
+  Motion on; a VoiceOver sweep; haptics (the simulator plays none).
 
 ---
 
@@ -154,6 +248,756 @@ baseline against both sides of itself).
   without a build. Every scaled point size in the brief and in
   `Typography.swift`'s table is measured that way; the ones written from memory
   first were wrong for **every** role.
+
+---
+
+## Phase 2b — The Seasons tab (2026-09-22)
+
+Design: `UI_REDESIGN_BRIEF.md` §5.4. Read `gaps/SEASONS.md` first, as it asks.
+
+### 2e evidence — Seasons (squad home)
+
+| | Before | After |
+|---|---|---|
+| **Hero** | the word "Seasons", 28pt — the tab bar's own label | **the squad's record, "1–0", 44pt numeral**, form beside it |
+| **Axes changed** | — | **5 of 5** |
+| **Core-task taps** | Queue up = 2 (button + confirm) · squad detail = 1 | **unchanged** |
+| **First-viewport containers** | 3 panels / 5 shapes | **1 panel / 3 shapes** (the band; Queue up, the W pill) |
+| **Blind read** | — | not run |
+
+1. **Hero** — the tab label replaced by the record. It is a query over results
+   two leaders independently confirmed — "the one number in the app nobody can
+   type" — so it takes the numeral tier, which Home's self-reported run count
+   deliberately never does. "0–0" before the first confirmed game.
+2. **Container primitive** — three cards (squad header, match, roster) became
+   the band plus rows; `MatchmakingCard` keeps a card only when there's a match,
+   the one state that is a single tappable unit.
+3. **Section order** — the squad's name and crest lead; the tab title is gone.
+4. **Primary action** — **Queue up** sits directly under the band, where it was
+   two cards down.
+5. **Disclosure** — the roster card and other-squad cards became labelled rows.
+
+### A brief decision the measurement overturned
+
+The brief proposed the squad's crest colour as the band's ground (M3). **No
+tint strong enough to read as the squad's colour keeps the band at AA** —
+measured across all eight crests in both appearances: at 14% the secondary
+text falls to 4.26:1 on gold in dark mode, and the baseline falls under its
+3:1 floor on red and gold even at 10%. At full strength the profile button's
+glyph drops to ~1.6:1, and the status bar's white text would sit on a pastel.
+So the band stays neutral — the same family as Home and Runs — and the colour
+lives in the **crest**, large and full-strength, its glyph already asserted at
+AA on every fill. It still does M3's job: you know whose squad it is before you
+read the name.
+
+### Not changed, deliberately
+
+- **The conditional hero** — the brief's "a match outranks the record when
+  there is one". Not built this pass: the matched and searching states can't be
+  produced on this account without a live match, so they couldn't be seen, and
+  `MatchmakingCard` already sits directly under the band. Recorded as open.
+- **`MatchmakingCard`'s states' copy** — the searching copy is honest that an
+  empty pool is the default in a new city (`gaps/SEASONS.md`) and stays word
+  for word.
+- **The pushed screens** — `SquadDetailView`, `GameDayView`, `ResultView` are
+  next.
+
+### Tests
+
+**554 passed, 0 failed, 0 skipped.** +3: `SeasonsRecordSpeechTests` — the record
+reads to VoiceOver as a sentence ("3 wins, 2 losses this season"), singular at
+one, and says so when the season hasn't started. Seen in the live app at the
+default size and `.accessibility3`, dark mode.
+
+---
+
+## Phase 2b — Start a Run as a grouped form, and a basketball court glyph (2026-09-23)
+
+Two corrections from the user, after the sheets shipped: the create sheet
+"does not seem very structured and there is more text and not a lot of icons",
+and "the court icon that is being used across the app is also a soccer field,
+we need a basketball court".
+
+### What changed
+
+- **`CreateGameSheet` is an inset-grouped form.** The Phase 2b version was one
+  surface on which every section had its own grammar — a 44pt numeral with a
+  "Change" link, two outlined pills over a caption, a stepper with the count
+  between two 44pt rings — under three uppercase labels. Now: the court as the
+  heading, then three `FormPanel`s on `hooprGroupedBackground` (when; how many;
+  who can join), and **every row is one shape** (`FormRow`): an accent glyph in
+  a fixed column, a title, the value or control at the trailing edge. The
+  section labels and the "Change" link are gone; the panels and glyphs carry
+  what they said.
+- **Day and time are separate rows.** Day opens a strip of chips (Today, Thu
+  24, …) across the whole 30-day window the rules allow; picking one keeps the
+  time, and moves a time already past to the next allowed quarter hour. Tip-off
+  opens a time wheel. The old single wheel mixed date and time in four columns.
+- **The captions are one short line each**, and still honest: Public "Anyone
+  nearby can find and join." (was 11 words), Invite only "Hidden. Just you
+  until invites work." (was 23). The invite step's lead says invites don't work
+  yet, so the link's own note is off on that screen only.
+- **The court glyph is a basketball court** (`Image.court`,
+  `tools/make_court_symbol.swift`): a three-point arc and the key at each end,
+  knocked out of a tile the way `sportscourt.fill` was. SF Symbols has no
+  basketball court, so it is a custom symbol, and it replaces
+  `sportscourt.fill` in `CourtTitle` (Home, the map card, the sheet) and on the
+  profile's home-court line.
+- **New:** `hooprGroupedBackground` (resolves to `hooprFill` in light and the
+  page in dark, so no new value is unmeasured); `FormPanel`, `FormRow`,
+  `FormRowGlyph`, `FormRowMetrics` in `Views/Components/FormPanel.swift`.
+
+### 2e evidence — Start a Run
+
+| | Before (Phase 2b) | After |
+|---|---|---|
+| **Structure** | one surface, four visual grammars under three labels | **three panels, one row shape** |
+| **Glyphs on the form** (besides − and +) | 3 (court, globe, lock) | **9** (court, pin, calendar, clock, players, globe, lock, two radio marks) |
+| **Caption words** | 34 | **12** |
+| **Core-task taps** | 3 with defaults accepted | **unchanged** — 3 |
+| **Largest text size** | — | rows stack their trailing control under the title (render, `.accessibility3`) |
+
+**Verified live** (iPhone 17, dark, default size): the form, the court glyph on
+the map card and the sheet, the Day strip (Thursday picked → "Tomorrow", time
+kept at 12:15 PM), the Tip-off wheel; then **Cancel — nothing created**.
+**Rendered** (the real sheet, from a scratch copy with its scroll view
+flattened): the form and the invite step, light and dark, default and
+`.accessibility3`. The wheel is UIKit and doesn't render off-device; the day
+strip is a horizontal scroll view and doesn't either — both were checked live
+in dark only.
+
+### Found along the way
+
+- **A custom symbol drew as a faint black outline.** The template's preview
+  style (`fill:none; stroke:black; stroke-width:0.5`, which the SF Symbols app
+  puts on every path) is compiled into the asset, so the glyph ignored
+  `.foregroundStyle`. The generator writes no style and no class.
+- **Xcode needs the Regular-M variant** of a custom symbol at minimum; a
+  template carrying only Regular-S fails `actool`.
+
+### Tests
+
+`CreateGameDayPickerTests` (7, new): the chips span today to the window's last
+day, drop today when no tip-off is left in it, keep the time on a new day, move
+a past time to the next quarter hour, clamp at the window's end, and say
+"Today" / "Thu 24". `CreateGameCopyTests`: the two captions rewritten, and a
+length cap (+1). `ThemeContrastTests` (+3): the grouped ground's values, the
+text and marks on it, a panel stepping off it. `CourtCardLayoutTests` now
+measures the custom symbol's drawn width (its floor moved 1.4× → 1.3×).
+Full suite: **610 passed, 0 failed**.
+
+---
+
+## Phase 2b — The sheets (2026-09-23)
+
+Design: `UI_REDESIGN_BRIEF.md` §5.11 — "no structural quota; a form's layout
+is dictated by its fields". What applied was §2c (states are compositions,
+numbers are content, boxes earn edges) and §2d. `InboxSheet` shipped with the
+Friends entry below.
+
+| Sheet | Before | After |
+|---|---|---|
+| `CreateGameSheet` | 4 cards in its own card recipe | one surface: the court as the heading (`CourtTitle`), **the tip-off as a numeral** that opens a wheel in place, Who can join, Players as a numeral. Three taps with the defaults accepted — **unchanged** |
+| `QueueSheet` | 3 `cardChrome()` blocks, page margin 16 | one surface: the squad, **the window as a numeral line** ("5:00 PM – 10:00 PM") over its two rows (the `ViewThatFits` ladder, kept), the courts as `DividedRows`; the day selector is the app's underline selector; margin 20 |
+| `CreateSquadSheet` | 4 `cardChrome()` blocks | **the crest preview is the hero** — centred, 1.5× the hero crest, over the name as it will read; Name, Crest, Format under `label`s |
+| `ProfileEditSheets` (×5) | five card recipes | one: content on the page at the page margin, one field style (`editSheetField`), headings as `label`s; the radius as a numeral. The home-court picker still saves on tap |
+
+### The correctness fix — the invite step (§2d)
+
+The brief named this as the one item in it that is correctness, not design. The
+create sheet told a host to **"send this link to the players you want in"**, and
+the Invite-only caption promised **"a link to share with the players you want
+in"** — but the link opens nothing and the `games` read rule refuses a
+non-member, so an invite-only run holds only its host (`gaps/GAMES.md`).
+
+- The **caption** now says so: "Hidden from search. Joining by invite doesn't
+  work in the app yet, so for now you'll be the only one on the roster."
+- The **invite step** leads with the court and time, and a **"Send the court and
+  time"** button (the system share sheet: "Pickup run at East End Park, Durham —
+  Tonight at 7:30 PM"). The link follows under "Reference link" in
+  `InviteLinkCard`, with the note it already carried on the Runs card. It also
+  pointed at "Queued Games", a name the Runs tab no longer has.
+
+### Found along the way
+
+- **"Tonight 11:15 AM"** on the device: `Game.dayText` called every same-day
+  run "Tonight", so a morning run read that way on Home and Runs too. Before 5 PM
+  it now reads "Today" — the word `scheduledText()` already used, and where
+  Seasons' own "Tonight" window starts.
+- **Text no longer shrinks anywhere.** The last three `minimumScaleFactor` calls
+  (the queue sheet's day labels, the map list's tabs, the friend action
+  buttons) are gone; the latter two were dead code behind their size caps.
+- Fields on the edit sheets and the create-squad name field had a 1.09:1 ground
+  and, on one sheet, a permanently orange border. They share one style now:
+  `hooprSeparatorStrong` at rest, a 2pt accent ring when focused.
+- The password sheet shrank the email to fit (`minimumScaleFactor(0.7)`); it
+  wraps.
+
+### Evidence
+
+On the device (dark, default size), opened and **cancelled without saving
+anything**: the create sheet at rest, with the wheel open and Invite only
+selected; the queue sheet; the create-squad sheet; the radius and password
+sheets. The invite step needs an invite-only run to exist, so it is an
+off-device render of the step (copied verbatim) with the real `CourtTitle` and
+`InviteLinkCard`, light and dark.
+
+### Tests
+
+**599 passed, 0 failed** (593 + 5 + 1). `CreateGameCopyTests` (+5): the public caption unchanged, the invite-only
+caption promising no working invite, the share text with and without a city,
+and the pick's day label matching a run's (Tonight / Today / Tomorrow / date).
+`GameTests`: "today reads as Tonight" split into an evening run (Tonight) and a
+morning one (Today).
+
+---
+
+## Phase 2b — Profile, Friends, the player sheet and the inbox (2026-09-23)
+
+Design: `UI_REDESIGN_BRIEF.md` §5.9 and §5.10, plus `InboxSheet` from §5.11 —
+it lists the same `FriendRow`, so it had to move with it.
+
+### 2e evidence — `ProfileView`
+
+| | Before | After |
+|---|---|---|
+| **Hero** | the `@handle` at 30pt, shrinking to fit (`minimumScaleFactor(0.6)`), over the uid | **the same identity, as the band** — the handle at `display`, wrapping instead of shrinking, and **the home court** under it, the one fact that identifies you to other people; the uid demoted to a caption, still copy-on-tap |
+| **Axes changed** | — | **3 of 5, as claimed** (container primitive, section grouping, disclosure) + hero content |
+| **Core-task taps** | every row 1 | **unchanged** |
+| **First-viewport containers** | **7 panels / 14 shapes** (a card and a tinted tile per row, the selector's pill track) | **1 panel** (the band) / **0 per-row shapes** |
+| **Blind read** | — | not run |
+
+- **Rows on the page.** `ProfileRow` lost `profileRowChrome()` and the tinted
+  icon tile; the symbol is a plain secondary mark in a fixed column. Rows sit in
+  the new `DividedRows` (a hairline between each, starting under the text), under
+  `label`s — "Your game", "Account". Sign Out stays the last row.
+- **The pane selector is two labels with a sliding accent underline** — the
+  map list's treatment — instead of an orange pill on a grey track. Its
+  `minimumScaleFactor(0.8)` is gone; the labels wrap.
+- **The top bar takes the band's ground at rest**, so the page opens on one band
+  running up behind the back and inbox buttons — the thing the user asked of
+  squad detail ("cuts off abruptly towards the top"), applied here before it was
+  asked. It crossfades to glass as the identity scrolls behind it.
+- **Kept, as the brief said:** the pinned pane header, the inbox in the top bar,
+  Sign Out as a row, content-sized rows, read-only rows by omitting `onTap`.
+
+**Friends pane:** `FriendRow`'s inline card is gone; the lists are
+`DividedRows`. The list header is a `label` with its count at the trailing edge
+(it was an 18pt bold title and a count in a filled capsule), matching Seasons'
+roster. Search stays pinned. No affordance was added implying blocking or
+reporting, which don't exist (`gaps/FRIENDS.md`).
+
+**`PlayerProfileSheet` (§5.10):** the relationship is the header's one strong
+line — "You're friends", "Sent you a request", "Request sent", "Not friends yet"
+— under the handle, instead of small grey type above the buttons. The handle is
+`title` and wraps to two lines instead of shrinking. Rows lose their cards like
+the profile's. The action bar is unchanged.
+
+**`InboxSheet` (§5.11):** sections are `label`s with a trailing count, rows are
+`DividedRows`, the page margin is the app's 20pt (it was one of the two screens
+still at 16), and `SquadInviteRow` is a row with 44pt Join / Decline targets
+instead of a card.
+
+**Found and fixed on the device:** the pinned header on the Profile pane drew
+two hairlines 14pt apart once rows scrolled under it — the selector's own and
+the header's scroll edge. The Profile pane keeps only the selector's.
+
+**Evidence (device, dark, default size):** Profile before (the card stack) and
+after; after scrolling (glass bar with the handle, selector pinned, Sign Out as
+the last row); the Friends pane; a friend's `PlayerProfileSheet`; the inbox. No
+button that changes anything was tapped — Cancel, Remove Friend and Sign Out were
+left alone.
+
+---
+
+## Phase 2b — Login (2026-09-23)
+
+Design: `UI_REDESIGN_BRIEF.md` §5.8. **Assumption A1 held** (the user said
+nothing against it at Checkpoint 1, which that checkpoint treats as "build as
+designed"): Login's job includes being a first impression, so the brand keeps
+its place and gains the one fact a new user lacks.
+
+### 2e evidence — `LoginView`
+
+| | Before | After |
+|---|---|---|
+| **Hero** | glyph, "hoopsRN" 34pt, the mode title, floating mid-screen | **the same identity, in the band** — glyph, "hoopsRN" at `display`, and **one line saying what the app is for**: "Pickup basketball across the Triangle. Find a run tonight, or play a season with your squad." |
+| **Axes changed** | — | **3 of 5, as the brief claimed** (container primitive, primary-action placement, section order) plus a hero whose content changes and whose identity does not |
+| **Core-task taps** | two fields + submit | **unchanged** |
+| **Containers** | 0 panels / 3 shapes | **1 panel** (the band) / 3 shapes (two fields, submit) |
+| **Blind read** | — | not run |
+
+- The brand is `LoginBrandBand`: the band fills the top of the screen and is
+  where Phase 4's `MeshGradient` lands. Centred, because the band is the whole
+  of a one-task screen rather than the top of a list.
+- The form sits under it at the bottom, where a thumb is: the mode title
+  ("Welcome back" / "Create your account") as a headline, the two fields,
+  submit, then the quiet mode switch. When the keyboard comes up the band gives
+  way; at large text sizes the screen scrolls.
+- **Deviation from the brief:** the form is on the page ground, not
+  `hooprElevatedSurface`. In dark mode the band's value *is* the elevated
+  surface's, so a form drawn on it read as the band continuing.
+
+**Found and fixed:**
+- **The fields were barely drawn in light mode** — `hooprFill` on white is
+  1.09:1 and the `hooprBorder` edge 1.2:1. The unfocused edge is now
+  `hooprSeparatorStrong` (3:1); focused, a 2pt accent ring.
+- **The disabled Sign In** faded the orange to 40% under the same black label;
+  in dark mode that left the label nearly invisible. Disabled is now a
+  `hooprFill` button with secondary text.
+- At `.accessibility3` the render showed the form title truncated ("Create your
+  accou…") and the mode switch wrapping into a ragged column. The title wraps,
+  and the switch stacks the prompt over the action when they don't fit one line.
+
+**Evidence:** off-device renders of the real `LoginBrandBand` with the form
+copied verbatim (the view model needs Firebase) at an iPhone 17's safe-area
+height — sign in empty, sign up with an error and a focused field — light and
+dark, default and `.accessibility3`. **Not seen live:** it needs a sign-out, and
+signing back in would need the account's password.
+
+---
+
+## Phase 2b — Map card: the HOSTING badge and a run cut in half (2026-09-23)
+
+**The user: "Hosting tag on map tab court detail is not displaying properly.
+When court is selected and u are hosting, the full details are half shown until
+the view is expanded."** Two defects, one visible through the other.
+
+1. **The badge broke mid-word — "HOSTIN / G".** In the run row the time and
+   badge share an `HStack` with a `Spacer` and the Cancel button. SwiftUI split
+   the leftover width evenly between the facts and the spacer, so the time and
+   badge got ~100pt of the ~160pt they need. The facts now take
+   `layoutPriority(1)`, and the badge is one line and `fixedSize` — if the row
+   can't hold it, the existing `ViewThatFits` moves the button below.
+2. **The run was half hidden at `.medium`.** The card's layout comment still
+   budgeted ~155pt for its body, but `.medium` is a third of the container, and
+   the container shrank when the map started stopping above the tab bar (the
+   peer session's tab-bar change): `.medium` is now ~215pt, the body ~112pt, and
+   the name plus distance take ~63pt of it before a ~72pt run row starts. So
+   even a one-line badge left the run half shown. **The card now sets its own
+   `.medium` height** — it measures its header plus first run and the sheet rests
+   tall enough for them (`SheetGeometry.fittedMediumHeight`). A court with no runs
+   is unchanged.
+
+**Evidence.** On the device, before: the user's own state — "Sherwood #2",
+"HOSTIN / G". After, on the device: a court with no runs opens as before (~3pt
+taller). The account had no run left to host by the time the fix was built, so
+the hosted state is a render of `courtCard`'s layout copied verbatim (the run as
+plain values) at the sheet's real heights: before, the run is cut at "1:15 AM
+HOSTIN"; after, the whole run shows with the badge on one line and the amenity
+badges peeking below. Measured: a hosted run rests at **273pt** (lead 158pt) at
+the default size and **443pt** at `.accessibility3`, both under `.expanded`
+(503pt).
+
+**Tests.** **593 passed, 0 failed** (588 + 5). `MapTabDetentTests` +5: medium is still a third without a fitted
+height; a taller card rests taller; a shorter one keeps a third; the fit is
+capped at expanded; dragging floors at the fitted height.
+
+---
+
+## Phase 2b — Game day and result (2026-09-23)
+
+Design: `UI_REDESIGN_BRIEF.md` §5.6 and §5.7. **Neither screen can be reached
+on one device** — both need a live match between two accounts
+(`gaps/SEASONS.md`) — so, as the brief said it would be, each one's evidence is
+a component render, not a screenshot. Both now take the band's back button, as
+squad detail does, so every push in the Seasons stack starts where the tab does.
+
+### 2e evidence — `GameDayView`
+
+| | Before (from the code) | After |
+|---|---|---|
+| **Hero** | "Tip-off in 42m", 22pt, inside a card | **the countdown as the band's numeral** — "Tip-off in" over "1h 42m" — then the court (`CourtTitle`), then "Saturday 7:30 PM · vs Court Vision" |
+| **Axes changed** | — | **4 of 5** (hero, container, order, primary action) |
+| **Core-task taps** | We're here = 1 | **unchanged**; Cancel match 1 → 2 (a confirmation; see below) |
+| **Containers** | up to **8** stacked blocks (banner, countdown, court, two roster cards, button, result card, cancel) | **1 panel** (the band) |
+| **Blind read** | — | not run |
+
+- **We're here** is directly under the band, full width. Once marked, it
+  becomes a statement ("You're marked as here", with a check), not a disabled
+  button.
+- **The rosters are one comparison** (`ArrivalBoard`): ours beside theirs, each
+  with **how many are here as a number** ("2 of 3 here") over the names. Stacked
+  at accessibility sizes, where two columns would cut every name.
+- **The countdown moves.** It is inside a `TimelineView(.everyMinute)`; it used
+  to update only when something else redrew the screen.
+- **Composed states:** counting down, "Now" until the reporting delay, "Final",
+  **Cancelled** (in the band, replacing the red banner; the arrival board hides,
+  since "0 of 3 here" under "Cancelled" is noise), and the error banner.
+- **"Record the result"** is a row under We're here while both apply, and the
+  filled button once it is the only thing left.
+
+**Found and fixed:**
+- **"You're marked as here" was black on `hooprFill`** — the old button kept
+  `hooprOnBrand` for its label after swapping the orange for the fill, which
+  measures 1.51:1 in dark mode, and `.disabled` dimmed it again.
+- **Cancel match had no confirmation.** One tap called the match off for both
+  squads, with nothing to undo it. It now asks, like Leave and Disband do.
+- The not-arrived circle was secondary text at 40% opacity, which nothing
+  asserted. It is `hooprSeparatorStrong`, asserted at 3:1.
+- Countdown copy: past a day it reads "1d 2h", not "26h 5m", and a zero unit is
+  dropped ("1h", not "1h 0m").
+
+### 2e evidence — `ResultView`
+
+| | Before (from the code) | After |
+|---|---|---|
+| **Hero** | "You won" at 22pt inside a card; the score as a 15pt line | **the outcome at `display` (40pt)**, the winner's crest above it, and the score as a numeral scoreboard ("21 – 15", each over its squad) |
+| **Axes changed** | — | **4 of 5** (hero, container, order, primary action) |
+| **Core-task taps** | report = 1 (a crest) | **unchanged** |
+| **Containers** | 3 cards (outcome, who won, score) | **1 panel** (the band) + the two crest buttons |
+| **Blind read** | — | not run |
+
+- **Reporting is one question** (archetype A5): "Who won?" at the title size,
+  centred, over two large crest buttons (`WinnerButton`). The unchosen edge is
+  now `hooprSeparatorStrong` (3:1); it was the 1.2:1 hairline, on the one
+  screen where those two controls are the point. "Your pick" is in the accent.
+- **All four states are composed** and their words come from one function,
+  `ResultCopy`: confirmed, **awaiting the other leader** (no deadline — it waits
+  forever), **disputed** (said plainly, in primary text, no red), reportable,
+  plus not-played-yet and a member's view. The words are the screen's existing
+  copy, moved rather than rewritten.
+- **The brief's crest-coloured ground is the crest instead.** M3's tint was
+  measured below AA on the Seasons tab, so the winning crest is drawn at the
+  hero size above "You won".
+
+**Found and fixed:** a score typed **after** tapping the winner was silently not
+sent. The report goes with the crest tap, carrying whatever the score fields
+hold at that moment. The caption under the fields now says so ("enter it before
+you tap the winner, or tap them again after"). The mechanism is unchanged.
+
+### Evidence
+
+Off-device renders (`ImageRenderer`) of the real `GameDayBand`, `ArrivalBoard`,
+`ResultBand` and `WinnerButton`, in light and dark, at the default size and
+`.accessibility3`: game day counting down, at "Now" and cancelled; result
+reportable, waiting, won with a score, and disputed. The "We're here" capsule is
+copied verbatim into the harness (it is private to the view). **Neither screen
+has been seen live**, and `gaps/SEASONS.md`'s two-account pass is still what
+closes that.
+
+### Tests
+
+**588 passed, 0 failed, 0 skipped** (571 + 9 + 8). `GameDayCountdownTests` (+9): every countdown boundary (minutes, hours, days,
+the last minute, "Now" until the reporting delay, "Final", cancelled outranks
+all), singular units, and the arrival count ignoring the other roster.
+`ResultCopyTests` (+8): each state's headline, no deadline words in either
+waiting state, and a dispute that reads as a disagreement rather than an error.
+
+---
+
+## Phase 2b — Squad detail (2026-09-23)
+
+Design: `UI_REDESIGN_BRIEF.md` §5.5. Read `gaps/SEASONS.md` first, as it asks.
+
+### 2e evidence — `SquadDetailView`
+
+| | Before | After |
+|---|---|---|
+| **Hero** | nothing larger than 22pt; the record at 28pt inside the second card, or "No games played yet" at 16pt | **the record, 44pt numeral, in the same band as the Seasons tab**, the five dots pinned bottom-right |
+| **Axes changed** | — | **4 of 5** (hero, container primitive, section order, action placement) |
+| **Core-task taps** | invite = 1 · open a result = 1 · disband = 2 | **unchanged** |
+| **First-viewport containers** | **6 panels** (header, record, history, roster, invites, the filled Disband block) | **1 panel** (the band) / 4 shapes (back button, dot row, two Invite capsules) |
+| **Blind read** | — | not run |
+
+1. **Hero** — the record moves out of a card into the band as the numeral,
+   through the same two components squad home uses (`SquadIdentity`,
+   `SquadRecordLine`, new in `SquadBand.swift`). Mid-push on the device the two
+   bands' crest, name and record sit in the same place, so the push reads as a
+   continuation (Phase 3's `matchedGeometryEffect` can now join them).
+2. **Container primitive** — six `cardChrome()` blocks became the band plus
+   rows under labels.
+3. **Section order** — history, roster, invites, then controls; the separate
+   Record card is gone (the band is the record).
+4. **Action placement** — Leave / Disband is a line of red text at the end,
+   not a filled block; pending invites (with Revoke) are rows in the roster.
+
+### The user's correction: the header cut off at the top
+
+The first build kept the system bar, so the band started below it and a strip
+of page background sat between the status bar and the band. **The user: "cuts
+off abruptly towards the top. Match the seasons tab implementation."** The bar
+is now hidden and the band carries a glass back button (`BandBackButton`) in its
+first row, in `ProfileButton.Slot`'s frame. Checked on the device: the band
+starts where the tab's does, the button pops, and **the left-edge swipe still
+pops with the bar hidden** — the usual risk of hiding it. VoiceOver keeps the
+`navigationTitle` and gains an `.escape` action.
+
+That superseded a scroll-driven title (the bar's title fading in once the band's
+name scrolled away), which the device had shown overlapping "3v3 · Durham"
+through the translucent bar.
+
+### History rows
+
+`SquadHistoryRow`, its own view so the render harness draws it with the real
+code. A `FormDot` in the form guide's colours, the opponent, then the date and
+**what happened in words** — so this list, unlike the band, never relies on
+colour:
+
+| Status | Dot | Detail line |
+|---|---|---|
+| confirmed, this squad won / lost | green / red | "Won" / "Lost", score trailing (in the line at accessibility sizes) |
+| scheduled, still to come | grey | "Scheduled" |
+| played, this leader hasn't reported | grey | **"Report the result"** in the accent — the one row that asks for something |
+| reported, waiting on the other leader | grey | "Waiting on {opponent}" — **no deadline**, because it waits forever |
+| played, and you can't report (a member) | grey | "Result not in yet" |
+| disputed | grey | "Results don't match" — designed, not an error; never red |
+| cancelled | grey | "Cancelled" — a plain row, no chevron |
+
+### Found along the way
+
+- **Errors on this screen were invisible.** An invite, revoke, leave or disband
+  that failed set `SquadViewModel.errorMessage`, which only the tab's banner
+  showed — behind this screen. The same `ErrorBanner` now sits under the band.
+- **The cancelled row's text fell under AA.** It was a *disabled button*, and
+  a disabled button dims its label. It is a plain row now.
+- **At `.accessibility3` the trailing score squeezed the row** — "Hoop / Dreams"
+  and "Jan 12 / · Won" in the render. At accessibility sizes the score moves
+  into the detail line ("Won 21–15").
+- **The lettered result pills are retired.** `FormPill`, `NeutralResultPill`
+  and `ResultPillMetrics` had no callers left, so they went, with their four
+  tests in `SeasonsAccessibilityTests` and its orphaned helpers.
+
+### Evidence
+
+- **Device, dark, default size:** before (six cards) and after, pushed from the
+  tab; a mid-push frame with both bands aligned; back button and edge swipe
+  both pop. This squad has no matches, so only the empty history is live.
+- **Off-device render** (`ImageRenderer`, the real `SquadRecordLine` and
+  `SquadHistoryRow`): all seven statuses above, light and dark, default and
+  `.accessibility3` — which is what found the two row defects.
+
+### Tests
+
+**571 passed, 0 failed, 0 skipped** (565 + 10 − 4). `SquadHistoryRowTests` (+10): each status's words from this squad's side, the
+dot and the score, grey for everything unconfirmed, the report call to action
+only for a leader who owes one, and no deadline words in "Waiting on". Minus the
+four retired pill tests.
+
+---
+
+## Phase 2b — Seasons: the form as five dots (2026-09-22)
+
+Three corrections from the user to the Seasons band, in one pass:
+
+1. **The orange "W" pill is gone.** The last five results are now five dots:
+   green a win, red a loss, and grey for each game not yet played, so the row is
+   always five long. Most recent on the left, as before. `FormGuide` changed in
+   place, so `SquadDetailView`'s Record card got the dots too; its history rows
+   keep the lettered `FormPill` until that screen's pass (§5.5).
+2. **The "W–L" / "No games yet" caption is gone.** The numeral stands alone:
+   "0–0" beside five grey dots says the season hasn't started. VoiceOver still
+   reads the sentence.
+3. **The dots are pinned to the band's bottom-right corner**, their bottoms on
+   the numeral's baseline, in both the beside and the stacked layout.
+
+### What the colours had to clear
+
+Four new roles in `Theme.swift`. None reuses `hooprRed`, because a loss is not
+an error.
+
+| Role | Light | Dark | On the band |
+|---|---|---|---|
+| `hooprFormWin` | `#2E9E4A` | `#4ADE80` | 3.15:1 / 8.89:1 |
+| `hooprFormLoss` | `#B90E0A` | `#E5484D` | 6.15:1 / 3.96:1 |
+| `hooprFormUnplayed` | `#AEAEB2` | `#545456` | 2.03:1 / 2.05:1, deliberately below both results |
+| `hooprOnFormResult` | white | black | ≥ 3.44:1 on either dot |
+
+**A finding, and what was done about it.** To a red-green colour-blind reader,
+green and red differ only in lightness. WCAG counts that as a second cue at 3:1
+between the fills, and **no pair reaches it while both dots clear 3:1 on the
+band**. The widest measured gap is 1.95:1 in light and 2.25:1 in dark. So colour is
+the only cue drawn by default, as asked, and three other routes carry the result:
+the record numeral gives the counts, VoiceOver reads the order ("Recent form, most
+recent first: win, loss"), and with iOS's *Differentiate Without Color* on, each
+played dot grows from 16 to 22pt and carries a ✓ or ✕. `ThemeContrastTests`
+pins the gap so a retune can't quietly narrow it.
+
+### Evidence
+
+- **Device, dark, default size:** Raptorz, "0–0", five grey dots in the band's
+  bottom-right, right edge in line with the squad row's chevron. This account's
+  squad has no confirmed games, so green and red couldn't be shown live.
+- **Off-device render** (`ImageRenderer`, the real `FormGuide`/`FormDot`, the
+  record line verbatim): 0–0, 1–0, 2–1, 3–2, the ✓/✕ variant, and "10–10" with
+  the larger dots, in light and dark, at the default size and `.accessibility3`.
+  At `.accessibility3` the "10–10" row stacks, dots still on the right.
+
+### Tests
+
+**565 passed, 0 failed, 0 skipped** (554 + 11). `FormGuideTests` (7): padding to five, all-grey, full, cut to the most
+recent five, the spoken form, and the two fit measurements (default dots beside
+"10–10" at `.accessibility3`; the ✓/✕ dots beside a single-digit record, and
+stacked under "10–10"). `ThemeContrastTests` (4): played dots at 3:1 on the band
+and a card, the unplayed dot visible and below both, the lightness gap held at
+≥ 1.9:1, the ✓/✕ at 3:1.
+
+---
+
+## Phase 2b — Two corrections from the user: Home's empty state, map names (2026-09-22)
+
+### Home's empty state
+
+The user: *"Nothing on tonight"* at that size, in the middle of the band, looked
+off. It was the 40pt `display` tier over a full-width button — a headline about
+nothing, in the slot a tip-off time fills when there is a run. Now it is a
+quieter sibling of the booked state: the icon-and-title line the court name
+uses (`figure.basketball` + **"No run tonight"** at `title`, 28pt), one line
+saying what the button leads to, and a compact **Find a court** capsule on the
+band's left edge where "Your runs ›" sits. It is still the largest thing on the
+screen. **Verified by an off-device render** (both appearances, default and
+`.accessibility3`, `ImageRenderer` on a verbatim copy of the band in a scratch
+tree) because the account had a run booked and producing the empty state on the
+device would have meant cancelling it.
+
+### Court names on the map
+
+The user: names that don't fit on the map should lose "Park" or the court
+number — the Runs tab shows both. The card had just been changed to wrap names
+in full; that is reverted for the map (Home's band still wraps).
+`CourtName` implements it for the card, `CourtRow`, `CourtGameRow` and the
+search rows: a trailing "Park" goes first, then the `#N`, then an ellipsis.
+Two choices inside the rule, both from the data rather than taste:
+
+- **"Park" before the number**, because 114 of 213 names carry a `#N` and it is
+  the only thing telling sibling courts apart.
+- **Only a trailing "Park"** — four names carry it mid-name ("Lake Park
+  Trail", "Ting Park Soccer Field A") where removing it names somewhere else.
+
+**A measurement error, caught on the device.** The first build showed
+"East E…" at `.accessibility3` where the test predicted "East End": the test
+took the court glyph's width to be its font size, and `sportscourt.fill` draws
+about **1.56× wider** — 63.7pt, not 40.7. The same error had overstated the
+margins on Home's wrapping title ("Pearsontown" fits beside the glyph at AX3 by
+3pt, not 26). One rule fixed both: **no court glyph at any accessibility size.**
+At `.accessibility3` the card now reads "East End"; at `.accessibility1`, the
+whole "East End Park". Tests now measure the symbol's drawn width.
+
+**551 passed, 0 failed, 0 skipped.** `CourtNameTests` (new, 7 — the ladder, the
+mid-name Parks, never shortening to nothing, and every shipped name shortening
+only the way the rule says), `CourtCardLayoutTests` (the glyph's drawn width,
+"East End" at AX3, the whole name at AX1), `HomeHeroMetricsTests` (the new empty
+copy fits one line).
+
+---
+
+## Phase 2b — The map's court card, and the ODbL notice (2026-09-22)
+
+The map is §2e's single `keep` at the tab level (A4): full-bleed map, detent
+sheet, glass chrome — unchanged. What changed is the court detail card, and the
+licence notice the user approved shipping (A8).
+
+### 2e evidence — the court card
+
+| | Before | After |
+|---|---|---|
+| **Hero** | the court name at 17pt, truncated to "East En…" at `.accessibility3` | **the court name in the `title` tier**, whole at every size |
+| **Axes changed** | — | **3 of 5** — hero, section order (the header joined the scrolling body), disclosure (controls move up rather than eating the name) |
+| **Core-task taps** | Directions 2 · Start Run 2 · star 2 | **unchanged** |
+| **Containers** | unchanged in kind — the card was already a sheet surface; run rows keep `cardChrome(12)` | |
+| **Blind read** | — | not run for the map |
+
+**The defect, before and after, in the live app at `.accessibility3`:** the
+audit's shot reads "East En…" / "Durham · 0.…"; now the star and close sit on a
+row of their own, the name wraps at the word, and the pinned
+Directions / Start Run row stays on screen.
+
+### What changed
+
+- **`cardHeader`** — name in `title` (not `display`, as the brief proposed: at
+  the `.medium` detent the sheet has ~155pt for the header and the runs, and
+  the runs are what the card leads with). Controls in fixed 44pt targets with
+  capped glyphs; a `ViewThatFits` moves them above the name when it can't fit
+  beside them. City and distance on a wrapping line with icons, the distance's
+  number weighted — which needed `FindAMatchViewModel.distanceValueText(for:)`.
+- **`CourtTitle`** (new, shared with Home) — the glyph + name, and the one rule
+  about when the glyph must go. Home's court line had the same geometry and
+  was silently exposed to the same failure.
+- **`runRow`** — reads like a run on the Runs board: time first, spots as a
+  number, `GameCard`'s badge rule, the same waitlist note. `isHost` /
+  `isWaitlisted` added to `FindAMatchViewModel` (presentation only).
+- **The ODbL notice** — at the foot of every court list and in the empty state,
+  the dataset's own text, linked to OpenStreetMap's copyright page.
+
+### Found by measuring, and fixed
+
+1. **A court name could still break mid-word — at the two largest sizes.** A
+   test measuring every word of every court at every accessibility size failed.
+   Its first failure was the test's own fault (it split on spaces only, and
+   "Bentley-Ridge" wraps legitimately at its hyphen). Its second was real:
+   "Pearsontown" fits beside the court glyph by **1pt** at `.accessibility4` and
+   doesn't at `.accessibility5` (340pt of 302). The glyph is ornament, so
+   `CourtTitle` sheds it from `.accessibility4` — the revamp's own *drop the
+   ornament* fallback — and the name gets the whole line.
+2. **A regression this change introduced, caught on the simulator.** Once the
+   name wrapped in full, the fixed header at `.accessibility3` was taller than
+   the `.medium` sheet and pushed the pinned **Directions / Start Run** row
+   behind the tab bar — the one thing that layout exists to prevent. Fixed by
+   letting the header scroll with the body; only the grab handle and the action
+   row stay fixed. `MAP_LAYER.md` updated: the fixed header was a means, the
+   pinned actions are the end.
+3. **Home's hero was announcing a finished run.** Found while looking for a
+   court with a run: the map said Elmira Park had nothing on while Home's band
+   said "8:45 PM · Elmira Park · 9 spots left". The queued listener doesn't
+   filter by status, so a run marked complete stays in `queuedGames` for the
+   rest of `Game.visibilityGrace`; Runs and the map drop it with
+   `isVisible(at:)` and Home took `queuedGames.first` as it came. **Pre-existing
+   code, made prominent by this redesign** — the run became the biggest thing on
+   the first screen. Fixed with the same rule (`HomeViewModel.nextRun(from:at:)`,
+   three tests), and verified live: Home now shows its empty state, which is the
+   first time that state has been photographed.
+
+### One service change, flagged
+
+**`CourtService.attribution`** — a `private(set) var` holding the string the
+dataset already carried and the service threw away. The revamp contract says to
+stop and report a service change; the user had approved shipping the ODbL
+notice (A8), the alternative was restating a licence string in a view, and the
+change adds no read, write or dependency. Reported here rather than asked
+first.
+
+### Corrections to the brief (§5.3)
+
+- **`CourtRow` shows no busyness** — the brief said it rendered busyness as
+  grey text and would get a heat dot. It doesn't; `CourtGameRow` (the Now list)
+  is the row with runs. **The heat dot was dropped there too**: a leading dot
+  moves the Now row's text column off the Nearby row's, which the "one height,
+  one column" discipline in `MAP_LAYER.md` guards, and the Now row already reads
+  time-then-spots the way a Runs card does.
+- **`title`, not `display`**, for the reason above.
+
+### Tests
+
+**542 passed, 0 failed, 0 skipped** on the final code, counted from the
+`.xcresult`. +10 over the 532 of the previous entry: `CourtCardLayoutTests` (6 —
+controls capped, no court name breaks mid-word at any accessibility size, glyph
+shed only at AX4–5, a long name really can't share a row with the controls, the
+licence notice is kept, and it links to the right page), `GameTests` (+1, the
+split distance rejoins to the same string), `HomeViewModelTests` (+3, the next
+run skips completed and aged-out runs and keeps one underway).
+
+### Not verified
+
+- **The run row on a real screen.** At capture time no court had a visible run
+  — the account's runs had been marked complete — so the redesigned row was
+  built and unit-covered but never photographed. The card header, the metadata
+  line, the actions and the attribution footer were.
+- **Dark mode**: the app was pinned to Light by whoever used it last, and left
+  that way.
+- **Blind read**: not run for the map.
+
+### Process
+
+- **I terminated an Xcode debug session.** Installing the first map build, I
+  replaced a running copy of the app without checking its parent first; the
+  parent then no longer existed and was not `launchd_sim`, which is what a
+  debugserver-parented session looks like after its app dies. It was either the
+  user's or a peer session's. Every later install checked the parent *before*
+  terminating.
+- **Someone else was on the simulator.** The Map tab switched to Home during a
+  capture with the app still running and every peer session idle — most likely
+  the user, with the panel open. Captures were retaken by hand, one frame at a
+  time.
 
 ---
 

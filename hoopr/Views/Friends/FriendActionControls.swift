@@ -44,10 +44,13 @@ struct FriendActionButton: View {
                     ProgressView()
                         .tint(foreground)
                 } else {
+                    // Capped at 20pt, which every title fits at — the compact
+                    // button grows to its label, the wide one shares a bar
+                    // with at most one other. It no longer also shrinks to
+                    // fit; the app doesn't shrink text anywhere.
                     Text(size == .wide ? action.longTitle : action.title)
                         .hooprFont(size == .wide ? 16 : 14, weight: .semibold, maximumSize: 20)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
                 }
             }
             .frame(minWidth: size == .wide ? nil : 72)
@@ -58,7 +61,7 @@ struct FriendActionButton: View {
             .background(background)
             .clipShape(RoundedRectangle(cornerRadius: size == .wide ? 12 : 10))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.hooprPress)
         .disabled(isPending || isDisabled)
         // Only the *blocked* case dims: a button showing its own spinner is
         // already saying it's busy, and fading it too reads as broken.
