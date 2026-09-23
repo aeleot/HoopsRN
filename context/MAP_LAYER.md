@@ -208,16 +208,26 @@ collision priority in `configureAsCourt`. Conflating "selected" with "busy"
 would have made a cool, quiet court flash warm the moment you tapped it — the
 opposite of what the colour is supposed to mean.
 
-**Where the count comes from.** `FindAMatchViewModel.gameCountsByCourt` (see
+**Where the count comes from.** `FindAMatchViewModel.gameCountsByFacility` (see
 `ARCHITECTURE.md`) buckets `GameService`'s `queuedGames` + `publicGames` by
-court for the current calendar day, and publishes it as
-`gameCountByCourtID: [String: Int]`. `MapTab` threads that straight into
-`MapView`, which is the only thing that ever calls `CourtHeat`:
+**facility** for the current calendar day, and publishes it as
+`gameCountByFacilityID: [String: Int]`. `MapTab` threads that into `MapView`
+alongside `viewModel.mapCourts`, and `MapView` is the only thing that ever calls
+`CourtHeat`:
 
-`MapView.heatColor(for:)` looks up a single court's own count, and since
-clustering was removed that is the only lookup there is — one pin, one court,
-one number. (`heatColor(forCluster:)`, which summed counts across a group's
-members, is gone with it.)
+`MapView.heatColor(for:)` looks up the court's **`facilityId`**, and `courts` is
+already one court per facility — so it remains one pin, one number, but the place
+is now the park rather than the surface. (`heatColor(forCluster:)`, which summed
+counts across a MapKit group's members, went with clustering.)
+
+**Changed 2026-09-22 (dataset v2).** Pins were per *court*, and OSM tags each
+playing surface as its own way — so Long Meadow Park drew three pins 17m apart,
+each coloured by only its own surface's runs. `Court.facilityId` groups them;
+`FindAMatchViewModel.mapCourts` reduces the filtered courts to one per facility.
+The card that opens on tap adds `"3 courts"` to its city · distance line for a
+multi-surface facility (`viewModel.surfaceCountText(for:)`), because with one pin
+where there were three, that count is the only thing distinguishing a park from a
+single court — and the run being offered may be on the far surface.
 
 **No new read, no rules change.** The two arrays this sums are exactly what
 `GameService`'s existing listeners already deliver — public runs, plus runs the
@@ -241,6 +251,14 @@ so it read as a court count while sitting on a disc whose colour meant
 games-today — two different quantities in one badge, and the count was the
 misleading one. "3" on a pin in a park with three adjacent courts said nothing
 about whether anyone was playing there.
+
+**That case is now fixed upstream rather than hidden.** Those three adjacent
+courts really were one park arriving as three OSM ways, and the facility grouping
+(above) collapses them into a single pin whose colour counts the whole park's
+runs. The clustering badge was trying to summarise a duplicate that shouldn't
+have existed; grouping it at the data layer means MapKit is no longer asked to.
+The honest version of that "3" now lives on the detail card as "3 courts", where
+it describes surfaces and never competes with the colour's meaning.
 
 It could not be tuned into something honest. MapKit exposes **no public
 radius/distance control** over when it clusters; the only lever is
@@ -482,7 +500,7 @@ current (empty) value to a fresh subscriber regardless of what has actually
 loaded, so an appear-time check would resolve to `.nearby` on every cold
 launch — precisely the failure this segment exists to fix.
 
-`gameCountByCourtID` (the pins' own source, see `CourtHeat` below) and
+`gameCountByFacilityID` (the pins' own source, see `CourtHeat` below) and
 `activeCourts`/`listedCourts` are two different derivations over the same
 `GameService` arrays, kept separate because they answer different questions at
 different grains: the pins want a same-day count without caring which runs;
@@ -697,5 +715,5 @@ nearby-list row — already open this card, so one button serves both. See
 - `DATA_MODEL.md` — `Court` fields, and the `displayName` derivation every
   court label on this screen goes through.
 - `ARCHITECTURE.md` — `FindAMatchViewModel`'s dependencies and the
-  cross-collection joins, including `gameCountsByCourt`.
+  cross-collection joins, including `gameCountsByFacility`.
 - `PRODUCT_OVERVIEW.md` — the heat map described in product terms.

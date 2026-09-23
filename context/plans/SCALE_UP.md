@@ -150,9 +150,18 @@ it's a seam that was built and never used.
 ### Why "many new cities/metros" strains this specifically
 
 Every city added grows the binary every user downloads, whether or not they
-ever visit that city — 213 courts across six cities is 86KB; growing to
-dozens of metros nationally is a meaningfully larger number that every
-install pays for regardless of relevance. Worse for the growth goal
+ever visit that city — 214 courts across six cities is 96KB (was "213 / 86KB"
+until `facilityId` landed 2026-09-22); growing to dozens of metros nationally is
+a meaningfully larger number that every install pays for regardless of
+relevance.
+
+**Measured 2026-09-22, the size half of this argument is weaker than it
+reads**: all of North Carolina is ~1,764 OSM court features, which projects to
+~795KB bundled and ~131KB gzipped. That is not a binary-size problem. The part
+of this section that survives contact with a real number is the *next*
+sentence, not this one — see `COURT_DATA_PLATFORM.md` §1.
+
+Worse for the growth goal
 specifically: **adding a city currently requires an App Store review cycle**.
 That's fine for six cities added over a development season; it's a real
 drag on the ability to respond to "can you add my city" demand once that

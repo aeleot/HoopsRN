@@ -28,6 +28,16 @@ deleted, used `"lat,lon"` strings as IDs; that's the mistake this avoids.)
 `osmType` / `osmId` are retained provenance so a future extract can match
 existing records instead of minting duplicates.
 
+`facilityId` (added 2026-09-22, dataset v2) is **the opposite kind of ID to
+`id`**: derived, re-mintable, and referenced by nothing outside the client. A
+`Court` is one playing surface; a facility is the place a player travels to, and
+OSM tags each surface as its own way — so Long Meadow Park arrives as three
+courts 17m apart. Every court has one, and a court on its own is a facility of
+one, so no call site needs a nil check. `Court.init(from:)` falls back to the
+court's own `id` when the field is absent, which keeps a pre-v2 hosted dataset
+decodable rather than taking the whole map down over a field whose absence has an
+obvious reading. See `Facility` below.
+
 `Access` (`public` / `school` / `restricted`) is **derived at build time from
 the court's name**, not read from an OSM tag: OSM rarely tags apartment- and
 hotel-attached courts as private, so the tag alone would classify them as
@@ -37,6 +47,15 @@ playable. Current distribution: 172 public, 32 school, 10 restricted.
 inconsistently — most rows are `null`. `CourtBadges` renders all five on the
 list row and the map's detail card. Absent means unknown, so nothing is inferred
 and no placeholder badge is shown.
+
+**But the model has no way to say "unknown", and the UI can't draw one.** Measured
+2026-09-22 with `tools/audit_courts.py`: `isCovered` is populated on 0.9% of
+courts, `isLit` 9.8%, `hoops` 18.2%, `surface` 31.3%. Since a badge is emitted
+only on a truthy value, an unknown `isLit` renders *identically* to a court known
+to have no lights — so ~90% of courts silently read as unlit. Not showing a
+placeholder is the right call given the type; the gap is that `Bool?` can't
+distinguish unknown from no, which is what a player-correctable overlay would
+need to fix.
 
 **`CourtFilter` no longer reads any of them except `access`.** It filtered on
 `isLit` and `hoops` until 2026-08-27, and that sparsity made the filters
@@ -70,6 +89,40 @@ can be compared against the bundled one without parsing the court array.
 `CourtService` reads `version` and `attribution` into stored properties;
 neither is displayed anywhere yet, and the ODbL attribution string in
 particular is a licence obligation currently unmet in the UI.
+
+`version` is **2** as of 2026-09-22 — the bump that added `Court.facilityId`.
+
+## `Facility`
+
+One place a player travels to, and the surfaces they'll find there. Built by
+`CourtService` from `Court.facilityId` via `Facility.group(_:)`; never constructed
+by hand outside tests.
+
+`courts` is **never empty** — a facility exists because a court referenced it —
+which is what lets `primary` be non-optional. `primary` is the shortest display
+name, then alphabetical: that lands on the un-numbered name for a
+"Walltown Park #1 / #2" pair and is stable when it doesn't. Taking `courts.first`
+would reliably pick "#1", a name that tells the reader about a "#2" they can't
+see. `displayName` then strips a trailing `#N`, so the group reads "Long Meadow
+Park".
+
+`coordinate` is the **mean** of its surfaces rather than `primary.coordinate`:
+with three courts in a row the primary is an end one, and a pin on the end reads
+as pointing at that surface rather than at the park. `surfaceCountText` is
+`"3 courts"`, or `nil` for a single surface where the count is noise.
+
+`city` takes the primary's, and where surfaces disagree that is the only
+defensible pick rather than a majority vote — nearest-centroid assignment means a
+facility straddling a municipal line has genuinely conflicting records. Davis
+Drive Elementary School ships as one court in Cary and one in Morrisville;
+grouping them at least makes the app show one answer instead of two.
+
+**Why this type exists:** ungrouped, a park's surfaces were three overlapping map
+pins and — because `Game.courtId` and `MatchTicket.courtIds` key on the court —
+three separate queues at one physical court, none able to see the others. Nothing
+threw and nothing logged; two players on the same asphalt were simply invisible to
+each other. `FacilityTests` pins both the grouping rules and the bundled file's
+invariants.
 
 ---
 

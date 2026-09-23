@@ -1,0 +1,5702 @@
+{
+ "attribution": "Wake County Government",
+ "fetched": "2026-09-22",
+ "grain": "park",
+ "records": [
+  {
+   "attributes": {
+    "ADDRESS": "9950 Durant Road, Raleigh, NC",
+    "ALIAS1": "Abbotts Creek Park",
+    "ALIAS2": "Abbotts Creek Park",
+    "Address2": null,
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Abbotts Creek Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/abbotts-creek-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "609 Wake Chapel Road, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "609 Wake Chapel Road, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.591424,
+    "Lon": -78.801715,
+    "NAME": "Action Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/action-park-description.html"
+   },
+   "lat": 35.591424,
+   "lon": -78.801715
+  },
+  {
+   "attributes": {
+    "ADDRESS": "800 E Juniper Ave, Wake Forest, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "800 E Juniper Ave, Wake Forest, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Wake Forest",
+    "Lat": 35.981442,
+    "Lon": -78.492038,
+    "NAME": "Ailey Young Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-435-9560",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.wakeforestnc.gov/ailey-young-park.aspx"
+   },
+   "lat": 35.981442,
+   "lon": -78.492038
+  },
+  {
+   "attributes": {
+    "ADDRESS": "6850 Hilltop-Needmore Road, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "6850 Hilltop-Needmore Road, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.627916,
+    "Lon": -78.77952,
+    "NAME": "Alston Ridge Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "No",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/alston-ridge-park.html"
+   },
+   "lat": 35.627916,
+   "lon": -78.77952
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1309 New Hill-Olive Chapel Road, Apex, NC 27502",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1309 New Hill-Olive Chapel Road, Apex, NC 27502",
+    "GYM": "No",
+    "JURISDICTION": "Wake County",
+    "Lat": 35.714336,
+    "Lon": -78.946984,
+    "NAME": "American Tobacco Trail - New Hill Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-387-2117",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.wakegov.com/departments-government/parks-recreation-and-open-space/all-parks-trails/american-tobacco-trail"
+   },
+   "lat": 35.714336,
+   "lon": -78.946984
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1305 White Oak Church Road, Apex, NC 27523",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": "No",
+    "JURISDICTION": "Wake County",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "American Tobacco Trail - White Oak Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-387-2117",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.wakegov.com/departments-government/parks-recreation-and-open-space/all-parks-trails/american-tobacco-trail"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1017 Wimberly Road, Apex, NC 27502",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1017 Wimberly Road, Apex, NC 27502",
+    "GYM": "No",
+    "JURISDICTION": "Wake County",
+    "Lat": 35.760054,
+    "Lon": -78.920102,
+    "NAME": "American Tobacco Trail - Wimberly Rd Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-387-2117",
+    "RESTROOMS": "No",
+    "URL": "https://www.wakegov.com/departments-government/parks-recreation-and-open-space/all-parks-trails/american-tobacco-trail"
+   },
+   "lat": 35.760054,
+   "lon": -78.920102
+  },
+  {
+   "attributes": {
+    "ADDRESS": "20 Anderson Point Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "20 Anderson Point Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.77088681,
+    "Lon": -78.54201053,
+    "NAME": "Anderson Point Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-329-5994",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/anderson-point-park"
+   },
+   "lat": 35.77088681,
+   "lon": -78.54201053
+  },
+  {
+   "attributes": {
+    "ADDRESS": "20 Anderson Point Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "City of Raleigh",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Anderson Point River Access",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-996-2144",
+    "RESTROOMS": null,
+    "URL": "https://raleighnc.gov/places/anderson-point-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1414 Tarbert Drive, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1414 Tarbert Drive, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.761226,
+    "Lon": -78.813001,
+    "NAME": "Annie L. Jones Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/parks/annie-jones-park"
+   },
+   "lat": 35.761226,
+   "lon": -78.813001
+  },
+  {
+   "attributes": {
+    "ADDRESS": "11408 Raven Ridge Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "11408 Raven Ridge Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.92209582,
+    "Lon": -78.59883657,
+    "NAME": "Annie Louise Wilkerson, MD Nature Preserve Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-996-6764",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/annie-louise-wilkerson-md-nature-preserve-park"
+   },
+   "lat": 35.92209582,
+   "lon": -78.59883657
+  },
+  {
+   "attributes": {
+    "ADDRESS": "53 Hunter Street",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.733917,
+    "Lon": -78845943,
+    "NAME": "Apex Community Center",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-249-3402",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.apexnc.org/453/Community-Center-Programs"
+   },
+   "lat": 35.733917,
+   "lon": -78845943.0
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2200 Laura Duncan Rd., Apex, NC",
+    "ALIAS1": "Lake Pine",
+    "ALIAS2": null,
+    "Address2": "1808 Lake Pine Dr., Apex, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.75461,
+    "Lon": -78.828518,
+    "NAME": "Apex Community Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-249-3402",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.apexnc.org/795/Apex-Community-Park"
+   },
+   "lat": 35.75461,
+   "lon": -78.828518
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2101 Lake Pine Drive",
+    "ALIAS1": "Lake Pine",
+    "ALIAS2": null,
+    "Address2": "1808 Lake Pine Drive",
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.746843,
+    "Lon": -78.815963,
+    "NAME": "Apex Community Park (Lake Trail)",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-249-3402",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.apexnc.org/795/Apex-Community-Park"
+   },
+   "lat": 35.746843,
+   "lon": -78.815963
+  },
+  {
+   "attributes": {
+    "ADDRESS": "451 W Williams St",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "451 NC HWY 55, Apex, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.7316289999999,
+    "Lon": -78.8605709999999,
+    "NAME": "Apex Jaycee Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-249-3402",
+    "RESTROOMS": "No",
+    "URL": "https://www.apexnc.org/797/Apex-Jaycee-Park"
+   },
+   "lat": 35.7316289999999,
+   "lon": -78.8605709999999
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2600 Evans Rd., Apex, NC",
+    "ALIAS1": "Seymour Athletic Fields",
+    "ALIAS2": null,
+    "Address2": "2500 Evans Rd., Apex, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.717099,
+    "Lon": -78.905361,
+    "NAME": "Apex Nature Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-249-3402",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.apexnc.org/800/Nature-Park-Seymour-Athletic-Fields"
+   },
+   "lat": 35.717099,
+   "lon": -78.905361
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2500 Evans Road",
+    "ALIAS1": "Seymour Athletic Fields",
+    "ALIAS2": null,
+    "Address2": "2600 Evan Road",
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.719409,
+    "Lon": -78.903012,
+    "NAME": "Apex Nature Park (Seymour Athletic Fields)",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "https://www.apexnc.org/800/Nature-Park-Seymour-Athletic-Fields"
+   },
+   "lat": 35.719409,
+   "lon": -78.903012
+  },
+  {
+   "attributes": {
+    "ADDRESS": "756 Lunar Dr, Raleigh, NC",
+    "ALIAS1": "Ralph Campbell",
+    "ALIAS2": null,
+    "Address2": "756 Lunar Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.76490479,
+    "Lon": -78.60924111,
+    "NAME": "Apollo Heights Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-250-2757",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/apollo-heights-park"
+   },
+   "lat": 35.76490479,
+   "lon": -78.60924111
+  },
+  {
+   "attributes": {
+    "ADDRESS": "9501 Baileywick Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "9501 Baileywick Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.90794866,
+    "Lon": -78.66854873,
+    "NAME": "Baileywick Road Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-870-2911",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/baileywick-park"
+   },
+   "lat": 35.90794866,
+   "lon": -78.66854873
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1651 North McLaurin Lane, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1651 North McLaurin Lane, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.613611,
+    "Lon": -78.772477,
+    "NAME": "Ballentine School Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/ballentine-school-park.html"
+   },
+   "lat": 35.613611,
+   "lon": -78.772477
+  },
+  {
+   "attributes": {
+    "ADDRESS": "10225 Chambers Road, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "10225 Chambers Road, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.633254,
+    "Lon": -78.7099589999999,
+    "NAME": "Banks Road Fields",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "No",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/banks-road.html"
+   },
+   "lat": 35.633254,
+   "lon": -78.7099589999999
+  },
+  {
+   "attributes": {
+    "ADDRESS": "3935 Barwell Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "3935 Barwell Rd, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.73047898,
+    "Lon": -78.55148342,
+    "NAME": "Barwell Road Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-329-5994",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/barwell-road-park"
+   },
+   "lat": 35.73047898,
+   "lon": -78.55148342
+  },
+  {
+   "attributes": {
+    "ADDRESS": "900 Bass Lake Rd., Holly Springs, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "900 Bass Lake Rd., Holly Springs, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Holly Springs",
+    "Lat": 35.641441,
+    "Lon": -78.80134,
+    "NAME": "Bass Lake Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "(919) 557-9600",
+    "RESTROOMS": "No",
+    "URL": "http://www.hollyspringsnc.us/index.aspx?NID=320"
+   },
+   "lat": 35.641441,
+   "lon": -78.80134
+  },
+  {
+   "attributes": {
+    "ADDRESS": "8105 McGuire Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "8105 McGuire Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.88205708,
+    "Lon": -78.55643335,
+    "NAME": "Berkshire Downs West Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/berkshire-downs-west-park"
+   },
+   "lat": 35.88205708,
+   "lon": -78.55643335
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2615 Fitzgerald Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2615 Fitzgerald Dr, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.74594733,
+    "Lon": -78.62702618,
+    "NAME": "Biltmore Hills Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6895",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/biltmore-hills-park"
+   },
+   "lat": 35.74594733,
+   "lon": -78.62702618
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2055 NW Maynard Road, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2055 NW Maynard Road, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.801406,
+    "Lon": -78.791817,
+    "NAME": "Black Creek Greenway Trailhead",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/greenways/black-creek-greenway"
+   },
+   "lat": 35.801406,
+   "lon": -78.791817
+  },
+  {
+   "attributes": {
+    "ADDRESS": "3200 Pleasant Union Church Road, Raleigh, NC 27614",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "3200 Pleasant Union Church Road, Raleigh, NC 27614",
+    "GYM": "No",
+    "JURISDICTION": "Wake County",
+    "Lat": 35.968917,
+    "Lon": -78.64275,
+    "NAME": "Blue Jay Point County Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-870-4330",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.wakegov.com/departments-government/parks-recreation-and-open-space/all-parks-trails/blue-jay-point-county-park"
+   },
+   "lat": 35.968917,
+   "lon": -78.64275
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1116 South Person St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1116 South Person St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.76595932,
+    "Lon": -78.63593109,
+    "NAME": "Bragg Street Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/bragg-street-park"
+   },
+   "lat": 35.76595932,
+   "lon": -78.63593109
+  },
+  {
+   "attributes": {
+    "ADDRESS": "3315 Vinson Ct, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "3315 Vinson Ct, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.82849982,
+    "Lon": -78.59954789,
+    "NAME": "Brentwood Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-872-41040",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/brentwood-park"
+   },
+   "lat": 35.82849982,
+   "lon": -78.59954789
+  },
+  {
+   "attributes": {
+    "ADDRESS": "10810 Globe Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "10810 Globe Rd, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.90052683,
+    "Lon": -78.8063632,
+    "NAME": "Brier Creek Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-420-2340",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/brier-creek-park"
+   },
+   "lat": 35.90052683,
+   "lon": -78.8063632
+  },
+  {
+   "attributes": {
+    "ADDRESS": "5125 Berkeley St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "5125 Berkeley St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.85387963,
+    "Lon": -78.68623034,
+    "NAME": "Brookhaven Nature Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6856",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/brookhaven-nature-park"
+   },
+   "lat": 35.85387963,
+   "lon": -78.68623034
+  },
+  {
+   "attributes": {
+    "ADDRESS": "5900 Buffaloe Rd, Raleigh, NC",
+    "ALIAS1": "Buffaloe Road Aquatic Center",
+    "ALIAS2": null,
+    "Address2": "5900 Buffaloe Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.83836221,
+    "Lon": -78.53728226,
+    "NAME": "Buffaloe Road Athletic Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6836",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/buffaloe-road-athletic-park"
+   },
+   "lat": 35.83836221,
+   "lon": -78.53728226
+  },
+  {
+   "attributes": {
+    "ADDRESS": "4901 Elizabeth Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "4901 Elizabeth Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.84766736,
+    "Lon": -78.53086384,
+    "NAME": "Buffaloe Road Canoe Launch",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6610",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/river-access"
+   },
+   "lat": 35.84766736,
+   "lon": -78.53086384
+  },
+  {
+   "attributes": {
+    "ADDRESS": "309 Holleman St, Apex, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "Privately Owned",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "C C Jones Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-362-5634",
+    "RESTROOMS": "Yes",
+    "URL": "http://ccjones.org/index.html"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "3237 Spottswood St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "3237 Spottswood St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.89100478,
+    "Lon": -78.5772856699999,
+    "NAME": "Campbell Lodge",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-870-2871",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/durant-nature-preserve"
+   },
+   "lat": 35.89100478,
+   "lon": -78.5772856699999
+  },
+  {
+   "attributes": {
+    "ADDRESS": "12028 Falls of Neuse Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "12028 Falls of Neuse Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.93974501,
+    "Lon": -78.57722699,
+    "NAME": "Canoe Launch at Falls Lake",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6610",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/river-access"
+   },
+   "lat": 35.93974501,
+   "lon": -78.57722699
+  },
+  {
+   "attributes": {
+    "ADDRESS": "110 Maywood Ave, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "110 Maywood Ave, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.76100957,
+    "Lon": -78.64621255,
+    "NAME": "Caraleigh Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/caraleigh-park"
+   },
+   "lat": 35.76100957,
+   "lon": -78.64621255
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2305 Lake Wheeler Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2305 Lake Wheeler Rd, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.74849692,
+    "Lon": -78.66770543,
+    "NAME": "Carolina Pines Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6435",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/carolina-pines-park"
+   },
+   "lat": 35.74849692,
+   "lon": -78.66770543
+  },
+  {
+   "attributes": {
+    "ADDRESS": "4420 Louis Stephens Drive, Cary, NC",
+    "ALIAS1": "Carpenter Park Community Garden",
+    "ALIAS2": "Memorial to Victims of Flight 3379 & 3378",
+    "Address2": "4420 Louis Stephens Drive, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Carpenter Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/parks/carpenter-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "301 Wagstaff Road, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "301 Wagstaff Road, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.565054,
+    "Lon": -78.806943,
+    "NAME": "Carroll Howard Johnson Environmental Education Park",
+    "Notes": "Amphitheater",
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/carroll-howard-johnson-environmental-education-park.html"
+   },
+   "lat": 35.565054,
+   "lon": -78.806943
+  },
+  {
+   "attributes": {
+    "ADDRESS": "291 Liles-Dean Rd, Wendell, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "291 Liles-Dean Rd, Wendell, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Wendell",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Carver Elementary School Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "(919) 365-2680",
+    "RESTROOMS": "No",
+    "URL": "https://www.townofwendell.com/departments/parks-and-recreation/facilites/carver-fields"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1600 Pender St, Raleigh, NC",
+    "ALIAS1": "Pender Street Mini Park",
+    "ALIAS2": "John Stokes Garden",
+    "Address2": "1600 Pender St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.78224206,
+    "Lon": -78.61563311,
+    "NAME": "Pender Street Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/john-stokes-memorial-park"
+   },
+   "lat": 35.78224206,
+   "lon": -78.61563311
+  },
+  {
+   "attributes": {
+    "ADDRESS": "316 N Academy Street, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "316 N Academy Street, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.789595,
+    "Lon": -78.78062,
+    "NAME": "Cary Arts Center",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Fac"
+   },
+   "lat": 35.789595,
+   "lon": -78.78062
+  },
+  {
+   "attributes": {
+    "ADDRESS": "638 Walnut Street, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "638 Walnut Street, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.771508,
+    "Lon": -78.766249,
+    "NAME": "Cary High School Softball Field",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://games.townofcarync.gov/ballfields/displaystatus.php"
+   },
+   "lat": 35.771508,
+   "lon": -78.766249
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2727 Louis Stephens Drive, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2727 Louis Stephens Drive, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.804949,
+    "Lon": -78.862641,
+    "NAME": "Cary Tennis Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-462-2061",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/facilities/cary-tennis-park"
+   },
+   "lat": 35.804949,
+   "lon": -78.862641
+  },
+  {
+   "attributes": {
+    "ADDRESS": "228 Aviation Parkway",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "Morrisville, NC 27560",
+    "GYM": "No",
+    "JURISDICTION": "Town of Morrisville",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Cedar Fork District Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-463-7110",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofmorrisville.org/government/departments-services/parks-recreation-cultural-resources/parks-and-greenways/cedar-fork-district-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "5600 Sweetbriar Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "5600 Sweetbriar Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.85929472,
+    "Lon": -78.63062379,
+    "NAME": "Cedar Hills Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-870-2880",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/cedar-hills-park"
+   },
+   "lat": 35.85929472,
+   "lon": -78.63062379
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1015 New Bethel Church Road, Garner NC, 27529",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1015 New Bethel Church Road, Garner NC, 27529",
+    "GYM": "No",
+    "JURISDICTION": "Town of Garner",
+    "Lat": 35.669359,
+    "Lon": -78.6046,
+    "NAME": "Centennial Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-773-4442",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.garnernc.gov/Departments/Parks%20and%20Recreation/Parks.aspx?ID=1"
+   },
+   "lat": 35.669359,
+   "lon": -78.6046
+  },
+  {
+   "attributes": {
+    "ADDRESS": "500 Chamberlain St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "500 Chamberlain St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.79208234,
+    "Lon": -78.66463995,
+    "NAME": "Chamberlain Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/chamberlain-park"
+   },
+   "lat": 35.79208234,
+   "lon": -78.66463995
+  },
+  {
+   "attributes": {
+    "ADDRESS": "5800 Cricket Pitch Way",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "Morrisville, NC 27560",
+    "GYM": "No",
+    "JURISDICTION": "Town of Morrisville",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Church Street Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-463-7110",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofmorrisville.org/government/departments-services/parks-recreation-cultural-resources/parks-and-greenways/church-street-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "801 E. Chatham St., Apex, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "801 E. Chatham St., Apex, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.727473,
+    "Lon": -78.84175,
+    "NAME": "Clairmont Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-249-3402",
+    "RESTROOMS": "No",
+    "URL": "https://www.apexnc.org/796/Neighborhood-Parks"
+   },
+   "lat": 35.727473,
+   "lon": -78.84175
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2256 Old U.S. Hwy 70, Clayton, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "State of North Carolina",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Clemmons Educational State Forest",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-553-5651",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.ncesf.org/clemmons.html"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1603 Meadowbrook Dr, Garner, NC 27529",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "Town of Garner",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Cloverdale Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-773-4431",
+    "RESTROOMS": null,
+    "URL": "https://www.garnernc.gov/departments/economic-development/living-here/recreation-and-cultural-resources"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "106 Chamberlain St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "106 Chamberlain St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.78815032,
+    "Lon": -78.66616873,
+    "NAME": "Compiegne Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/compiegne-park"
+   },
+   "lat": 35.78815032,
+   "lon": -78.66616873
+  },
+  {
+   "attributes": {
+    "ADDRESS": "151 Keybridge Drive",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "Morrisville, NC 27560",
+    "GYM": "No",
+    "JURISDICTION": "Town of Morrisville",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Crabtree Creek Nature Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-463-7110",
+    "RESTROOMS": "No",
+    "URL": "http://www.townofmorrisville.org/government/departments-services/parks-recreation-cultural-resources/parks-and-greenways/crabtree-creek-nature-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "400 Creech Road, Garner NC, 27529",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "400 Creech Road, Garner NC, 27529",
+    "GYM": "No",
+    "JURISDICTION": "Town of Garner",
+    "Lat": 35.713956,
+    "Lon": -78.602436,
+    "NAME": "Creech Road Elementary School Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-773-4442",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.garnernc.gov/Departments/Parks%20and%20Recreation/Parks.aspx?ID=2"
+   },
+   "lat": 35.713956,
+   "lon": -78.602436
+  },
+  {
+   "attributes": {
+    "ADDRESS": "4709 Ten Ten Road",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "Apex, NC 27539",
+    "GYM": "No",
+    "JURISDICTION": "Wake County",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Crowder County Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-662-2850",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.wakegov.com/departments-government/parks-recreation-and-open-space/all-parks-trails/crowder-county-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "566 Dacian Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "566 Dacian Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.76209727,
+    "Lon": -78.60160718,
+    "NAME": "Dacian Road Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/dacian-road-park"
+   },
+   "lat": 35.76209727,
+   "lon": -78.60160718
+  },
+  {
+   "attributes": {
+    "ADDRESS": "908 East Davie St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "908 East Davie St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.77496423,
+    "Lon": -78.62432832,
+    "NAME": "Davie Street Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/davie-street-park"
+   },
+   "lat": 35.77496423,
+   "lon": -78.62432832
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1610 Davis Drive, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1610 Davis Drive, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.772788,
+    "Lon": -78.844874,
+    "NAME": "Davis Drive Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Parks_and_Greenways/Parks/Davis_Drive_Park.htm"
+   },
+   "lat": 35.772788,
+   "lon": -78.844874
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2101 Davis Drive, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2101 Davis Drive, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.778698,
+    "Lon": -78.851224,
+    "NAME": "Davis Drive School Fields",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://games.townofcarync.gov/ballfields/displaystatus.php"
+   },
+   "lat": 35.778698,
+   "lon": -78.851224
+  },
+  {
+   "attributes": {
+    "ADDRESS": "6100 Dixon Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "6100 Dixon Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.86318346,
+    "Lon": -78.65143637,
+    "NAME": "Dixon Drive Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/dixon-drive-park"
+   },
+   "lat": 35.86318346,
+   "lon": -78.65143637
+  },
+  {
+   "attributes": {
+    "ADDRESS": "900 S Boylan Ave, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "900 S Boylan Ave, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.77394085,
+    "Lon": -78.66044871,
+    "NAME": "Dorothea Dix Park - Blair Dr Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/dorothea-dix-park"
+   },
+   "lat": 35.77394085,
+   "lon": -78.66044871
+  },
+  {
+   "attributes": {
+    "ADDRESS": "900 S Boylan Ave, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "900 S Boylan Ave, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.77394085,
+    "Lon": -78.66044871,
+    "NAME": "Dorothea Dix Park - Lake Wheeler Rd Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/dorothea-dix-park"
+   },
+   "lat": 35.77394085,
+   "lon": -78.66044871
+  },
+  {
+   "attributes": {
+    "ADDRESS": "900 S Boylan Ave, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "900 S Boylan Ave, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.77394085,
+    "Lon": -78.66044871,
+    "NAME": "Dorothea Dix Park - Western Blvd Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/dorothea-dix-park"
+   },
+   "lat": 35.77394085,
+   "lon": -78.66044871
+  },
+  {
+   "attributes": {
+    "ADDRESS": "720 Griffis Street, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "720 Griffis Street, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.777498,
+    "Lon": -78.790511,
+    "NAME": "Dorothy Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Parks_and_Greenways/Parks/Dorothy_Park.htm"
+   },
+   "lat": 35.777498,
+   "lon": -78.790511
+  },
+  {
+   "attributes": {
+    "ADDRESS": "319 S. Academy Street, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "319 S. Academy Street, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Downtown Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/parks/downtown-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "900 Rock Quarry Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "900 Rock Quarry Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.76829656,
+    "Lon": -78.61750436,
+    "NAME": "Dr. Martin Luther King, Jr. Memorial Gardens",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-996-4115",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/dr-martin-luther-king-jr-memorial-gardens"
+   },
+   "lat": 35.76829656,
+   "lon": -78.61750436
+  },
+  {
+   "attributes": {
+    "ADDRESS": "8305 Camp Durant Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "8305 Camp Durant Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.89470577,
+    "Lon": -78.57874372,
+    "NAME": "Durant Nature Preserve",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-870-2871",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/durant-nature-preserve"
+   },
+   "lat": 35.89470577,
+   "lon": -78.57874372
+  },
+  {
+   "attributes": {
+    "ADDRESS": "701 Harris Rd, Wake Forest, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "701 Harris Rd, Wake Forest, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Wake Forest",
+    "Lat": 35.998519,
+    "Lon": -78.51487,
+    "NAME": "E. Carroll Joyner Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-435-9560",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.wakeforestnc.gov/joyner-park.aspx"
+   },
+   "lat": 35.998519,
+   "lon": -78.51487
+  },
+  {
+   "attributes": {
+    "ADDRESS": "4200 Quail Hollow Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "4200 Quail Hollow Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.83951672,
+    "Lon": -78.62310967,
+    "NAME": "Eastgate Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-872-4156",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/eastgate-park"
+   },
+   "lat": 35.83951672,
+   "lon": -78.62310967
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1600 Park Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1600 Park Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.78807659,
+    "Lon": -78.65522471,
+    "NAME": "Edna Metz Wells Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/edna-metz-wells-park"
+   },
+   "lat": 35.78807659,
+   "lon": -78.65522471
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2200 Laura Duncan Road",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": "Yes",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.753613,
+    "Lon": -78.823003,
+    "NAME": "Elevate Fitness Course",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-249-2304",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.apexnc.org/1187/Elevate-Fitness-Course"
+   },
+   "lat": 35.753613,
+   "lon": -78.823003
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1600 Fayetteville St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1600 Fayetteville St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.75921149,
+    "Lon": -78.64296631,
+    "NAME": "Eliza Pool Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/eliza-pool-park"
+   },
+   "lat": 35.75921149,
+   "lon": -78.64296631
+  },
+  {
+   "attributes": {
+    "ADDRESS": "611 E. Academy Street, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "611 E. Academy Street, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.584302,
+    "Lon": -78.791004,
+    "NAME": "Falcon Park",
+    "Notes": "Rental Building with Roof",
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/falcon-park.html"
+   },
+   "lat": 35.584302,
+   "lon": -78.791004
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2601 Oxford Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2601 Oxford Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.81572391,
+    "Lon": -78.6366259,
+    "NAME": "Fallon Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/fallon-park"
+   },
+   "lat": 35.81572391,
+   "lon": -78.6366259
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1630 Bent Rd, Wake Forest",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1630 Bent Rd, Wake Forest",
+    "GYM": null,
+    "JURISDICTION": "State of North Carolina",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Falls Lake State Recreation Area - B.W. Wells Rec Area Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-676-1027",
+    "RESTROOMS": null,
+    "URL": "https://www.ncparks.gov/falls-lake-state-recreation-area"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "14600 Creedmoor Rd, Wake Forest",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "14600 Creedmoor Rd, Wake Forest",
+    "GYM": null,
+    "JURISDICTION": "State of North Carolina",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Falls Lake State Recreation Area - Beaverdam Lake Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-676-1027",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.ncparks.gov/falls-lake-state-recreation-area"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "14424 New Light Rd. Wake Forest",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "14424 New Light Rd. Wake Forest",
+    "GYM": null,
+    "JURISDICTION": "State of North Carolina",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Falls Lake State Recreation Area - Holly Point Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-676-1027",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.ncparks.gov/falls-lake-state-recreation-area"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "13900 Creedmoor Road, Wake Forest",
+    "ALIAS1": "Hwy 50",
+    "ALIAS2": null,
+    "Address2": "13900 Creedmoor Road, Wake Forest",
+    "GYM": null,
+    "JURISDICTION": "State of North Carolina",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Falls Lake State Recreation Area - Park Office Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "(919) 676-1027",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.ncparks.gov/falls-lake-state-recreation-area"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "14813 Creedmoor Rd, Wake Forest",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "14813 Creedmoor Rd, Wake Forest",
+    "GYM": null,
+    "JURISDICTION": "State of North Carolina",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Falls Lake State Recreation Area - Sandling Beach Rec Area Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "(919) 676-1027",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.ncparks.gov/falls-lake-state-recreation-area"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "13708 New Light Road, Wake Forest",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "13708 New Light Road, Wake Forest",
+    "GYM": null,
+    "JURISDICTION": "State of North Carolina",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Falls Lake State Recreation Area - Shinleaf Rec Area Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "(919) 676-1027",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.ncparks.gov/falls-lake-state-recreation-area"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "324 N Fisher St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "324 N Fisher St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.78357255,
+    "Lon": -78.61453355,
+    "NAME": "Fisher Street Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/fisher-street-park"
+   },
+   "lat": 35.78357255,
+   "lon": -78.61453355
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2000 Noble Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2000 Noble Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.80838459,
+    "Lon": -78.63561983,
+    "NAME": "Five Points Center for Active Adults",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-996-4730",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/five-points-center-active-adults"
+   },
+   "lat": 35.80838459,
+   "lon": -78.63561983
+  },
+  {
+   "attributes": {
+    "ADDRESS": "301 Fleming Loop Road, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "301 Fleming Loop Road, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.580688,
+    "Lon": -78.816976,
+    "NAME": "Fleming Loop Recreation Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "No",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/fleming-loop-park.html"
+   },
+   "lat": 35.580688,
+   "lon": -78.816976
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2100 Old NC Hwy 98, Wake Forest, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2100 Old NC Hwy 98, Wake Forest, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Forest Ridge Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/forest-ridge-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "7101 Fox Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "7101 Fox Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Fox Road Elementary School Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "(919) 850-8845",
+    "RESTROOMS": "No",
+    "URL": "http://www.wcpss.net/foxroades"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "805 Washington St, Raleigh, NC",
+    "ALIAS1": "Borden Building",
+    "ALIAS2": null,
+    "Address2": "805 Washington St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.79283274,
+    "Lon": -78.64961959,
+    "NAME": "Fred Fletcher Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/fred-fletcher-park"
+   },
+   "lat": 35.79283274,
+   "lon": -78.64961959
+  },
+  {
+   "attributes": {
+    "ADDRESS": "801 High House Road, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "801 High House Road, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.790665,
+    "Lon": -78.833094,
+    "NAME": "Fred G. Bond Metro Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Parks_and_Greenways/Parks/Fred_G__Bond_Metro_Park.htm"
+   },
+   "lat": 35.790665,
+   "lon": -78.833094
+  },
+  {
+   "attributes": {
+    "ADDRESS": "110 Woodland Drive, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "110 Woodland Drive, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.583051,
+    "Lon": -78.804481,
+    "NAME": "Fuquay-Varina Downtown Dog Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "No",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/dog-park.html"
+   },
+   "lat": 35.583051,
+   "lon": -78.804481
+  },
+  {
+   "attributes": {
+    "ADDRESS": "6600 Johnson Pond Rd, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "6600 Johnson Pond Rd, Fuquay-Varina, NC",
+    "GYM": null,
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Fuquay-Varina Elementary School Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "(919) 557-2566",
+    "RESTROOMS": null,
+    "URL": "http://www.wcpss.net/fuquayvarinaes"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "201 Bengal Blvd., Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "201 Bengal Blvd., Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.599922,
+    "Lon": -78.792503,
+    "NAME": "Fuquay-Varina High School Tennis Courts",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "No",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/fvhs-tennis-courts.html"
+   },
+   "lat": 35.599922,
+   "lon": -78.792503
+  },
+  {
+   "attributes": {
+    "ADDRESS": "131 South Fuquay Avenue, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "131 South Fuquay Avenue, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Fuquay-Varina Museums at Ashworth Park",
+    "Notes": "Fuquay-Varina Town Museum adjacent to park",
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "No",
+    "URL": "http://www.fuquay-varina.org/Facilities/Facility/Details/FuquayVarina-Museums-at-Ashworth-Park-14"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "105 West Spring Street, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "105 West Spring Street, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.580356,
+    "Lon": -78.800427,
+    "NAME": "Fuquay Mineral Spring Park",
+    "Notes": "Picnic Tables (not sheltered)",
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "No",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/fuquay-mineral-spring-park.html"
+   },
+   "lat": 35.580356,
+   "lon": -78.800427
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1300 Vandora Springs Road, Garner NC, 27529",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1300 Vandora Springs Road, Garner NC, 27529",
+    "GYM": "No",
+    "JURISDICTION": "Town of Garner",
+    "Lat": 35.69907,
+    "Lon": -78.628396,
+    "NAME": "Garner Jaycee Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-773-4445",
+    "RESTROOMS": "No",
+    "URL": "http://www.garnernc.gov/Departments/Parks%20and%20Recreation/Parks.aspx?ID=18"
+   },
+   "lat": 35.69907,
+   "lon": -78.628396
+  },
+  {
+   "attributes": {
+    "ADDRESS": "221 East Garner Road, Garner NC, 27529",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "221 East Garner Road, Garner NC, 27529",
+    "GYM": "No",
+    "JURISDICTION": "Town of Garner",
+    "Lat": 35.709444,
+    "Lon": -78.602809,
+    "NAME": "Garner Recreational Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-773-4443",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.garnernc.gov/Departments/Parks%20and%20Recreation/Parks.aspx?ID=5"
+   },
+   "lat": 35.709444,
+   "lon": -78.602809
+  },
+  {
+   "attributes": {
+    "ADDRESS": "600 N Privette St, Zebulon, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "Town of Zebulon",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Gill Street Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-823-0432",
+    "RESTROOMS": null,
+    "URL": "https://www.townofzebulon.org/services/parks-and-recreation/parks-facilities"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1500 Glen Eden Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1500 Glen Eden Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.82833125,
+    "Lon": -78.68352339,
+    "NAME": "Glen Eden Pilot Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6833",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/glen-eden-pilot-park"
+   },
+   "lat": 35.82833125,
+   "lon": -78.68352339
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1580 Morrisville Carpenter Road, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "Town of Cary",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Good Hope Farm",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": null,
+    "RESTROOMS": null,
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/community-gardens-urban-agriculture/good-hope-farm"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "9300 Deponie Dr., Raleigh, NC  27614",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "9300 Deponie Dr., Raleigh, NC  27614",
+    "GYM": "No",
+    "JURISDICTION": "Wake County",
+    "Lat": 35.904872,
+    "Lon": -78.584153,
+    "NAME": "Green Hills County Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-856-6670",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.wakegov.com/departments-government/parks-recreation-open-space/all-parks-trails/green-hills-county-park"
+   },
+   "lat": 35.904872,
+   "lon": -78.584153
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2750 Louis Stephens Drive, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2750 Louis Stephens Drive, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.810583,
+    "Lon": -78.86314,
+    "NAME": "Green Hope Elementary Park",
+    "Notes": "Sand Volleyball Courts",
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/parks/green-hope-elementary-park"
+   },
+   "lat": 35.810583,
+   "lon": -78.86314
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2500 Carpenter Upchurch Road, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2500 Carpenter Upchurch Road, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.80475,
+    "Lon": -78.866736,
+    "NAME": "Green Hope High School Fields",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://games.townofcarync.gov/ballfields/displaystatus.php"
+   },
+   "lat": 35.80475,
+   "lon": -78.866736
+  },
+  {
+   "attributes": {
+    "ADDRESS": "4201 Green Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "4201 Green Rd, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.84095329,
+    "Lon": -78.59179373,
+    "NAME": "Green Road Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-872-4140",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/green-road-park"
+   },
+   "lat": 35.84095329,
+   "lon": -78.59179373
+  },
+  {
+   "attributes": {
+    "ADDRESS": "613 Winterlochen Road, Garner NC, 27529",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "613 Winterlochen Road, Garner NC, 27529",
+    "GYM": "No",
+    "JURISDICTION": "Town of Garner",
+    "Lat": 35.7146389999999,
+    "Lon": -78.643521,
+    "NAME": "Greenbrier Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-773-4444",
+    "RESTROOMS": "No",
+    "URL": "http://www.garnernc.gov/Departments/Parks%20and%20Recreation/Parks.aspx?ID=17"
+   },
+   "lat": 35.7146389999999,
+   "lon": -78.643521
+  },
+  {
+   "attributes": {
+    "ADDRESS": "7713-55 Leadmine Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "7713 Leadmine Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.88681934,
+    "Lon": -78.66022048,
+    "NAME": "Greystone Recreation Center",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-996-4848",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/greystone-recreation-center"
+   },
+   "lat": 35.88681934,
+   "lon": -78.66022048
+  },
+  {
+   "attributes": {
+    "ADDRESS": "401 Elm Ave, Wake Forest, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "401 Elm Ave, Wake Forest, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Wake Forest",
+    "Lat": 35.97512,
+    "Lon": -78.507856,
+    "NAME": "H.L. Miller Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-435-9560",
+    "RESTROOMS": "No",
+    "URL": "http://www.wakeforestnc.gov/miller-park.aspx"
+   },
+   "lat": 35.97512,
+   "lon": -78.507856
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1015 Halifax St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1015 Halifax St, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.79322374,
+    "Lon": -78.63871997,
+    "NAME": "Halifax Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6378",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/halifax-park"
+   },
+   "lat": 35.79322374,
+   "lon": -78.63871997
+  },
+  {
+   "attributes": {
+    "ADDRESS": "237 N Salem Street",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.7326473,
+    "Lon": -78.8503311,
+    "NAME": "Halle Cultural Arts Center",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-249-1120",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.apexnc.org/454/Halle-Cultural-Arts-Center"
+   },
+   "lat": 35.7326473,
+   "lon": -78.8503311
+  },
+  {
+   "attributes": {
+    "ADDRESS": "301 Lochmere Drive West, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "301 Lochmere Drive West, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.729255,
+    "Lon": -78.781262,
+    "NAME": "Harold D. Ritter Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Parks_and_Greenways/Parks/Harold_D__Ritter_Park.htm"
+   },
+   "lat": 35.729255,
+   "lon": -78.781262
+  },
+  {
+   "attributes": {
+    "ADDRESS": "207 Main St, Knightdale, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "207 Main St, Knightdale, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Knightdale",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Harper Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-217-2230",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.knightdalenc.gov/index.aspx?page=351"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2112 County Park Dr., New Hill, NC  27562",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2112 County Park Dr., New Hill, NC  27562",
+    "GYM": "No",
+    "JURISDICTION": "Wake County",
+    "Lat": 35.631378,
+    "Lon": -78.921194,
+    "NAME": "Harris Lake County Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-387-4342",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.wakegov.com/departments-government/parks-recreation-and-open-space/all-parks-trails/harris-lake-county-park"
+   },
+   "lat": 35.631378,
+   "lon": -78.921194
+  },
+  {
+   "attributes": {
+    "ADDRESS": "400 S West Street, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "400 S West Street, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.78256,
+    "Lon": -78.786823,
+    "NAME": "Heater Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Parks_and_Greenways/Parks/Heater_Park.htm"
+   },
+   "lat": 35.78256,
+   "lon": -78.786823
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2616 Kildaire Farm Road, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2616 Kildaire Farm Road, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.723512,
+    "Lon": -78.782955,
+    "NAME": "Hemlock Bluffs Nature Preserve",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Parks_and_Greenways/Parks/Stevens_Nature_Center_At_Hemlock_Bluffs_Nature_Preserve.htm"
+   },
+   "lat": 35.723512,
+   "lon": -78.782955
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2255 Herbert Akins Road, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2255 Herbert Akins Road, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.620535,
+    "Lon": -78.80343,
+    "NAME": "Herbert Akins Fields",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "No",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/herbert-akins-fields.html"
+   },
+   "lat": 35.620535,
+   "lon": -78.80343
+  },
+  {
+   "attributes": {
+    "ADDRESS": "316 North Academy Street, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "316 North Academy Street, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.789595,
+    "Lon": -78.78062,
+    "NAME": "Herbert C. Young Community Center",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Facilities/Community_Centers/Herbert_C__Young_Community_Center.htm"
+   },
+   "lat": 35.789595,
+   "lon": -78.78062
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1140 Forestville Rd, Wake Forest, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1140 Forestville Rd, Wake Forest, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Wake Forest",
+    "Lat": 35.937762,
+    "Lon": -78.507347,
+    "NAME": "Heritage High Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-435-9560",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.wakeforestnc.gov/heritage-high-park.aspx"
+   },
+   "lat": 35.937762,
+   "lon": -78.507347
+  },
+  {
+   "attributes": {
+    "ADDRESS": "205 Blanchard St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "205 Blanchard St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.74425123,
+    "Lon": -78.64300545,
+    "NAME": "Hertford Village Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/hertford-village-park"
+   },
+   "lat": 35.74425123,
+   "lon": -78.64300545
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2307 Hill St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2307 Hill St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.81290651,
+    "Lon": -78.59070793,
+    "NAME": "Hill Street Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/hill-street-park"
+   },
+   "lat": 35.81290651,
+   "lon": -78.59070793
+  },
+  {
+   "attributes": {
+    "ADDRESS": "4028 Carya Dr., Raleigh, NC  27610",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "4028 Carya Dr., Raleigh, NC  27610",
+    "GYM": "No",
+    "JURISDICTION": "Wake County",
+    "Lat": 35.770019,
+    "Lon": -78.569734,
+    "NAME": "Historic Oak View County Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-250-1013",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.wakegov.com/departments-government/parks-recreation-and-open-space/all-parks-trails/historic-oak-view-county-park"
+   },
+   "lat": 35.770019,
+   "lon": -78.569734
+  },
+  {
+   "attributes": {
+    "ADDRESS": "4620 Lake Wheeler Rd., Raleigh, NC  27603",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "4620 Lake Wheeler Rd., Raleigh, NC  27603",
+    "GYM": "No",
+    "JURISDICTION": "Wake County",
+    "Lat": 35.718682,
+    "Lon": -78.686134,
+    "NAME": "Historic Yates Mill County Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-856-6675",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.wakegov.com/departments-government/parks-recreation-and-open-space/all-parks-trails/historic-yates-mill-county-park"
+   },
+   "lat": 35.718682,
+   "lon": -78.686134
+  },
+  {
+   "attributes": {
+    "ADDRESS": "133 W Owen Ave, Wake Forest, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "133 W Owen Ave, Wake Forest, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Wake Forest",
+    "Lat": 35.977659,
+    "Lon": -78.513536,
+    "NAME": "Holding Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-435-9560",
+    "RESTROOMS": "No",
+    "URL": "http://www.wakeforestnc.gov/holding-park.aspx"
+   },
+   "lat": 35.977659,
+   "lon": -78.513536
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1032 Clear Creek Farm Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1032 Clear Creek Farm Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.90286339,
+    "Lon": -78.62558617,
+    "NAME": "Honeycutt Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-872-4156",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/honeycutt-park"
+   },
+   "lat": 35.90286339,
+   "lon": -78.62558617
+  },
+  {
+   "attributes": {
+    "ADDRESS": "101 Fitness Drive, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "101 Fitness Drive, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.581754,
+    "Lon": -78.762361,
+    "NAME": "Honeycutt Road Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/honeycutt-road-park.html"
+   },
+   "lat": 35.581754,
+   "lon": -78.762361
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2900 Horseshoe Farm Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2900 Horseshoe Farm Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.88513599,
+    "Lon": -78.53605317,
+    "NAME": "Horseshoe Farm Nature Preserve",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/horseshoe-farm-nature-preserve"
+   },
+   "lat": 35.88513599,
+   "lon": -78.53605317
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1250 Ambergate Station, Apex, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1250 Ambergate Station, Apex, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.737466,
+    "Lon": -78.847887,
+    "NAME": "Hunter Street Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-249-3402",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.apexnc.org/798/Hunter-Street-Park"
+   },
+   "lat": 35.737466,
+   "lon": -78.847887
+  },
+  {
+   "attributes": {
+    "ADDRESS": "901 Dixie Trl, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "901 Dixie Trl, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.8017196,
+    "Lon": -78.67672791,
+    "NAME": "Hymettus Woods Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/hymettus-woods-park"
+   },
+   "lat": 35.8017196,
+   "lon": -78.67672791
+  },
+  {
+   "attributes": {
+    "ADDRESS": "101 Town Hall Drive",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "Morrisville, NC 27560",
+    "GYM": "No",
+    "JURISDICTION": "Town of Morrisville",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Indian Creek Greenway and Trailhead",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-463-7110",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofmorrisville.org/government/departments-services/parks-recreation-cultural-resources/parks-and-greenways/indian-creek-greenway-and-trailhead"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2601 Kilgore Ave, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2601 Kilgore Ave, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.79263188,
+    "Lon": -78.66915659,
+    "NAME": "Isabella Cannon Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/isabella-cannon-park"
+   },
+   "lat": 35.79263188,
+   "lon": -78.66915659
+  },
+  {
+   "attributes": {
+    "ADDRESS": "14 W Third St, Wendell, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "14 W Third St, Wendell, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Wendell",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "J Ashley Wall Town Square",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://www.townofwendell.com/departments/parks-and-recreation/facilites/town-square"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1226 N White St, Wake Forest, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1226 N White St, Wake Forest, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "Town of Wake Forest",
+    "Lat": 35.992105,
+    "Lon": -78.49116,
+    "NAME": "J.B. Flaherty Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-435-9560",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.wakeforestnc.gov/residents-parksrecreation_facilities_flaherty.aspx"
+   },
+   "lat": 35.992105,
+   "lon": -78.49116
+  },
+  {
+   "attributes": {
+    "ADDRESS": "9725 Penny Road, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "9725 Penny Road, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Jack Smith Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/parks/jack-smith-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "115 West Jones Street, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "115 West Jones Street, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.5869199999999,
+    "Lon": -78.801134,
+    "NAME": "James A. Campbell Park",
+    "Notes": "Restrooms are Portajohns",
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/west-jones-street-park.html"
+   },
+   "lat": 35.5869199999999,
+   "lon": -78.801134
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2405 Wade Ave, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2405 Wade Ave, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.79925641,
+    "Lon": -78.66360046,
+    "NAME": "Jaycee Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6833",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/jaycee-park"
+   },
+   "lat": 35.79925641,
+   "lon": -78.66360046
+  },
+  {
+   "attributes": {
+    "ADDRESS": "505 Martin Luther King Jr Blvd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "505 Martin Luther King Jr Blvd, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.76958686,
+    "Lon": -78.63004626,
+    "NAME": "John Chavis Memorial Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6989",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/john-chavis-memorial-park"
+   },
+   "lat": 35.76958686,
+   "lon": -78.63004626
+  },
+  {
+   "attributes": {
+    "ADDRESS": "401 Martin Luther King Jr. Blvd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "401 Martin Luther King Jr. Blvd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.76953558,
+    "Lon": -78.63322786,
+    "NAME": "John P Top Greene Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6527",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/john-p-top-greene-park"
+   },
+   "lat": 35.76953558,
+   "lon": -78.63322786
+  },
+  {
+   "attributes": {
+    "ADDRESS": "405 School Days Ln., Holly Springs, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "405 School Days Ln., Holly Springs, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Holly Springs",
+    "Lat": 35.737776,
+    "Lon": -78.902547,
+    "NAME": "Jones Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "(919) 557-9600",
+    "RESTROOMS": "No",
+    "URL": "http://www.hollyspringsnc.us/index.aspx?NID=328"
+   },
+   "lat": 35.737776,
+   "lon": -78.902547
+  },
+  {
+   "attributes": {
+    "ADDRESS": "416 E Lee St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "416 E Lee St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Junious N. Sorrell Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/junious-n-sorrell-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "5208 Kaplan Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "5208 Kaplan Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.77479183,
+    "Lon": -78.7118959,
+    "NAME": "Kaplan Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/kaplan-park"
+   },
+   "lat": 35.77479183,
+   "lon": -78.7118959
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1701 Kelly Glen Ln., Apex, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1701 Kelly Glen Ln., Apex, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.729964,
+    "Lon": -78.892835,
+    "NAME": "Kelly Glen Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-249-3402",
+    "RESTROOMS": "No",
+    "URL": "https://www.apexnc.org/796/Neighborhood-Parks"
+   },
+   "lat": 35.729964,
+   "lon": -78.892835
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1609 Kelly Rd., Apex, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1609 Kelly Rd., Apex, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.7317,
+    "Lon": -78.894811,
+    "NAME": "Kelly Road Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-249-3402",
+    "RESTROOMS": "No",
+    "URL": "https://www.apexnc.org/799/Kelly-Road-Park"
+   },
+   "lat": 35.7317,
+   "lon": -78.894811
+  },
+  {
+   "attributes": {
+    "ADDRESS": "4531 Kaplan Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "4531 Kaplan Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.77606639,
+    "Lon": -78.69596514,
+    "NAME": "Kentwood Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/kentwood-park"
+   },
+   "lat": 35.77606639,
+   "lon": -78.69596514
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2610 Evers Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2610 Evers Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.74460801,
+    "Lon": -78.61847559,
+    "NAME": "Kingwood Forest Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/kingwood-forest-park"
+   },
+   "lat": 35.74460801,
+   "lon": -78.61847559
+  },
+  {
+   "attributes": {
+    "ADDRESS": "300 West Ransom Street, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "300 West Ransom Street, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.577672,
+    "Lon": -78.802218,
+    "NAME": "Kinton Soccer Fields",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "No",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/kinton-soccer-fields.html"
+   },
+   "lat": 35.577672,
+   "lon": -78.802218
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2525 Noble Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2525 Noble Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.81717867,
+    "Lon": -78.6317753,
+    "NAME": "Kiwanis Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-870-2880",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/kiwanis-park"
+   },
+   "lat": 35.81717867,
+   "lon": -78.6317753
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1137 Old Knight Rd, Knightdale, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1137 Old Knight Rd, Knightdale, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Knightdale",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Knightdale Community Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-217-2231",
+    "RESTROOMS": "No",
+    "URL": "http://www.knightdalenc.gov/index.aspx?page=347"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "202 Milburnie Road Knightdale, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "Town of Knightdale",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Knightdale Community Pool",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-217-2232",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.knightdalenc.gov/departments/parks-recreation-and-cultural-programs/parks-greenways-and-facilities/knightdale-1"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "109 Ridge St, Knightdale, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "109 Ridge St, Knightdale, NC",
+    "GYM": null,
+    "JURISDICTION": "Town of Knightdale",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Knightdale Elementary School Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "(919) 266-8540",
+    "RESTROOMS": null,
+    "URL": "https://www.knightdalenc.gov/departments/parks-recreation-and-cultural-programs/parks-greenways-and-facilities"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1385 N Smithfield Rd, Knightdale, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1385 N Smithfield Rd, Knightdale, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Knightdale",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Knightdale Environmental Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-217-2230",
+    "RESTROOMS": "No",
+    "URL": "http://www.knightdalenc.gov/index.aspx?page=350"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "810 North First Avenue, Knightdale, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "810 North First Avenue, Knightdale, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Knightdale",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Knightdale Station Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": null,
+    "URL": "http://www.knightdalenc.gov/index.aspx?page=562"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "8003 Regency Parkway, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "8003 Regency Parkway, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.728911,
+    "Lon": -78.795393,
+    "NAME": "Koka Booth Amphitheatre",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://boothamphitheatre.com/"
+   },
+   "lat": 35.728911,
+   "lon": -78.795393
+  },
+  {
+   "attributes": {
+    "ADDRESS": "921 Buffaloe Road, Garner NC, 27529",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "921 Buffaloe Road, Garner NC, 27529",
+    "GYM": "No",
+    "JURISDICTION": "Town of Garner",
+    "Lat": 35.671913,
+    "Lon": -78.62715,
+    "NAME": "Lake Benson Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-772-4688",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.garnernc.gov/Departments/Parks%20and%20Recreation/Parks.aspx?ID=13"
+   },
+   "lat": 35.671913,
+   "lon": -78.62715
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1400 Aviation Pkwy., Morrisville, NC  27560",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1400 Aviation Pkwy., Morrisville, NC  27560",
+    "GYM": "No",
+    "JURISDICTION": "Wake County",
+    "Lat": 35.843908,
+    "Lon": -78.795222,
+    "NAME": "Lake Crabtree County Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-460-3390",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.wakegov.com/departments-government/parks-recreation-and-open-space/all-parks-trails/lake-crabtree-county-park"
+   },
+   "lat": 35.843908,
+   "lon": -78.795222
+  },
+  {
+   "attributes": {
+    "ADDRESS": "4601 Avent Ferry Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "4601 Avent Ferry Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.75782133,
+    "Lon": -78.71402982,
+    "NAME": "Lake Johnson Nature Preserve",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-233-2121",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/lake-johnson-park"
+   },
+   "lat": 35.75782133,
+   "lon": -78.71402982
+  },
+  {
+   "attributes": {
+    "ADDRESS": "4601 Avent Ferry Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "4601 Avent Ferry Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.76320984,
+    "Lon": -78.71380964,
+    "NAME": "Lake Johnson Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-233-2121",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/lake-johnson-park"
+   },
+   "lat": 35.76320984,
+   "lon": -78.71380964
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1416 Athens Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1416 Athens Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.76734427,
+    "Lon": -78.71589026,
+    "NAME": "Lake Johnson Pool",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-233-2111",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/lake-johnson-pool"
+   },
+   "lat": 35.76734427,
+   "lon": -78.71589026
+  },
+  {
+   "attributes": {
+    "ADDRESS": "7921 Ray Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "7921 Ray Rd, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.88799583,
+    "Lon": -78.69804518,
+    "NAME": "Lake Lynn Park - Lynn Rd Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-870-2911",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/lake-lynn-park"
+   },
+   "lat": 35.88799583,
+   "lon": -78.69804518
+  },
+  {
+   "attributes": {
+    "ADDRESS": "7921 Ray Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "7921 Ray Rd, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.88799583,
+    "Lon": -78.69804518,
+    "NAME": "Lake Lynn Park - Ray Rd Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-870-2911",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/lake-lynn-park"
+   },
+   "lat": 35.88799583,
+   "lon": -78.69804518
+  },
+  {
+   "attributes": {
+    "ADDRESS": "6404 Lake Wheeler Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "6404 Lake Wheeler Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.69175568,
+    "Lon": -78.69947059,
+    "NAME": "Lake Wheeler Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-662-5704",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/lake-wheeler-park"
+   },
+   "lat": 35.69175568,
+   "lon": -78.69947059
+  },
+  {
+   "attributes": {
+    "ADDRESS": "920 E Lane St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "920 E Lane St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.78324212,
+    "Lon": -78.62600525,
+    "NAME": "LeVelle Moton Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/levelle-moton-park"
+   },
+   "lat": 35.78324212,
+   "lon": -78.62600525
+  },
+  {
+   "attributes": {
+    "ADDRESS": "3300 Lassiter Falls Circle, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "City of Raleigh",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Lassiter Mill Historical Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-996-3285",
+    "RESTROOMS": null,
+    "URL": null
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1001 Parker St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1001 Parker St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.79629365,
+    "Lon": -78.66308193,
+    "NAME": "Latta Property",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/latta-university-historic-park"
+   },
+   "lat": 35.79629365,
+   "lon": -78.66308193
+  },
+  {
+   "attributes": {
+    "ADDRESS": "3808 Edwards Mill Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "3808 Edwards Mill Rd, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.82976175,
+    "Lon": -78.69748725,
+    "NAME": "Laurel Hills Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-420-2383",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/laurel-hills-park"
+   },
+   "lat": 35.82976175,
+   "lon": -78.69748725
+  },
+  {
+   "attributes": {
+    "ADDRESS": "8000 Hilburn Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "8000 Hilburn Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.88454747,
+    "Lon": -78.71515541,
+    "NAME": "Leesville Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/leesville-community-park"
+   },
+   "lat": 35.88454747,
+   "lon": -78.71515541
+  },
+  {
+   "attributes": {
+    "ADDRESS": "626 W Lenoir St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "626 W Lenoir St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.77344654,
+    "Lon": -78.64875439,
+    "NAME": "Lenoir Street Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/lenoir-street-park"
+   },
+   "lat": 35.77344654,
+   "lon": -78.64875439
+  },
+  {
+   "attributes": {
+    "ADDRESS": "301 N Dixon Street, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "301 N Dixon Street, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.788974,
+    "Lon": -78.789374,
+    "NAME": "Lexie Lane Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Parks_and_Greenways/Parks/Lexie_Lane_Park.htm"
+   },
+   "lat": 35.788974,
+   "lon": -78.789374
+  },
+  {
+   "attributes": {
+    "ADDRESS": "116 South Aiken Street, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "116 South Aiken Street, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.583827,
+    "Lon": -78.797043,
+    "NAME": "Library Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "No",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/library-park.html"
+   },
+   "lat": 35.583827,
+   "lon": -78.797043
+  },
+  {
+   "attributes": {
+    "ADDRESS": "815 Tanglewood Drive, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "815 Tanglewood Drive, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.773937,
+    "Lon": -78.769934,
+    "NAME": "Lion's Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Parks_and_Greenways/Parks/Lions_Park.htm"
+   },
+   "lat": 35.773937,
+   "lon": -78.769934
+  },
+  {
+   "attributes": {
+    "ADDRESS": "516 Dennis Ave, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "516 Dennis Ave, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.79695745,
+    "Lon": -78.61367219,
+    "NAME": "Lions Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6995",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/lions-park"
+   },
+   "lat": 35.79695745,
+   "lon": -78.61367219
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1800 W Gannon Ave, Zebulon, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "Town of Zebulon",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Little River Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-823-0432",
+    "RESTROOMS": null,
+    "URL": "https://www.townofzebulon.org/services/parks-and-recreation/parks-facilities"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1000 Crabtree Blvd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1000 Crabtree Blvd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.7951668,
+    "Lon": -78.59851107,
+    "NAME": "Lockwood Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/lockwood-park"
+   },
+   "lat": 35.7951668,
+   "lon": -78.59851107
+  },
+  {
+   "attributes": {
+    "ADDRESS": "7334 Stuart Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "7334 Stuart Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.87596529,
+    "Lon": -78.65047146,
+    "NAME": "Longstreet Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/longstreet-park"
+   },
+   "lat": 35.87596529,
+   "lon": -78.65047146
+  },
+  {
+   "attributes": {
+    "ADDRESS": "321 Bertie Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "321 Bertie Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.78627351,
+    "Lon": -78.6080897,
+    "NAME": "Longview Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/longview-pool"
+   },
+   "lat": 35.78627351,
+   "lon": -78.6080897
+  },
+  {
+   "attributes": {
+    "ADDRESS": "3970 Blue Ridge Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "3970 Blue Ridge Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.8327118,
+    "Lon": -78.67736223,
+    "NAME": "Lt. Col. George F. Marshall Memorial Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/marshall-memorial-park"
+   },
+   "lat": 35.8327118,
+   "lon": -78.67736223
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1601 Seabrook Avenue, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1601 Seabrook Avenue, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.753298,
+    "Lon": -78.767124,
+    "NAME": "MacDonald Woods Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Parks_and_Greenways/Parks/MacDonald_Woods_Park.htm"
+   },
+   "lat": 35.753298,
+   "lon": -78.767124
+  },
+  {
+   "attributes": {
+    "ADDRESS": "111 Thurston Drive, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "111 Thurston Drive, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.745234,
+    "Lon": -78.763732,
+    "NAME": "Marla Dorrel Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.kidstogethercary.org/"
+   },
+   "lat": 35.745234,
+   "lon": -78.763732
+  },
+  {
+   "attributes": {
+    "ADDRESS": "3016 New Hope Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "3016 New Hope Rd, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.82292407,
+    "Lon": -78.56439297,
+    "NAME": "Marsh Creek Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-996-4920",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/marsh-creek-park"
+   },
+   "lat": 35.82292407,
+   "lon": -78.56439297
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2640 Sierra Drive, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "City of Raleigh",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Mary Belle Pate Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-996-3285",
+    "RESTROOMS": null,
+    "URL": "https://raleighnc.gov/places/mary-belle-pate-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "601 Kildaire Farm Road, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "601 Kildaire Farm Road, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Meeting Place Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/parks/meeting-place-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "514 Method Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "514 Method Rd, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.79281476,
+    "Lon": -78.69451312,
+    "NAME": "Method Community Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6066",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/method-community-park"
+   },
+   "lat": 35.79281476,
+   "lon": -78.69451312
+  },
+  {
+   "attributes": {
+    "ADDRESS": "151 Middle Creek Park Avenue, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "151 Middle Creek Park Avenue, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.665164,
+    "Lon": -78.765015,
+    "NAME": "Middle Creek School Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Parks_and_Greenways/Parks/Middle_Creek_School_Park.htm"
+   },
+   "lat": 35.665164,
+   "lon": -78.765015
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1101 Old Milburnie Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "https://raleighnc.gov/river-access",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.79841191,
+    "Lon": -78.53862079,
+    "NAME": "Milburnie",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "http://www.raleighnc.gov/arts_parks/"
+   },
+   "lat": 35.79841191,
+   "lon": -78.53862079
+  },
+  {
+   "attributes": {
+    "ADDRESS": "5428 Allen Dr, Raleigh, NC",
+    "ALIAS1": "Neuse River Trail Access",
+    "ALIAS2": null,
+    "Address2": "https://raleighnc.gov/places/neuse-river-greenway-trail",
+    "GYM": null,
+    "JURISDICTION": "City of Raleigh",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Milburnie Park Neuse River Trail Access",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-996-3285",
+    "RESTROOMS": null,
+    "URL": "https://www.raleighnc.gov/parks/content/ParksRec/Articles/Greenways/NeuseRiverTrail.html"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "425 Nature Park Drive, Wake Forest, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "425 Nature Park Drive, Wake Forest, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Rolesville",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Mill Bridge Nature Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919.554.6582",
+    "RESTROOMS": "No",
+    "URL": "http://rolesvillenc.gov/town-departments/parks-recreation/parks-facilities/"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1815 Spring Forest Rd, Raleigh, NC",
+    "ALIAS1": "Anne Gordon Center for Active Adults",
+    "ALIAS2": null,
+    "Address2": "1815 Spring Forest Rd, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.86946502,
+    "Lon": -78.60525536,
+    "NAME": "Millbrook Exchange Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-996-4720",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/millbrook-exchange-park"
+   },
+   "lat": 35.86946502,
+   "lon": -78.60525536
+  },
+  {
+   "attributes": {
+    "ADDRESS": "425 Mills Park Drive, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "425 Mills Park Drive, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.812644,
+    "Lon": -78.902605,
+    "NAME": "Mills Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/parks/mills-school-park"
+   },
+   "lat": 35.812644,
+   "lon": -78.902605
+  },
+  {
+   "attributes": {
+    "ADDRESS": "100 Parkside Commons Drive, Knightdale, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "100 Parkside Commons Drive, Knightdale, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Knightdale",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Mingo Creek Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-217-2230",
+    "RESTROOMS": "No",
+    "URL": "http://www.knightdalenc.gov/index.aspx?page=354"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "5129 Zebulon Rd, Zebulon, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "State of North Carolina",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Mitchell Mill State Natural Area",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-676-1027",
+    "RESTROOMS": null,
+    "URL": "https://www.ncparks.gov/falls-lake-state-recreation-area/history"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "201 South Blount St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "201 South Blount St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.7774021,
+    "Lon": -78.63580048,
+    "NAME": "Moore Square",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-832-1231",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/moore-square"
+   },
+   "lat": 35.7774021,
+   "lon": -78.63580048
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1 Mimosa St, Raleigh, NC",
+    "ALIAS1": "Mordecai Historic Park",
+    "ALIAS2": null,
+    "Address2": "1 Mimosa St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.79268334,
+    "Lon": -78.6331016,
+    "NAME": "Mordecai Historic Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-857-4364",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/mordecai-historic-park"
+   },
+   "lat": 35.79268334,
+   "lon": -78.6331016
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1122 North Blount St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1122 North Blount St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.79577814,
+    "Lon": -78.63521006,
+    "NAME": "Mordecai Mini Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/mordecai-mini-park"
+   },
+   "lat": 35.79577814,
+   "lon": -78.63521006
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1301 Morrisville Pkwy, Morrisville, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "Town of Morrisville",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Morrisville Aquatics and Fitness Center",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-463-6900",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.townofmorrisville.org/government/departments-services/parks-recreation-cultural-resources/morrisville-aquatics-and-fitness-center"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1520 Morrisville Parkway",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "Morrisville, NC 27560",
+    "GYM": "No",
+    "JURISDICTION": "Town of Morrisville",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Morrisville Community Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-463-7110",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofmorrisville.org/government/departments-services/parks-recreation-cultural-resources/parks-and-greenways/morrisville-community-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "200 S McDowell St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "200 S McDowell St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.77757882,
+    "Lon": -78.64270225,
+    "NAME": "Nash Square",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-832-1231",
+    "RESTROOMS": "No",
+    "URL": null
+   },
+   "lat": 35.77757882,
+   "lon": -78.64270225
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2575 New Hope Church Road, Cary, NC",
+    "ALIAS1": "Access to American Tobacco Trail",
+    "ALIAS2": null,
+    "Address2": "2575 New Hope Church Road, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "New Hope Church Road Trailhead Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/parks/new-hope-church-road-trailhead-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1100 Norwell Boulevard, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1100 Norwell Boulevard, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.82139,
+    "Lon": -78.787315,
+    "NAME": "North Cary Park",
+    "Notes": "Sand Volleyball Courts, Climbing Boulders",
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/parks/north-cary-park"
+   },
+   "lat": 35.82139,
+   "lon": -78.787315
+  },
+  {
+   "attributes": {
+    "ADDRESS": "221 E Garner Rd, Garner, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "221 E Garner Rd, Garner, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Garner",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "North Garner Dog Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://www.garnernc.gov/departments/parks-recreation-and-cultural-resources/parks/north-garner-dog-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "100 Chowan Cir, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "100 Chowan Cir, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.83858573,
+    "Lon": -78.65819392,
+    "NAME": "North Hills Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-870-2880",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/north-hills-park"
+   },
+   "lat": 35.83858573,
+   "lon": -78.65819392
+  },
+  {
+   "attributes": {
+    "ADDRESS": "998 Parkside Valley Drive",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "Morrisville, NC 27560",
+    "GYM": "No",
+    "JURISDICTION": "Town of Morrisville",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Northwest Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-463-7110",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofmorrisville.org/government/departments-services/parks-recreation-cultural-resources/parks-and-greenways/northwest-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "535 N East St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "535 N East St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.78785079,
+    "Lon": -78.63213337,
+    "NAME": "Oakwood Commons Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/oakwood-commons-park"
+   },
+   "lat": 35.78785079,
+   "lon": -78.63213337
+  },
+  {
+   "attributes": {
+    "ADDRESS": "910 Brookside Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "910 Brookside Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.79108846,
+    "Lon": -78.62404423,
+    "NAME": "Oakwood Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6995",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/oakwood-park"
+   },
+   "lat": 35.79108846,
+   "lon": -78.62404423
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2139 Old Reedy Creek Road, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2139 Old Reedy Creek Road, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Old Reedy Creek Road Trailhead",
+    "Notes": "Bike Repair Station",
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/parks/old-reedy-creek-road-trailhead"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "5900 Whittier Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "5900 Whittier Dr, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.86349322,
+    "Lon": -78.64673157,
+    "NAME": "Optimist Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-870-2880",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/optimist-park"
+   },
+   "lat": 35.86349322,
+   "lon": -78.64673157
+  },
+  {
+   "attributes": {
+    "ADDRESS": "316 North Academy Street, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "316 North Academy Street, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.789595,
+    "Lon": -78.78062,
+    "NAME": "Page-Walker Arts & History Center",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Facilities/Cultural_Arts_Centers/Page-Walker_Arts___History_Center.htm"
+   },
+   "lat": 35.789595,
+   "lon": -78.78062
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1201 Grigsby Ave., Holly Springs, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1201 Grigsby Ave., Holly Springs, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Holly Springs",
+    "Lat": 35.643362,
+    "Lon": -78.826874,
+    "NAME": "Parrish Womble Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "(919) 557-9600",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.hollyspringsnc.us/index.aspx?NID=332"
+   },
+   "lat": 35.643362,
+   "lon": -78.826874
+  },
+  {
+   "attributes": {
+    "ADDRESS": "911 Ileagnes Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "911 Ileagnes Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.74224226,
+    "Lon": -78.65496953,
+    "NAME": "Peach Road Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-807-8545",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/peach-road-park"
+   },
+   "lat": 35.74224226,
+   "lon": -78.65496953
+  },
+  {
+   "attributes": {
+    "ADDRESS": "10900 Penny Rd, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "10900 Penny Rd, Cary, NC",
+    "GYM": null,
+    "JURISDICTION": "Town of Cary",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Penny Road Elementary School Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "(919) 387-2136",
+    "RESTROOMS": null,
+    "URL": "http://www.wcpss.net/pennyroades"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "965 Jones Wynd, Wake Forest, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "965 Jones Wynd, Wake Forest, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Wake Forest",
+    "Lat": 35.969293,
+    "Lon": -78.54874,
+    "NAME": "Plummer Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-435-9560",
+    "RESTROOMS": "No",
+    "URL": "http://www.wakeforestnc.gov/plummer-park.aspx"
+   },
+   "lat": 35.969293,
+   "lon": -78.54874
+  },
+  {
+   "attributes": {
+    "ADDRESS": "3301 Pollock Pl, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "3301 Pollock Pl, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.79468108,
+    "Lon": -78.679979,
+    "NAME": "Pollock Place Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/pollock-place-park"
+   },
+   "lat": 35.79468108,
+   "lon": -78.679979
+  },
+  {
+   "attributes": {
+    "ADDRESS": "6451 Poole Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "6451 Poole Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.75482195,
+    "Lon": -78.5327985299999,
+    "NAME": "Poole Road Canoe Launch",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6610",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/river-access"
+   },
+   "lat": 35.75482195,
+   "lon": -78.5327985299999
+  },
+  {
+   "attributes": {
+    "ADDRESS": "511 S Wilmington St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "511 S Wilmington St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.77370516,
+    "Lon": -78.63821193,
+    "NAME": "Pope House",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-996-2220",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/pope-house"
+   },
+   "lat": 35.77370516,
+   "lon": -78.63821193
+  },
+  {
+   "attributes": {
+    "ADDRESS": "740 Powell Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "740 Powell Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.77892272,
+    "Lon": -78.71417172,
+    "NAME": "Powell Drive Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/powell-drive-park"
+   },
+   "lat": 35.77892272,
+   "lon": -78.71417172
+  },
+  {
+   "attributes": {
+    "ADDRESS": "801 High House Road, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "801 High House Road, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.790665,
+    "Lon": -78.833094,
+    "NAME": "Preston Soccer Fields",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://games.townofcarync.gov/ballfields/displaystatus.php"
+   },
+   "lat": 35.790665,
+   "lon": -78.833094
+  },
+  {
+   "attributes": {
+    "ADDRESS": "105 Pullen Rd, Raleigh, NC",
+    "ALIAS1": "Pullen Park",
+    "ALIAS2": null,
+    "Address2": "105 Pullen Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.78432924,
+    "Lon": -78.66308889,
+    "NAME": "Pullen Arts Center",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-996-6126",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/pullen-arts-center"
+   },
+   "lat": 35.78432924,
+   "lon": -78.66308889
+  },
+  {
+   "attributes": {
+    "ADDRESS": "410 Park Ave, Raleigh, NC",
+    "ALIAS1": "Pullen Amusement Center",
+    "ALIAS2": "Pullen Aquatic Center",
+    "Address2": "410 Park Ave, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.78090769,
+    "Lon": -78.66392973,
+    "NAME": "Pullen Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-996-6468",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/pullen-park"
+   },
+   "lat": 35.78090769,
+   "lon": -78.66392973
+  },
+  {
+   "attributes": {
+    "ADDRESS": "731 Quarry St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "731 Quarry St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.76896616,
+    "Lon": -78.6232284,
+    "NAME": "Quarry Street Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/quarry-street-park"
+   },
+   "lat": 35.76896616,
+   "lon": -78.6232284
+  },
+  {
+   "attributes": {
+    "ADDRESS": "519 Walnut Street, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "519 Walnut Street, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.77797,
+    "Lon": -78.769986,
+    "NAME": "R.S. Dunham Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Parks_and_Greenways/Parks/R__S__Dunham_Park.htm"
+   },
+   "lat": 35.77797,
+   "lon": -78.769986
+  },
+  {
+   "attributes": {
+    "ADDRESS": "220 Fayetteville St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "220 Fayetteville St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.77764295,
+    "Lon": -78.63949677,
+    "NAME": "Raleigh City Museum",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-996-2220",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/city-raleigh-museum"
+   },
+   "lat": 35.77764295,
+   "lon": -78.63949677
+  },
+  {
+   "attributes": {
+    "ADDRESS": "508 Rand Mill Road, Garner NC, 27529",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "508 Rand Mill Road, Garner NC, 27529",
+    "GYM": "No",
+    "JURISDICTION": "Town of Garner",
+    "Lat": 35.700681,
+    "Lon": -78.605121,
+    "NAME": "Rand Mill Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-773-4442",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.garnernc.gov/Departments/Parks%20and%20Recreation/Parks.aspx?ID=23"
+   },
+   "lat": 35.700681,
+   "lon": -78.605121
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1501 Ideal Lane, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1501 Ideal Lane, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.600683,
+    "Lon": -78.753437,
+    "NAME": "Ransdell Soccer Fields",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "No",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/ransdell-soccer-fields.html"
+   },
+   "lat": 35.600683,
+   "lon": -78.753437
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1709 Ridge Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1709 Ridge Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.81383568,
+    "Lon": -78.68509214,
+    "NAME": "Ridge Road Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/ridge-road-pool"
+   },
+   "lat": 35.81383568,
+   "lon": -78.68509214
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1500 Cherokee Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1500 Cherokee Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.80168427,
+    "Lon": -78.63993474,
+    "NAME": "Roanoke Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/roanoke-park"
+   },
+   "lat": 35.80168427,
+   "lon": -78.63993474
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2050 NW Maynard Road, Cary, NC",
+    "ALIAS1": "Sk-8 Cary Skate Park",
+    "ALIAS2": "Cary Dog Park at Goldbold Park",
+    "Address2": "2050 NW Maynard Road, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.80056,
+    "Lon": -78.790735,
+    "NAME": "Robert V. Godbold Park",
+    "Notes": "Concession at Sk-8 Cary Skate Park",
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/parks/robert-v-godbold-park"
+   },
+   "lat": 35.80056,
+   "lon": -78.790735
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1300 E Martin St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1300 E Martin St, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.77548817,
+    "Lon": -78.6182473,
+    "NAME": "Roberts Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6830",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/roberts-park"
+   },
+   "lat": 35.77548817,
+   "lon": -78.6182473
+  },
+  {
+   "attributes": {
+    "ADDRESS": "6333 Robertson Pond Road, Wendell, NC 27591",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": "No",
+    "JURISDICTION": "Wake County",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Robertson Millpond Preserve",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "NA",
+    "RESTROOMS": "No",
+    "URL": "https://www.wakegov.com/departments-government/parks-recreation-and-open-space/all-parks-trails/robertson-millpond-preserve"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1290 Ambergate Station",
+    "ALIAS1": "Hunter Street Park",
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.735807,
+    "Lon": -78.848187,
+    "NAME": "Rodgers Family Skate Plaza at Trackside",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-249-3402",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.apexnc.org/485/Trackside-Skate-Plaza"
+   },
+   "lat": 35.735807,
+   "lon": -78.848187
+  },
+  {
+   "attributes": {
+    "ADDRESS": "121 Redford Place Drive, Rolesville, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "121 Redford Place Drive, Rolesville, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Rolesville",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Rolesville Community School Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919.554.6582",
+    "RESTROOMS": "No",
+    "URL": "http://rolesvillenc.gov/town-departments/parks-recreation/parks-facilities/"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "200 South Main St, Rolesville, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "200 South Main St, Rolesville, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Rolesville",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Rolesville Main Street Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919.554.6582",
+    "RESTROOMS": "No",
+    "URL": "http://rolesvillenc.gov/town-departments/parks-recreation/parks-facilities/"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "301 Pogue St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "301 Pogue St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.79159958,
+    "Lon": -78.66878207,
+    "NAME": "Rose Garden & Raleigh Little Theatre",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-996-6468",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/raleigh-little-theatre-and-rose-garden"
+   },
+   "lat": 35.79159958,
+   "lon": -78.66878207
+  },
+  {
+   "attributes": {
+    "ADDRESS": "110 Rose Street, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "110 Rose Street, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.773311,
+    "Lon": -78.784299,
+    "NAME": "Rose Street Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Parks_and_Greenways/Parks/Rose_Street_Park.htm"
+   },
+   "lat": 35.773311,
+   "lon": -78.784299
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2739 Rothgeb Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2739 Rothgeb Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.82165974,
+    "Lon": -78.64201427,
+    "NAME": "Rothgeb Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/rothgeb-park"
+   },
+   "lat": 35.82165974,
+   "lon": -78.64201427
+  },
+  {
+   "attributes": {
+    "ADDRESS": "212 Page St, Morrisville, NC 27560",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "Town of Morrisville",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Ruritan Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-463-7110",
+    "RESTROOMS": null,
+    "URL": "https://www.townofmorrisville.org/government/departments-services/parks-recreation-cultural-resources/parks-and-greenways"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "6112 Old Jenks Rd, Apex, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "6112 Old Jenks Rd, Apex, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.754866,
+    "Lon": -78.849013,
+    "NAME": "Salem Pond Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-249-3402",
+    "RESTROOMS": "No",
+    "URL": "https://www.apexnc.org/1251/Salem-Pond-Park"
+   },
+   "lat": 35.754866,
+   "lon": -78.849013
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2623 Sanderford Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2623 Sanderford Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.7430837,
+    "Lon": -78.61229465,
+    "NAME": "Sanderford Road Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-1898",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/sanderford-road-park"
+   },
+   "lat": 35.7430837,
+   "lon": -78.61229465
+  },
+  {
+   "attributes": {
+    "ADDRESS": "201 Parkfield Dr., Apex, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "201 Parkfield Dr., Apex, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.727813,
+    "Lon": -78.828484,
+    "NAME": "Seagroves Farm Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-249-3402",
+    "RESTROOMS": "Yes",
+    "URL": "https://www.apexnc.org/796/Neighborhood-Parks"
+   },
+   "lat": 35.727813,
+   "lon": -78.828484
+  },
+  {
+   "attributes": {
+    "ADDRESS": "5077 Sears Farm Road, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "5077 Sears Farm Road, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.79906,
+    "Lon": -78.880551,
+    "NAME": "Sears Farm Road Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/parks/sears-farm-road-park"
+   },
+   "lat": 35.79906,
+   "lon": -78.880551
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1400 W Millbrook Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1400 W Millbrook Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.85876814,
+    "Lon": -78.66446917,
+    "NAME": "Sertoma Arts Center",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-420-2329",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/sertoma-arts-center"
+   },
+   "lat": 35.85876814,
+   "lon": -78.66446917
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1400 W Millbrook Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1400 W Millbrook Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.85630135,
+    "Lon": -78.66097917,
+    "NAME": "Shelley Lake Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-420-2329",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/shelley-lake-park"
+   },
+   "lat": 35.85630135,
+   "lon": -78.66097917
+  },
+  {
+   "attributes": {
+    "ADDRESS": "922 Church Street",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "Morrisville, NC 27560",
+    "GYM": "No",
+    "JURISDICTION": "Town of Morrisville",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Shiloh Park/Luther Green Center",
+    "Notes": "Tobacco Barn and batting cage",
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-463-7110",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofmorrisville.org/government/departments-services/parks-recreation-cultural-resources/parks-and-greenways/shiloh-park-luther-green-center"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "690 Heritage Lake Rd, Wake Forest, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "690 Heritage Lake Rd, Wake Forest, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Wake Forest",
+    "Lat": 35.955823,
+    "Lon": -78.501277,
+    "NAME": "Smith Creek Soccer Center",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-435-9560",
+    "RESTROOMS": "No",
+    "URL": "http://www.wakeforestnc.gov/smith-creek-soccer-center.aspx"
+   },
+   "lat": 35.955823,
+   "lon": -78.501277
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1210 Poole Drive, Garner NC, 27529",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1210 Poole Drive, Garner NC, 27529",
+    "GYM": "No",
+    "JURISDICTION": "Town of Garner",
+    "Lat": 35.692472,
+    "Lon": -78.625674,
+    "NAME": "South Garner Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-773-4443",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.garnernc.gov/Departments/Parks%20and%20Recreation/Parks.aspx?ID=24"
+   },
+   "lat": 35.692472,
+   "lon": -78.625674
+  },
+  {
+   "attributes": {
+    "ADDRESS": "900 South Main Street, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "900 South Main Street, Fuquay-Varina, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.571857,
+    "Lon": -78.802875,
+    "NAME": "South Park",
+    "Notes": "Splash Pad",
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/south-park.html"
+   },
+   "lat": 35.571857,
+   "lon": -78.802875
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1801 Proctor Rd, Raleigh, NC",
+    "ALIAS1": "Sgt. Courtney T. Johnson Community Center",
+    "ALIAS2": null,
+    "Address2": "1801 Proctor Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.75511244,
+    "Lon": -78.60782548,
+    "NAME": "Southgate Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6719",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/southgate-park"
+   },
+   "lat": 35.75511244,
+   "lon": -78.60782548
+  },
+  {
+   "attributes": {
+    "ADDRESS": "4203 Spring Forest Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "4203 Spring Forest Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.85887791,
+    "Lon": -78.56883253,
+    "NAME": "Spring Forest Road Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-872-4140",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/spring-forest-road-park"
+   },
+   "lat": 35.85887791,
+   "lon": -78.56883253
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1422 Collegeview Ave, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1422 Collegeview Ave, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.77830139,
+    "Lon": -78.68608011,
+    "NAME": "Spring Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/spring-park"
+   },
+   "lat": 35.77830139,
+   "lon": -78.68608011
+  },
+  {
+   "attributes": {
+    "ADDRESS": "12804 Strickland Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "12804 Strickland Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.91007037,
+    "Lon": -78.71473914,
+    "NAME": "Strickland Road Neighborhood Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/strickland-road-neighborhood-park"
+   },
+   "lat": 35.91007037,
+   "lon": -78.71473914
+  },
+  {
+   "attributes": {
+    "ADDRESS": "201 Matney Ln., Apex, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "703 Matney Ln., Apex, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.7203069999999,
+    "Lon": -78.8493079999999,
+    "NAME": "Sue Helton Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-249-3402",
+    "RESTROOMS": "No",
+    "URL": "https://www.apexnc.org/796/Neighborhood-Parks"
+   },
+   "lat": 35.7203069999999,
+   "lon": -78.8493079999999
+  },
+  {
+   "attributes": {
+    "ADDRESS": "5601 Tryon Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "5601 Tryon Rd, Raleigh, NC",
+    "GYM": null,
+    "JURISDICTION": "Wake County Public School System",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Swift Creek Elementary School Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "(919) 233-4320",
+    "RESTROOMS": null,
+    "URL": "http://www.wcpss.net/swiftcreekes"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": null,
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Symphony Lake Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/greenways/symphony-lake-greenway"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "121 N Tarboro St, Raleigh, NC",
+    "ALIAS1": "Saint Monica Teen Center",
+    "ALIAS2": null,
+    "Address2": "121 N Tarboro St, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.78120387,
+    "Lon": -78.62286149,
+    "NAME": "Tarboro Road Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6505",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/tarboro-road-park"
+   },
+   "lat": 35.78120387,
+   "lon": -78.62286149
+  },
+  {
+   "attributes": {
+    "ADDRESS": "416 N Taylor St, Wake Forest, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "416 N Taylor St, Wake Forest, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Wake Forest",
+    "Lat": 35.982694,
+    "Lon": -78.504344,
+    "NAME": "Taylor Street Park",
+    "Notes": "Park has a Sprayground",
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-435-9560",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.wakeforestnc.gov/residents-parksrecreation_facilities_taylor.aspx"
+   },
+   "lat": 35.982694,
+   "lon": -78.504344
+  },
+  {
+   "attributes": {
+    "ADDRESS": "301 Stinson Ave., Holly Springs, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "301 Stinson Ave., Holly Springs, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Holly Springs",
+    "Lat": 35.646735,
+    "Lon": -78.829266,
+    "NAME": "The PIT Soccer Field",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "(919) 557-9601",
+    "RESTROOMS": "No",
+    "URL": "http://www.hollyspringsnc.us/index.aspx?NID=312"
+   },
+   "lat": 35.646735,
+   "lon": -78.829266
+  },
+  {
+   "attributes": {
+    "ADDRESS": "107 Pullen Road, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "107 Pullen Road, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Theatre in the Park (Pullen Park)",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6936",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/theatre-park-pullen-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "9008 Green Level Church Road, Cary, NC",
+    "ALIAS1": "Thomas Brooks Athletic Complex",
+    "ALIAS2": null,
+    "Address2": "9008 Green Level Church Road, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.795202,
+    "Lon": -78.900379,
+    "NAME": "Thomas E. Brooks Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/parks/thomas-brooks-park"
+   },
+   "lat": 35.795202,
+   "lon": -78.900379
+  },
+  {
+   "attributes": {
+    "ADDRESS": "5611 Jaguar Park Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "5611 Jaguar Park Dr, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Thomas G. Crowder Woodland Center",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-996-3141",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/thomas-g-crowder-woodland-center"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "550 Thompson Road, Garner NC, 27529",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "550 Thompson Road, Garner NC, 27529",
+    "GYM": "No",
+    "JURISDICTION": "Town of Garner",
+    "Lat": 35.682316,
+    "Lon": -78.633112,
+    "NAME": "Thompson Road Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-773-4444",
+    "RESTROOMS": "No",
+    "URL": "http://www.garnernc.gov/Departments/Parks%20and%20Recreation/Parks.aspx?ID=6"
+   },
+   "lat": 35.682316,
+   "lon": -78.633112
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1151 N. Main St.",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "Holly Springs, NC 27540",
+    "GYM": null,
+    "JURISDICTION": "Town of Holly Springs",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Ting Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "(919) 746-8300",
+    "RESTROOMS": null,
+    "URL": "https://www.hollyspringsnc.us/607/Ting-Park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "418 N Person St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "418 N Person St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.78531633,
+    "Lon": -78.63426544,
+    "NAME": "Tucker House",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6009",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/tucker-house"
+   },
+   "lat": 35.78531633,
+   "lon": -78.63426544
+  },
+  {
+   "attributes": {
+    "ADDRESS": "7100 Hunt Valley Trail",
+    "ALIAS1": "Hunt Valley Entrance",
+    "ALIAS2": null,
+    "Address2": "Wendell, NC 27591",
+    "GYM": "No",
+    "JURISDICTION": "Wake County",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Turnipseed Nature Preserve",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "https://www.wakegov.com/departments-government/parks-recreation-and-open-space/all-parks-trails/turnipseed-nature-preserve"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "830 Pineview Dr, Wake Forest, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "830 Pineview Dr, Wake Forest, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Wake Forest",
+    "Lat": 35.971816,
+    "Lon": -78.522492,
+    "NAME": "Tyler Run Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-435-9560",
+    "RESTROOMS": "No",
+    "URL": "http://www.wakeforestnc.gov/tyler-run-park.aspx"
+   },
+   "lat": 35.971816,
+   "lon": -78.522492
+  },
+  {
+   "attributes": {
+    "ADDRESS": "414 E Chatham Street, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "414 E Chatham Street, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.788604,
+    "Lon": -78.77203,
+    "NAME": "Urban Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/parks/urban-park"
+   },
+   "lat": 35.788604,
+   "lon": -78.77203
+  },
+  {
+   "attributes": {
+    "ADDRESS": "7445 Green Hope School Road, Cary, NC",
+    "ALIAS1": "USA Baseball National Training Center",
+    "ALIAS2": null,
+    "Address2": "7445 Green Hope School Road, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.8022,
+    "Lon": -78.8923,
+    "NAME": "USA Baseball at Brooks Park",
+    "Notes": "Concessions, Gift Shop",
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-387-5844",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/facilities/usa-baseball-national-training-complex"
+   },
+   "lat": 35.8022,
+   "lon": -78.8923
+  },
+  {
+   "attributes": {
+    "ADDRESS": "314 Linden Ave, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "314 Linden Ave, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.78447038,
+    "Lon": -78.62908268,
+    "NAME": "Vallie Henderson Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/vallie-henderson-park"
+   },
+   "lat": 35.78447038,
+   "lon": -78.62908268
+  },
+  {
+   "attributes": {
+    "ADDRESS": "8808 Old Stage Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "8808 Old Stage Rd, Raleigh, NC",
+    "GYM": null,
+    "JURISDICTION": "Wake County Public School System",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Vance Elementary School Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "(919) 662-2472",
+    "RESTROOMS": null,
+    "URL": "http://www.wcpss.net/vancees"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2104 Varnell Ave, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2104 Varnell Ave, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.83347449,
+    "Lon": -78.67276842,
+    "NAME": "Varnell Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/varnell-park"
+   },
+   "lat": 35.83347449,
+   "lon": -78.67276842
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1517 N Harrison Ave, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1517 N Harrison Ave, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Veterans Freedom Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "No",
+    "URL": "http://www.townofcary.org/recreation-enjoyment/parks-greenways-environment/parks/veterans-freedom-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "600 Bikram Dr., Holly Springs, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "600 Bikram Dr., Holly Springs, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Holly Springs",
+    "Lat": 35.662686,
+    "Lon": -78.827575,
+    "NAME": "Veterans Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "(919) 557-9600",
+    "RESTROOMS": "No",
+    "URL": "http://www.hollyspringsnc.us/index.aspx?NID=336"
+   },
+   "lat": 35.662686,
+   "lon": -78.827575
+  },
+  {
+   "attributes": {
+    "ADDRESS": "404 E Holding Ave, Wake Forest, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "404 E Holding Ave, Wake Forest, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Wake Forest",
+    "Lat": 35.970094,
+    "Lon": -78.509999,
+    "NAME": "Wake Forest Kiwanis Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-435-9560",
+    "RESTROOMS": "No",
+    "URL": "http://www.wakeforestnc.gov/kiwanis-park.aspx"
+   },
+   "lat": 35.970094,
+   "lon": -78.509999
+  },
+  {
+   "attributes": {
+    "ADDRESS": null,
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "Town of Wake Forest",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Wake Forest Reservoir Soft Trails",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-435-9512",
+    "RESTROOMS": null,
+    "URL": "https://www.wakeforestnc.gov/parks-recreation-cultural-resources/greenways/trails/wake-forest-reservoir-soft-trails"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "950 E Chatham Street, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "950 E Chatham Street, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.790248,
+    "Lon": -78.753053,
+    "NAME": "WakeMed Soccer Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Facilities/Sports_Facilities/WakeMed_Soccer_Park.htm"
+   },
+   "lat": 35.790248,
+   "lon": -78.753053
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1201 Sunnybrook Rd, Raleigh, NC",
+    "ALIAS1": "Walnut Creek Softball Complex",
+    "ALIAS2": null,
+    "Address2": "1201 Sunnybrook Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.76100471,
+    "Lon": -78.57890733,
+    "NAME": "Walnut Creek Softball Complex",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-250-2725",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/walnut-creek-athletic-complex"
+   },
+   "lat": 35.76100471,
+   "lon": -78.57890733
+  },
+  {
+   "attributes": {
+    "ADDRESS": "950 Peterson St, Raleigh, NC",
+    "ALIAS1": "Walnut Creek Park",
+    "ALIAS2": null,
+    "Address2": "950 Peterson St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.76060758,
+    "Lon": -78.62501275,
+    "NAME": "Walnut Creek Wetland Center",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-1960",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/walnut-creek-wetland-park"
+   },
+   "lat": 35.76060758,
+   "lon": -78.62501275
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1420 Walnut Street, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1420 Walnut Street, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.764216,
+    "Lon": -78.753836,
+    "NAME": "Walnut Street Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Parks_and_Greenways/Parks/Walnut_Street_Park.htm"
+   },
+   "lat": 35.764216,
+   "lon": -78.753836
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1256 McCauley St, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1256 McCauley St, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Walnut Terrace Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/walnut-terrace-center"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "601 W. Third Street, Wendell, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "601 W. Third Street, Wendell, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Wendell",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Wendell Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "(919) 366-2266",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofwendell.com/departments/parks-and-recreation"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "108 West St., Apex, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "108 West St., Apex, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Apex",
+    "Lat": 35.725949,
+    "Lon": -78.856099,
+    "NAME": "West Street Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-249-3402",
+    "RESTROOMS": "No",
+    "URL": "https://www.apexnc.org/796/Neighborhood-Parks"
+   },
+   "lat": 35.725949,
+   "lon": -78.856099
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2400 Aversboro Road, Garner NC, 27529",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2400 Aversboro Road, Garner NC, 27529",
+    "GYM": "No",
+    "JURISDICTION": "Town of Garner",
+    "Lat": 35.680124,
+    "Lon": -78.622183,
+    "NAME": "White Deer Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-661-6982",
+    "RESTROOMS": "Yes",
+    "URL": "http://www.garnernc.gov/Departments/Parks%20and%20Recreation/Parks.aspx?ID=25"
+   },
+   "lat": 35.680124,
+   "lon": -78.622183
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1216 Jenks Carpenter Road, Cary, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1216 Jenks Carpenter Road, Cary, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Cary",
+    "Lat": 35.775528,
+    "Lon": -78.859416,
+    "NAME": "White Oak Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "http://www.townofcary.org/Departments/Parks__Recreation___Cultural_Resources/Parks_and_Greenways/Parks/White_Oak_Park.htm"
+   },
+   "lat": 35.775528,
+   "lon": -78.859416
+  },
+  {
+   "attributes": {
+    "ADDRESS": "601 N Wakefield St, Zebulon, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "Town of Zebulon",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Whitley Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-823-0432",
+    "RESTROOMS": null,
+    "URL": "https://www.townofzebulon.org/services/parks-and-recreation/parks-facilities"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "8401 Wild Wood Forest Dr, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "8401 Wild Wood Forest Dr, Raleigh, NC",
+    "GYM": null,
+    "JURISDICTION": "City of Raleigh",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Wildwood Forest Elementary School Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "(919) 713-0600",
+    "RESTROOMS": null,
+    "URL": "http://www.wcpss.net/wildwoodforestes"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "8801 Glenwood Avenue, Raleigh, NC 27617",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "8801 Glenwood Avenue, Raleigh, NC 27617",
+    "GYM": "No",
+    "JURISDICTION": "State of North Carolina",
+    "Lat": 35.8905,
+    "Lon": -78.7502,
+    "NAME": "William B. Umstead State Park - Crabtree Creek Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-571-4170",
+    "RESTROOMS": "No",
+    "URL": "http://www.ncparks.gov/Visit/parks/wium/main.php"
+   },
+   "lat": 35.8905,
+   "lon": -78.7502
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1800 N. Harrison Ave., Cary, NC  27513",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1800 N. Harrison Ave., Cary, NC  27513",
+    "GYM": "No",
+    "JURISDICTION": "State of North Carolina",
+    "Lat": 35.8346,
+    "Lon": -78.76,
+    "NAME": "William B. Umstead State Park - Reedy Creek Entrance",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-571-4171",
+    "RESTROOMS": "No",
+    "URL": "http://www.ncparks.gov/Visit/parks/wium/main.php"
+   },
+   "lat": 35.8346,
+   "lon": -78.76
+  },
+  {
+   "attributes": {
+    "ADDRESS": "210 Lawrence Street, Fuquay-Varina, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "210 Lawrence Street, Fuquay-Varina, NC",
+    "GYM": "No",
+    "JURISDICTION": "Town of Fuquay-Varina",
+    "Lat": 35.587016,
+    "Lon": -78.805825,
+    "NAME": "William Freeman Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-552-1430",
+    "RESTROOMS": "No",
+    "URL": "http://www.fuquay-varina.org/departments-and-services/parks-recreation-and-cultural-resources/parks/lawrence-street-park.html"
+   },
+   "lat": 35.587016,
+   "lon": -78.805825
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1525 Lynn Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1525 Lynn Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.86958885,
+    "Lon": -78.66565488,
+    "NAME": "Peter Williams Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-420-2329",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/peter-williams-park"
+   },
+   "lat": 35.86958885,
+   "lon": -78.66565488
+  },
+  {
+   "attributes": {
+    "ADDRESS": "6800 Dwight Rowland Rd, Willow Springs, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "6800 Dwight Rowland Rd, Willow Springs, NC",
+    "GYM": null,
+    "JURISDICTION": "Wake County Public School System",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Willow Springs Elementary School Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "(919) 557-2770",
+    "RESTROOMS": null,
+    "URL": "http://www.wcpss.net/willowspringses"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1500 Nottingham Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1500 Nottingham Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.80732322,
+    "Lon": -78.6738197,
+    "NAME": "Windemere Beaver Dam Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/windemere-beaver-dam-park"
+   },
+   "lat": 35.80732322,
+   "lon": -78.6738197
+  },
+  {
+   "attributes": {
+    "ADDRESS": "2801 West Millbrook Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "2801 West Millbrook Rd, Raleigh, NC",
+    "GYM": "No",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.86039605,
+    "Lon": -78.69475554,
+    "NAME": "Wooten Meadows Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-831-6640",
+    "RESTROOMS": "No",
+    "URL": "https://raleighnc.gov/places/wooten-meadow-park"
+   },
+   "lat": 35.86039605,
+   "lon": -78.69475554
+  },
+  {
+   "attributes": {
+    "ADDRESS": "1001 Cooper Rd, Raleigh, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": "1001 Cooper Rd, Raleigh, NC",
+    "GYM": "Yes",
+    "JURISDICTION": "City of Raleigh",
+    "Lat": 35.7629103,
+    "Lon": -78.58581694,
+    "NAME": "Worthdale Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "Yes",
+    "PHONE": "919-250-2730",
+    "RESTROOMS": "Yes",
+    "URL": "https://raleighnc.gov/places/worthdale-park"
+   },
+   "lat": 35.7629103,
+   "lon": -78.58581694
+  },
+  {
+   "attributes": {
+    "ADDRESS": "401 S Arendell Ave, Zebulon, NC",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "Town of Zebulon",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Zebulon Community Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": null,
+    "RESTROOMS": "Yes",
+    "URL": "https://www.townofzebulon.org/services/parks-and-recreation/parks-facilities"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "7201 Doc Proctor Rd, Wendell, NC 27591",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": "No",
+    "JURISDICTION": "Wake County",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Sandy Pines Preserve",
+    "Notes": null,
+    "OUTDOORBASKETBALL": "No",
+    "PHONE": "919-604-9326",
+    "RESTROOMS": "No",
+    "URL": "https://www.wakegov.com/departments-government/parks-recreation-open-space/all-parks-trails/sandy-pines-preserve"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "5610 Wallace Martin Way Raleigh, NC 27616",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "City of Raleigh",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "River Bend Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "919-996-3285",
+    "RESTROOMS": null,
+    "URL": "https://raleighnc.gov/places/river-bend-park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "3400 Pleasant Plns Rd, Apex, NC 27502",
+    "ALIAS1": "Pleasant Park",
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "Apex",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Pleasant Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": "(919) 372-7503",
+    "RESTROOMS": null,
+    "URL": "https://www.apexnc.org/1163/Pleasant-Park"
+   }
+  },
+  {
+   "attributes": {
+    "ADDRESS": "https://www.wake.gov/departments-government/parks-recreation-open-space/all-parks-trails/beech-bluff-county-park",
+    "ALIAS1": null,
+    "ALIAS2": null,
+    "Address2": null,
+    "GYM": null,
+    "JURISDICTION": "Wake",
+    "Lat": null,
+    "Lon": null,
+    "NAME": "Beech Bluff County Park",
+    "Notes": null,
+    "OUTDOORBASKETBALL": null,
+    "PHONE": null,
+    "RESTROOMS": null,
+    "URL": "https://www.wake.gov/departments-government/parks-recreation-open-space/all-parks-trails/beech-bluff-county-park"
+   }
+  }
+ ],
+ "source": "wake_parks",
+ "url": "https://services1.arcgis.com/a7CWfuGP5ZnLYE7I/arcgis/rest/services/Wake_Parks_Public/FeatureServer/0",
+ "where": "1=1"
+}

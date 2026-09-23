@@ -1,0 +1,3110 @@
+{
+ "attribution": "City of Raleigh Parks, Recreation and Cultural Resources (Open Raleigh Data Policy)",
+ "fetched": "2026-09-22",
+ "grain": "court",
+ "records": [
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Sanderford Road",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Sanderford Road Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.7434319169207,
+   "lon": -78.61081389959595,
+   "rings": [
+    [
+     [
+      -78.6106826156986,
+      35.7434895652246
+     ],
+     [
+      -78.6107520847181,
+      35.7432794952308
+     ],
+     [
+      -78.610917136343,
+      35.7433156616555
+     ],
+     [
+      -78.6109205822767,
+      35.743316418092
+     ],
+     [
+      -78.610855974897,
+      35.7435120521912
+     ],
+     [
+      -78.6108511952748,
+      35.7435265308044
+     ],
+     [
+      -78.6108489918608,
+      35.7435260469425
+     ],
+     [
+      -78.6106826156986,
+      35.7434895652246
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "Basketball courts with two goals, has pickleball and basketball lines. Pickleball players must bring their own net.",
+    "Fencing": "Full",
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": null,
+    "LocationName": "Southgate",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Southgate Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.755001601068145,
+   "lon": -78.60753856226084,
+   "rings": [
+    [
+     [
+      -78.6075008996799,
+      35.7549017351847
+     ],
+     [
+      -78.6076889733475,
+      35.7550135345082
+     ],
+     [
+      -78.6076130406715,
+      35.7551018221637
+     ],
+     [
+      -78.6075714961238,
+      35.755078091651
+     ],
+     [
+      -78.6074721296605,
+      35.7550213229754
+     ],
+     [
+      -78.6074224966627,
+      35.7549929658093
+     ],
+     [
+      -78.6075008996799,
+      35.7549017351847
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Kingwood Forest",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Kingwood Forest Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.74484074480257,
+   "lon": -78.61890344049786,
+   "rings": [
+    [
+     [
+      -78.6187845265076,
+      35.7448384040515
+     ],
+     [
+      -78.6189291852474,
+      35.7447252998321
+     ],
+     [
+      -78.6190367427994,
+      35.7448192751219
+     ],
+     [
+      -78.6190309615736,
+      35.7448239242797
+     ],
+     [
+      -78.6188885494944,
+      35.7449278706145
+     ],
+     [
+      -78.618869591355,
+      35.7449120356668
+     ],
+     [
+      -78.6187845265076,
+      35.7448384040515
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Dacian",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Dacian Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.76224118426986,
+   "lon": -78.60146976715234,
+   "rings": [
+    [
+     [
+      -78.6014136462904,
+      35.7621886996317
+     ],
+     [
+      -78.6015469015962,
+      35.7621848812449
+     ],
+     [
+      -78.6015543842326,
+      35.7623198080915
+     ],
+     [
+      -78.6014202573521,
+      35.7623238327495
+     ],
+     [
+      -78.6014136462904,
+      35.7621886996317
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Apollo Heights",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Apollo Heights Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.764624989986444,
+   "lon": -78.60925338812005,
+   "rings": [
+    [
+     [
+      -78.6091695371451,
+      35.7646566574468
+     ],
+     [
+      -78.6091960205746,
+      35.7645506736503
+     ],
+     [
+      -78.6093804409747,
+      35.764574225458
+     ],
+     [
+      -78.6093514047607,
+      35.7646867359303
+     ],
+     [
+      -78.6091695371451,
+      35.7646566574468
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Roberts",
+    "Status": "Existing",
+    "Surface": "Sports Court Tile",
+    "Title": "Roberts Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.77581221119577,
+   "lon": -78.61797614018059,
+   "rings": [
+    [
+     [
+      -78.6178198941961,
+      35.7757886331895
+     ],
+     [
+      -78.6178297797958,
+      35.7757229484601
+     ],
+     [
+      -78.617868808785,
+      35.7757269169647
+     ],
+     [
+      -78.6179732572289,
+      35.7757375316927
+     ],
+     [
+      -78.6180177155593,
+      35.7757420516777
+     ],
+     [
+      -78.618090167383,
+      35.7757494148441
+     ],
+     [
+      -78.618103825268,
+      35.7757508042815
+     ],
+     [
+      -78.6181446441712,
+      35.7757549522698
+     ],
+     [
+      -78.6181394909555,
+      35.7757896345472
+     ],
+     [
+      -78.6181391953773,
+      35.775791329063
+     ],
+     [
+      -78.618119064371,
+      35.7759069355029
+     ],
+     [
+      -78.6181170271843,
+      35.7759186070274
+     ],
+     [
+      -78.6180063579542,
+      35.775905875472
+     ],
+     [
+      -78.6179396115252,
+      35.7758981966507
+     ],
+     [
+      -78.617904525933,
+      35.775894160318
+     ],
+     [
+      -78.6178902652935,
+      35.7758925201946
+     ],
+     [
+      -78.6178035385324,
+      35.7758825405678
+     ],
+     [
+      -78.6178195997214,
+      35.7757903268066
+     ],
+     [
+      -78.6178198941961,
+      35.7757886331895
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Fisher Street",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": null,
+    "Type": "Court"
+   },
+   "lat": 35.78264703178365,
+   "lon": -78.61504486008866,
+   "rings": [
+    [
+     [
+      -78.6149682823246,
+      35.7826496546338
+     ],
+     [
+      -78.6149685947393,
+      35.7825840211394
+     ],
+     [
+      -78.6151247589572,
+      35.7825884733175
+     ],
+     [
+      -78.6151379061934,
+      35.7825888483506
+     ],
+     [
+      -78.6151410351186,
+      35.7825889375538
+     ],
+     [
+      -78.615142378536,
+      35.782650204733
+     ],
+     [
+      -78.6151402606207,
+      35.7827426530824
+     ],
+     [
+      -78.6149662118033,
+      35.78274000569
+     ],
+     [
+      -78.6149677278401,
+      35.782673884766
+     ],
+     [
+      -78.6149680225175,
+      35.7826610117199
+     ],
+     [
+      -78.6149682823246,
+      35.7826496546338
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Brentwood",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Brentwood Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.82821808701559,
+   "lon": -78.5989597406497,
+   "rings": [
+    [
+     [
+      -78.5990659542177,
+      35.8281647531728
+     ],
+     [
+      -78.5990079375339,
+      35.8283499014523
+     ],
+     [
+      -78.5988486875646,
+      35.8283195423484
+     ],
+     [
+      -78.598846550147,
+      35.8283191360224
+     ],
+     [
+      -78.5988999981784,
+      35.8281331282315
+     ],
+     [
+      -78.5989616170104,
+      35.8281448725838
+     ],
+     [
+      -78.5989812263279,
+      35.8281486091407
+     ],
+     [
+      -78.5990659542177,
+      35.8281647531728
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "fullcourt",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Green Road",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Green Road Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.84144969782352,
+   "lon": -78.59225263317178,
+   "rings": [
+    [
+     [
+      -78.5921547724707,
+      35.8414417890661
+     ],
+     [
+      -78.5923215250606,
+      35.8413579189475
+     ],
+     [
+      -78.5923996348378,
+      35.8414618459824
+     ],
+     [
+      -78.5922324610191,
+      35.8415451460555
+     ],
+     [
+      -78.5921547724707,
+      35.8414417890661
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined, fenced in",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Honeycutt",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Honeycutt Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.90350492363992,
+   "lon": -78.62521624969645,
+   "rings": [
+    [
+     [
+      -78.6252970488185,
+      35.9034369563944
+     ],
+     [
+      -78.625291431833,
+      35.9036201712744
+     ],
+     [
+      -78.6252821885587,
+      35.9036200806976
+     ],
+     [
+      -78.6251372349229,
+      35.9036186980851
+     ],
+     [
+      -78.6251395790968,
+      35.9034384880435
+     ],
+     [
+      -78.6251396377748,
+      35.9034339609357
+     ],
+     [
+      -78.6251458277484,
+      35.9034340772943
+     ],
+     [
+      -78.6252970488185,
+      35.9034369563944
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Millbrook-Exchange",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Millbrook-Exchange Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.86877221344788,
+   "lon": -78.60772564722562,
+   "rings": [
+    [
+     [
+      -78.6076621326651,
+      35.8686676108454
+     ],
+     [
+      -78.6078774331289,
+      35.8686812769075
+     ],
+     [
+      -78.6078568008825,
+      35.8689468963774
+     ],
+     [
+      -78.6076393072294,
+      35.8689320758422
+     ],
+     [
+      -78.6076560767827,
+      35.8687378098694
+     ],
+     [
+      -78.6076621326651,
+      35.8686676108454
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Cedar Hills",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Cedar Hills Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.85949204865569,
+   "lon": -78.62872497130901,
+   "rings": [
+    [
+     [
+      -78.6285929488598,
+      35.8593558224514
+     ],
+     [
+      -78.6287598421236,
+      35.8593466585095
+     ],
+     [
+      -78.6287712248548,
+      35.8594841678603
+     ],
+     [
+      -78.6287747212997,
+      35.8595333710553
+     ],
+     [
+      -78.6287747285574,
+      35.8595334783352
+     ],
+     [
+      -78.6287749168508,
+      35.8595361152859
+     ],
+     [
+      -78.6287769315894,
+      35.8595644032148
+     ],
+     [
+      -78.6287745837295,
+      35.8595645231545
+     ],
+     [
+      -78.6287708548402,
+      35.8595647137001
+     ],
+     [
+      -78.6286109828339,
+      35.8595734591942
+     ],
+     [
+      -78.6285929488598,
+      35.8593558224514
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Eastgate",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Eastgate Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.83857570614406,
+   "lon": -78.62320760303636,
+   "rings": [
+    [
+     [
+      -78.6231649364047,
+      35.8384961696146
+     ],
+     [
+      -78.6231725670207,
+      35.8384594900418
+     ],
+     [
+      -78.6233532952247,
+      35.8384843340258
+     ],
+     [
+      -78.6233058053454,
+      35.8387126525312
+     ],
+     [
+      -78.6231666025765,
+      35.8386934313631
+     ],
+     [
+      -78.6231250782778,
+      35.8386876958173
+     ],
+     [
+      -78.6231649364047,
+      35.8384961696146
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Lions",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Lions Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.79688231449244,
+   "lon": -78.6145817436853,
+   "rings": [
+    [
+     [
+      -78.6145153508117,
+      35.7968378372582
+     ],
+     [
+      -78.6146804086109,
+      35.7968400331226
+     ],
+     [
+      -78.6146812907133,
+      35.7969474789936
+     ],
+     [
+      -78.6145163174789,
+      35.7969483858296
+     ],
+     [
+      -78.6145153508117,
+      35.7968378372582
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Roanoke",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Roanoke Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.801004450597546,
+   "lon": -78.63992320218375,
+   "rings": [
+    [
+     [
+      -78.6398273375375,
+      35.8008728145346
+     ],
+     [
+      -78.6399606574775,
+      35.8008631251895
+     ],
+     [
+      -78.639978337149,
+      35.8010236237557
+     ],
+     [
+      -78.6399820358016,
+      35.8010571998079
+     ],
+     [
+      -78.6399829643848,
+      35.8010655832417
+     ],
+     [
+      -78.6399816273778,
+      35.8010656847487
+     ],
+     [
+      -78.639972057029,
+      35.8010663892654
+     ],
+     [
+      -78.6399505854068,
+      35.8010679788887
+     ],
+     [
+      -78.6399294713172,
+      35.8010695326096
+     ],
+     [
+      -78.639849772945,
+      35.8010754117981
+     ],
+     [
+      -78.6398362422414,
+      35.8009532487961
+     ],
+     [
+      -78.6398273375375,
+      35.8008728145346
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Baileywick",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Court C",
+    "Type": "Court"
+   },
+   "lat": 35.90766088953026,
+   "lon": -78.66938627427419,
+   "rings": [
+    [
+     [
+      -78.6692996488254,
+      35.9077719760186
+     ],
+     [
+      -78.6693161637035,
+      35.907486597019
+     ],
+     [
+      -78.6695162126505,
+      35.9074942593355
+     ],
+     [
+      -78.6694996973661,
+      35.9077796392596
+     ],
+     [
+      -78.6692996488254,
+      35.9077719760186
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Chamberlain",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Chamberlain Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.79210320614247,
+   "lon": -78.66503330181506,
+   "rings": [
+    [
+     [
+      -78.6650994459676,
+      35.792148563416
+     ],
+     [
+      -78.6649332365299,
+      35.7921481506204
+     ],
+     [
+      -78.6649344727002,
+      35.7920345520726
+     ],
+     [
+      -78.66509990791,
+      35.7920362011874
+     ],
+     [
+      -78.6650994459676,
+      35.792148563416
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Isabella Cannon",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Isabella Cannon Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.792682023131775,
+   "lon": -78.66985166510142,
+   "rings": [
+    [
+     [
+      -78.6697841616305,
+      35.7925834182134
+     ],
+     [
+      -78.6699515842084,
+      35.7925782014801
+     ],
+     [
+      -78.6699573154649,
+      35.7927003212988
+     ],
+     [
+      -78.6699621592597,
+      35.792803517677
+     ],
+     [
+      -78.6697947373261,
+      35.792808733526
+     ],
+     [
+      -78.6697899741498,
+      35.7927072499145
+     ],
+     [
+      -78.6697892271413,
+      35.792691324731
+     ],
+     [
+      -78.6697841616305,
+      35.7925834182134
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Halifax",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Halifax Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.793354889787715,
+   "lon": -78.63904228793142,
+   "rings": [
+    [
+     [
+      -78.6389798193368,
+      35.7933766190104
+     ],
+     [
+      -78.6389861964669,
+      35.7932774051534
+     ],
+     [
+      -78.6391683834423,
+      35.7932862417076
+     ],
+     [
+      -78.6391613210716,
+      35.7934103991864
+     ],
+     [
+      -78.6389781879341,
+      35.7934020546581
+     ],
+     [
+      -78.6389798193368,
+      35.7933766190104
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Kiwanis",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Kiwanis Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.8154854299707,
+   "lon": -78.63131310828717,
+   "rings": [
+    [
+     [
+      -78.6310763649708,
+      35.8155557850201
+     ],
+     [
+      -78.6311708910445,
+      35.8153758167782
+     ],
+     [
+      -78.6311973336572,
+      35.8153850309684
+     ],
+     [
+      -78.631280071139,
+      35.8154138600672
+     ],
+     [
+      -78.6313741489764,
+      35.815446641531
+     ],
+     [
+      -78.6314052397956,
+      35.8154574741181
+     ],
+     [
+      -78.6314920090665,
+      35.8154877087356
+     ],
+     [
+      -78.63149106021,
+      35.8154895148545
+     ],
+     [
+      -78.6314832237554,
+      35.8155044344635
+     ],
+     [
+      -78.6313974835727,
+      35.8156676781211
+     ],
+     [
+      -78.6310763649708,
+      35.8155557850201
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Fred Fletcher",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Fred Fletcher Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.79290367293343,
+   "lon": -78.64777366329842,
+   "rings": [
+    [
+     [
+      -78.6476935927501,
+      35.7929562853446
+     ],
+     [
+      -78.6476950369104,
+      35.7929297737379
+     ],
+     [
+      -78.6477020630177,
+      35.7928007646366
+     ],
+     [
+      -78.6478401441049,
+      35.7928097356011
+     ],
+     [
+      -78.6478400717851,
+      35.7928113542087
+     ],
+     [
+      -78.6478345590371,
+      35.7929338239226
+     ],
+     [
+      -78.6478330379121,
+      35.7929676046598
+     ],
+     [
+      -78.6478308714183,
+      35.792967428945
+     ],
+     [
+      -78.6476935927501,
+      35.7929562853446
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Worthdale",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Worthdale Basketball - Lighted (W)",
+    "Type": "Court"
+   },
+   "lat": 35.76309204933294,
+   "lon": -78.58679365851516,
+   "rings": [
+    [
+     [
+      -78.5867442708326,
+      35.7631314235734
+     ],
+     [
+      -78.5867298566074,
+      35.7631290185197
+     ],
+     [
+      -78.5867294974943,
+      35.7631289587131
+     ],
+     [
+      -78.5867594990035,
+      35.7630097587704
+     ],
+     [
+      -78.5867700962078,
+      35.7629676626191
+     ],
+     [
+      -78.5868964599342,
+      35.7629888612334
+     ],
+     [
+      -78.586859711184,
+      35.7631347662455
+     ],
+     [
+      -78.5868558620419,
+      35.7631500437994
+     ],
+     [
+      -78.5868470610131,
+      35.763148576282
+     ],
+     [
+      -78.5867442708326,
+      35.7631314235734
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "bleachers, two goals, lined, fenced",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Powell Drive",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Powell Drive Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.77901235823608,
+   "lon": -78.71346512914569,
+   "rings": [
+    [
+     [
+      -78.7134306243424,
+      35.7789856229497
+     ],
+     [
+      -78.7134561524026,
+      35.7789038018644
+     ],
+     [
+      -78.7134583419967,
+      35.7789042585898
+     ],
+     [
+      -78.7135675522296,
+      35.778926985115
+     ],
+     [
+      -78.7135870032987,
+      35.7789310328314
+     ],
+     [
+      -78.7135422471524,
+      35.7790742463942
+     ],
+     [
+      -78.713532440891,
+      35.7791056334999
+     ],
+     [
+      -78.7134302747726,
+      35.7790842998735
+     ],
+     [
+      -78.7134265211783,
+      35.7790835158846
+     ],
+     [
+      -78.7134050114383,
+      35.7790792010076
+     ],
+     [
+      -78.713401994992,
+      35.7790785954163
+     ],
+     [
+      -78.7134161941699,
+      35.7790323977944
+     ],
+     [
+      -78.7134268248327,
+      35.7789978011346
+     ],
+     [
+      -78.7134306243424,
+      35.7789856229497
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Hertford Village",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Hertford Village Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.744243561333334,
+   "lon": -78.64308433959118,
+   "rings": [
+    [
+     [
+      -78.6430039961166,
+      35.7442831435602
+     ],
+     [
+      -78.6430270725733,
+      35.7441850062501
+     ],
+     [
+      -78.6431080759959,
+      35.7441961140906
+     ],
+     [
+      -78.6431938474003,
+      35.7442078767153
+     ],
+     [
+      -78.6431690493444,
+      35.7443060838236
+     ],
+     [
+      -78.6430039961166,
+      35.7442831435602
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Biltmore Hills",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Biltmore Hills Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.7446111356804,
+   "lon": -78.62706149016255,
+   "rings": [
+    [
+     [
+      -78.6269848760827,
+      35.7446568442842
+     ],
+     [
+      -78.6269898080991,
+      35.7445379248982
+     ],
+     [
+      -78.6271757363412,
+      35.7445443306109
+     ],
+     [
+      -78.627172154207,
+      35.7446597343245
+     ],
+     [
+      -78.6269848760827,
+      35.7446568442842
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "Three goals, lined, four square",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": null,
+    "LocationName": "Mary Belle Pate",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": null,
+    "Type": "Court"
+   },
+   "lat": 35.75178695303336,
+   "lon": -78.68012854460336,
+   "rings": [
+    [
+     [
+      -78.6800381936419,
+      35.7517486150121
+     ],
+     [
+      -78.6801969937074,
+      35.7516997153099
+     ],
+     [
+      -78.6802640711673,
+      35.7518444600227
+     ],
+     [
+      -78.6801052708583,
+      35.75189335981
+     ],
+     [
+      -78.6800381936419,
+      35.7517486150121
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Lenoir Street",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Lenoir Street Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.77349587530818,
+   "lon": -78.64865601505466,
+   "rings": [
+    [
+     [
+      -78.6485835137318,
+      35.7734620111385
+     ],
+     [
+      -78.6485837484105,
+      35.773456873212
+     ],
+     [
+      -78.648715895277,
+      35.7734608796008
+     ],
+     [
+      -78.6487171427201,
+      35.7734609192522
+     ],
+     [
+      -78.6487170181989,
+      35.7734636148347
+     ],
+     [
+      -78.6487169204369,
+      35.7734657516566
+     ],
+     [
+      -78.6487100084015,
+      35.7736171370973
+     ],
+     [
+      -78.6485763745835,
+      35.773613679843
+     ],
+     [
+      -78.6485835137318,
+      35.7734620111385
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined, fenced-in",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Caraleigh",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Caraleigh Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.76106773977128,
+   "lon": -78.64609556625084,
+   "rings": [
+    [
+     [
+      -78.6462150552363,
+      35.7610904336339
+     ],
+     [
+      -78.6460539999179,
+      35.7611774899673
+     ],
+     [
+      -78.6460304108474,
+      35.7611491026443
+     ],
+     [
+      -78.6459695784951,
+      35.761075910675
+     ],
+     [
+      -78.6460764884011,
+      35.7610165769318
+     ],
+     [
+      -78.6460802733055,
+      35.7610144147635
+     ],
+     [
+      -78.6460922278007,
+      35.7610075838804
+     ],
+     [
+      -78.6461270070173,
+      35.7609877118114
+     ],
+     [
+      -78.6462150552363,
+      35.7610904336339
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "one goal, lined, fenced in",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Bragg Street",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Bragg Street Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.765978712439804,
+   "lon": -78.63578637479206,
+   "rings": [
+    [
+     [
+      -78.6357053217969,
+      35.7660203641138
+     ],
+     [
+      -78.6357072766802,
+      35.7659121389938
+     ],
+     [
+      -78.6359094007559,
+      35.7659147524683
+     ],
+     [
+      -78.6359045529304,
+      35.7660259425093
+     ],
+     [
+      -78.6357053217969,
+      35.7660203641138
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Davie Street",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Davie Street Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.77488204818635,
+   "lon": -78.62460074264146,
+   "rings": [
+    [
+     [
+      -78.6244769900213,
+      35.7749393270461
+     ],
+     [
+      -78.6244810882346,
+      35.7747998816522
+     ],
+     [
+      -78.6246788721244,
+      35.7748050763718
+     ],
+     [
+      -78.6246819576652,
+      35.7748051561839
+     ],
+     [
+      -78.6246798031881,
+      35.7748778408519
+     ],
+     [
+      -78.6246778014261,
+      35.7749452629966
+     ],
+     [
+      -78.6246524384506,
+      35.7749445133422
+     ],
+     [
+      -78.6244769900213,
+      35.7749393270461
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "LeVelle Moton",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Lane Street Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.78325136652162,
+   "lon": -78.6262874524003,
+   "rings": [
+    [
+     [
+      -78.6262028086362,
+      35.7833414271618
+     ],
+     [
+      -78.6262116609975,
+      35.7831559909262
+     ],
+     [
+      -78.6263698530062,
+      35.7831612434155
+     ],
+     [
+      -78.6263737560988,
+      35.7831613734623
+     ],
+     [
+      -78.6263638270269,
+      35.7833467370021
+     ],
+     [
+      -78.6262028086362,
+      35.7833414271618
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Method",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Method Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.79308125741068,
+   "lon": -78.69519679072965,
+   "rings": [
+    [
+     [
+      -78.6951086008962,
+      35.793065966057
+     ],
+     [
+      -78.6951108533248,
+      35.7930190143716
+     ],
+     [
+      -78.6953772125672,
+      35.7930274853256
+     ],
+     [
+      -78.6953709176375,
+      35.7931587900061
+     ],
+     [
+      -78.695104559056,
+      35.7931503226467
+     ],
+     [
+      -78.6951086008962,
+      35.793065966057
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Quarry Street",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Quarry Street Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.76911734651232,
+   "lon": -78.62317163074451,
+   "rings": [
+    [
+     [
+      -78.6231145297589,
+      35.7691776860109
+     ],
+     [
+      -78.6231249916575,
+      35.7690223295651
+     ],
+     [
+      -78.623255295106,
+      35.7690266192951
+     ],
+     [
+      -78.6232488074413,
+      35.7691824116796
+     ],
+     [
+      -78.6231145297589,
+      35.7691776860109
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Shelley Lake - Sertoma",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Shelley Lake - Sertoma Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.85953557807731,
+   "lon": -78.66566353643933,
+   "rings": [
+    [
+     [
+      -78.6655847193223,
+      35.8595138356598
+     ],
+     [
+      -78.6657452653049,
+      35.859474407534
+     ],
+     [
+      -78.6657813553345,
+      35.8595672455262
+     ],
+     [
+      -78.6656216229126,
+      35.8596085660068
+     ],
+     [
+      -78.6655847193223,
+      35.8595138356598
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Glen Eden",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Glen Eden Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.82823905287497,
+   "lon": -78.68453796278169,
+   "rings": [
+    [
+     [
+      -78.6844271352054,
+      35.8282645237154
+     ],
+     [
+      -78.6844657100073,
+      35.8280867678999
+     ],
+     [
+      -78.6846151401396,
+      35.8281093418391
+     ],
+     [
+      -78.6845803342993,
+      35.8282624127123
+     ],
+     [
+      -78.684579504248,
+      35.8282660898086
+     ],
+     [
+      -78.6845764548809,
+      35.8282794631177
+     ],
+     [
+      -78.6845749144383,
+      35.8282862173315
+     ],
+     [
+      -78.684574777055,
+      35.8282868208696
+     ],
+     [
+      -78.6845585223377,
+      35.8282843677402
+     ],
+     [
+      -78.6844271352054,
+      35.8282645237154
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Laurel Hills",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Laurel Hills Basketball - Unlighted (N)",
+    "Type": "Court"
+   },
+   "lat": 35.83088077143996,
+   "lon": -78.69820197142658,
+   "rings": [
+    [
+     [
+      -78.6984231294087,
+      35.8309300839446
+     ],
+     [
+      -78.6982942370534,
+      35.8310523245883
+     ],
+     [
+      -78.6981652003312,
+      35.8309617457286
+     ],
+     [
+      -78.6981627495992,
+      35.8309600253262
+     ],
+     [
+      -78.6980460959525,
+      35.8308781424077
+     ],
+     [
+      -78.6980767095554,
+      35.8308500128364
+     ],
+     [
+      -78.6981209395336,
+      35.8308093713304
+     ],
+     [
+      -78.6981551371078,
+      35.8307779472305
+     ],
+     [
+      -78.6981654249163,
+      35.8307684942912
+     ],
+     [
+      -78.6981889328257,
+      35.830770254211
+     ],
+     [
+      -78.6984231294087,
+      35.8309300839446
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "Basketball courts with two goals, has pickleball and basketball lines. Pickleball players must bring their own net.",
+    "Fencing": "Full",
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": null,
+    "LocationName": "Southgate",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Southgate Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.754905373278845,
+   "lon": -78.60763672456937,
+   "rings": [
+    [
+     [
+      -78.6075008996799,
+      35.7549017351847
+     ],
+     [
+      -78.6075761130796,
+      35.7548142240494
+     ],
+     [
+      -78.6076860371221,
+      35.7548769882369
+     ],
+     [
+      -78.6077373915903,
+      35.7549063125903
+     ],
+     [
+      -78.6077667574863,
+      35.7549230831977
+     ],
+     [
+      -78.6076889733475,
+      35.7550135345082
+     ],
+     [
+      -78.6075008996799,
+      35.7549017351847
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "fullcourt",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Peach Road",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Peach Road Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.742623389286045,
+   "lon": -78.65456011058168,
+   "rings": [
+    [
+     [
+      -78.6544867284832,
+      35.7425247123344
+     ],
+     [
+      -78.6546522645074,
+      35.7425992034184
+     ],
+     [
+      -78.6546181316138,
+      35.742645881782
+     ],
+     [
+      -78.654612095005,
+      35.7426562257922
+     ],
+     [
+      -78.6545889509317,
+      35.7426857842387
+     ],
+     [
+      -78.6545852845797,
+      35.7426839972579
+     ],
+     [
+      -78.6545815112147,
+      35.7426821558918
+     ],
+     [
+      -78.6544293004165,
+      35.7426078305246
+     ],
+     [
+      -78.6544867284832,
+      35.7425247123344
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Peach Road",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Peach Road Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.7426549811299,
+   "lon": -78.65420748939192,
+   "rings": [
+    [
+     [
+      -78.6543327857658,
+      35.7426506947666
+     ],
+     [
+      -78.6542565868601,
+      35.7427657506524
+     ],
+     [
+      -78.654019544157,
+      35.7426614110517
+     ],
+     [
+      -78.6540957444109,
+      35.7425463544122
+     ],
+     [
+      -78.6543327857658,
+      35.7426506947666
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Sanderford Road",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Sanderford Road Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.74334975655702,
+   "lon": -78.61066149222954,
+   "rings": [
+    [
+     [
+      -78.6107520847181,
+      35.7432794952308
+     ],
+     [
+      -78.6106826156986,
+      35.7434895652246
+     ],
+     [
+      -78.6105257281988,
+      35.7434551579158
+     ],
+     [
+      -78.6105949478141,
+      35.7432450691831
+     ],
+     [
+      -78.6107520847181,
+      35.7432794952308
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Kingwood Forest",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Kingwood Forest Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.744734417812424,
+   "lon": -78.6188297827839,
+   "rings": [
+    [
+     [
+      -78.6189291852474,
+      35.7447252998321
+     ],
+     [
+      -78.6187845265076,
+      35.7448384040515
+     ],
+     [
+      -78.6186798612086,
+      35.7447477978679
+     ],
+     [
+      -78.6188261557085,
+      35.7446352874785
+     ],
+     [
+      -78.6189291852474,
+      35.7447252998321
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Dacian",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Dacian Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.76224428854532,
+   "lon": -78.6013639479724,
+   "rings": [
+    [
+     [
+      -78.6014136462904,
+      35.7621886996317
+     ],
+     [
+      -78.6014202573521,
+      35.7623238327495
+     ],
+     [
+      -78.6012878371237,
+      35.7623278015544
+     ],
+     [
+      -78.6012843528054,
+      35.7621924091593
+     ],
+     [
+      -78.6014136462904,
+      35.7621886996317
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Apollo Heights",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Apollo Heights Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.764735123597006,
+   "lon": -78.60923174279019,
+   "rings": [
+    [
+     [
+      -78.6091695371451,
+      35.7646566574468
+     ],
+     [
+      -78.6093514047607,
+      35.7646867359303
+     ],
+     [
+      -78.6093242608611,
+      35.7647918847848
+     ],
+     [
+      -78.6092739453265,
+      35.7647832587607
+     ],
+     [
+      -78.6092198849201,
+      35.7647739915551
+     ],
+     [
+      -78.6092018765708,
+      35.7647709052231
+     ],
+     [
+      -78.609143495592,
+      35.7647608976285
+     ],
+     [
+      -78.6091695371451,
+      35.7646566574468
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Brentwood",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Brentwood Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.82831198757866,
+   "lon": -78.59910395642976,
+   "rings": [
+    [
+     [
+      -78.5990079375339,
+      35.8283499014523
+     ],
+     [
+      -78.5990659542177,
+      35.8281647531728
+     ],
+     [
+      -78.5992234480719,
+      35.828194770023
+     ],
+     [
+      -78.5991702946716,
+      35.8283797586054
+     ],
+     [
+      -78.5991498472873,
+      35.8283769467987
+     ],
+     [
+      -78.599102275692,
+      35.8283678815461
+     ],
+     [
+      -78.5990079375339,
+      35.8283499014523
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "fullcourt",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Green Road",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Green Road Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.841340094799065,
+   "lon": -78.59217277368225,
+   "rings": [
+    [
+     [
+      -78.5923215250606,
+      35.8413579189475
+     ],
+     [
+      -78.5921547724707,
+      35.8414417890661
+     ],
+     [
+      -78.5920861503002,
+      35.8413504825297
+     ],
+     [
+      -78.5920781903892,
+      35.8413398877717
+     ],
+     [
+      -78.5920772106384,
+      35.8413385874759
+     ],
+     [
+      -78.5921226199487,
+      35.84131596002
+     ],
+     [
+      -78.5921485884029,
+      35.8413030208346
+     ],
+     [
+      -78.592244380869,
+      35.8412552875986
+     ],
+     [
+      -78.5923215250606,
+      35.8413579189475
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Honeycutt",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Honeycutt Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.90354273207062,
+   "lon": -78.62536245143203,
+   "rings": [
+    [
+     [
+      -78.625291431833,
+      35.9036201712744
+     ],
+     [
+      -78.6252970488185,
+      35.9034369563944
+     ],
+     [
+      -78.6254518943515,
+      35.903439909525
+     ],
+     [
+      -78.6254508816612,
+      35.9034399397649
+     ],
+     [
+      -78.6254505904941,
+      35.903621688342
+     ],
+     [
+      -78.6253038810329,
+      35.9036202879193
+     ],
+     [
+      -78.625291431833,
+      35.9036201712744
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Millbrook-Exchange",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Millbrook-Exchange Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.868567019425875,
+   "lon": -78.60775699435966,
+   "rings": [
+    [
+     [
+      -78.6076621326651,
+      35.8686676108454
+     ],
+     [
+      -78.6076850490577,
+      35.8684021708805
+     ],
+     [
+      -78.6078982242815,
+      35.8684164276506
+     ],
+     [
+      -78.6078774331289,
+      35.8686812769075
+     ],
+     [
+      -78.6076621326651,
+      35.8686676108454
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Lions",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Lions Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.796795216948325,
+   "lon": -78.614581005691,
+   "rings": [
+    [
+     [
+      -78.6145153508117,
+      35.7968378372582
+     ],
+     [
+      -78.614514422574,
+      35.7967306003476
+     ],
+     [
+      -78.6146794956466,
+      35.796729776755
+     ],
+     [
+      -78.6146804086109,
+      35.7968400331226
+     ],
+     [
+      -78.6145153508117,
+      35.7968378372582
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined, fenced-in",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Caraleigh",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Caraleigh Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.76118659726397,
+   "lon": -78.64615585542187,
+   "rings": [
+    [
+     [
+      -78.6460539999179,
+      35.7611774899673
+     ],
+     [
+      -78.6462150552363,
+      35.7610904336339
+     ],
+     [
+      -78.6462535522293,
+      35.7611353545102
+     ],
+     [
+      -78.6462952235402,
+      35.7611839747391
+     ],
+     [
+      -78.64629562624,
+      35.7611844437118
+     ],
+     [
+      -78.6461370756521,
+      35.761274782049
+     ],
+     [
+      -78.6460989251842,
+      35.7612305309501
+     ],
+     [
+      -78.6460794257955,
+      35.7612079151784
+     ],
+     [
+      -78.6460756705053,
+      35.7612035579326
+     ],
+     [
+      -78.6460539999179,
+      35.7611774899673
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Bragg Street",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Bragg Street Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.76606382978808,
+   "lon": -78.63577834825966,
+   "rings": [
+    [
+     [
+      -78.6357053217969,
+      35.7660203641138
+     ],
+     [
+      -78.6358923445793,
+      35.7660249307503
+     ],
+     [
+      -78.6358868967713,
+      35.7661288667004
+     ],
+     [
+      -78.6357018563539,
+      35.7661246232621
+     ],
+     [
+      -78.6357053217969,
+      35.7660203641138
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "LeVelle Moton",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Lane Street Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.78324463314351,
+   "lon": -78.62610571576629,
+   "rings": [
+    [
+     [
+      -78.6262116609975,
+      35.7831559909262
+     ],
+     [
+      -78.6262028086362,
+      35.7833414271618
+     ],
+     [
+      -78.6260672893319,
+      35.7833369534107
+     ],
+     [
+      -78.6260525008787,
+      35.7833364663582
+     ],
+     [
+      -78.6260473059474,
+      35.7833362962818
+     ],
+     [
+      -78.6260487046492,
+      35.7833036483027
+     ],
+     [
+      -78.6260502197965,
+      35.7832683038442
+     ],
+     [
+      -78.6260542631112,
+      35.7831507668082
+     ],
+     [
+      -78.6261035489279,
+      35.7831524044027
+     ],
+     [
+      -78.6261129101553,
+      35.7831527161559
+     ],
+     [
+      -78.6262116609975,
+      35.7831559909262
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Shelley Lake - Sertoma",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Shelley Lake - Sertoma Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.859447764070474,
+   "lon": -78.66563826164646,
+   "rings": [
+    [
+     [
+      -78.6657452653049,
+      35.859474407534
+     ],
+     [
+      -78.6655847193223,
+      35.8595138356598
+     ],
+     [
+      -78.6655551442065,
+      35.8594379017888
+     ],
+     [
+      -78.6655509635042,
+      35.8594271636603
+     ],
+     [
+      -78.6655756443107,
+      35.8594207877781
+     ],
+     [
+      -78.6657108295718,
+      35.8593858445383
+     ],
+     [
+      -78.6657452653049,
+      35.859474407534
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Glen Eden",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Glen Eden Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.82816092912838,
+   "lon": -78.68434593502728,
+   "rings": [
+    [
+     [
+      -78.6844657100073,
+      35.8280867678999
+     ],
+     [
+      -78.6844271352054,
+      35.8282645237154
+     ],
+     [
+      -78.6843130348794,
+      35.8282472850073
+     ],
+     [
+      -78.6842779481894,
+      35.8282419862306
+     ],
+     [
+      -78.684294259106,
+      35.8281702435559
+     ],
+     [
+      -78.6842979605999,
+      35.8281539885756
+     ],
+     [
+      -78.6842982860375,
+      35.8281525608045
+     ],
+     [
+      -78.6843009932307,
+      35.8281406602961
+     ],
+     [
+      -78.68431831301,
+      35.8280645072986
+     ],
+     [
+      -78.6844657100073,
+      35.8280867678999
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "two goals, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Laurel Hills",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": "Laurel Hills Basketball - Unlighted (N)",
+    "Type": "Court"
+   },
+   "lat": 35.83118064735319,
+   "lon": -78.69856771218699,
+   "rings": [
+    [
+     [
+      -78.6983366337506,
+      35.8310820797423
+     ],
+     [
+      -78.6984680981718,
+      35.8309607782963
+     ],
+     [
+      -78.6984705334048,
+      35.8309625013582
+     ],
+     [
+      -78.6985049735426,
+      35.8309868062457
+     ],
+     [
+      -78.698596396545,
+      35.8310508791055
+     ],
+     [
+      -78.6986133205141,
+      35.831062898755
+     ],
+     [
+      -78.6986634207324,
+      35.8310986270422
+     ],
+     [
+      -78.6986915182796,
+      35.8311180381861
+     ],
+     [
+      -78.6986947960225,
+      35.8311437603992
+     ],
+     [
+      -78.6986524637903,
+      35.831178023564
+     ],
+     [
+      -78.6986427157955,
+      35.8311875635041
+     ],
+     [
+      -78.6985832553236,
+      35.8312455731654
+     ],
+     [
+      -78.6985824441911,
+      35.8312461200712
+     ],
+     [
+      -78.6985815648425,
+      35.8312465577471
+     ],
+     [
+      -78.6985806523933,
+      35.8312469673999
+     ],
+     [
+      -78.6985797070454,
+      35.83124729495
+     ],
+     [
+      -78.698578727796,
+      35.8312475124538
+     ],
+     [
+      -78.6985777144302,
+      35.8312476775959
+     ],
+     [
+      -78.6985772084183,
+      35.8312477286221
+     ],
+     [
+      -78.6985761965793,
+      35.8312477811014
+     ],
+     [
+      -78.6985751508388,
+      35.8312477235344
+     ],
+     [
+      -78.6985741385081,
+      35.8312476110687
+     ],
+     [
+      -78.6985731276941,
+      35.8312473886442
+     ],
+     [
+      -78.6985721502898,
+      35.831247111321
+     ],
+     [
+      -78.6985712075028,
+      35.8312467520622
+     ],
+     [
+      -78.6985703281137,
+      35.8312463100375
+     ],
+     [
+      -78.6985695241935,
+      35.8312458132183
+     ],
+     [
+      -78.6985687537837,
+      35.8312452344605
+     ],
+     [
+      -78.6985680476602,
+      35.8312446315258
+     ],
+     [
+      -78.6985676738933,
+      35.8312442430287
+     ],
+     [
+      -78.6983366337506,
+      35.8310820797423
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Covered",
+    "Lighting": "Yes",
+    "LocationName": "Baileywick",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Court A",
+    "Type": "Court"
+   },
+   "lat": 35.90760282598774,
+   "lon": -78.6689339366064,
+   "rings": [
+    [
+     [
+      -78.6690558426612,
+      35.9074773919185
+     ],
+     [
+      -78.6690325619694,
+      35.9078009319727
+     ],
+     [
+      -78.6687540689149,
+      35.9077910811767
+     ],
+     [
+      -78.6687713668253,
+      35.9074673329523
+     ],
+     [
+      -78.6690558426612,
+      35.9074773919185
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Covered",
+    "Lighting": "Yes",
+    "LocationName": "Baileywick",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Court B",
+    "Type": "Court"
+   },
+   "lat": 35.90767523964024,
+   "lon": -78.6691471996553,
+   "rings": [
+    [
+     [
+      -78.6690325619694,
+      35.9078009319727
+     ],
+     [
+      -78.6690558426612,
+      35.9074773919185
+     ],
+     [
+      -78.6693161637035,
+      35.907486597019
+     ],
+     [
+      -78.669298867973,
+      35.9078103453183
+     ],
+     [
+      -78.6690325619694,
+      35.9078009319727
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Chamberlain",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Chamberlain Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.792189962253815,
+   "lon": -78.66499940731478,
+   "rings": [
+    [
+     [
+      -78.6649332365299,
+      35.7921481506204
+     ],
+     [
+      -78.6650994459676,
+      35.792148563416
+     ],
+     [
+      -78.6650990139058,
+      35.79225210606
+     ],
+     [
+      -78.6649321036407,
+      35.7922528405523
+     ],
+     [
+      -78.6649332365299,
+      35.7921481506204
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "three goals, one full court and one half court",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Mary Belle Pate",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": null,
+    "Type": "Court"
+   },
+   "lat": 35.7518079835954,
+   "lon": -78.68017210190098,
+   "rings": [
+    [
+     [
+      -78.6802590502538,
+      35.7518460692819
+     ],
+     [
+      -78.6801076270617,
+      35.7518961926534
+     ],
+     [
+      -78.6800379601302,
+      35.7517511823635
+     ],
+     [
+      -78.6801968218054,
+      35.7517004043963
+     ],
+     [
+      -78.6802590502538,
+      35.7518460692819
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": "one goal, lined",
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Varnell",
+    "Status": "Existing",
+    "Surface": "asphalt",
+    "Title": null,
+    "Type": "Court"
+   },
+   "lat": 35.8334236881903,
+   "lon": -78.67282126466841,
+   "rings": [
+    [
+     [
+      -78.6728747379031,
+      35.8334601507215
+     ],
+     [
+      -78.6727329412492,
+      35.8334508280223
+     ],
+     [
+      -78.6727410548877,
+      35.8333689943981
+     ],
+     [
+      -78.672882851399,
+      35.8333783170881
+     ],
+     [
+      -78.6728747379031,
+      35.8334601507215
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "No",
+    "LocationName": "Hertford Village",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Hertford Village Basketball - Unlighted",
+    "Type": "Court"
+   },
+   "lat": 35.74432272614865,
+   "lon": -78.64305124185319,
+   "rings": [
+    [
+     [
+      -78.6430039961166,
+      35.7442831435602
+     ],
+     [
+      -78.6431690493444,
+      35.7443060838236
+     ],
+     [
+      -78.6431460428309,
+      35.744397166418
+     ],
+     [
+      -78.6429825554977,
+      35.7443743677224
+     ],
+     [
+      -78.6430018112129,
+      35.7442924518075
+     ],
+     [
+      -78.6430039961166,
+      35.7442831435602
+     ]
+    ]
+   ]
+  },
+  {
+   "attributes": {
+    "Basketball": "Yes",
+    "Features": null,
+    "Fencing": null,
+    "IndoorOutdoor": "Outdoor Uncovered",
+    "Lighting": "Yes",
+    "LocationName": "Biltmore Hills",
+    "Status": "Existing",
+    "Surface": null,
+    "Title": "Biltmore Hills Basketball - Lighted",
+    "Type": "Court"
+   },
+   "lat": 35.74470660767365,
+   "lon": -78.62704556783977,
+   "rings": [
+    [
+     [
+      -78.6269848760827,
+      35.7446568442842
+     ],
+     [
+      -78.627172154207,
+      35.7446597343245
+     ],
+     [
+      -78.6271686938011,
+      35.7447710327104
+     ],
+     [
+      -78.6269809529544,
+      35.7447653299055
+     ],
+     [
+      -78.6269818539107,
+      35.7447298605331
+     ],
+     [
+      -78.6269848760827,
+      35.7446568442842
+     ]
+    ]
+   ]
+  }
+ ],
+ "source": "raleigh_courts",
+ "url": "https://services.arcgis.com/v400IkDOw1ad7Yad/arcgis/rest/services/Raleigh_Parks_Athletic_Courts_and_Fields/FeatureServer/0",
+ "where": "Basketball NOT IN ('No','') AND Basketball IS NOT NULL"
+}

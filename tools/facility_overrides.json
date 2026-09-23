@@ -1,0 +1,21 @@
+{
+  "_comment": [
+    "Human corrections to the distance-derived facility grouping in",
+    "assign_facilities.py. The 60m rule guesses, and these are the cases where a",
+    "person has looked and decided.",
+    "",
+    "'merge' forces the listed court IDs into one facility at any distance — for a",
+    "park whose surfaces sit further apart than the threshold.",
+    "'split' forces a court onto its own facility — for two places the threshold",
+    "wrongly pooled, such as courts either side of a street.",
+    "",
+    "A court ID in both loses: split wins. A wrongly-merged facility silently pools",
+    "two parks' queues, a wrongly-split one only shows two pins.",
+    "",
+    "Court IDs come from courts.json. An ID here that no longer exists in the",
+    "dataset is reported as a warning, not an error, so a dataset rebuild that",
+    "drops a court doesn't break the run."
+  ],
+  "merge": [],
+  "split": []
+}

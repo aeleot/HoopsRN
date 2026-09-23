@@ -212,7 +212,7 @@ final class CourtMarkerView: MKAnnotationView {
     }
 }
 
-/// The court map. **Every court is its own pin — there is no clustering.**
+/// The court map. **Every *facility* is its own pin — there is no clustering.**
 ///
 /// MapKit's automatic clustering was removed on 2026-08-22. It folded nearby
 /// courts into a numbered disc, and that number was the problem: it counted
@@ -225,19 +225,34 @@ final class CourtMarkerView: MKAnnotationView {
 /// something honest, and a heat map you can't read at a glance isn't worth a
 /// badge that lies.
 ///
-/// What replaces it: nothing. `CourtMarkerView` shrank 20% instead, and
-/// MapKit's own collision handling (`collisionMode = .circle` plus
-/// `displayPriority`) thins dense areas by *hiding* overlapping pins rather
-/// than merging them — so a visible pin always means one court, and its
-/// colour always means that court's games today.
+/// What replaced it: `CourtMarkerView` shrank 20%, and MapKit's own collision
+/// handling (`collisionMode = .circle` plus `displayPriority`) thins dense areas
+/// by *hiding* overlapping pins rather than merging them — so a visible pin
+/// always means one place, and its colour always means that place's games today.
+///
+/// **The three-adjacent-courts case above is now fixed upstream rather than
+/// hidden.** Those really were one park arriving as three OSM ways, and `courts`
+/// below is fed one court per `facilityId`, so the park is a single pin whose
+/// colour counts the whole park's runs. The old clustering badge was trying to
+/// summarise a duplicate that shouldn't have existed; grouping it at the data
+/// layer means MapKit is no longer asked to.
 struct MapView: UIViewRepresentable {
+    /// One court per facility — the caller is responsible for that, and
+    /// `FindAMatchViewModel.mapCourts` is what produces it. Passing the raw
+    /// dataset would draw a park's surfaces as separate overlapping pins, each
+    /// coloured with the same facility-wide count.
     let courts: [Court]
     let initialRegion: MKCoordinateRegion
     @Binding var recenterTrigger: RecenterTrigger?
-    /// How many games are scheduled today at each court, keyed by `Court.id`.
-    /// Drives a pin's fill through `CourtHeat` — see `heatColor(for:)`, the
-    /// one place this is actually read.
-    var gameCountByCourtID: [String: Int] = [:]
+    /// How many games are scheduled today at each facility, keyed by
+    /// `Court.facilityId`. Drives a pin's fill through `CourtHeat` — see
+    /// `heatColor(for:)`, the one place this is actually read.
+    ///
+    /// Facility-keyed rather than court-keyed because `courts` above is already
+    /// one court per facility: a park OSM split into three surfaces is one pin,
+    /// and its colour has to mean the park's games rather than the one surface
+    /// that happened to represent it.
+    var gameCountByFacilityID: [String: Int] = [:]
     /// Drawn larger, and outranking its neighbours in a collision, so the
     /// tapped court stays findable once the sheet covers part of the map.
     /// No longer changes colour — see `CourtHeat`.
@@ -274,7 +289,7 @@ struct MapView: UIViewRepresentable {
     /// `CourtHeat` doesn't distinguish "counted and empty" from "never
     /// scheduled anything".
     fileprivate func heatColor(for court: Court) -> UIColor {
-        UIColor(CourtHeat.color(forGameCount: gameCountByCourtID[court.id] ?? 0))
+        UIColor(CourtHeat.color(forGameCount: gameCountByFacilityID[court.facilityId] ?? 0))
     }
 
     func makeUIView(context: Context) -> MKMapView {
@@ -343,7 +358,7 @@ struct MapView: UIViewRepresentable {
             else { continue }
             markerView.configureAsCourt(
                 color: heatColor(for: court.court),
-                gameCount: gameCountByCourtID[court.court.id] ?? 0,
+                gameCount: gameCountByFacilityID[court.court.facilityId] ?? 0,
                 isSelected: court.court.id == selectedCourtID
             )
         }
@@ -386,7 +401,7 @@ struct MapView: UIViewRepresentable {
             view.annotation = court
             view.configureAsCourt(
                 color: parent.heatColor(for: court.court),
-                gameCount: parent.gameCountByCourtID[court.court.id] ?? 0,
+                gameCount: parent.gameCountByFacilityID[court.court.facilityId] ?? 0,
                 isSelected: court.court.id == parent.selectedCourtID
             )
             return view

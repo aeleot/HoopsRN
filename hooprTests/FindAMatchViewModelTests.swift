@@ -5,10 +5,14 @@ import XCTest
 /// from it — what backs the map's pins, their numeric badges, and the Now
 /// segment — out of the two arrays `GameService` already publishes.
 ///
-/// The `gameCountsByCourt` cases below predate `gamesByCourt` and are
-/// deliberately left **unchanged**: the count is now computed on top of the
-/// join, so these passing untouched is the evidence that reimplementing it
-/// preserved the dedup-by-id and calendar-day rules exactly.
+/// The `gameCountsByFacility` cases below predate both `gamesByFacility` and
+/// facilities themselves, and are deliberately left **unchanged** apart from the
+/// renames: the count is computed on top of the join, and the join keys on a
+/// court when no facility map is supplied, so these passing untouched is the
+/// evidence that neither reimplementing the count nor introducing facilities
+/// disturbed the dedup-by-id and calendar-day rules.
+///
+/// `testFacility…` below covers what changed.
 final class FindAMatchViewModelTests: XCTestCase {
 
     private let today = Date(timeIntervalSince1970: 1_780_000_000)
@@ -36,7 +40,7 @@ final class FindAMatchViewModelTests: XCTestCase {
     }
 
     func testCountsGamesPerCourt() {
-        let counts = FindAMatchViewModel.gameCountsByCourt(
+        let counts = FindAMatchViewModel.gameCountsByFacility(
             queued: [],
             published: [
                 game(id: "1", courtId: "court-a", scheduledTime: today),
@@ -57,7 +61,7 @@ final class FindAMatchViewModelTests: XCTestCase {
     func testTheSameGameOnBothListsCountsOnce() {
         let shared = game(id: "shared", courtId: "court-a", scheduledTime: today)
 
-        let counts = FindAMatchViewModel.gameCountsByCourt(
+        let counts = FindAMatchViewModel.gameCountsByFacility(
             queued: [shared],
             published: [shared],
             now: today
@@ -70,7 +74,7 @@ final class FindAMatchViewModelTests: XCTestCase {
     /// out doesn't count, and one from earlier today does even once its own
     /// tip-off has passed.
     func testOnlyGamesOnTheSameCalendarDayCount() {
-        let counts = FindAMatchViewModel.gameCountsByCourt(
+        let counts = FindAMatchViewModel.gameCountsByFacility(
             queued: [],
             published: [
                 game(id: "yesterday", courtId: "court-a", scheduledTime: today.addingTimeInterval(-90_000)),
@@ -84,7 +88,7 @@ final class FindAMatchViewModelTests: XCTestCase {
     }
 
     func testACourtWithNoGamesTodayIsAbsentRatherThanZero() {
-        let counts = FindAMatchViewModel.gameCountsByCourt(queued: [], published: [], now: today)
+        let counts = FindAMatchViewModel.gameCountsByFacility(queued: [], published: [], now: today)
 
         XCTAssertNil(counts["court-a"])
         XCTAssertTrue(counts.isEmpty)
@@ -95,7 +99,7 @@ final class FindAMatchViewModelTests: XCTestCase {
     /// property's own doc comment), so there's no extra privacy question once
     /// a game has arrived in either array at all.
     func testPrivateGamesCountTheSameAsPublicOnes() {
-        let counts = FindAMatchViewModel.gameCountsByCourt(
+        let counts = FindAMatchViewModel.gameCountsByFacility(
             queued: [game(id: "1", courtId: "court-a", scheduledTime: today, isPublic: false)],
             published: [],
             now: today
@@ -110,7 +114,7 @@ final class FindAMatchViewModelTests: XCTestCase {
         let late = game(id: "late", courtId: "court-a", scheduledTime: today.addingTimeInterval(7200))
         let early = game(id: "early", courtId: "court-a", scheduledTime: today)
 
-        let byCourt = FindAMatchViewModel.gamesByCourt(
+        let byCourt = FindAMatchViewModel.gamesByFacility(
             queued: [],
             published: [late, early],
             now: today
@@ -126,8 +130,8 @@ final class FindAMatchViewModelTests: XCTestCase {
         let b = game(id: "b", courtId: "court-a", scheduledTime: today)
         let a = game(id: "a", courtId: "court-a", scheduledTime: today)
 
-        let first = FindAMatchViewModel.gamesByCourt(queued: [], published: [b, a], now: today)
-        let second = FindAMatchViewModel.gamesByCourt(queued: [], published: [a, b], now: today)
+        let first = FindAMatchViewModel.gamesByFacility(queued: [], published: [b, a], now: today)
+        let second = FindAMatchViewModel.gamesByFacility(queued: [], published: [a, b], now: today)
 
         XCTAssertEqual(first["court-a"]?.map(\.id), ["a", "b"])
         XCTAssertEqual(second["court-a"]?.map(\.id), ["a", "b"])
@@ -136,7 +140,7 @@ final class FindAMatchViewModelTests: XCTestCase {
     func testTheJoinDedupesByIdLikeTheCountDoes() {
         let shared = game(id: "shared", courtId: "court-a", scheduledTime: today)
 
-        let byCourt = FindAMatchViewModel.gamesByCourt(
+        let byCourt = FindAMatchViewModel.gamesByFacility(
             queued: [shared],
             published: [shared],
             now: today
@@ -146,7 +150,7 @@ final class FindAMatchViewModelTests: XCTestCase {
     }
 
     func testTheJoinDropsGamesFromOtherCalendarDays() {
-        let byCourt = FindAMatchViewModel.gamesByCourt(
+        let byCourt = FindAMatchViewModel.gamesByFacility(
             queued: [],
             published: [
                 game(id: "today", courtId: "court-a", scheduledTime: today),
@@ -161,7 +165,7 @@ final class FindAMatchViewModelTests: XCTestCase {
     /// Absent, not an empty array — a court with nothing on shouldn't occupy a
     /// key that every consumer then has to check for emptiness.
     func testACourtWithNoGamesIsAbsentFromTheJoin() {
-        let byCourt = FindAMatchViewModel.gamesByCourt(
+        let byCourt = FindAMatchViewModel.gamesByFacility(
             queued: [],
             published: [game(id: "1", courtId: "court-a", scheduledTime: today)],
             now: today
@@ -179,15 +183,22 @@ final class FindAMatchViewModelTests: XCTestCase {
             game(id: "3", courtId: "court-b", scheduledTime: today),
         ]
 
-        let byCourt = FindAMatchViewModel.gamesByCourt(queued: [], published: games, now: today)
-        let counts = FindAMatchViewModel.gameCountsByCourt(queued: [], published: games, now: today)
+        let byCourt = FindAMatchViewModel.gamesByFacility(queued: [], published: games, now: today)
+        let counts = FindAMatchViewModel.gameCountsByFacility(queued: [], published: games, now: today)
 
         XCTAssertEqual(counts, byCourt.mapValues(\.count))
     }
 
     // MARK: - The Now segment
 
-    private func nearby(_ courtId: String, meters: Double, name: String? = nil) -> NearbyCourt {
+    /// `facilityId` left `nil` means the court is its own facility, which is what
+    /// keeps the pre-facility cases in this suite reading unchanged.
+    private func nearby(
+        _ courtId: String,
+        meters: Double,
+        name: String? = nil,
+        facilityId: String? = nil
+    ) -> NearbyCourt {
         NearbyCourt(
             court: Court(
                 id: courtId,
@@ -201,6 +212,7 @@ final class FindAMatchViewModelTests: XCTestCase {
                 isLit: nil,
                 isCovered: nil,
                 access: .public,
+                facilityId: facilityId,
                 osmType: nil,
                 osmId: nil
             ),
@@ -216,7 +228,7 @@ final class FindAMatchViewModelTests: XCTestCase {
         ]
 
         let active = FindAMatchViewModel.rankActive(
-            gamesByCourtID: byCourt,
+            gamesByFacilityID: byCourt,
             among: ranked,
             now: today
         )
@@ -236,7 +248,7 @@ final class FindAMatchViewModelTests: XCTestCase {
         ]
 
         let active = FindAMatchViewModel.rankActive(
-            gamesByCourtID: byCourt,
+            gamesByFacilityID: byCourt,
             among: ranked,
             now: today
         )
@@ -259,14 +271,14 @@ final class FindAMatchViewModelTests: XCTestCase {
         )
 
         let active = FindAMatchViewModel.rankActive(
-            gamesByCourtID: ["court-a": [stale]],
+            gamesByFacilityID: ["court-a": [stale]],
             among: ranked,
             now: today
         )
 
         XCTAssertTrue(active.isEmpty)
         // ...but the join still counts it, because the court *was* busy today.
-        let counts = FindAMatchViewModel.gameCountsByCourt(
+        let counts = FindAMatchViewModel.gameCountsByFacility(
             queued: [],
             published: [stale],
             now: today
@@ -284,7 +296,7 @@ final class FindAMatchViewModelTests: XCTestCase {
         )
 
         let active = FindAMatchViewModel.rankActive(
-            gamesByCourtID: ["court-a": [underway]],
+            gamesByFacilityID: ["court-a": [underway]],
             among: ranked,
             now: today
         )
@@ -296,7 +308,7 @@ final class FindAMatchViewModelTests: XCTestCase {
         let ranked = [nearby("court-a", meters: 100), nearby("court-b", meters: 200)]
 
         let active = FindAMatchViewModel.rankActive(
-            gamesByCourtID: ["court-a": [game(id: "1", courtId: "court-a", scheduledTime: today)]],
+            gamesByFacilityID: ["court-a": [game(id: "1", courtId: "court-a", scheduledTime: today)]],
             among: ranked,
             now: today
         )
@@ -309,7 +321,7 @@ final class FindAMatchViewModelTests: XCTestCase {
     func testEveryActiveCourtHasAtLeastOneGame() {
         let ranked = [nearby("court-a", meters: 100)]
         let active = FindAMatchViewModel.rankActive(
-            gamesByCourtID: [
+            gamesByFacilityID: [
                 "court-a": [
                     game(id: "1", courtId: "court-a", scheduledTime: today.addingTimeInterval(3600)),
                     game(id: "2", courtId: "court-a", scheduledTime: today.addingTimeInterval(7200)),
@@ -327,11 +339,108 @@ final class FindAMatchViewModelTests: XCTestCase {
     func testASingleRunHasNoAdditionalGamesText() {
         let ranked = [nearby("court-a", meters: 100)]
         let active = FindAMatchViewModel.rankActive(
-            gamesByCourtID: ["court-a": [game(id: "1", courtId: "court-a", scheduledTime: today)]],
+            gamesByFacilityID: ["court-a": [game(id: "1", courtId: "court-a", scheduledTime: today)]],
             among: ranked,
             now: today
         )
 
         XCTAssertNil(active.first?.additionalGamesText)
+    }
+
+    // MARK: - Facilities
+
+    /// **The reason the facility layer exists.**
+    ///
+    /// Long Meadow Park ships as three courts 17m apart because OSM tags each
+    /// surface as its own way. Two runs created against two of those surfaces are
+    /// one park's runs, and before this they were two queues neither of which
+    /// could see the other.
+    func testRunsAtAdjacentSurfacesJoinIntoOneFacility() {
+        let byFacility = FindAMatchViewModel.gamesByFacility(
+            queued: [],
+            published: [
+                game(id: "1", courtId: "long-meadow-1", scheduledTime: today),
+                game(id: "2", courtId: "long-meadow-2", scheduledTime: today.addingTimeInterval(3600)),
+                game(id: "3", courtId: "long-meadow-3", scheduledTime: today.addingTimeInterval(7200)),
+            ],
+            facilityIdsByCourtId: [
+                "long-meadow-1": "facility-long-meadow",
+                "long-meadow-2": "facility-long-meadow",
+                "long-meadow-3": "facility-long-meadow",
+            ],
+            now: today
+        )
+
+        XCTAssertEqual(byFacility.count, 1)
+        XCTAssertEqual(
+            byFacility["facility-long-meadow"]?.map(\.id),
+            ["1", "2", "3"]
+        )
+        // And nothing is filed under the individual surfaces any more.
+        XCTAssertNil(byFacility["long-meadow-1"])
+    }
+
+    /// A game at a court the dataset doesn't know keys on its own `courtId`.
+    /// Such a run was already unreachable — there's no court to display it
+    /// against — so this preserves the old behaviour rather than inventing a
+    /// facility nothing can look up.
+    func testAGameAtAnUnknownCourtKeysOnItsCourtId() {
+        let byFacility = FindAMatchViewModel.gamesByFacility(
+            queued: [],
+            published: [game(id: "1", courtId: "court-gone", scheduledTime: today)],
+            facilityIdsByCourtId: ["court-a": "facility-a"],
+            now: today
+        )
+
+        XCTAssertEqual(byFacility["court-gone"]?.map(\.id), ["1"])
+    }
+
+    /// The Now segment lists a park once, not once per surface. The join is
+    /// facility-keyed, so iterating courts without deduping would emit three
+    /// identical Long Meadow rows.
+    func testTheNowSegmentListsAFacilityOnce() {
+        let ranked = [
+            nearby("lm-1", meters: 100, name: "Long Meadow Park Basketball Court #1",
+                   facilityId: "facility-lm"),
+            nearby("lm-2", meters: 140, name: "Long Meadow Park Basketball Court #2",
+                   facilityId: "facility-lm"),
+            nearby("lm-3", meters: 180, name: "Long Meadow Park Basketball Court #3",
+                   facilityId: "facility-lm"),
+        ]
+
+        let active = FindAMatchViewModel.rankActive(
+            gamesByFacilityID: [
+                "facility-lm": [game(id: "1", courtId: "lm-2", scheduledTime: today)],
+            ],
+            among: ranked,
+            now: today
+        )
+
+        XCTAssertEqual(active.count, 1)
+        // The nearest surface represents the facility — the one a player
+        // walking there reaches first.
+        XCTAssertEqual(active.first?.court.id, "lm-1")
+        XCTAssertEqual(active.first?.games.map(\.id), ["1"])
+    }
+
+    /// Two genuinely separate courts still list separately — the dedup keys on
+    /// the facility, not on proximity.
+    func testSeparateFacilitiesStillListSeparately() {
+        let ranked = [
+            nearby("court-a", meters: 100, facilityId: "facility-a"),
+            nearby("court-b", meters: 200, facilityId: "facility-b"),
+        ]
+
+        let active = FindAMatchViewModel.rankActive(
+            gamesByFacilityID: [
+                "facility-a": [game(id: "1", courtId: "court-a", scheduledTime: today)],
+                "facility-b": [game(id: "2", courtId: "court-b", scheduledTime: today)],
+            ],
+            among: ranked,
+            now: today
+        )
+
+        XCTAssertEqual(active.count, 2)
+        XCTAssertEqual(Set(active.map(\.court.id)), ["court-a", "court-b"])
     }
 }

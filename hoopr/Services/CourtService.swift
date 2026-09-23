@@ -19,6 +19,24 @@ fileprivate let logger = Logger(subsystem: "com.hoopsrn", category: "CourtServic
 final class CourtService: ObservableObject {
     @Published private(set) var courts: [Court] = []
 
+    /// `courts` grouped into the places players actually travel to.
+    ///
+    /// Derived once at load rather than on demand: it's read on every map rebuild
+    /// and the dataset never changes after `init`. Published alongside `courts`
+    /// rather than replacing it — plenty of callers still want a single surface
+    /// (a run happens on one court, not across a park), so both are the truth at
+    /// different grains.
+    @Published private(set) var facilities: [Facility] = []
+
+    /// `facilityId` for a given court ID, for joining anything keyed on a court
+    /// back up to its facility — `Game.courtId` above all.
+    private(set) var facilityIdsByCourtId: [String: String] = [:]
+
+    /// `facilities` indexed by ID. Held rather than searched because the map's
+    /// court card asks for a facility on every render, and a linear scan of 191
+    /// facilities per frame is a scroll hitch waiting to happen.
+    private(set) var facilitiesById: [String: Facility] = [:]
+
     /// Set when the bundled dataset couldn't be read. `nil` on success.
     @Published private(set) var loadError: String?
 
@@ -37,8 +55,22 @@ final class CourtService: ObservableObject {
             let data = try Data(contentsOf: url)
             let dataset = try JSONDecoder().decode(CourtDataset.self, from: data)
             courts = dataset.courts.sorted { $0.name < $1.name }
+            facilities = Facility.group(courts)
+            facilityIdsByCourtId = Dictionary(
+                courts.map { ($0.id, $0.facilityId) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            facilitiesById = Dictionary(
+                facilities.map { ($0.id, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
             loadError = nil
-            logger.debug("Loaded \(self.courts.count) courts (dataset v\(dataset.version))")
+            logger.debug(
+                """
+                Loaded \(self.courts.count) courts in \
+                \(self.facilities.count) facilities (dataset v\(dataset.version))
+                """
+            )
         } catch {
             logger.error("Failed to decode courts.json: \(error.localizedDescription)")
             loadError = "Court data couldn't be read."

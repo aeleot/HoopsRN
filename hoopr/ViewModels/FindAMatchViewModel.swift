@@ -79,6 +79,21 @@ final class FindAMatchViewModel: ObservableObject {
     /// regardless of distance.
     @Published private(set) var courts: [Court] = []
 
+    /// `courts` reduced to one court per facility, for `MapView`.
+    ///
+    /// The map wants destinations; `courts` is surfaces. Drawing the latter puts
+    /// three pins on Long Meadow Park, each coloured with the same facility-wide
+    /// count — three marks for one place, all saying the same thing.
+    ///
+    /// Derived rather than stored: it's a pure function of `courts`, and a stored
+    /// copy is one more thing `rebuild()` could forget to refresh. `courts`
+    /// arrives name-sorted from `CourtService`, so the representative is stable
+    /// between rebuilds.
+    var mapCourts: [Court] {
+        var claimed = Set<String>()
+        return courts.filter { claimed.insert($0.facilityId).inserted }
+    }
+
     /// The rows in the sheet for the `.nearby` and `.saved` segments, already
     /// filtered and ordered. Empty while `.now` is showing — that segment
     /// renders `activeCourts` instead.
@@ -154,14 +169,26 @@ final class FindAMatchViewModel: ObservableObject {
     /// This replaced a stored count map. Holding the games rather than their
     /// tally is what lets the sheet show *when* a run is and whether it has
     /// room, instead of reducing all of that to a pin colour.
-    @Published private(set) var gamesByCourtID: [String: [Game]] = [:]
+    /// Keyed by **`facilityId`, not court ID** — the one change that stops a
+    /// queue splitting in half at the courts where it matters.
+    ///
+    /// OSM splits a park into a court per surface, so Long Meadow Park is three
+    /// records 17m apart. Keyed by court, a run created at "#1" was invisible to
+    /// a player looking at "#2" — two queues, seventeen metres, neither aware of
+    /// the other. Keyed by facility, every surface at a park reports the park's
+    /// runs.
+    ///
+    /// Nothing in Firestore changed to allow this: `Game.courtId` still stores
+    /// the surface. The facility is applied when the games are *read*, which is
+    /// why this needed no migration and no rules change.
+    @Published private(set) var gamesByFacilityID: [String: [Game]] = [:]
 
-    /// How many games are scheduled **today** at each court. Feeds the map's
+    /// How many games are scheduled **today** at each facility. Feeds the map's
     /// pins via `CourtHeat` and their numeric badges.
     ///
-    /// Derived rather than stored alongside `gamesByCourtID`, so the two can't
+    /// Derived rather than stored alongside `gamesByFacilityID`, so the two can't
     /// drift out of step.
-    var gameCountByCourtID: [String: Int] { gamesByCourtID.mapValues(\.count) }
+    var gameCountByFacilityID: [String: Int] { gamesByFacilityID.mapValues(\.count) }
 
     // MARK: - Tuning
 
@@ -388,7 +415,11 @@ final class FindAMatchViewModel: ObservableObject {
     // MARK: - Derivation
 
     private func rebuildGameCounts(queued: [Game], published: [Game]) {
-        gamesByCourtID = Self.gamesByCourt(queued: queued, published: published)
+        gamesByFacilityID = Self.gamesByFacility(
+            queued: queued,
+            published: published,
+            facilityIdsByCourtId: courtService.facilityIdsByCourtId
+        )
         rebuild()
     }
 
@@ -413,47 +444,64 @@ final class FindAMatchViewModel: ObservableObject {
     /// dedup-by-id and day-boundary rules without constructing a `GameService`
     /// or touching Firebase, the same shape `Game.status(playerCount:maxPlayers:)`
     /// and `Game.validate` already use for their own pure rules.
-    nonisolated static func gamesByCourt(
+    /// `facilityIdsByCourtId` comes from `CourtService`. A game whose court isn't
+    /// in it keys on its own `courtId` — such a run was already unreachable (no
+    /// court in the dataset to display it against), so this preserves the old
+    /// behaviour rather than inventing a facility that nothing can look up.
+    ///
+    /// The map **defaults to empty**, which makes every game key on its own court
+    /// — precisely the pre-facility behaviour. That's what lets the dedup-by-id
+    /// and calendar-day cases in `FindAMatchViewModelTests` go on proving those
+    /// rules without knowing facilities exist. Both production call sites pass a
+    /// real map; the default is not a shortcut for them.
+    nonisolated static func gamesByFacility(
         queued: [Game],
         published: [Game],
+        facilityIdsByCourtId: [String: String] = [:],
         now: Date = Date()
     ) -> [String: [Game]] {
         var seen = Set<String>()
-        var byCourt: [String: [Game]] = [:]
+        var byFacility: [String: [Game]] = [:]
 
         for game in queued + published {
             guard seen.insert(game.id).inserted else { continue }
             guard Calendar.current.isDate(game.scheduledTime, inSameDayAs: now) else { continue }
-            byCourt[game.courtId, default: []].append(game)
+            let key = facilityIdsByCourtId[game.courtId] ?? game.courtId
+            byFacility[key, default: []].append(game)
         }
 
         // Sorted on `id` after `scheduledTime`: two runs at the same minute
         // would otherwise land in whatever order the dictionary happened to
         // iterate, and a row that reshuffles between identical rebuilds reads
         // as broken.
-        return byCourt.mapValues { games in
+        return byFacility.mapValues { games in
             games.sorted {
                 ($0.scheduledTime, $0.id) < ($1.scheduledTime, $1.id)
             }
         }
     }
 
-    /// Today's game counts per court.
+    /// Today's game counts per facility.
     ///
-    /// Reimplemented on top of `gamesByCourt` rather than counting separately,
+    /// Reimplemented on top of `gamesByFacility` rather than counting separately,
     /// so the tally and the list it summarises can never disagree.
-    nonisolated static func gameCountsByCourt(
+    nonisolated static func gameCountsByFacility(
         queued: [Game],
         published: [Game],
+        facilityIdsByCourtId: [String: String] = [:],
         now: Date = Date()
     ) -> [String: Int] {
-        gamesByCourt(queued: queued, published: published, now: now)
-            .mapValues(\.count)
+        gamesByFacility(
+            queued: queued,
+            published: published,
+            facilityIdsByCourtId: facilityIdsByCourtId,
+            now: now
+        ).mapValues(\.count)
     }
 
     private func rebuild() {
         let filtered = courtService.courts.filter { court in
-            let activity = CourtActivity(games: gamesByCourtID[court.id] ?? [])
+            let activity = CourtActivity(games: gamesByFacilityID[court.facilityId] ?? [])
             return activeFilters.allSatisfy { $0.matches(court, activity: activity) }
         }
         courts = filtered
@@ -466,7 +514,7 @@ final class FindAMatchViewModel: ObservableObject {
         recentCourts = recentCourtIds.compactMap { byID[$0]?.court }
 
         activeCourts = Self.rankActive(
-            gamesByCourtID: gamesByCourtID,
+            gamesByFacilityID: gamesByFacilityID,
             among: ranked
         )
 
@@ -498,21 +546,30 @@ final class FindAMatchViewModel: ObservableObject {
     ///
     /// Sorted on three keys. `scheduledTime` is the one that matters;
     /// `distanceMeters` and then `displayName` break its ties, because
-    /// `gamesByCourtID` is a dictionary with no stable iteration order and a
+    /// `gamesByFacilityID` is a dictionary with no stable iteration order and a
     /// list that reshuffles between identical rebuilds reads as broken.
+    ///
+    /// **One row per facility, not per court.** The join is facility-keyed, so
+    /// every surface at a park reports the park's runs — and iterating courts
+    /// would then emit Long Meadow Park three times with identical games. The
+    /// first court seen per facility wins, and since `ranked` arrives
+    /// distance-sorted that is the nearest surface, which is the one a player
+    /// walking there would reach.
     ///
     /// Pure and static, taking the already-ranked courts so it neither repeats
     /// the geo math nor needs an origin of its own.
     nonisolated static func rankActive(
-        gamesByCourtID: [String: [Game]],
+        gamesByFacilityID: [String: [Game]],
         among ranked: [NearbyCourt],
         now: Date = Date()
     ) -> [ActiveCourt] {
-        ranked
+        var claimed = Set<String>()
+        return ranked
             .compactMap { nearby -> ActiveCourt? in
-                let live = (gamesByCourtID[nearby.court.id] ?? [])
+                let live = (gamesByFacilityID[nearby.court.facilityId] ?? [])
                     .filter { $0.isVisible(at: now) }
                 guard !live.isEmpty else { return nil }
+                guard claimed.insert(nearby.court.facilityId).inserted else { return nil }
 
                 return ActiveCourt(
                     court: nearby.court,
@@ -638,15 +695,35 @@ final class FindAMatchViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Facilities
+
+    /// "3 courts" when the tapped court is one surface of several at the same
+    /// place, and `nil` when it's on its own.
+    ///
+    /// Worth telling the reader, because the map now draws one pin where it used
+    /// to draw three: without this, a park with three surfaces is
+    /// indistinguishable from a single court, and the run they're looking at
+    /// might be on the far one. It's also the honest reading of the count the
+    /// removed MapKit cluster badge was trying to give — see `MapView`.
+    func surfaceCountText(for court: Court) -> String? {
+        courtService.facilitiesById[court.facilityId]?.surfaceCountText
+    }
+
     // MARK: - Runs at a court
 
-    /// Today's runs at `court` that are still worth showing, soonest first.
+    /// Today's runs at `court`'s **facility** that are still worth showing,
+    /// soonest first.
+    ///
+    /// Facility-scoped, not court-scoped: tapping the near half of Walltown Park
+    /// shows the run someone created on the far half. Those are the same
+    /// destination, and a card that hid the run because it was filed against the
+    /// adjacent surface is the bug this whole layer exists to remove.
     ///
     /// Same `isVisible(at:)` cutoff the Now segment uses, for the same reason:
     /// a run that finished two hours ago belongs in the pin's colour, not in a
     /// card offering you a button to join it.
     func gamesToday(at court: Court, now: Date = Date()) -> [Game] {
-        (gamesByCourtID[court.id] ?? []).filter { $0.isVisible(at: now) }
+        (gamesByFacilityID[court.facilityId] ?? []).filter { $0.isVisible(at: now) }
     }
 
     /// What the primary button on a run row does. Shares

@@ -143,10 +143,10 @@ struct MapTab: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             MapView(
-                courts: viewModel.courts,
+                courts: viewModel.mapCourts,
                 initialRegion: viewModel.initialRegion,
                 recenterTrigger: $recenterTrigger,
-                gameCountByCourtID: viewModel.gameCountByCourtID,
+                gameCountByFacilityID: viewModel.gameCountByFacilityID,
                 selectedCourtID: sheetState.selectedCourt?.id,
                 onMarkerTap: { court in
                     select(court)
@@ -880,9 +880,26 @@ struct MapTab: View {
                     .foregroundStyle(Color.hooprPrimaryText)
                     .lineLimit(2)
 
-                Text("\(court.city) · \(viewModel.distanceText(for: court)) away")
-                    .hooprFont(13)
-                    .foregroundStyle(Color.hooprSecondaryText)
+                // The surface count joins the existing metadata line rather
+                // than taking one of its own: it's the same class of fact as
+                // city and distance, and the card is already competing with
+                // the run rows below it for height.
+                //
+                // Only appears for a multi-surface facility, because the map
+                // now draws one pin where it drew three — so "3 courts" is the
+                // only thing distinguishing a park from a single court, and on
+                // a single court it would be noise.
+                Text(
+                    [
+                        court.city,
+                        viewModel.surfaceCountText(for: court),
+                        "\(viewModel.distanceText(for: court)) away",
+                    ]
+                    .compactMap { $0 }
+                    .joined(separator: " · ")
+                )
+                .hooprFont(13)
+                .foregroundStyle(Color.hooprSecondaryText)
             }
 
             Spacer(minLength: 8)

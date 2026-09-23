@@ -62,7 +62,7 @@ friendship uids to
 profiles for their names, and `FindAMatchViewModel` joins `GameService`'s
 `queuedGames` + `publicGames` to the court dataset to colour the map's pins by
 how busy each court is today — see `MAP_LAYER.md`'s `CourtHeat` section, and
-`gameCountsByCourt`'s doc comment for why summing those two arrays needs a
+`gameCountsByFacility`'s doc comment for why summing those two arrays needs a
 dedup. On the Seasons side, `SquadViewModel` joins `squadInvites` to
 `friendships` for the invite picker (the join that makes it a view model at
 all), and `GameDayViewModel`/`ResultViewModel` join a match to both squads'

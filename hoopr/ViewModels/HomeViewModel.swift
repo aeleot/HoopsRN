@@ -196,13 +196,20 @@ final class HomeViewModel: ObservableObject {
     ///
     /// `nonisolated static` and pure so the ranking can be tested without
     /// constructing a service or touching Firebase — the same shape
-    /// `FindAMatchViewModel.gameCountsByCourt` and `Game.validate` already use.
+    /// `FindAMatchViewModel.gameCountsByFacility` and `Game.validate` already use.
     ///
     /// Ties break on `displayName`, not on dictionary order: a `[String: Int]`
     /// has no stable iteration order, so without a second key the list would
     /// reshuffle itself between rebuilds while showing identical numbers.
     /// Courts absent from `counts` have nothing scheduled and are dropped
     /// rather than rendered as a zero — a hot list of cold courts is noise.
+    ///
+    /// **`counts` is keyed by `facilityId`** and a facility appears at most once.
+    /// Both matter: the counts come from `gameCountsByFacility`, and a park whose
+    /// surfaces OSM split in three would otherwise fill the whole list with one
+    /// destination repeated, each row showing the same tally. The first court of
+    /// a facility wins, and `courts` arrives name-sorted, so that's the same
+    /// representative every rebuild.
     nonisolated static func rankHotCourts(
         counts: [String: Int],
         courts: [Court],
@@ -210,9 +217,11 @@ final class HomeViewModel: ObservableObject {
     ) -> [HotCourt] {
         guard limit > 0 else { return [] }
 
+        var claimed = Set<String>()
         return courts
-            .compactMap { court in
-                guard let count = counts[court.id], count > 0 else { return nil }
+            .compactMap { court -> HotCourt? in
+                guard let count = counts[court.facilityId], count > 0 else { return nil }
+                guard claimed.insert(court.facilityId).inserted else { return nil }
                 return HotCourt(court: court, gameCount: count)
             }
             .sorted { lhs, rhs in
@@ -258,9 +267,10 @@ final class HomeViewModel: ObservableObject {
         queued: [Game]? = nil,
         published: [Game]? = nil
     ) {
-        let counts = FindAMatchViewModel.gameCountsByCourt(
+        let counts = FindAMatchViewModel.gameCountsByFacility(
             queued: queued ?? gameService.queuedGames,
-            published: published ?? gameService.publicGames
+            published: published ?? gameService.publicGames,
+            facilityIdsByCourtId: courtService.facilityIdsByCourtId
         )
 
         hotCourts = Self.rankHotCourts(

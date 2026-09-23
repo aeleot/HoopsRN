@@ -19,6 +19,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Evaluate** the rules against the emulator | `npm install && npm run test:rules` |
 | Check if docs are stale | `python3 tools/check_context_drift.py` |
 | Regenerate court dataset | `python3 tools/build_courts.py` or `python3 tools/fetch_city_courts.py` |
+| **Audit** court data quality | `python3 tools/audit_courts.py` (add `--verbose` / `--json`; exits 1 on any finding) |
+| Re-group courts into facilities | `python3 tools/assign_facilities.py --dry-run`, then without the flag |
+| Harvest official municipal court data | `python3 tools/fetch_official_courts.py` (writes `tools/official_sources/`) |
+| Conflate official data into the dataset | `python3 tools/enrich_courts.py --dry-run`, then without the flag |
 
 **A dry-run is not a test.** It compiles `firestore.rules` and proves nothing about whether a write is allowed. `npm run test:rules` starts the Firestore emulator and evaluates the real ruleset — the claim race, the membership diffs, the stale-claim window. It needs a JDK (`brew install openjdk`); see [`firestore-tests/README.md`](firestore-tests/README.md).
 
@@ -106,7 +110,9 @@ The codebase has a published **context dictionary** at [`context/INDEX.md`](cont
 ## Key patterns and constraints
 
 ### Models are in `hoopr/Models/`
-Domain types: `Game`, `UserProfile`, `Friendship`, `Court`, `GameStatus`, error enums. No Firestore types escape the service layer.
+Domain types: `Game`, `UserProfile`, `Friendship`, `Court`, `Facility`, `GameStatus`, error enums. No Firestore types escape the service layer.
+
+**A `Court` is one playing surface; a `Facility` is the place a player travels to.** OSM splits a park into a way per surface, so Long Meadow Park is three courts 17m apart — which used to mean three overlapping map pins and three separate queues at one physical court. Every court carries a `facilityId` (a court on its own is a facility of one), the map draws one pin per facility, and `FindAMatchViewModel.gamesByFacility` keys the game join on it. Games still store `courtId`: the facility is applied on read, so this needed no migration and no rules change. See [`COURT_DATASET.md`](context/COURT_DATASET.md) for how `facilityId` is minted and why it's safe to re-mint.
 
 ### Services are in `hoopr/Services/`
 Query listeners, error translation, and state publication. Subscribe to `AuthService` internally; publish clean models. `ListenerSupervisor` recovers from transient network errors per listener.
@@ -133,7 +139,7 @@ Until `firestore.rules` is deployed, writes fail with `permission-denied` — th
 `Big-Boss-LLC.hoopr` binds to the Firebase app `hoopsrn-4f1e9`. Changing it requires a new app in the Firebase console and a fresh `GoogleService-Info.plist` — it orphans existing installs.
 
 ### Tests are unit-focused, UI tests skip
-`hooprTests/` has 463 real test methods across 28 suites, and `firestore-tests/` has 141 covering all seven collections. `hooprUITests` fails to launch on this project (SpringBoard `RequestDenied`), so don't run it. The fixture data in test files is non-scaffolding — it's either real Firestore documents or realistic test doubles.
+`hooprTests/` has **500 real test methods across 31 files** (counted and run green 2026-09-22 — the previous "463 across 28" was stale), and `firestore-tests/` has 141 covering all seven collections. `hooprUITests` fails to launch on this project (SpringBoard `RequestDenied`), so don't run it. The fixture data in test files is non-scaffolding — it's either real Firestore documents or realistic test doubles.
 
 ## Token efficiency
 

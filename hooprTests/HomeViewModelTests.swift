@@ -12,12 +12,17 @@ import XCTest
 /// a city is quiet.
 ///
 /// Pure and `nonisolated`, so none of this needs a service or Firebase — the
-/// same shape `FindAMatchViewModelTests` uses for `gameCountsByCourt`.
+/// same shape `FindAMatchViewModelTests` uses for `gameCountsByFacility`.
 final class HomeViewModelTests: XCTestCase {
 
     // MARK: - Fixtures
 
-    private func court(_ id: String, name: String, city: String = "Durham") -> Court {
+    private func court(
+        _ id: String,
+        name: String,
+        city: String = "Durham",
+        facilityId: String? = nil
+    ) -> Court {
         Court(
             id: id,
             name: name,
@@ -30,6 +35,7 @@ final class HomeViewModelTests: XCTestCase {
             isLit: nil,
             isCovered: nil,
             access: .public,
+            facilityId: facilityId,
             osmType: nil,
             osmId: nil
         )
@@ -203,5 +209,51 @@ final class HomeViewModelTests: XCTestCase {
 
         XCTAssertEqual(text, expectedMonthDay(for: overAYearAgo))
         XCTAssertFalse(text.contains(String(Calendar.current.component(.year, from: overAYearAgo))))
+    }
+
+    // MARK: - Facilities
+
+    /// A park OSM split into three surfaces is one destination, and `counts` is
+    /// keyed by facility — so without the dedup all three rows would appear,
+    /// each showing the same tally, filling "Hot right now" with one place.
+    func testAFacilityAppearsOnceInTheHotList() {
+        let courts = [
+            court("lm-1", name: "Long Meadow Park Basketball Court #1", facilityId: "f-lm"),
+            court("lm-2", name: "Long Meadow Park Basketball Court #2", facilityId: "f-lm"),
+            court("lm-3", name: "Long Meadow Park Basketball Court #3", facilityId: "f-lm"),
+            court("wt", name: "Walltown Park Basketball Court", facilityId: "f-wt"),
+        ]
+
+        let ranked = HomeViewModel.rankHotCourts(
+            counts: ["f-lm": 3, "f-wt": 1],
+            courts: courts,
+            limit: 3
+        )
+
+        XCTAssertEqual(ranked.count, 2)
+        XCTAssertEqual(ranked.map(\.court.id), ["lm-1", "wt"])
+        XCTAssertEqual(ranked.map(\.gameCount), [3, 1])
+    }
+
+    /// The representative is stable across rebuilds: `courts` arrives name-sorted
+    /// from `CourtService`, so the same surface speaks for the facility every
+    /// time rather than whichever one a dictionary happened to yield first.
+    func testTheFacilityRepresentativeIsStable() {
+        let courts = [
+            court("lm-1", name: "Long Meadow Park Basketball Court #1", facilityId: "f-lm"),
+            court("lm-2", name: "Long Meadow Park Basketball Court #2", facilityId: "f-lm"),
+        ]
+        let counts = ["f-lm": 2]
+
+        XCTAssertEqual(
+            HomeViewModel.rankHotCourts(counts: counts, courts: courts, limit: 3)
+                .map(\.court.id),
+            ["lm-1"]
+        )
+        XCTAssertEqual(
+            HomeViewModel.rankHotCourts(counts: counts, courts: courts, limit: 3)
+                .map(\.court.id),
+            ["lm-1"]
+        )
     }
 }

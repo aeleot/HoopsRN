@@ -163,7 +163,7 @@ Cards, in order — commitment, then opportunity:
 **It reads nothing new.** Every value comes off listeners the app already keeps
 open: `GameService`'s two arrays, `CourtService.courts`, the profile snapshot,
 and `FriendService`. The hot list calls
-`FindAMatchViewModel.gameCountsByCourt(queued:published:)` directly — it is
+`FindAMatchViewModel.gameCountsByFacility(...)` directly — it is
 `nonisolated static` and pure, so Home shares the map's counting rule instead of
 restating it. No extra Firestore read, no rules change.
 

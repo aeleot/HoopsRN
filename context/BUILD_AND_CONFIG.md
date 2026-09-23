@@ -281,7 +281,8 @@ measurement style would be one too many.
 | `MatchTicketTests` | 22 | Ticket validation, claimability, `isSearching` vs. `isClaimable`, `winPercentage`'s unplayed midpoint. |
 | `FirestoreRulesParityTests` | 21 | Every bound mirrored between Swift and `firestore.rules`, parsed out of the rules file as text — including the `open` -> `matched` transition and the two burst-rate floors. |
 | `LocalRunsViewModelTests` | 24 | Which button a run offers; whether the host may mark a run complete (host-only, not before tip-off, not twice, and a roster of one is still a run); and the friends-on-a-run join: resolving an edge from either side of the stored pair, never counting yourself, both rosters, sorted and deduped, and the badge's own singular/plural copy. |
-| `FindAMatchViewModelTests` | 18 | `gameCountsByCourt` — the per-court/per-day join behind the map's heat colours and pin counts — plus `rankActive`, the **Now** segment's ordering: soonest run first, distance/name tiebreaks, `isVisible(at:)` filtering, and that every `ActiveCourt` has at least one game. |
+| `FindAMatchViewModelTests` | 22 | `gameCountsByFacility` — the per-**facility**/per-day join behind the map's heat colours and pin counts — plus `rankActive`, the **Now** segment's ordering: soonest run first, distance/name tiebreaks, `isVisible(at:)` filtering, and that every `ActiveCourt` has at least one game. Four cases added 2026-09-22 cover the facility join: runs at adjacent surfaces unifying, an unknown court falling back to its own ID, and the Now segment listing a facility once rather than once per surface. |
+| `FacilityTests` | 13 | `Facility.group`, primary/`displayName` selection (the un-numbered name wins), the surface-count text, the mean coordinate, and the city conflict. Plus four cases against the **real** `courts.json`: every court has a `facilityId`, no facility ID collides with a court ID, the file genuinely contains multi-surface facilities, and `facilityIdsByCourtId` covers every court. |
 | `UserProfileTests` | 17 | Decoding, the radius coercion ladder, name validation. |
 | `SquadViewModelTests` | 17 | `invitableUids`, the roster sort, and the region derivation. |
 | `ServiceFailureTests` | 23 | Backoff schedule, per-listener recovery, read/write messaging, `FirestoreFailure` classification — and the stale query window: that the foreground hook fires while healthy (which `retryNow()` deliberately does not), and when `GameService` judges its cutoff worth re-attaching for. |
@@ -345,7 +346,7 @@ stop is darker than the one before it, and that the steps are evenly sized. The
 hex assertions alone can't distinguish a deliberate retune from one that
 accidentally flattens two tiers into looking identical.
 `FindAMatchViewModelTests` covers the join underneath it:
-`gameCountsByCourt` dedupes a game that appears on both `queuedGames` and
+`gameCountsByFacility` dedupes a game that appears on both `queuedGames` and
 `publicGames` (a public run the signed-in user also hosts or joined) down to
 one, buckets by calendar day rather than a rolling 24 hours, and counts a
 private run the same as a public one — deliberately, since by the time a game
