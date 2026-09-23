@@ -25,14 +25,15 @@ conventions. Both live on screens Phase 2 recomposes, so they will close *as
 bugs* when those layouts change; they are recorded here so they aren't
 re-found, or counted as features, in the meantime.
 
-**`StatsCard` breaks words mid-word.** Its three columns are a fixed `HStack`
-with two `Divider`s and no `ViewThatFits` ladder, so at that size the labels
-render as "Ru / ns", "Str / eak" and "Last / Run". `UI_SHELL.md` names this
-exact failure — *"where a row of chips stops fitting, `ViewThatFits` takes a
-column instead of squeezing them: the queue sheet's three time chips broke
-mid-word at `.accessibility3` until it did"* — and the stats card never got the
-same treatment. (`Views/Components/StatsCard.swift`; visible on Home for any
-account with `hasStats`.)
+~~**`StatsCard` breaks words mid-word.**~~ **Closed 2026-09-22.** The three
+columns were each given an equal third of the card — 93pt at the default size,
+when "Yesterday" needs 92, and 116pt one step up — so the labels broke as
+"Ru / ns", "Str / eak", "Last / Run". The columns now hug their content and a
+`ViewThatFits` switches the card to one stat per row only when the row can't
+fit (from `.accessibility1` up). `StatsCardMetrics` measures both sides of that
+switch and `HomeViewModelTests` pins them, including that even the widest value
+fits one line of the stack at the largest size. Seen at `.accessibility3` in the
+live app. (`Views/Components/StatsCard.swift`.)
 
 **The map's court card truncates both of its own lines.** `cardHeader`'s name
 renders as "East En…" and its metadata line as "Durham · 0.…", because the star

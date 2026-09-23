@@ -297,6 +297,49 @@ nonisolated extension Game {
         return "\(Self.dayFormatter.string(from: scheduledTime)) · \(time)"
     }
 
+    /// The time alone — "6:30 PM".
+    ///
+    /// `scheduledText()` joins the day and the time into one string, which was
+    /// right when every surface set it as a single line. The redesigned Home
+    /// band and Runs row set the time as the thing you read first and the day
+    /// as supporting detail, so they need the halves separately — derived from
+    /// the same `scheduledTime`, so they cannot disagree.
+    var timeText: String {
+        Self.timeFormatter.string(from: scheduledTime)
+    }
+
+    /// "Tonight" / "Tomorrow" / "Sat, Aug 15".
+    ///
+    /// The same three-way split `scheduledText()` makes, so a run never reads
+    /// as "Today" on one surface and "Sat" on another. "Tonight" rather than
+    /// "Today" because the surfaces that use it are read on the way out of the
+    /// door; a morning run still reads correctly, just warmly.
+    func dayText(relativeTo now: Date = Date()) -> String {
+        let calendar = Calendar.current
+        if calendar.isDate(scheduledTime, inSameDayAs: now) { return "Tonight" }
+        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now),
+           calendar.isDate(scheduledTime, inSameDayAs: tomorrow) {
+            return "Tomorrow"
+        }
+        return Self.dayFormatter.string(from: scheduledTime)
+    }
+
+    /// "9 spots left" / "1 spot left" / "Full".
+    ///
+    /// Sits beside `rosterText` rather than replacing it, because they answer
+    /// different questions: the roster is *who is on this*, and this is *can I
+    /// get on it*. The redesigned surfaces ask the second, so they set this
+    /// one as a number; `GameCard`'s roster line and the map still ask the
+    /// first.
+    ///
+    /// Singular at one — "1 spots left" makes a screen look unfinished at
+    /// exactly the moment it matters most — and clamped through `openSlots`,
+    /// so a hand-edited over-full roster reads as full rather than negative.
+    var spotsText: String {
+        if isFull { return "Full" }
+        return openSlots == 1 ? "1 spot left" : "\(openSlots) spots left"
+    }
+
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .none

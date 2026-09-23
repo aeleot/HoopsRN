@@ -19,11 +19,20 @@ nonisolated enum Distance {
     /// Miles, US-style: one decimal under 10 mi, whole numbers above — a tenth
     /// of a mile stops being meaningful once you're driving there.
     static func text(_ meters: CLLocationDistance) -> String {
+        "\(valueText(meters)) \(unit)"
+    }
+
+    /// The number alone — "0.7", "12" — for a surface that sets the number and
+    /// its unit at different weights, as Home's band does. The rounding rule
+    /// lives here once, so the split and the joined form can't disagree.
+    static func valueText(_ meters: CLLocationDistance) -> String {
         let miles = Self.miles(meters)
         return miles < 10
-            ? String(format: "%.1f mi", miles)
-            : String(format: "%.0f mi", miles)
+            ? String(format: "%.1f", miles)
+            : String(format: "%.0f", miles)
     }
+
+    static let unit = "mi"
 
     static func between(
         _ from: CLLocationCoordinate2D,

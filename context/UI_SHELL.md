@@ -120,9 +120,11 @@ grounds this code controls; the rendered figure has to be re-measured from a
 screenshot whenever the tint changes.
 
 **The profile button appears on all four tabs and nowhere else.** It is a
-shared `ProfileButton` component (`Views/Components/`) with two styles: `plain`
-for Home and Runs, and `glass` for the map, where it matches the recenter
-control's 46pt glass circle. It owns the notification-dot rule — `hooprRed`, not
+shared `ProfileButton` component (`Views/Components/`) with one appearance — the
+map's glass variant is gone — and one position, `ProfileButton.Slot`: the 44pt
+frame 12pt below the safe area with its trailing edge on the page margin, so
+switching tabs never moves it (2026-09-22; before, Seasons and the map each
+placed it a few points off Home). It owns the notification-dot rule — `hooprRed`, not
 brand orange, matching the inbox badge it leads to, and reading `FriendService`
 directly rather than a view model so the dot stays live while the profile is
 closed. An inbox you can only discover by already being inside it isn't a
@@ -145,6 +147,16 @@ The launch tab, added 2026-08-26. The app used to open on the map, which answers
 "where can I hoop?" — a question you only have once you've decided to go out. It
 can't answer "am I signed up for something tonight?", which is the more common
 reason to open the app, so that is what this screen leads with.
+
+> **Stale as of 2026-09-22 — the composition below is the pre-redesign one.**
+> UI revamp Phase 2b rebuilt this screen: the greeting is gone, the run's
+> tip-off time is the hero as a display numeral in a full-bleed band, the five
+> `cardChrome()` call sites are zero, and the stats card is one caption line.
+> The *reasons* recorded here still hold — why Home exists, why the next-run
+> card is read-only, why the hot list reads nothing new, why the stats are
+> gated — and only the shapes changed. This entry is restamped when the rest
+> of Phase 2b lands; until then see `plans/UI_REVAMP_CHANGELOG.md` § Phase 2b
+> and `plans/UI_REDESIGN_BRIEF.md` §5.1.
 
 Cards, in order — commitment, then opportunity:
 
@@ -203,6 +215,18 @@ Read them as a personal activity summary, not as a competitive claim.
 between rebuilds while showing identical numbers.
 
 ## `LocalRunsTab`
+
+> **Stale as of 2026-09-22 — the composition below is the pre-redesign one.**
+> UI revamp Phase 2b rebuilt this screen: the two collapsible sections are one
+> list ordered by tip-off, the runs you're on carry a rail instead of a
+> section, a band states how many runs are on, and `GameCard` leads with the
+> time and states spots left instead of drawing a capacity bar. **The
+> "collapsible section header" clause of the Invariants list no longer holds
+> for this tab** — the shared card and the one-write-in-flight clauses do.
+> Confirmed with the user before it was written. The *reasons* recorded below
+> still hold; the shapes changed. Restamped when the rest of Phase 2b lands;
+> until then see `plans/UI_REVAMP_CHANGELOG.md` § Phase 2b and
+> `plans/UI_REDESIGN_BRIEF.md` §5.2.
 
 Two collapsible sections — **Queued Games** (runs you're on) and **Public
 Games** (discoverable runs inside your `preferredRadius`) — over a single
@@ -758,8 +782,11 @@ screens that get recomposed anyway. Don't "correct" them one at a time.
   `ProfileButton`, not a per-screen copy, because the badge rule belongs in one
   place.
 - A list screen is built from the `LocalRunsTab` parts — collapsible section
-  header, one shared card, one write in flight — **unless the screen's primary
-  job is an action rather than a list**, which is the Friends exception: search
+  header *(**withdrawn 2026-09-22** for `LocalRunsTab` itself: Phase 2b
+  replaced disclosure with rank — one list ordered by tip-off, ownership drawn
+  as a rail. The other two clauses stand)*, one shared card, one write in
+  flight — **unless the screen's primary job is an action rather than a list**,
+  which is the Friends exception: search
   is a pinned control and the inbox is screen chrome, so only the last of those
   three parts survives there. `ProfileView`'s rows are a fixed set of distinct fields, not a
   list.

@@ -401,6 +401,45 @@ final class ThemeContrastTests: XCTestCase {
         assertContrast(.hooprSecondaryText, on: .hooprElevatedSurface, atLeast: aaText, "secondary text on raised surface")
     }
 
+    /// **The hero band is the app's first filled region that is also a text
+    /// ground**, so every pairing drawn on it is asserted here rather than
+    /// inherited from the roles it happens to resolve to. The band is what
+    /// replaced `cardChrome()` on the redesigned screens; if it ever stops
+    /// clearing AA, the screens' whole answer becomes unreadable at once.
+    func testEveryPairingDrawnOnTheHeroBand() {
+        assertContrast(.hooprPrimaryText, on: .hooprHeroBand, atLeast: aaText, "hero numeral on the band")
+        assertContrast(.hooprSecondaryText, on: .hooprHeroBand, atLeast: aaText, "band label and details")
+        assertContrast(.hooprBrandAccent, on: .hooprHeroBand, atLeast: aaText, "a mark on the band")
+        assertContrast(.hooprRed, on: .hooprHeroBand, atLeast: aaText, "an error message on the band")
+        assertContrast(.hooprSeparatorStrong, on: .hooprHeroBand, atLeast: aaLarge, "the band's own baseline")
+    }
+
+    /// The baseline is what tells the band from the page, and it is the only
+    /// thing that does in light mode — where the band is `#F5F5F5` on white, a
+    /// 1.09:1 region you feel rather than see. So the *line* has to clear the
+    /// 3:1 graphic floor against **both** sides of itself, or the boundary the
+    /// redesign uses in place of a card edge isn't a boundary.
+    func testTheBaselineSeparatesTheBandFromThePageOnBothSides() {
+        assertContrast(.hooprSeparatorStrong, on: .hooprHeroBand, atLeast: aaLarge, "baseline against the band")
+        assertContrast(.hooprSeparatorStrong, on: .hooprBackground, atLeast: aaLarge, "baseline against the page")
+    }
+
+    /// The band resolves to values the palette already proves — `hooprFill` in
+    /// light, `hooprElevatedSurface` in dark — and this is what pins that, so
+    /// the role can't quietly become a third value nobody measured.
+    func testTheHeroBandResolvesToTheLadderItClaims() {
+        XCTAssertEqual(
+            UIColor(Color.hooprHeroBand).resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)),
+            UIColor(Color.hooprFill).resolvedColor(with: UITraitCollection(userInterfaceStyle: .light)),
+            "in light the band is the fill value: nothing is lighter than the white page"
+        )
+        XCTAssertEqual(
+            UIColor(Color.hooprHeroBand).resolvedColor(with: UITraitCollection(userInterfaceStyle: .dark)),
+            UIColor(Color.hooprElevatedSurface).resolvedColor(with: UITraitCollection(userInterfaceStyle: .dark)),
+            "in dark the band carries its lift in the fill, one step above a card"
+        )
+    }
+
     /// **The strong separator is a component boundary, so it has to clear the
     /// 3:1 that WCAG 1.4.11 asks of one** — on every ground it could sit on, in
     /// both appearances. `hooprBorder` is deliberately faint (1.2:1 on white)

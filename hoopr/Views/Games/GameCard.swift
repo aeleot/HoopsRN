@@ -1,15 +1,39 @@
 import SwiftUI
 
-/// One scheduled run in the Local Runs lists.
+/// One scheduled run on the Runs board.
 ///
-/// Deliberately state-free: it renders what it's handed and reports taps. Both
-/// sections use the same card, so a run reads identically whether you're in it
-/// or looking at it — only the primary action differs.
+/// Deliberately state-free: it renders what it's handed and reports taps. One
+/// card for every run, so a run reads identically whether you're in it or
+/// looking at it — only the primary action differs.
+///
+/// **Redesigned in UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.2). The
+/// board is now one list ordered by tip-off rather than two collapsible
+/// sections, which changes what this card has to do:
+///
+/// - **The time leads**, set in `headline` with tabular figures, because it is
+///   the row's *rank* — the reader is scanning a schedule, not a set of boxes.
+/// - **Spots left replaces the capacity bar.** The bar and `rosterText`
+///   answered the same question twice, in a graphic and in 13pt grey; the
+///   decision is "can I still get on it", which is one number, so it is set as
+///   one and the bar is gone.
+/// - **`isYours` draws a rail** down the leading edge. That mark is what the
+///   *Queued Games* / *Public Games* split used to say, and it says it without
+///   spending a viewport on two headers and two chevrons.
+/// - **A waitlisted card says the waitlist doesn't move.** See `waitlistNote`.
+///
+/// It keeps `cardChrome()`, which is the one container on the screen that
+/// earns its edges under §2c: a run is a single tappable unit carrying its own
+/// controls.
 struct GameCard: View {
     let listing: LocalRunsViewModel.Listing
     let action: LocalRunsViewModel.Action
     let isHost: Bool
     let isWaitlisted: Bool
+    /// You're on this run's roster. Drawn as the leading rail — see the type
+    /// doc. Defaults to `false` so the map's court card, which lists runs at
+    /// one court rather than a board, doesn't have to answer a question it
+    /// isn't asking.
+    var isYours: Bool = false
     /// This card's write is in flight.
     let isPending: Bool
     /// Another card's write is in flight, so this one's button is inert.
@@ -21,39 +45,53 @@ struct GameCard: View {
     let onAction: () -> Void
     let onComplete: () -> Void
 
+    /// Shared by the clip and the chrome so the rail can't disagree with the
+    /// border it runs down.
+    private static let cornerRadius: CGFloat = 16
+
     @State private var isConfirmingCancel = false
     @State private var isConfirmingComplete = false
 
     private var game: Game { listing.game }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            header
-            details
+        HStack(spacing: 0) {
+            rail
 
-            if let friendsHereText = listing.friendsHereText {
-                friendsHere(friendsHereText)
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                header
+                courtLine
+                details
+
+                if let friendsHereText = listing.friendsHereText {
+                    friendsHere(friendsHereText)
+                }
+
+                if isWaitlisted {
+                    waitlistNote
+                }
+
+                // Host-only, matching the invite design: an invite-only run is
+                // the host's to hand out, and every private run in this list is
+                // one they created until the receiving half of the link ships.
+                if isHost && !game.isPublic {
+                    InviteLinkCard(link: game.inviteLink)
+                }
+
+                if action != .none {
+                    primaryButton
+                }
+
+                if canComplete {
+                    completeButton
+                }
             }
-
-            capacity
-
-            // Host-only, matching the invite design: an invite-only run is the
-            // host's to hand out, and every private run in this list is one
-            // they created until the receiving half of the link ships.
-            if isHost && !game.isPublic {
-                InviteLinkCard(link: game.inviteLink)
-            }
-
-            if action != .none {
-                primaryButton
-            }
-
-            if canComplete {
-                completeButton
-            }
+            .padding(Spacing.cardPadding)
         }
-        .padding(Spacing.cardPadding)
-        .cardChrome()
+        // Clipped to the card's own shape before the chrome goes on, or the
+        // rail's square corners poke out past the rounded border.
+        .clipShape(RoundedRectangle(cornerRadius: GameCard.cornerRadius))
+        .cardChrome(cornerRadius: GameCard.cornerRadius)
         .confirmationDialog(
             "Cancel this run?",
             isPresented: $isConfirmingCancel,
@@ -82,52 +120,187 @@ struct GameCard: View {
 
     // MARK: - Sections
 
+    /// The rail: you're on this run.
+    ///
+    /// Three points wide, flush to the card's leading edge inside its border,
+    /// and `clear` when the run isn't yours — so every card is the same width
+    /// and the rail reads as a mark rather than as a change of layout. This is
+    /// what replaced the *Queued Games* / *Public Games* split.
+    private var rail: some View {
+        Rectangle()
+            .fill(isYours ? Color.hooprBrandAccent : Color.clear)
+            .frame(width: 3)
+            .frame(maxHeight: .infinity)
+    }
+
+    /// The row's rank line: **when**, and whether there is room.
+    ///
+    /// Both are numbers, both are set as numbers, and they sit at the two ends
+    /// of the same line because they are the two halves of one decision —
+    /// *can I be there, and will I get on*. `monospacedDigit` so a roster
+    /// filling up doesn't shuffle the line's width under the reader.
     private var header: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "basketball.fill")
-                .hooprFont(18)
-                .foregroundStyle(Color.hooprBrandAccent)
+        ViewThatFits(in: .horizontal) {
+            // All three on one line, which is how it reads at every size the
+            // width allows.
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                timeLabel
+                badgeLabel
+                Spacer(minLength: Spacing.sm)
+                spotsLeft
+            }
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(listing.courtName)
-                    .hooprFont(16, weight: .semibold)
+            // Out of room: the badge drops to its own line and the two numbers
+            // keep the rank line to themselves.
+            //
+            // **Without this the time itself wrapped.** At `.accessibility3`
+            // the three items overflowed and SwiftUI broke the *first* one, so
+            // "6:45 PM" rendered as "6:45 / PM" — a reflow rather than a clip,
+            // so it passed the no-truncation rule while destroying the thing
+            // the line exists to do. The badge is the least load-bearing of
+            // the three, so it is what moves.
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                    timeLabel
+                    Spacer(minLength: Spacing.sm)
+                    spotsLeft
+                }
+
+                badgeLabel
+            }
+        }
+    }
+
+    /// `lineLimit(1)` is deliberate and is *not* a clip risk: a formatted time
+    /// is a handful of characters, and `ViewThatFits` above guarantees it has
+    /// a layout with room for them. What the limit prevents is the wrap.
+    private var timeLabel: some View {
+        Text(timeText)
+            .hooprType(.headline)
+            .monospacedDigit()
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .foregroundStyle(Color.hooprPrimaryText)
+    }
+
+    @ViewBuilder
+    private var badgeLabel: some View {
+        if let badge {
+            Text(badge.text)
+                .hooprType(.badge)
+                .foregroundStyle(badge.foreground)
+                .padding(.horizontal, Spacing.Pill.horizontal)
+                .padding(.vertical, Spacing.Pill.vertical)
+                .background(Capsule().fill(badge.wash.opacity(0.12)))
+        }
+    }
+
+    /// "in 9" / "Full". The number the join decision turns on, at the same
+    /// weight as the time.
+    ///
+    /// **This is what replaced the capacity bar.** The bar drew a ratio and
+    /// `rosterText` restated it as "1 / 10 players" in 13pt grey — two
+    /// renderings of one fact, neither of which is the question. The question
+    /// is whether there is room.
+    @ViewBuilder
+    private var spotsLeft: some View {
+        if game.isFull {
+            Text("Full")
+                .hooprType(.caption)
+                .foregroundStyle(Color.hooprSecondaryText)
+        } else {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(game.openSlots)")
+                    .hooprType(.headline)
+                    .monospacedDigit()
+                    .lineLimit(1)
                     .foregroundStyle(Color.hooprPrimaryText)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
 
-                Text(game.scheduledText())
-                    .hooprFont(14, weight: .medium)
+                Text(game.openSlots == 1 ? "spot" : "spots")
+                    .hooprType(.caption)
+                    .lineLimit(1)
                     .foregroundStyle(Color.hooprSecondaryText)
             }
-
-            Spacer(minLength: 8)
-
-            if let badge = badge {
-                Text(badge.text)
-                    .hooprFont(11, weight: .bold)
-                    .foregroundStyle(badge.foreground)
-                    .padding(.horizontal, Spacing.Pill.horizontal)
-                    .padding(.vertical, Spacing.Pill.vertical)
-                    .background(Capsule().fill(badge.wash.opacity(0.12)))
-            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(game.openSlots == 1 ? "1 spot left" : "\(game.openSlots) spots left")
         }
     }
 
+    /// Where. Second, because the board is ordered by time — you already know
+    /// roughly when, and the court is what you weigh against it.
+    private var courtLine: some View {
+        Text(listing.courtName)
+            .hooprType(.subhead)
+            .foregroundStyle(Color.hooprPrimaryText)
+            .fixedSize(horizontal: false, vertical: true)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The day, the distance, and whether it's invite-only.
+    ///
+    /// The day survives here rather than in the rank line because the board
+    /// runs past midnight: two runs at "6:45 PM" on different days sort
+    /// correctly but read identically without it.
+    ///
+    /// A `ViewThatFits` ladder rather than a plain `HStack` — the old row was
+    /// flat, which is what let it break mid-word at `.accessibility3`
+    /// (`gaps/ACCESSIBILITY.md`).
     private var details: some View {
-        HStack(spacing: 14) {
-            detail(symbol: "person.2.fill", text: game.rosterText)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: Spacing.md) { detailPieces }
 
-            if let distanceText = listing.distanceText {
-                detail(symbol: "location.fill", text: distanceText)
-            }
+            VStack(alignment: .leading, spacing: Spacing.xs) { detailPieces }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
-            if !game.isPublic {
-                detail(symbol: "lock.fill", text: game.visibilityText)
-            }
+    @ViewBuilder
+    private var detailPieces: some View {
+        detail(symbol: "calendar", text: dayText)
 
-            Spacer(minLength: 0)
+        if let distanceText = listing.distanceText {
+            detail(symbol: "location.fill", text: distanceText)
+        }
+
+        if !game.isPublic {
+            detail(symbol: "lock.fill", text: game.visibilityText)
         }
     }
+
+    /// **The one place this redesign adds information rather than re-ranking
+    /// it.**
+    ///
+    /// A full run hands you a waitlist place, and that place **never
+    /// promotes**: when a confirmed player leaves, the freed slot is not
+    /// passed on. That is not an oversight — the update rule forbids writing
+    /// another user's uid, which is the same rule that makes every roster
+    /// write safe, so fixing it needs either a host action or a Cloud Function
+    /// (`gaps/GAMES.md`). Until then the card said nothing, and a waitlist
+    /// that looks like a queue is the one place this screen over-promised.
+    ///
+    /// Worded as a limitation with a next step, not as a dead end: you are
+    /// still on the list, and the host can still make room.
+    private var waitlistNote: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: "info.circle")
+                .hooprType(.caption)
+
+            Text("Waitlist spots don't move up yet — ask the host if someone drops.")
+                .hooprType(.caption)
+                .fixedSize(horizontal: false, vertical: true)
+                .multilineTextAlignment(.leading)
+        }
+        .foregroundStyle(Color.hooprSecondaryText)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Both come from `Game`, which is where a run's presentation strings
+    /// live — so the board's rank line and Home's band can't disagree about
+    /// what time the same run is at.
+    private var timeText: String { game.timeText }
+
+    private var dayText: String { game.dayText() }
 
     /// Who you know is already on this run — the one piece of social proof on
     /// the card, and the reason `plans/FRIENDS.md` §4 calls it "you can now see
@@ -157,36 +330,14 @@ struct GameCard: View {
 
     private func detail(symbol: String, text: String) -> some View {
         HStack(spacing: 4) {
+            // Sized against the caption beside it rather than given a role:
+            // a glyph is not text and the uppercase roles carry a text case.
             Image(systemName: symbol)
                 .hooprFont(11)
             Text(text)
-                .hooprFont(13)
+                .hooprType(.caption)
         }
         .foregroundStyle(Color.hooprSecondaryText)
-    }
-
-    /// How full the run is, at a glance. The bar is the only thing on the card
-    /// that reads before the text does, which is the decision a player is
-    /// actually making.
-    private var capacity: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.hooprFill)
-
-                Capsule()
-                    .fill(game.isFull ? Color.hooprSecondaryText : Color.hooprBrandAccent)
-                    .frame(width: geo.size.width * filledFraction)
-            }
-        }
-        .frame(height: 5)
-        .accessibilityLabel(game.rosterText)
-    }
-
-    /// Clamped, so a hand-edited over-full roster can't draw past the track.
-    private var filledFraction: CGFloat {
-        guard game.maxPlayers > 0 else { return 0 }
-        return min(1, CGFloat(game.playerIds.count) / CGFloat(game.maxPlayers))
     }
 
     private var primaryButton: some View {
@@ -271,9 +422,9 @@ struct GameCard: View {
     /// wash it measured 2.78:1 in light mode. The other two are secondary text
     /// on a wash of itself, unchanged.
     private var badge: (text: String, foreground: Color, wash: Color)? {
-        if isHost { return ("HOSTING", Color.hooprBrandAccent, Color.hooprOrange) }
-        if isWaitlisted { return ("WAITLIST", Color.hooprSecondaryText, Color.hooprSecondaryText) }
-        if game.isFull { return ("FULL", Color.hooprSecondaryText, Color.hooprSecondaryText) }
+        if isHost { return ("Hosting", Color.hooprBrandAccent, Color.hooprOrange) }
+        if isWaitlisted { return ("Waitlist", Color.hooprSecondaryText, Color.hooprSecondaryText) }
+        if game.isFull { return ("Full", Color.hooprSecondaryText, Color.hooprSecondaryText) }
         return nil
     }
 }

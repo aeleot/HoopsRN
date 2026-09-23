@@ -108,6 +108,15 @@ final class LocalRunsViewModel: ObservableObject {
     /// look empty, which is how the original failure went unnoticed.
     @Published private(set) var isRecovering = false
 
+    /// Whether the games listener has delivered its first snapshot.
+    ///
+    /// The screen shows one merged timeline now, and an empty timeline has two
+    /// very different meanings: *nobody is playing tonight* and *we haven't
+    /// looked yet*. `GameService` has carried the answer all along and this
+    /// republishes it — the same value `FindAMatchViewModel` already consumes,
+    /// not a new read.
+    @Published private(set) var hasLoaded = false
+
     /// The radius the public list was actually built with, so the empty state
     /// can name the real number instead of restating a constant.
     @Published private(set) var radiusMiles = UserProfile.defaultPreferredRadius
@@ -206,6 +215,14 @@ final class LocalRunsViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] isRecovering in
                 self?.isRecovering = isRecovering
+            }
+            .store(in: &cancellables)
+
+        gameService.$hasLoadedGames
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] hasLoaded in
+                self?.hasLoaded = hasLoaded
             }
             .store(in: &cancellables)
     }
@@ -428,7 +445,154 @@ final class LocalRunsViewModel: ObservableObject {
         gameService.retry()
     }
 
+    // MARK: - The timeline
+
+    /// One run on the board, and whether you're on it.
+    ///
+    /// The tab used to draw two collapsible sections — *Queued Games* and
+    /// *Public Games* — and that split cost the whole first viewport: two
+    /// headers, two count capsules, two chevrons and a rule, with the first
+    /// `Join` around 240pt down the page. The sections are now one list
+    /// ordered by tip-off, and `isYours` is what the split used to say.
+    nonisolated struct TimelineEntry: Identifiable, Equatable {
+        let listing: Listing
+        /// You're on this run's roster — confirmed or waitlisted. Drawn as a
+        /// rail down the card's leading edge rather than as a section.
+        let isYours: Bool
+
+        var id: String { listing.id }
+    }
+
+    /// Every run you can see tonight, soonest first.
+    var timeline: [TimelineEntry] {
+        Self.timeline(queued: queued, nearby: nearby)
+    }
+
+    /// Merges the two lists into one board.
+    ///
+    /// **`queued` is walked first, and that is the whole correctness of this
+    /// function.** A run you host publicly arrives on *both* listeners, so the
+    /// same game appears in both arrays; taking `queued` first means the
+    /// duplicate is dropped from `nearby` and the surviving entry is the one
+    /// marked `isYours`. Walking `nearby` first would render your own run as a
+    /// stranger's — with a `Join` button on a run you are already on.
+    ///
+    /// Ties break on id, not on array order: two runs at the same tip-off
+    /// would otherwise swap places between rebuilds while showing identical
+    /// times, the same reason `HomeViewModel.rankHotCourts` breaks ties on
+    /// name.
+    nonisolated static func timeline(
+        queued: [Listing],
+        nearby: [Listing]
+    ) -> [TimelineEntry] {
+        var seen = Set<String>()
+        var entries: [TimelineEntry] = []
+
+        for listing in queued where seen.insert(listing.id).inserted {
+            entries.append(TimelineEntry(listing: listing, isYours: true))
+        }
+        for listing in nearby where seen.insert(listing.id).inserted {
+            entries.append(TimelineEntry(listing: listing, isYours: false))
+        }
+
+        return entries.sorted {
+            let left = $0.listing.game.scheduledTime
+            let right = $1.listing.game.scheduledTime
+            return left == right ? $0.id < $1.id : left < right
+        }
+    }
+
     // MARK: - Presentation helpers
+
+    /// The hero's number: how many runs are on the board at all.
+    var timelineCount: Int { timeline.count }
+
+    /// The words beside the hero's number — "2 games on the schedule".
+    ///
+    /// *Schedule*, not *tonight*: a run can be booked up to
+    /// `Game.schedulingWindow` ahead, so the board is whatever is coming up.
+    /// It's also the player's word for it — you check the schedule.
+    nonisolated static func scheduleText(count: Int) -> String {
+        count == 1 ? "game on the schedule" : "games on the schedule"
+    }
+
+    /// The band's eyebrow.
+    var eyebrowText: String {
+        Self.eyebrowText(tipOffs: timeline.map(\.listing.game.scheduledTime), now: Date())
+    }
+
+    /// "Tonight" while nothing on the board is later than today, "Coming up"
+    /// once anything is.
+    ///
+    /// The band used to say "Tonight" unconditionally, which was wrong for any
+    /// board holding tomorrow's run. It doesn't carry the radius either: only
+    /// the public half is built with it — a run you're on is listed however far
+    /// away it is — so "Within 14 miles" over the count wasn't true of the
+    /// board. The empty board still names the radius, which is where it's the
+    /// answer.
+    ///
+    /// Tested against the start of tomorrow rather than for *today*, so a run
+    /// that tipped off late last night and is still inside
+    /// `Game.visibilityGrace` doesn't turn the board into "Coming up".
+    nonisolated static func eyebrowText(
+        tipOffs: [Date],
+        now: Date,
+        calendar: Calendar = .current
+    ) -> String {
+        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) else {
+            return "Tonight"
+        }
+        return tipOffs.contains { $0 >= tomorrow } ? "Coming up" : "Tonight"
+    }
+
+    /// Whether you hold a place on any run on the board — what the band's
+    /// rail marks, the same rail `GameCard` draws down each of those runs.
+    var hasRosterSpot: Bool { !queued.isEmpty }
+
+    /// The line under the hero: where you stand, in a player's words.
+    var rosterText: String {
+        let waitlisted = queued.filter(isWaitlisted).count
+        return Self.rosterText(
+            suitedUp: queued.count - waitlisted,
+            waitlisted: waitlisted,
+            onSchedule: timelineCount
+        )
+    }
+
+    /// Where you stand on the board.
+    ///
+    /// It read "you're in 2 · within 14 miles" — lower-case, and "in" what?
+    /// It now says it the way a player would, and it tells a spot from a place
+    /// on the waitlist, because the rail marks both and only one of them means
+    /// you're playing.
+    ///
+    /// "Both" and "all" when every run on the board is yours: "2 games on the
+    /// schedule — you're suited up for 2" says the number twice.
+    nonisolated static func rosterText(suitedUp: Int, waitlisted: Int, onSchedule: Int) -> String {
+        guard suitedUp > 0 else {
+            return waitlisted > 0 ? "You're on the waitlist for \(waitlisted)" : "You're a free agent"
+        }
+
+        let suited: String
+        if suitedUp == onSchedule {
+            switch onSchedule {
+            case 1:  suited = "You're suited up"
+            case 2:  suited = "You're suited up for both"
+            default: suited = "You're suited up for all \(onSchedule)"
+            }
+        } else {
+            suited = "You're suited up for \(suitedUp)"
+        }
+
+        return waitlisted > 0 ? "\(suited) · waitlisted for \(waitlisted)" : suited
+    }
+
+    /// What the board says when the listener has answered and there is
+    /// genuinely nothing on. Distinct from "still loading", which the tab
+    /// renders separately.
+    var emptyBoardText: String {
+        "No runs within \(Int(radiusMiles)) miles tonight."
+    }
 
     var queuedCountText: String {
         queued.count == 1 ? "1 run" : "\(queued.count) runs"

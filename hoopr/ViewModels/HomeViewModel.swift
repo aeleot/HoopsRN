@@ -69,6 +69,68 @@ final class HomeViewModel: ObservableObject {
     /// showing it with all-zero values.
     var hasStats: Bool { completedGameCount > 0 }
 
+    /// Whether the games listener has delivered its first snapshot.
+    ///
+    /// **Without this the screen cannot tell "you have no run tonight" from
+    /// "we haven't looked yet"**, and it showed the first while meaning the
+    /// second for however long the listener took — the empty state's call to
+    /// action flashing at a user who is, in fact, signed up for something.
+    /// `GameService.hasLoadedGames` has carried the answer all along;
+    /// `FindAMatchViewModel` already consumes it. This is the same value, not
+    /// a new read.
+    @Published private(set) var hasLoaded = false
+
+    /// A listener failure, in the domain's words rather than Firebase's.
+    ///
+    /// Home had **no error state at all**: a dead listener rendered as an
+    /// empty screen, which is the one reading this tab exists for and the one
+    /// it must not get wrong silently. Republished from `GameService` rather
+    /// than translated again here — the service owns the vocabulary.
+    @Published private(set) var errorMessage: String?
+
+    /// The supervisor is re-attaching a dropped listener. Distinguished from
+    /// `errorMessage` because it is not a thing the user can act on, and a
+    /// banner that cries wolf during a normal network blip trains them to
+    /// ignore it.
+    @Published private(set) var isRecovering = false
+
+    /// The hero's two halves, split apart.
+    ///
+    /// `Game.scheduledText()` returns "Today · 6:30 PM" as one string, which
+    /// was right when the card set it as a single 14pt line. The band sets the
+    /// day as a label and the time as the screen's hero numeral, so they have
+    /// to arrive separately — and both derive from the same `scheduledTime`,
+    /// so the two can't disagree.
+    ///
+    /// Each of these is a thin wrapper over a `nonisolated static` function,
+    /// for the reason the rest of this file is: the rule can then be tested
+    /// without constructing a service or touching Firebase.
+    var nextRunDayLabel: String {
+        nextRun?.game.dayText() ?? "Tonight"
+    }
+
+    /// The time alone — "6:30 PM". The hero.
+    var nextRunTimeText: String {
+        nextRun?.game.timeText ?? "—"
+    }
+
+    /// Spots left, not "N / M players".
+    ///
+    /// The decision this screen supports is *can I still get on it* — one
+    /// number, not a ratio to do arithmetic on. `rosterText` stays on
+    /// `GameCard`, where the roster itself is the subject.
+    var nextRunSpotsText: String? {
+        nextRun?.game.spotsText
+    }
+
+    // MARK: - Hero text rules
+
+    /// **The day, time and spots rules live on `Game`**, beside `rosterText`
+    /// and `scheduledText()` — that is where this codebase already keeps a
+    /// run's presentation strings, and putting a second copy here would mean
+    /// `GameCard` and this band could drift into disagreeing about what "6:45"
+    /// or "Tonight" means for the same run.
+
     /// How many courts the hot list shows. Three fits above the fold beside
     /// the other cards; the ranking below is written to take any limit.
     static let hotCourtLimit = 3
@@ -170,6 +232,27 @@ final class HomeViewModel: ObservableObject {
                 self?.rebuildNextRun(queued: queued)
                 self?.rebuildHotCourts(queued: queued, published: published)
             }
+            .store(in: &cancellables)
+
+        // Loading, failure and recovery, republished as-is. None of the three
+        // is derived here: the service is what knows, and a second opinion
+        // would be a second thing to keep in step.
+        gameService.$hasLoadedGames
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] hasLoaded in self?.hasLoaded = hasLoaded }
+            .store(in: &cancellables)
+
+        gameService.$errorMessage
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] message in self?.errorMessage = message }
+            .store(in: &cancellables)
+
+        gameService.$isRecovering
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isRecovering in self?.isRecovering = isRecovering }
             .store(in: &cancellables)
 
         // The one write in this file — see the type doc comment. Guarded on

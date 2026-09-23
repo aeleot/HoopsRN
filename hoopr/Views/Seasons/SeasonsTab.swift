@@ -187,18 +187,22 @@ struct SeasonsTab: View {
 
     // MARK: - Header
 
+    /// Top-aligned, with the title centred in a row the button's height, so
+    /// the button sits in `ProfileButton.Slot` whatever the title's size: a
+    /// centred row moved it down as the title grew with Dynamic Type. It also
+    /// used to sit 8pt further out and 4pt higher than on every other tab.
     private var header: some View {
-        HStack(alignment: .center) {
+        HStack(alignment: .top) {
             Text("Seasons")
                 .hooprFont(28, weight: .bold, maximumSize: 40)
                 .foregroundStyle(Color.hooprPrimaryText)
+                .frame(minHeight: ProfileButton.Slot.size)
 
             Spacer(minLength: 8)
 
             ProfileButton(friendService: friendService, squadService: squadService, action: onOpenProfile)
-                .offset(x: 8)
         }
-        .padding(.top, 8)
+        .padding(.top, ProfileButton.Slot.top)
     }
 
     private var loading: some View {

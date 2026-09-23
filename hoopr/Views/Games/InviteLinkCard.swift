@@ -2,9 +2,22 @@ import SwiftUI
 
 /// A run's invite link, with a tap that puts it on the pasteboard.
 ///
-/// Shared by the create sheet's confirmation step and the host's card in
-/// Queued Games so the two can't diverge — the link is shown, not just copied,
+/// Shared by the create sheet's confirmation step and the host's card on the
+/// Runs board so the two can't diverge — the link is shown, not just copied,
 /// because a host who has already sent it needs to recognize it.
+///
+/// **It now says what the link actually does.** A host can copy
+/// `hoopsrn://game/{id}` and that is the whole of it: the scheme is not
+/// registered, nothing implements `.onOpenURL`, and the `games` read rule
+/// refuses a non-member — so a recipient who taps it gets nothing, and **an
+/// invite-only run still holds only its host** (`gaps/GAMES.md`). Both
+/// surfaces presented it as a working invite. Drawing a feature as working
+/// that a gap file says isn't is an automatic fail under the revamp's §2d, so
+/// the note below is a correctness fix, not copy polish, and it lives on the
+/// component so neither surface can drift back.
+///
+/// It is not a bare disclaimer: it names the thing that *does* work, which is
+/// telling people the court and the time.
 ///
 /// The copy confirmation swaps the glyph in place and reverts, matching the
 /// uid on the profile header rather than raising a toast neither surface has
@@ -14,6 +27,9 @@ struct InviteLinkCard: View {
     /// A line above the link. `nil` renders the compact form used on a card,
     /// where the surrounding row already says what this is.
     var caption: String?
+
+    /// What the link can't do yet. On by default on every surface.
+    var showsUnopenableNote: Bool = true
 
     @State private var didCopy = false
 
@@ -48,6 +64,14 @@ struct InviteLinkCard: View {
                     }
                     .foregroundStyle(Color.hooprBrandAccent)
                 }
+
+                if showsUnopenableNote {
+                    Text("Opening this link doesn't work yet — send the court and time too.")
+                        .hooprType(.caption)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
@@ -63,7 +87,7 @@ struct InviteLinkCard: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Copy invite link")
+        .accessibilityLabel("Copy invite link. Opening it does not work yet.")
         .accessibilityValue(didCopy ? "Copied" : link)
     }
 

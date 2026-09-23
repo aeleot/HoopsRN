@@ -291,4 +291,204 @@ final class LocalRunsViewModelTests: XCTestCase {
             XCTAssertFalse(action.title.isEmpty, "\(action) needs a label")
         }
     }
+
+    // MARK: - The timeline
+
+    /// The board merges the two listeners into one list ordered by tip-off.
+    /// Phase 2b replaced *Queued Games* / *Public Games* with this, so the
+    /// merge now carries what the section split used to say.
+
+    private func listing(
+        id: String,
+        players: [String] = ["a"],
+        minutesFromNow: Double
+    ) -> LocalRunsViewModel.Listing {
+        let game = Game(
+            id: id,
+            hostId: host,
+            courtId: "court-a",
+            scheduledTime: now.addingTimeInterval(minutesFromNow * 60),
+            isPublic: true,
+            maxPlayers: 10,
+            status: Game.status(playerCount: players.count, maxPlayers: 10),
+            playerIds: players,
+            queuedPlayerIds: [],
+            createdAt: now,
+            updatedAt: now,
+            completedAt: nil
+        )
+        return LocalRunsViewModel.Listing(game: game, court: nil, distanceMeters: nil)
+    }
+
+    func testTheBoardIsOrderedBySoonestTipOff() {
+        let entries = LocalRunsViewModel.timeline(
+            queued: [listing(id: "late", minutesFromNow: 180)],
+            nearby: [listing(id: "soon", minutesFromNow: 30), listing(id: "mid", minutesFromNow: 90)]
+        )
+
+        XCTAssertEqual(entries.map(\.id), ["soon", "mid", "late"])
+    }
+
+    /// **The one that matters.** A run you host publicly arrives on *both*
+    /// listeners, so the same game is in both arrays. `queued` is walked
+    /// first, so the survivor is the entry marked as yours — walk `nearby`
+    /// first and your own run renders as a stranger's, offering "Join" on a
+    /// run you are already on.
+    func testARunOnBothListsSurvivesOnceAndStaysYours() {
+        let mine = listing(id: "shared", minutesFromNow: 60)
+
+        let entries = LocalRunsViewModel.timeline(queued: [mine], nearby: [mine])
+
+        XCTAssertEqual(entries.count, 1, "the same run must not appear twice")
+        XCTAssertTrue(entries[0].isYours)
+    }
+
+    func testRunsYouAreNotOnAreNotMarkedYours() {
+        let entries = LocalRunsViewModel.timeline(
+            queued: [listing(id: "mine", minutesFromNow: 10)],
+            nearby: [listing(id: "theirs", minutesFromNow: 20)]
+        )
+
+        XCTAssertEqual(entries.first(where: { $0.id == "mine" })?.isYours, true)
+        XCTAssertEqual(entries.first(where: { $0.id == "theirs" })?.isYours, false)
+    }
+
+    /// Ties break on id, not on array order: two runs at the same tip-off
+    /// would otherwise swap places between rebuilds while showing identical
+    /// times — the same reason `rankHotCourts` breaks ties on name.
+    func testRunsAtTheSameTimeHaveAStableOrder() {
+        let a = listing(id: "aaa", minutesFromNow: 60)
+        let b = listing(id: "bbb", minutesFromNow: 60)
+
+        XCTAssertEqual(
+            LocalRunsViewModel.timeline(queued: [], nearby: [b, a]).map(\.id),
+            LocalRunsViewModel.timeline(queued: [], nearby: [a, b]).map(\.id),
+            "the same two runs in a different input order must render the same way"
+        )
+    }
+
+    func testAnEmptyBoardIsEmptyRatherThanCrashing() {
+        XCTAssertTrue(LocalRunsViewModel.timeline(queued: [], nearby: []).isEmpty)
+    }
+
+    // MARK: - The band's copy
+
+    func testTheScheduleIsSingularAtOne() {
+        XCTAssertEqual(LocalRunsViewModel.scheduleText(count: 1), "game on the schedule")
+    }
+
+    /// Zero included — "0 games on the schedule", not "0 game".
+    func testTheScheduleIsPluralOtherwise() {
+        XCTAssertEqual(LocalRunsViewModel.scheduleText(count: 0), "games on the schedule")
+        XCTAssertEqual(LocalRunsViewModel.scheduleText(count: 2), "games on the schedule")
+    }
+
+    func testNoPlaceOnAnyRunIsAFreeAgent() {
+        XCTAssertEqual(
+            LocalRunsViewModel.rosterText(suitedUp: 0, waitlisted: 0, onSchedule: 3),
+            "You're a free agent"
+        )
+    }
+
+    /// The empty board is a real state, and the line still reads.
+    func testAnEmptyBoardIsStillAFreeAgent() {
+        XCTAssertEqual(
+            LocalRunsViewModel.rosterText(suitedUp: 0, waitlisted: 0, onSchedule: 0),
+            "You're a free agent"
+        )
+    }
+
+    func testSomeOfTheBoardIsCountedPlainly() {
+        XCTAssertEqual(
+            LocalRunsViewModel.rosterText(suitedUp: 2, waitlisted: 0, onSchedule: 5),
+            "You're suited up for 2"
+        )
+    }
+
+    /// "1 game on the schedule — you're suited up for 1" says the number twice.
+    func testTheWholeBoardDoesNotRepeatTheNumber() {
+        XCTAssertEqual(
+            LocalRunsViewModel.rosterText(suitedUp: 1, waitlisted: 0, onSchedule: 1),
+            "You're suited up"
+        )
+        XCTAssertEqual(
+            LocalRunsViewModel.rosterText(suitedUp: 2, waitlisted: 0, onSchedule: 2),
+            "You're suited up for both"
+        )
+        XCTAssertEqual(
+            LocalRunsViewModel.rosterText(suitedUp: 4, waitlisted: 0, onSchedule: 4),
+            "You're suited up for all 4"
+        )
+    }
+
+    /// The rail marks a waitlist place too, but only a roster spot means
+    /// you're playing — the line must not call a waitlist "suited up".
+    func testAWaitlistPlaceIsNotSuitedUp() {
+        XCTAssertEqual(
+            LocalRunsViewModel.rosterText(suitedUp: 0, waitlisted: 1, onSchedule: 1),
+            "You're on the waitlist for 1"
+        )
+    }
+
+    func testSpotsAndWaitlistPlacesAreSaidApart() {
+        XCTAssertEqual(
+            LocalRunsViewModel.rosterText(suitedUp: 1, waitlisted: 1, onSchedule: 2),
+            "You're suited up for 1 · waitlisted for 1"
+        )
+    }
+
+    // MARK: - The band's eyebrow
+
+    /// Pinned to UTC so the day boundary doesn't move with the machine's zone.
+    private var utc: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }
+
+    private func utcDate(day: Int, hour: Int, minute: Int = 0) -> Date {
+        utc.date(from: DateComponents(year: 2026, month: 9, day: day, hour: hour, minute: minute))!
+    }
+
+    func testTheEyebrowSaysTonightWhileEverythingIsToday() {
+        XCTAssertEqual(
+            LocalRunsViewModel.eyebrowText(
+                tipOffs: [utcDate(day: 22, hour: 18, minute: 45), utcDate(day: 22, hour: 23, minute: 59)],
+                now: utcDate(day: 22, hour: 18),
+                calendar: utc
+            ),
+            "Tonight"
+        )
+    }
+
+    func testOneGameAfterMidnightMakesItComingUp() {
+        XCTAssertEqual(
+            LocalRunsViewModel.eyebrowText(
+                tipOffs: [utcDate(day: 22, hour: 18, minute: 45), utcDate(day: 23, hour: 0, minute: 30)],
+                now: utcDate(day: 22, hour: 18),
+                calendar: utc
+            ),
+            "Coming up"
+        )
+    }
+
+    /// A run from late last night is still listed inside the visibility grace.
+    /// It's in the past, so it must not read as "Coming up".
+    func testLastNightsRunStillListedIsNotComingUp() {
+        XCTAssertEqual(
+            LocalRunsViewModel.eyebrowText(
+                tipOffs: [utcDate(day: 21, hour: 23, minute: 30)],
+                now: utcDate(day: 22, hour: 1),
+                calendar: utc
+            ),
+            "Tonight"
+        )
+    }
+
+    func testAnEmptyBoardSaysTonight() {
+        XCTAssertEqual(
+            LocalRunsViewModel.eyebrowText(tipOffs: [], now: utcDate(day: 22, hour: 18), calendar: utc),
+            "Tonight"
+        )
+    }
 }
