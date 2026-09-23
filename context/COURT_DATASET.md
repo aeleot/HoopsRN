@@ -6,7 +6,7 @@
 `tools/fetch_official_courts.py`, `tools/enrich_courts.py`,
 `tools/official_sources/`, `tools/verify_worklist.json`,
 `location-decoder-script/`
-**Verified:** 2026-09-22 @ queue-system
+**Verified:** 2026-09-22 @ 8a35e9d
 
 Where courts come from, how they get into the app, and how to add a city. Read
 this before changing court data or wondering why there's no network call for it.
