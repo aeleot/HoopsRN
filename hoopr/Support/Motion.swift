@@ -218,20 +218,29 @@ extension AnyTransition {
 /// keeps whatever its own label does for that state; this adds nothing to it.
 struct HooprPressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        PressedLabel(configuration: configuration)
+        configuration.label
+            .hooprPressFeedback(isPressed: configuration.isPressed)
     }
+}
 
-    private struct PressedLabel: View {
-        let configuration: Configuration
-        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+extension View {
+    /// `HooprPressStyle`'s press, for a `ButtonStyle` that draws more than the
+    /// press — `HooprButtonStyle` — so every button in the app is pressed the
+    /// same way.
+    func hooprPressFeedback(isPressed: Bool) -> some View {
+        modifier(PressFeedback(isPressed: isPressed))
+    }
+}
 
-        var body: some View {
-            let isPressed = configuration.isPressed
-            configuration.label
-                .scaleEffect(isPressed && Motion.pressScales(reduceMotion: reduceMotion) ? Motion.pressedScale : 1)
-                .opacity(isPressed ? Motion.pressedOpacity : 1)
-                .animation(Motion.animation(.snap, reduceMotion: reduceMotion), value: isPressed)
-        }
+private struct PressFeedback: ViewModifier {
+    let isPressed: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(isPressed && Motion.pressScales(reduceMotion: reduceMotion) ? Motion.pressedScale : 1)
+            .opacity(isPressed ? Motion.pressedOpacity : 1)
+            .animation(Motion.animation(.snap, reduceMotion: reduceMotion), value: isPressed)
     }
 }
 

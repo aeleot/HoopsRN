@@ -248,8 +248,8 @@ for a ruleset it never evaluated is worse than no rules suite at all.
 
 There are **two** suites, in two languages, and neither can do the other's job.
 
-- **`hooprTests` — 481 test methods across 30 suites**, from a green
-  `-only-testing:hooprTests` run on 2026-09-21 (counted from the `.xcresult`,
+- **`hooprTests` — 666 test methods across 44 suites**, from a green
+  `-only-testing:hooprTests` run on 2026-09-24 (counted from the `.xcresult`,
   not from the log: interleaved output from parallel clones mangles the odd
   line, and a log grep read this suite as 462 once). All of them carry real
   coverage; there is no scaffold left in `hooprTests/`.
@@ -287,21 +287,21 @@ measurement style would be one too many.
 |---|---|---|
 | `SeasonGameTests` | 47 | The derived record and form guide, the report derivation and what a report write contains, who may report and when, create-time validation mirroring the rules, and the queue windows. |
 | `MatchRulesTests` | 43 | The pure matchmaker: every hard rule rejecting in isolation, soft-rule ordering, relaxation over time, window arithmetic across midnight and DST, empty pool, self-match. Lost the stale-claim cases when the atomic commit deleted the window they pinned. |
-| `SquadTests` | 31 | Decoding, name and roster bounds, leadership, the icon/colour allowlists. |
-| `GameTests` | 28 | Decoding, derived status, form validation, roster membership, visibility, presentation, the invite-link string, distance. |
+| `SquadTests` | 38 | Decoding, name and roster bounds, leadership, the icon/colour allowlists. |
+| `GameTests` | 40 | Decoding, derived status, form validation, roster membership, visibility, presentation, the invite-link string, distance. |
 | `MatchTicketTests` | 22 | Ticket validation, claimability, `isSearching` vs. `isClaimable`, `winPercentage`'s unplayed midpoint. |
 | `FirestoreRulesParityTests` | 21 | Every bound mirrored between Swift and `firestore.rules`, parsed out of the rules file as text — including the `open` -> `matched` transition and the two burst-rate floors. |
-| `LocalRunsViewModelTests` | 24 | Which button a run offers; whether the host may mark a run complete (host-only, not before tip-off, not twice, and a roster of one is still a run); and the friends-on-a-run join: resolving an edge from either side of the stored pair, never counting yourself, both rosters, sorted and deduped, and the badge's own singular/plural copy. |
+| `LocalRunsViewModelTests` | 38 | Which button a run offers; whether the host may mark a run complete (host-only, not before tip-off, not twice, and a roster of one is still a run); and the friends-on-a-run join: resolving an edge from either side of the stored pair, never counting yourself, both rosters, sorted and deduped, and the badge's own singular/plural copy. |
 | `FindAMatchViewModelTests` | 18 | `gameCountsByCourt` — the per-court/per-day join behind the map's heat colours and pin counts — plus `rankActive`, the **Now** segment's ordering: soonest run first, distance/name tiebreaks, `isVisible(at:)` filtering, and that every `ActiveCourt` has at least one game. |
 | `UserProfileTests` | 17 | Decoding, the radius coercion ladder, name validation. |
 | `SquadViewModelTests` | 17 | `invitableUids`, the roster sort, and the region derivation. |
 | `ServiceFailureTests` | 23 | Backoff schedule, per-listener recovery, read/write messaging, `FirestoreFailure` classification — and the stale query window: that the foreground hook fires while healthy (which `retryNow()` deliberately does not), and when `GameService` judges its cutoff worth re-attaching for. |
-| `MapTabDetentTests` | 17 | The bottom sheet's detent transitions. |
+| `MapTabDetentTests` | 22 | The bottom sheet's detent transitions. |
 | `FriendsViewModelTests` | 16 | `looksLikeUserId`, search-stream `merged`, `relationship`. |
-| `HomeViewModelTests` | 15 | `rankHotCourts` — ordering, the `displayName` tie-break, zero/absent counts dropped, the limit, unknown court ids ignored. |
+| `HomeViewModelTests` | 24 | `rankHotCourts` — ordering, the `displayName` tie-break, zero/absent counts dropped, the limit, unknown court ids ignored. |
 | `SeasonGameNotificationsTests` | 13 | The scheduling plan: three reminders for a future match, none for one already started, stable identifiers across a reschedule. |
 | `ClaimPolicyTests` | 13 | Jitter, the three-attempt bound, and the backoff poll. |
-| `ThemeContrastTests` | 22 | Every colour pairing the UI actually draws, against WCAG AA — the crest fills against `hooprOnCrest`, `hooprBrandAccent` on every ground a mark sits on (including the 12% and 14% orange washes behind badges and icon tiles, the tightest at 4.76:1), the tab bar's selected item, every heat tier against its label, the elevation ladder, hover fill and strong separator. Replaced the two tests that pinned the brand-as-foreground gap in the failing direction. |
+| `ThemeContrastTests` | 41 | Every colour pairing the UI actually draws, against WCAG AA — the crest fills against `hooprOnCrest`, `hooprBrandAccent` on every ground a mark sits on (including the 12% and 14% orange washes behind badges and icon tiles, the tightest at 4.76:1), the tab bar's selected item, every heat tier against its label, the elevation ladder, hover fill and strong separator, the hero washes, and — since UI revamp Phase 6 — every `RunStatus` badge on every ground and every `HooprButtonStyle` role, read off the components rather than restated. Replaced the two tests that pinned the brand-as-foreground gap in the failing direction. |
 | `MatchmakingViewModelTests` | 12 | `Phase.phase(ticket:nextGame:committedGame:hasSettlingTimedOut:)` — searching vs. settling vs. matched vs. idle, including a spent ticket that outlives its match by hours and a match that never arrives past `settlingGrace`. |
 | `CourtSearchTests` | 11 | Court name matching and ranking. |
 | `FriendshipTests` | 10 | Decoding, the derived document ID, direction. |
@@ -309,12 +309,26 @@ measurement style would be one too many.
 | `SpacingTests` | 3 | That every `Spacing` role which claims to be a step *is* one on `Spacing.scale`, that the scale rises, and that the roles keep their relative order. Not the values — those would just restate `Spacing.swift`. |
 | `BrandMarkUsageTests` | 2 | That no view draws `hooprOrange` as a mark (`foregroundStyle`, `tint`, `stroke`), by reading `hoopr/Views/` — balanced-paren aware, so a wrapped ternary is caught — and that the scanner itself can fail. |
 | `CourtFilterTests` | 10 | The court filter predicates. |
-| `SeasonsAccessibilityTests` | 8 | Dynamic Type behind the Seasons tab: that a fixed-diameter pill keeps its glyph inside its own circle at every content size, and that the cap making that true is load-bearing. |
+| `SeasonsAccessibilityTests` | 4 | Dynamic Type behind the Seasons tab: that a fixed-diameter pill keeps its glyph inside its own circle at every content size, and that the cap making that true is load-bearing. |
 | `LocationServiceTests` | 6 | The home-location anchor. |
 | `CourtTests` | 6 | `Court.displayName`. |
 | `CourtBadgesTests` | 6 | `amenities(for:limit:)` — that narrowing a row's badges never drops the "Restricted" caution. |
 | `CourtMarkerTests` | 4 | Marker count formatting and truncation. |
 | `TabBarLabelTests` | 3 | That four tab labels fit the narrowest bar at `.accessibility3` — the evidence behind "Seasons" over "Squad". |
+| `CelebrationTests` | 21 | UI revamp Phase 5: when a confirmed win throws confetti (yours, once per device, within a week of `confirmedAt`), the on-device store that remembers it, the seeded particle model (nothing appears mid-air, pieces fade rather than vanish), and the busy-court glow's one curve — its threshold, Reduce Motion, and that the map's keyframes are the same curve Home draws. |
+| `MotionTests` | 13 | UI revamp Phase 3's vocabulary: Reduce Motion turns every kind into one cross-fade, durations suit 120Hz, presses only dim under Reduce Motion, the tray bounces only on a rise, and the haptics fire on a change the user caused — never on a rebuild. |
+| `SquadHistoryRowTests` | 10 | What a history row says from one squad's side: an unconfirmed match never looks like a loss, and a match awaiting the other leader never implies a deadline. |
+| `ComponentConsolidationTests` | 9 | UI revamp Phase 6: `RunStatus`'s one priority ladder, the badge's lighter wash on a band, `HooprButtonStyle`'s three sizes (distinct, ordered, a 44pt target each, a large button as tall as a form's field), that only the primary role is filled orange, and `PlayerAvatar`'s named sizes. |
+| `GameDayCountdownTests` | 9 | Game day's countdown headline and arrival count, at the same windows the T-0 and T+90 notifications describe. |
+| `CourtCardLayoutTests` | 8 | The map court card's header at `.accessibility3`: the controls can't take the name's width, and the court glyph is shed before the name is cut. |
+| `ResultCopyTests` | 8 | The result screen's words per state: waiting implies no deadline, and a dispute reads as a disagreement, not a failure. |
+| `TypeRoleTests` | 8 | The `HooprTextRole` ladder, including measured scaled sizes at the largest text sizes. |
+| `CourtNameTests` | 7 | The map's name-shortening rule: a trailing "Park" goes first, then the court number, and a "Park" inside a name is never dropped. |
+| `CreateGameDayPickerTests` | 7 | The create sheet's day chips: which days they offer, and that picking one keeps the time and lands somewhere `Game.validate` accepts. |
+| `FormGuideTests` | 7 | The form guide's five dots: padding, VoiceOver's reading, and whether the row still sits beside the record. |
+| `HomeHeroMetricsTests` | 7 | Home's hero measured against the real dataset — the court names that need more than two lines at `.accessibility3`. |
+| `CreateGameCopyTests` | 6 | What the create sheet says about invite-only runs: never a promise the unopenable invite link can't keep. |
+| `SeasonsRecordSpeechTests` | 3 | The Seasons band's record read aloud as a sentence, singular at one. |
 
 ### The rules suite
 

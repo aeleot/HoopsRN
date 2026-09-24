@@ -82,17 +82,16 @@ struct CourtGameRow: View {
         return "\(base) · \(more)"
     }
 
-    @ViewBuilder
+    /// `HooprBadge`'s filled style (UI revamp Phase 6). It was the one pill
+    /// drawn at its own size — the same 11pt bold, capped at 15 where every
+    /// other badge caps at 14.
     private var statusPill: some View {
         let status = Self.status(openSlots: game.openSlots)
 
-        Text(status.text)
-            .hooprFont(11, weight: .bold, maximumSize: 15)
-            .lineLimit(1)
-            .foregroundStyle(status.foreground)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Capsule().fill(status.background))
+        return HooprBadge(
+            text: status.text,
+            style: .filled(foreground: status.foreground, fill: status.background)
+        )
     }
 
     /// Room first, because that's the decision the reader is making.

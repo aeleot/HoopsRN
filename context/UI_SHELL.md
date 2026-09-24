@@ -1006,14 +1006,62 @@ of Phase 1.
 around it is deliberately not what grows with it, or a reader at
 `.accessibility3` loses a third of the width to margins.
 
-**What is not on the scale, on purpose:** corner radii (four in use — 10, 12,
-14, 16 — with no rule about which is which), fixed control heights (seven, for
-three kinds of button), `ProfileView`'s 10pt row gap, and `Chip`'s 14 × 9, which
-is optically tuned against its 13pt label. They are composition decisions.
+**What is not on the scale, on purpose:** corner radii, `ProfileView`'s 10pt
+row gap, and `Chip`'s 14 × 9, which is optically tuned against its 13pt label.
+They are composition decisions. (Button heights used to be on this list —
+seven, for three kinds of button — until Phase 6 gave them three sizes; see
+Components below.)
 
 **Every screen now insets its content `Spacing.pageMargin` (20).** The last
 four at 16 — `InboxSheet`, `QueueSheet`, `GameDayView`, `ResultView` — moved
 with their Phase 2b redesigns on 2026-09-23.
+
+### Components
+
+**Consolidated in UI revamp Phase 6** (2026-09-24), each from copies that had
+already drifted. A new screen picks from these rather than drawing its own:
+
+- **`HooprButtonStyle`** (`.buttonStyle(.hooprFilled(_:role:shape:fillsWidth:))`)
+  — every filled button. Three **sizes**: `compact` (in a row or a card — Invite,
+  Join, a run's actions; drawn 36pt inside a 44pt target), `regular` (a lone
+  action at its label's width, 44pt), `large` (a screen's main action across its
+  width, 52pt). Four **roles**, each an asserted pairing: `primary`,
+  `secondary` (with a `hooprBorder` edge), `destructive` (a red label on
+  `hooprFill` — a leave or cancel isn't an error), `unavailable`. **A capsule,
+  except a form's submit** (`shape: .form`), which keeps the rounded corners of
+  the fields above it — Login and password reset (the user's call). The label
+  passes content only; type, colour, padding, height, shape, target and press
+  are the style's. It draws no disabled state, because the app has two:
+  *pending* keeps full colour with a spinner, *blocked* is dimmed by the caller.
+  Plain, unfilled buttons stay on `.hooprPress`.
+- **`HooprFieldChrome`** (`.hooprFieldChrome(isFocused:)`) — a form's text
+  field: `hooprFill`, a 3:1 edge, a 2pt focus ring. Owns
+  `HooprField.cornerRadius`, which the `form` button reads.
+- **`HooprBadge`** — the small uppercase capsule, `tinted` (a status to notice)
+  or `filled` (a status the row is read for — the map's "3 spots").
+  **`RunStatus`** is the one HOSTING › WAITLIST › FULL ladder that Home, the
+  Runs card and the map's card all used to copy. The wash depends on the ground
+  (`HooprBadge.Ground`: 12% on a card, 8% on a band), and `ThemeContrastTests`
+  reads those same constants. **`HooprCountBadge`** and
+  **`HooprNotificationDot`** are the red marks — the inbox count, the profile
+  button's dot. `CourtBadges` stays its own component: regular-weight,
+  mixed-case facts about a court are a different job.
+- **`PlayerAvatar.Size`** — `inline` 28, `roster` 34, `row` 44, `sheet` 56,
+  `profile` 72 (the base the profile scales from), named like `SquadCrest.Size`.
+- **`CardChrome`** needed no folding: the two drifted copies the Phase 0 audit
+  found (`profileRowChrome`, `FriendRow`'s inline card) went with their Phase 2b
+  redesigns, and four call sites remain — `GameCard`, the map's run rows,
+  `StatsCard`, `MatchmakingCard`'s matched state — each a card Phase 2c kept.
+- **Section labels** are `.hooprType(.label)` everywhere now; the last two hand
+  spellings (the map's search header, the match card's "Next match") went.
+
+**The component gallery** (`Views/Debug/ComponentGallery.swift`) renders every
+colour role, type role, the spacing scale, every button size × role and its
+states, every badge on both grounds, avatars, crests and the form guide, cards
+and banners, the band washes, glass, and the motion — with appearance and text
+size switches over all of it. **Debug builds only**: triple-tap the version
+caption at the bottom of Profile. The caption and the gallery are both compiled
+out of a release.
 
 ---
 
@@ -1053,11 +1101,17 @@ with their Phase 2b redesigns on 2026-09-23.
   literal colour in a view is a bug — it won't invert.
 - Font sizes go through `.hooprFont(...)`. The deliberate exceptions are sized
   as a fraction of a fixed shape and commented as such: `PlayerAvatar`'s initial
-  and glyph, `SquadCrest`'s glyph, and `FormDot`'s ✓ / ✕. (`ProfileRow`'s
+  and glyph, `SquadCrest`'s glyph, `FormDot`'s ✓ / ✕, and `CreateSquadSheet`'s
+  crest-picker glyphs (20pt in a fixed 44pt cell — the crest glyph's case, and
+  missing from this list until the Phase 6 sweep found it). (`ProfileRow`'s
   symbol left the list with its tinted square in the Phase 2b revamp; it now
   scales through `hooprFont` up to a cap that fits its column.)
 - Read-only profile fields are expressed by omitting `onTap`, not by a
   disabled-state flag.
+- A filled button is `HooprButtonStyle`, a status pill is `HooprBadge`, a
+  form field is `hooprFieldChrome`, an avatar's diameter is a
+  `PlayerAvatar.Size`. A hand-drawn copy of any of them is how the six button
+  heights and three badge ladders happened — see Components above.
 - Profile rows are sized by their content. Don't give one a fixed height:
   `.frame(height:)` doesn't clip, so a row whose text needs more room paints
   over its neighbour. This is what the old card mosaic's `minHeight` floors

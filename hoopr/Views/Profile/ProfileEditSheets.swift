@@ -10,22 +10,11 @@ import SwiftUI
 // the sheet exists to change is a numeral.
 
 private extension View {
-    /// A text field's ground and edge, shared by every field on these sheets:
-    /// `hooprFill` with a `hooprSeparatorStrong` edge (3:1 — the fill alone is
-    /// 1.09:1 on the white page), a 2pt accent ring while focused.
+    /// Every field on these sheets. The chrome is `hooprFieldChrome`, shared
+    /// with Login (UI revamp Phase 6); this name stays so the call sites read
+    /// as what they are.
     func editSheetField(isFocused: Bool) -> some View {
-        self
-            .padding(.horizontal, 16)
-            .frame(minHeight: 52)
-            .background(Color.hooprFill)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(
-                        isFocused ? Color.hooprBrandAccent : Color.hooprSeparatorStrong,
-                        lineWidth: isFocused ? 2 : 1
-                    )
-            )
+        hooprFieldChrome(isFocused: isFocused)
     }
 }
 
@@ -437,24 +426,17 @@ struct ChangePasswordSheet: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// A `form` button, rounded like the sheets' fields (the user's call,
+    /// 2026-09-24).
     private var sendButton: some View {
         Button(action: onSend) {
-            Group {
-                if isSending {
-                    ProgressView()
-                        .tint(Color.hooprOnBrand)
-                } else {
-                    Text("Send reset link")
-                        .hooprFont(17, weight: .semibold, maximumSize: 24)
-                }
+            if isSending {
+                ProgressView()
+            } else {
+                Text("Send reset link")
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 52)
-            .foregroundStyle(Color.hooprOnBrand)
-            .background(Color.hooprOrange)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .buttonStyle(.hooprPress)
+        .buttonStyle(.hooprFilled(.large, shape: .form))
         .disabled(isSending)
     }
 

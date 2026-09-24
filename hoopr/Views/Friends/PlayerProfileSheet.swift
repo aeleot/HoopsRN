@@ -114,7 +114,7 @@ struct PlayerProfileSheet: View {
     /// the buttons. The handle wraps to two lines instead of shrinking.
     private var identityHeader: some View {
         HStack(spacing: 14) {
-            PlayerAvatar(initial: row.initial, diameter: 56)
+            PlayerAvatar(initial: row.initial, diameter: PlayerAvatar.Size.sheet)
                 .overlay(
                     Circle()
                         .stroke(Color.hooprBrandAccent, lineWidth: 2)

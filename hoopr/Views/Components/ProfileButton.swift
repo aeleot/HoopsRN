@@ -68,16 +68,9 @@ struct ProfileButton: View {
                 .contentShape(Rectangle())
                 .overlay(alignment: .topTrailing) {
                     if hasUnansweredRequests {
-                        Circle()
-                            .fill(Color.hooprRed)
-                            // A ring in the page's own background, so the dot
-                            // reads as sitting on the glyph rather than as
-                            // part of it.
-                            .stroke(Color.hooprBackground, lineWidth: 2)
-                            // Scaled with the glyph, and pulled in to stay on
-                            // its rim at 45° now that the glyph fills more of
-                            // the frame.
-                            .frame(width: 12, height: 12)
+                        // Pulled in to stay on the glyph's rim at 45° now that
+                        // the glyph fills more of the frame.
+                        HooprNotificationDot()
                             .offset(x: -3.5, y: 3.5)
                     }
                 }

@@ -182,21 +182,14 @@ struct GameDayView: View {
         } label: {
             HStack(spacing: Spacing.sm) {
                 if viewModel.isMarkingArrived {
-                    ProgressView().tint(Color.hooprOnBrand)
+                    ProgressView()
                 } else {
                     Image(systemName: "mappin.circle.fill")
-                        .hooprFont(17, weight: .semibold, maximumSize: 24)
                 }
                 Text("We're here")
-                    .hooprType(.headline)
             }
-            .foregroundStyle(Color.hooprOnBrand)
-            .padding(.vertical, Spacing.md)
-            .frame(maxWidth: .infinity, minHeight: 52)
-            .background(Capsule().fill(Color.hooprOrange))
-            .contentShape(Capsule())
         }
-        .buttonStyle(.hooprPress)
+        .buttonStyle(.hooprFilled(.large))
         .disabled(viewModel.isMarkingArrived)
     }
 
@@ -226,22 +219,20 @@ struct GameDayView: View {
     /// a row under "We're here" while both still apply.
     @ViewBuilder
     private func resultButton(isPrimary: Bool) -> some View {
-        Button {
-            onOpenResult(game)
-        } label: {
-            if isPrimary {
+        if isPrimary {
+            Button {
+                onOpenResult(game)
+            } label: {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "trophy.fill")
-                        .hooprFont(17, weight: .semibold, maximumSize: 24)
                     Text(viewModel.resultButtonTitle)
-                        .hooprType(.headline)
                 }
-                .foregroundStyle(Color.hooprOnBrand)
-                .padding(.vertical, Spacing.md)
-                .frame(maxWidth: .infinity, minHeight: 52)
-                .background(Capsule().fill(Color.hooprOrange))
-                .contentShape(Capsule())
-            } else {
+            }
+            .buttonStyle(.hooprFilled(.large))
+        } else {
+            Button {
+                onOpenResult(game)
+            } label: {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "trophy.fill")
                         .hooprFont(15, weight: .semibold, maximumSize: 22)
@@ -259,8 +250,8 @@ struct GameDayView: View {
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
             }
+            .buttonStyle(.hooprPress)
         }
-        .buttonStyle(.hooprPress)
     }
 
     /// Quiet and last, and behind a confirmation. It used to cancel on one

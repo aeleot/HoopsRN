@@ -38,7 +38,7 @@ struct ProfileIdentityBlock: View {
     /// control whose whole job is confirming the copy, reading as a failure.
     @State private var revertTask: Task<Void, Never>?
 
-    @ScaledMetric(relativeTo: .largeTitle) private var diameter: CGFloat = 72
+    @ScaledMetric(relativeTo: .largeTitle) private var diameter: CGFloat = PlayerAvatar.Size.profile
 
     var body: some View {
         // Centred, not leading: with the orange slab gone there's no bar for
@@ -179,7 +179,7 @@ struct ProfileTopBar: View {
             .accessibilityLabel("Back to home")
 
             HStack(spacing: 8) {
-                PlayerAvatar(initial: initial, diameter: 28)
+                PlayerAvatar(initial: initial, diameter: PlayerAvatar.Size.inline)
 
                 Text(handle)
                     .hooprFont(17, weight: .semibold, maximumSize: 22)
@@ -246,20 +246,7 @@ struct ProfileTopBar: View {
                 .frame(width: 44, height: 44)
                 .overlay(alignment: .topTrailing) {
                     if unansweredCount > 0 {
-                        Text(badgeText)
-                            .hooprFont(11, weight: .bold, maximumSize: 13)
-                            .hooprNumericTransition(unansweredCount)
-                            // `hooprOnRed`, not `hooprOnBrand`: this is the one
-                            // label in the app on a red fill, and red is the one
-                            // ground that inverts between appearances.
-                            .foregroundStyle(Color.hooprOnRed)
-                            .padding(.horizontal, 5)
-                            .frame(minWidth: 18, minHeight: 18)
-                            .background(Capsule().fill(Color.hooprRed))
-                            // A ring in the page colour, so the badge reads as
-                            // sitting on top of the tray rather than as part of
-                            // its shape.
-                            .overlay(Capsule().stroke(Color.hooprBackground, lineWidth: 2))
+                        HooprCountBadge(text: badgeText, count: unansweredCount)
                             .offset(x: -2, y: 4)
                             .transition(.hooprPop)
                     }

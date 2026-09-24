@@ -192,13 +192,8 @@ struct GameCard: View {
 
     @ViewBuilder
     private var badgeLabel: some View {
-        if let badge {
-            Text(badge.text)
-                .hooprType(.badge)
-                .foregroundStyle(badge.foreground)
-                .padding(.horizontal, Spacing.Pill.horizontal)
-                .padding(.vertical, Spacing.Pill.vertical)
-                .background(Capsule().fill(badge.wash.opacity(0.12)))
+        if let status {
+            HooprBadge(status, on: .surface)
         }
     }
 
@@ -367,22 +362,17 @@ struct GameCard: View {
                 onAction()
             }
         } label: {
-            Group {
-                if isPending {
-                    ProgressView()
-                        .tint(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
-                } else {
-                    Text(action.title)
-                        .hooprFont(15, weight: .semibold)
-                }
+            if isPending {
+                ProgressView()
+            } else {
+                Text(action.title)
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 42)
-            .foregroundStyle(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
-            .background(action.isDestructive ? Color.hooprFill : Color.hooprOrange)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
         }
-        .buttonStyle(.hooprPress)
+        .buttonStyle(.hooprFilled(
+            .compact,
+            role: action.isDestructive ? .destructive : .primary,
+            fillsWidth: true
+        ))
         .disabled(isPending || isDisabled)
         .opacity(isDisabled && !isPending ? 0.5 : 1)
     }
@@ -403,48 +393,25 @@ struct GameCard: View {
         Button {
             isConfirmingComplete = true
         } label: {
-            Group {
-                if isPending {
-                    ProgressView()
-                        .tint(Color.hooprPrimaryText)
-                } else {
-                    HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle")
-                            .hooprFont(13, weight: .semibold, maximumSize: 17)
-                        Text("Mark complete")
-                            .hooprFont(15, weight: .semibold)
-                    }
+            if isPending {
+                ProgressView()
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle")
+                    Text("Mark complete")
                 }
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 42)
-            .foregroundStyle(Color.hooprPrimaryText)
-            .background(Color.hooprFill)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.hooprBorder, lineWidth: 1)
-            )
         }
-        .buttonStyle(.hooprPress)
+        .buttonStyle(.hooprFilled(.compact, role: .secondary, fillsWidth: true))
         .disabled(isPending || isDisabled)
         .opacity(isDisabled && !isPending ? 0.5 : 1)
     }
 
-    /// At most one badge, in priority order — your own relationship to the run
-    /// says more than its status does.
-    ///
-    /// **`foreground` and `wash` are separate colours**, because the text has
-    /// to be *read* and the ground behind it is a fill. HOSTING's text is
-    /// `hooprBrandAccent` (4.87:1 on its own 12% wash in light, 4.90:1 in
-    /// dark) over a wash of the vivid `hooprOrange`; drawn as orange on that
-    /// wash it measured 2.78:1 in light mode. The other two are secondary text
-    /// on a wash of itself, unchanged.
-    private var badge: (text: String, foreground: Color, wash: Color)? {
-        if isHost { return ("Hosting", Color.hooprBrandAccent, Color.hooprOrange) }
-        if isWaitlisted { return ("Waitlist", Color.hooprSecondaryText, Color.hooprSecondaryText) }
-        if game.isFull { return ("Full", Color.hooprSecondaryText, Color.hooprSecondaryText) }
-        return nil
+    /// At most one badge. The priority order and the colours are `RunStatus`'s
+    /// (Phase 6) — the same ladder Home and the map's card draw, written once.
+    /// Why the label and the wash are separate colours is recorded there.
+    private var status: RunStatus? {
+        RunStatus.of(isHost: isHost, isWaitlisted: isWaitlisted, isFull: game.isFull)
     }
 }
 

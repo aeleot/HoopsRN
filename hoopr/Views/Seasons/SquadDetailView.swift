@@ -224,7 +224,7 @@ struct SquadDetailView: View {
 
     private func pendingInviteRow(_ invite: SquadInvite) -> some View {
         HStack(spacing: 12) {
-            PlayerAvatar(initial: initial(for: invite.uid), diameter: 34)
+            PlayerAvatar(initial: initial(for: invite.uid), diameter: PlayerAvatar.Size.roster)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(name(for: invite.uid))
@@ -314,23 +314,13 @@ struct SquadDetailView: View {
     /// How many invitable friends show before the list asks to be expanded.
     private static let collapsedInviteCount = 5
 
-    /// The capsule is drawn at its label's size; the tap target around it is
-    /// the full 44pt, so a row of them stays compact without shrinking what a
-    /// thumb has to hit.
+    /// `compact`: drawn at its label's size inside the full 44pt target, so a
+    /// row of them stays compact without shrinking what a thumb has to hit.
     private func inviteButton(_ friend: SquadViewModel.MemberRow, squad: Squad) -> some View {
-        Button {
+        Button("Invite") {
             Task { await viewModel.invite(friend.uid, to: squad) }
-        } label: {
-            Text("Invite")
-                .hooprFont(14, weight: .semibold)
-                .foregroundStyle(Color.hooprOnBrand)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Capsule().fill(Color.hooprOrange))
-                .frame(minHeight: 44)
-                .contentShape(Rectangle())
         }
-        .buttonStyle(.hooprPress)
+        .buttonStyle(.hooprFilled(.compact))
         .disabled(viewModel.isBlocked(friend.uid))
     }
 

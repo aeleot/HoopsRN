@@ -422,18 +422,10 @@ struct SeasonsTab: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "plus.circle.fill")
-                        .hooprFont(14, weight: .semibold, maximumSize: 20)
                     Text("Create a squad")
-                        .hooprType(.body)
-                        .fontWeight(.semibold)
                 }
-                .foregroundStyle(Color.hooprOnBrand)
-                .padding(.horizontal, Spacing.xl)
-                .frame(minHeight: 44)
-                .background(Color.hooprOrange)
-                .clipShape(Capsule())
             }
-            .buttonStyle(.hooprPress)
+            .buttonStyle(.hooprFilled(.regular))
             .padding(.top, Spacing.sm)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -478,7 +470,7 @@ struct SquadMemberRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            PlayerAvatar(initial: member.initial, diameter: 34)
+            PlayerAvatar(initial: member.initial, diameter: PlayerAvatar.Size.roster)
 
             VStack(alignment: .leading, spacing: 2) {
                 if member.isResolved {

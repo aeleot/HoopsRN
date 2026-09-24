@@ -98,6 +98,16 @@ struct ProfileView: View {
     @AppStorage(AppearancePreference.storageKey)
     private var appearance: AppearancePreference = .system
 
+    #if DEBUG
+    /// The component gallery, presented with `sheet(item:)` like the house's
+    /// other sheets. Debug builds only.
+    private struct GalleryRoute: Identifiable {
+        let id = "component-gallery"
+    }
+
+    @State private var galleryRoute: GalleryRoute?
+    #endif
+
     init(
         authService: AuthService,
         userProfileService: UserProfileService,
@@ -161,6 +171,11 @@ struct ProfileView: View {
                     presentedPlayer = nil
                 }
             }
+            #if DEBUG
+            .sheet(item: $galleryRoute) { _ in
+                ComponentGallery { galleryRoute = nil }
+            }
+            #endif
             .confirmationDialog(
                 "Remove \(pendingRemoval?.nameForProse ?? "this player")?",
                 isPresented: .init(
@@ -516,8 +531,36 @@ struct ProfileView: View {
                     viewModel.signOut()
                 }
             }
+
+            #if DEBUG
+            galleryDoor
+            #endif
         }
     }
+
+    #if DEBUG
+    /// The way into the component gallery (UI revamp Phase 6): the build's
+    /// version, tapped three times. **Debug builds only** — the caption and the
+    /// gallery are both compiled out of a release, so neither ships.
+    private var galleryDoor: some View {
+        Text("hoopsRN \(Self.versionText)")
+            .hooprType(.caption)
+            .foregroundStyle(Color.hooprSecondaryText)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+            .onTapGesture(count: 3) { galleryRoute = GalleryRoute() }
+            .accessibilityHint("Triple-tap opens the component gallery")
+    }
+
+    /// "1.0 (1)", from the bundle.
+    private static var versionText: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        return "\(version) (\(build))"
+    }
+    #endif
 
     /// Count and unit as one value — "12 courts" — rather than a value with a
     /// unit hung off it. `nil` at zero, which renders the placeholder.

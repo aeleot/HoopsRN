@@ -29,7 +29,7 @@ struct FriendRow<Trailing: View>: View {
 
     @ViewBuilder let trailing: Trailing
 
-    private static var avatarDiameter: CGFloat { 44 }
+    private static var avatarDiameter: CGFloat { PlayerAvatar.Size.row }
 
     /// Where a `DividedRows` hairline starts, so it runs under the name rather
     /// than the avatar.

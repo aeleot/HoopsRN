@@ -88,30 +88,27 @@ struct LoginView: View {
     }
 
     /// Filled when it can go, and a quiet fill with readable text when it
-    /// can't. It used to fade the orange to 40% under the same black label,
-    /// which in dark mode left the label barely distinguishable from the
-    /// button it was on.
+    /// can't (`unavailable`). It used to fade the orange to 40% under the same
+    /// black label, which in dark mode left the label barely distinguishable
+    /// from the button it was on.
+    ///
+    /// A `form` button: rounded like the two fields above it, not a capsule,
+    /// so the form reads as one object (the user's call, 2026-09-24).
     private var submitButton: some View {
         Button {
             submit()
         } label: {
-            ZStack {
-                if viewModel.isBusy {
-                    ProgressView()
-                        .tint(Color.hooprOnBrand)
-                } else {
-                    Text(viewModel.mode.actionLabel)
-                        // Capped to the button's fixed 52pt height.
-                        .hooprFont(17, weight: .semibold, maximumSize: 24)
-                }
+            if viewModel.isBusy {
+                ProgressView()
+            } else {
+                Text(viewModel.mode.actionLabel)
             }
-            .foregroundStyle(viewModel.canSubmit ? Color.hooprOnBrand : Color.hooprSecondaryText)
-            .frame(maxWidth: .infinity)
-            .frame(height: 52)
-            .background(viewModel.canSubmit ? Color.hooprOrange : Color.hooprFill)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .buttonStyle(.hooprPress)
+        .buttonStyle(.hooprFilled(
+            .large,
+            role: viewModel.canSubmit ? .primary : .unavailable,
+            shape: .form
+        ))
         .disabled(!viewModel.canSubmit)
     }
 
@@ -190,17 +187,7 @@ struct LoginView: View {
         .hooprFont(16, maximumSize: 24)
         .foregroundStyle(Color.hooprPrimaryText)
         .focused($focusedField, equals: field)
-        .padding(.horizontal, 16)
-        .frame(height: 52)
-        .background(Color.hooprFill)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(
-                    isFocused ? Color.hooprBrandAccent : Color.hooprSeparatorStrong,
-                    lineWidth: isFocused ? 2 : 1
-                )
-        )
+        .hooprFieldChrome(isFocused: isFocused)
         .onSubmit {
             switch field {
             case .email:

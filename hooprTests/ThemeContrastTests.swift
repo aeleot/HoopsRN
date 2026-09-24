@@ -277,9 +277,10 @@ final class ThemeContrastTests: XCTestCase {
     /// friend-request tiles (14%). The wash is darker and more orange than the
     /// card, and it is the tightest ground the accent is drawn on — 4.76:1 in
     /// light mode at 14% — which is why it is asserted separately.
+    @MainActor
     func testBrandAccentClearsAAOnTheOrangeWashesBehindBadgesAndIconTiles() {
         assertContrast(
-            .hooprBrandAccent, onWashOf: .hooprOrange, alpha: 0.12, over: .hooprSurface,
+            .hooprBrandAccent, onWashOf: .hooprOrange, alpha: HooprBadge.washOnSurface, over: .hooprSurface,
             atLeast: aaText, "HOSTING badge text on its 12% orange wash"
         )
         assertContrast(
@@ -322,11 +323,50 @@ final class ThemeContrastTests: XCTestCase {
     /// WAITLIST and FULL badges: secondary text on a 12% wash of itself. Not new
     /// colours — but the badge's tuple changed shape when HOSTING's foreground
     /// and wash were split, and the pairing had never been measured.
+    @MainActor
     func testWaitlistAndFullBadgesClearAAOnTheirOwnWash() {
         assertContrast(
-            .hooprSecondaryText, onWashOf: .hooprSecondaryText, alpha: 0.12, over: .hooprSurface,
+            .hooprSecondaryText, onWashOf: .hooprSecondaryText, alpha: HooprBadge.washOnSurface, over: .hooprSurface,
             atLeast: aaText, "WAITLIST / FULL badge text on its 12% wash"
         )
+    }
+
+    /// **Every run status, on every ground it's drawn on, at the strength
+    /// `HooprBadge` actually draws** (UI revamp Phase 6). Read off the
+    /// component rather than restated, so a retuned wash or a new status is
+    /// measured the moment it exists — the gap that let HOSTING sit under AA on
+    /// Home's band from Phase 2b until Phase 4.
+    @MainActor
+    func testEveryRunStatusBadgeReadsOnEveryGround() {
+        let grounds: [(HooprBadge.Ground, Color, String)] = [
+            (.surface, .hooprSurface, "a card"),
+            (.band, .hooprHeroBand, "the plain band"),
+            (.band, .hooprBrandWash, "Home's brand wash"),
+        ]
+        for status in RunStatus.allCases {
+            for (ground, color, name) in grounds {
+                assertContrast(
+                    status.foreground, onWashOf: status.wash, alpha: ground.washOpacity, over: color,
+                    atLeast: aaText, "\(status.text) on \(name)"
+                )
+            }
+        }
+    }
+
+    /// A filled button's label on its fill, for every role `HooprButtonStyle`
+    /// offers (UI revamp Phase 6). Each is a pairing asserted elsewhere by
+    /// colour; this binds the component to them, so a role can't be given a
+    /// pairing nobody measured. `unavailable` is held to AA too, though WCAG
+    /// exempts a disabled control: it's the one telling you why Sign In isn't
+    /// ready, and it should be read.
+    @MainActor
+    func testEveryButtonRoleReadsOnItsFill() {
+        for role in HooprButtonStyle.Role.allCases {
+            assertContrast(
+                role.foreground, on: role.background,
+                atLeast: aaText, "\(role) button label on its fill"
+            )
+        }
     }
 
     // MARK: - Elevation
@@ -517,13 +557,14 @@ final class ThemeContrastTests: XCTestCase {
     /// in. **At the 12% a card's pill uses it failed on both** — 4.44:1 on the
     /// plain band in dark, a defect since Phase 2b that nothing asserted,
     /// because the badge test above measures over a card. Home's pill is 8%.
+    @MainActor
     func testTheHostingPillReadsOnHomesBand() {
         assertContrast(
-            .hooprBrandAccent, onWashOf: .hooprOrange, alpha: 0.08, over: .hooprHeroBand,
+            .hooprBrandAccent, onWashOf: .hooprOrange, alpha: HooprBadge.washOnBand, over: .hooprHeroBand,
             atLeast: aaText, "HOSTING on the plain band"
         )
         assertContrast(
-            .hooprBrandAccent, onWashOf: .hooprOrange, alpha: 0.08, over: .hooprBrandWash,
+            .hooprBrandAccent, onWashOf: .hooprOrange, alpha: HooprBadge.washOnBand, over: .hooprBrandWash,
             atLeast: aaText, "HOSTING on Home's brand wash"
         )
     }

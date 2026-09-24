@@ -9,7 +9,10 @@ redrawn as a basketball court, from user feedback. Blind reads beyond Home and
 Runs not run. **Phase 3 (motion) built** — see its entry; its live pass is
 outstanding. **Phase 4 (glass and materials) built.** **Phase 5 built with
 no package** (the user's call) — a won match celebrates and busy courts glow;
-live pass outstanding. Phase 6 (consolidation) not started.
+live pass outstanding. **Phase 6 (consolidation) built** — one button, one
+badge, one field, named avatar sizes, a debug-only component gallery; live
+pass outstanding. Every phase in the prompt is now built; what's left is
+verification on the device.
 **Drafted:** 2026-09-21 @ 1a2710d
 **Touches:** `hoopr/Support/Theme.swift`, `hoopr/Support/Spacing.swift` (new),
 `hoopr/Support/CourtHeat.swift`, `hoopr/Views/` (30 files: the 22 the accent sweep
@@ -20,6 +23,100 @@ docs named under each entry
 > record `UI_REVAMP_PROMPT.md` asks for after every phase: **what changed, what
 > was deliberately left alone, and why.** Phase 2 adds its 2e evidence row per
 > screen here. Measurements it cites live in `UI_REVAMP_AUDIT.md`.
+
+---
+
+## Phase 6 — Organization and component consolidation (2026-09-24)
+
+The audit's §2.3 list, finished against the Phase 2 layouts. The rule
+throughout: **consolidate what was copied, don't re-wrap content to reach a
+tidy count.** `UI_SHELL.md` § Components is the reference; this is the record.
+
+### What changed
+
+- **One filled button, `HooprButtonStyle`** — 17 call sites across 12 files,
+  from hand-built copies at five heights (36, 42, 44, 48, 52) and two shapes.
+  Three sizes, four roles, capsule **except a form's submit**, which keeps its
+  fields' rounded corners (the user's call, asked before building). The label
+  now passes content only. **Visible changes, all deliberate:** `GameCard`'s
+  Join / Leave / Cancel and "Mark complete" went from 42pt rounded rectangles
+  to compact capsules; the map card's Directions and Start Run, the map
+  sheet's "Start a run" and Runs' "Start one" became capsules; "Queue up"
+  (16pt, ~45pt tall) became a large 52pt button; the map's run actions gained
+  the 44pt tap target they lacked (their rows are ~8pt taller); icons in button
+  labels now take the label's size rather than one a notch smaller; Directions
+  gained the secondary edge.
+- **One text field, `hooprFieldChrome`** — Login and the profile edit sheets
+  had identical copies. Login's field went from a fixed 52pt to a 52pt floor,
+  so it grows with its text rather than capping it.
+- **One badge, `HooprBadge` + `RunStatus`** — the HOSTING › WAITLIST › FULL
+  ladder was written three times (Home, `GameCard`, the map's card), Home's
+  saying in a comment it was copying `GameCard`'s by hand. The map's filled
+  "3 SPOTS" pill joined it and lost its one-off 15pt cap (now 14, like every
+  badge). The inbox count and the profile dot became `HooprCountBadge` and
+  `HooprNotificationDot`; the count's "9+" stays the view model's to word.
+- **Avatar sizes named**, `PlayerAvatar.Size` — five diameters that were loose
+  numbers at six call sites. The audit's three avatar implementations were
+  already one by Phase 2b.
+- **Card chrome needed nothing** — the audit's two drifted copies left with
+  their Phase 2b redesigns; four `cardChrome` call sites remain, each a card
+  Phase 2c kept.
+- **The last two hand-spelled section labels** became `.hooprType(.label)` —
+  "Next match" on the match card moves from 13pt semibold to the label role.
+- **Press feedback** is a modifier now (`hooprPressFeedback`), so the button
+  style presses exactly as `.hooprPress` does.
+- **The component gallery** — `Views/Debug/ComponentGallery.swift`, debug
+  builds only, triple-tap the version caption at the bottom of Profile. Every
+  colour role, type role, spacing step, button size × role and state, badge on
+  both grounds, avatar, crest, card, band wash, glass and motion, from the real
+  components, with appearance and text-size switches.
+- **Docs:** `UI_SHELL.md` gained § Components and an invariant;
+  `BUILD_AND_CONFIG.md`'s test inventory was 185 tests and 14 suites behind
+  (it said 481 / 30) and now matches the `.xcresult` suite by suite.
+
+### Deliberately left alone, and why
+
+- **`CourtBadges`** — the amenity chips are regular-weight, mixed-case facts
+  on a neutral fill; a different job from a status, and already a component.
+- **The two selection underlines** (Profile's pane picker, the queue sheet's
+  day picker) — two uses of a 2pt capsule under a label; a component for two
+  would be structure invented, not shared.
+- **Plain buttons stay on `.hooprPress`** — rows, links and the result row
+  under "We're here" aren't filled buttons.
+- **`CreateSquadSheet`'s crest-picker glyph** keeps its fixed system font — a
+  20pt glyph in a fixed 44pt cell, the crest's own case. It was missing from
+  `UI_SHELL.md`'s list of exceptions; it's on it now.
+- **Stamps.** Several context docs report stale in `check_context_drift.py`.
+  Their content is updated here, but a `Verified:` stamp names a commit, and
+  none of this is committed — restamping follows the commit.
+
+### Tests
+
+`ComponentConsolidationTests` (9, new): `RunStatus`'s ladder and words, the
+band's lighter wash, the three button sizes (a 44pt target each, distinct,
+ordered, the large one as tall as a form field), that only the primary role
+is filled orange, and the avatar sizes. `ThemeContrastTests` +2: **every
+`RunStatus` on every ground** (card, plain band, Home's brand wash) and **every
+button role on its fill**, read off the components' own constants — the three
+existing pill assertions now read `HooprBadge`'s washes too, so a retuned wash
+is measured the moment it moves. Full suite: **666 passed, 0 failed.**
+
+### Evidence
+
+- **Rendered** off-device from the real components: three `GameCard`s (join,
+  hosting with cancel and complete, full with a blocked waitlist button) light
+  and dark, default and `.accessibility3` — nothing clips, the HOSTING badge
+  drops to its own line at AX3 as designed; and the gallery's sections, light
+  and dark. **Found by the render:** the gallery's sample email drew as a blue
+  link (a string literal is Markdown), fixed with `Text(verbatim:)`; and a
+  gallery view named `Glass` shadowed SwiftUI's type once made visible —
+  renamed. **Renderer limits, not defects:** it draws a spinner as a
+  placeholder, glass without its material, and stretches a view with a
+  flexible rail or divider to fill a fixed frame (the cards were re-rendered at
+  their natural height).
+- **Not verified:** anything live — every changed screen on the device, the
+  gallery itself (it has never been opened; `NavigationStack` doesn't render
+  off-device), glass, and the pending spinners.
 
 ---
 

@@ -250,18 +250,13 @@ struct HomeTab: View {
     /// item that has to move.
     private func detailLine(for listing: LocalRunsViewModel.Listing) -> some View {
         FlowLayout(spacing: Spacing.lg, lineSpacing: Spacing.sm) {
-            if let badge {
-                Text(badge.text)
-                    .hooprType(.badge)
-                    .foregroundStyle(badge.foreground)
-                    .padding(.horizontal, Spacing.Pill.horizontal)
-                    .padding(.vertical, Spacing.Pill.vertical)
-                    // 8% here, not the 12% a card's pill uses: the band is
-                    // lighter than a card in dark mode, and at 12% HOSTING
-                    // measured 4.44:1 on it (4.37 on the brand wash) — under
-                    // AA since Phase 2b, when only the card was asserted.
-                    // `ThemeContrastTests.testTheHostingPillReadsOnHomesBand`.
-                    .background(Capsule().fill(badge.wash.opacity(0.08)))
+            if let status {
+                // `.band`, not `.surface`: the band is lighter than a card in
+                // dark mode, and at a card's 12% HOSTING measured 4.44:1 on it
+                // (4.37 on the brand wash) — under AA since Phase 2b, when only
+                // the card was asserted. The band's 8% clears
+                // (`ThemeContrastTests.testTheHostingPillReadsOnHomesBand`).
+                HooprBadge(status, on: .band)
                     // **Aligns the word, not the capsule** (2026-09-24, at the
                     // user's request). The pill's own padding put "HOSTING"
                     // 8pt in from the time, the court and the day label above
@@ -415,18 +410,10 @@ struct HomeTab: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "map.fill")
-                            .hooprFont(14, weight: .semibold, maximumSize: 20)
                         Text("Find a court")
-                            .hooprType(.body)
-                            .fontWeight(.semibold)
                     }
-                    .foregroundStyle(Color.hooprOnBrand)
-                    .padding(.horizontal, Spacing.xl)
-                    .frame(minHeight: 44)
-                    .background(Color.hooprOrange)
-                    .clipShape(Capsule())
                 }
-                .buttonStyle(.hooprPress)
+                .buttonStyle(.hooprFilled(.regular))
             }
             .padding(.top, Spacing.sm)
         }
@@ -455,14 +442,13 @@ struct HomeTab: View {
             .frame(width: width, height: height)
     }
 
-    /// Matches `GameCard`'s priority order — your own relationship to the run
-    /// says more than its status does — and its split of `foreground` from
-    /// `wash`, for the reason recorded there.
-    private var badge: (text: String, foreground: Color, wash: Color)? {
-        if viewModel.isHostingNextRun { return ("Hosting", Color.hooprBrandAccent, Color.hooprOrange) }
-        if viewModel.isWaitlistedOnNextRun { return ("Waitlist", Color.hooprSecondaryText, Color.hooprSecondaryText) }
-        if viewModel.nextRun?.game.isFull == true { return ("Full", Color.hooprSecondaryText, Color.hooprSecondaryText) }
-        return nil
+    /// `RunStatus`'s ladder, the one `GameCard` and the map's card use.
+    private var status: RunStatus? {
+        RunStatus.of(
+            isHost: viewModel.isHostingNextRun,
+            isWaitlisted: viewModel.isWaitlistedOnNextRun,
+            isFull: viewModel.nextRun?.game.isFull == true
+        )
     }
 
     // MARK: - Below the baseline

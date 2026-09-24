@@ -577,18 +577,10 @@ struct MapTab: View {
                     Divider()
                         .overlay(Color.hooprBorder)
 
-                    Button {
+                    Button("Start a run") {
                         startingRunAt = court
-                    } label: {
-                        Text("Start a run")
-                            .hooprFont(15, weight: .semibold, maximumSize: 22)
-                            .foregroundStyle(Color.hooprOnBrand)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                            .background(Color.hooprOrange)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
-                    .buttonStyle(.hooprPress)
+                    .buttonStyle(.hooprFilled(.large))
                     .padding(.horizontal, Spacing.pageMargin)
                     .padding(.vertical, 12)
                 }
@@ -609,9 +601,7 @@ struct MapTab: View {
                 .gesture(sheetDragGesture(fromHandle: true))
 
             Text(viewModel.searchHeaderLabel)
-                .hooprFont(12, weight: .bold, maximumSize: 16)
-                .kerning(0.6)
-                .textCase(.uppercase)
+                .hooprType(.label)
                 .foregroundStyle(Color.hooprSecondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, Spacing.pageMargin)
@@ -1158,18 +1148,11 @@ struct MapTab: View {
                     .fixedSize(horizontal: true, vertical: false)
                     .foregroundStyle(Color.hooprPrimaryText)
 
-                if let badge = runBadge(for: game) {
-                    // One word, one line, never broken. If it can't fit beside
-                    // the time and the button, `ViewThatFits` in `runRow`
-                    // moves the button below instead.
-                    Text(badge.text)
-                        .hooprType(.badge)
-                        .lineLimit(1)
-                        .fixedSize()
-                        .foregroundStyle(badge.foreground)
-                        .padding(.horizontal, Spacing.Pill.horizontal)
-                        .padding(.vertical, Spacing.Pill.vertical)
-                        .background(Capsule().fill(badge.wash.opacity(0.12)))
+                if let status = runStatus(for: game) {
+                    // One word, one line, never broken (`HooprBadge`). If it
+                    // can't fit beside the time and the button,
+                    // `ViewThatFits` in `runRow` moves the button below instead.
+                    HooprBadge(status, on: .surface)
                 }
             }
 
@@ -1220,37 +1203,32 @@ struct MapTab: View {
                     Task { await viewModel.perform(action, on: game) }
                 }
             } label: {
-                Group {
-                    if isPending {
-                        ProgressView()
-                            .tint(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
-                    } else {
-                        Text(action.title)
-                            .hooprFont(13, weight: .semibold, maximumSize: 18)
-                            .lineLimit(1)
-                    }
+                if isPending {
+                    ProgressView()
+                } else {
+                    // One line: `ViewThatFits` in `runRow` moves the button
+                    // below the facts rather than let its label wrap.
+                    Text(action.title)
+                        .lineLimit(1)
                 }
-                .foregroundStyle(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
-                .padding(.horizontal, 14)
-                .frame(maxWidth: fullWidth ? .infinity : nil)
-                .frame(minHeight: 36)
-                .background(action.isDestructive ? Color.hooprFill : Color.hooprOrange)
-                .clipShape(Capsule())
             }
-            .buttonStyle(.hooprPress)
+            .buttonStyle(.hooprFilled(
+                .compact,
+                role: action.isDestructive ? .destructive : .primary,
+                fillsWidth: fullWidth
+            ))
             .disabled(isPending || isBlocked)
             .opacity(isBlocked ? 0.5 : 1)
         }
     }
 
-    /// `GameCard`'s badge rule, in its priority order — your own relationship
-    /// to the run says more than its status does — and its split of the text
-    /// colour from the wash behind it, for the contrast reason recorded there.
-    private func runBadge(for game: Game) -> (text: String, foreground: Color, wash: Color)? {
-        if viewModel.isHost(game) { return ("Hosting", Color.hooprBrandAccent, Color.hooprOrange) }
-        if viewModel.isWaitlisted(game) { return ("Waitlist", Color.hooprSecondaryText, Color.hooprSecondaryText) }
-        if game.isFull { return ("Full", Color.hooprSecondaryText, Color.hooprSecondaryText) }
-        return nil
+    /// `RunStatus`'s ladder — the one `GameCard` and Home draw.
+    private func runStatus(for game: Game) -> RunStatus? {
+        RunStatus.of(
+            isHost: viewModel.isHost(game),
+            isWaitlisted: viewModel.isWaitlisted(game),
+            isFull: game.isFull
+        )
     }
 
     private var noRunsToday: some View {
@@ -1271,35 +1249,20 @@ struct MapTab: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
-                        .hooprFont(14, weight: .semibold, maximumSize: 20)
                     Text("Directions")
-                        .hooprFont(15, weight: .semibold, maximumSize: 22)
                 }
-                .foregroundStyle(Color.hooprPrimaryText)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(Color.hooprFill)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
             }
-            .buttonStyle(.hooprPress)
+            .buttonStyle(.hooprFilled(.large, role: .secondary))
 
             Button {
                 startingRunAt = court
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "plus.circle.fill")
-                        .hooprFont(14, weight: .semibold, maximumSize: 20)
                     Text(hasRuns ? "Add a run" : "Start Run")
-                        .hooprFont(15, weight: .semibold, maximumSize: 22)
-                        .lineLimit(1)
                 }
-                .foregroundStyle(Color.hooprOnBrand)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(Color.hooprOrange)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
             }
-            .buttonStyle(.hooprPress)
+            .buttonStyle(.hooprFilled(.large))
         }
     }
 

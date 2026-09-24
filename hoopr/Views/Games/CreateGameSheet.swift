@@ -458,17 +458,10 @@ struct CreateGameSheet: View {
             ShareLink(item: viewModel.shareText) {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "square.and.arrow.up")
-                        .hooprFont(15, weight: .semibold, maximumSize: 22)
                     Text("Send the court and time")
-                        .hooprType(.body)
-                        .fontWeight(.semibold)
                 }
-                .foregroundStyle(Color.hooprOnBrand)
-                .frame(maxWidth: .infinity, minHeight: 52)
-                .background(Capsule().fill(Color.hooprOrange))
-                .contentShape(Capsule())
             }
-            .buttonStyle(.hooprPress)
+            .buttonStyle(.hooprFilled(.large))
         }
     }
 

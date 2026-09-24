@@ -56,17 +56,8 @@ struct SquadInviteRow: View {
             // row stays compact without shrinking what a thumb has to hit.
             HStack(spacing: 4) {
                 if joinBlockedReason == nil {
-                    Button(action: onAccept) {
-                        Text("Join")
-                            .hooprFont(14, weight: .semibold)
-                            .foregroundStyle(Color.hooprOnBrand)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(Capsule().fill(Color.hooprOrange))
-                            .frame(minHeight: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.hooprPress)
+                    Button("Join", action: onAccept)
+                        .buttonStyle(.hooprFilled(.compact))
                 }
 
                 Button(action: onDecline) {

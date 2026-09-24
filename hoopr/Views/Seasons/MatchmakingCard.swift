@@ -119,16 +119,9 @@ struct MatchmakingCard: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             if viewModel.canQueue {
-                Button(action: onQueue) {
-                    Text("Queue up")
-                        .hooprFont(16, weight: .semibold)
-                        .foregroundStyle(Color.hooprOnBrand)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(Capsule().fill(Color.hooprOrange))
-                }
-                .buttonStyle(.hooprPress)
-                .padding(.top, 2)
+                Button("Queue up", action: onQueue)
+                    .buttonStyle(.hooprFilled(.large))
+                    .padding(.top, 2)
             } else {
                 // Not an error and not a disabled button with no explanation:
                 // the roster can see the state, and knows whose move it is.
@@ -244,9 +237,8 @@ struct MatchmakingCard: View {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
                         Text("Next match")
-                            .hooprFont(13, weight: .semibold)
+                            .hooprType(.label)
                             .foregroundStyle(Color.hooprSecondaryText)
-                            .textCase(.uppercase)
 
                         Spacer(minLength: 0)
 

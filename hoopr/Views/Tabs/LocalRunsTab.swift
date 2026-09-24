@@ -353,17 +353,8 @@ struct LocalRunsTab: View {
                 .foregroundStyle(Color.hooprSecondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Button(action: onOpenMap) {
-                Text("Start one")
-                    .hooprType(.body)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.hooprOnBrand)
-                    .padding(.horizontal, Spacing.xl)
-                    .frame(minHeight: 44)
-                    .background(Color.hooprOrange)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-            .buttonStyle(.hooprPress)
+            Button("Start one", action: onOpenMap)
+                .buttonStyle(.hooprFilled(.regular))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Spacing.pageMargin)
