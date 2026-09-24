@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - One recipe for the five sheets
 //
-// UI revamp Phase 2b (`UI_REDESIGN_BRIEF.md` §5.11): these five sheets carried
+// UI revamp Phase 2b: these five sheets carried
 // five card recipes — a filled panel here, an always-orange field border there
 // — and two margins. Now every sheet sets its content on the page at
 // `Spacing.pageMargin`, under the navigation bar, with no panel around it; a

@@ -418,7 +418,7 @@ final class SeasonGameTests: XCTestCase {
     }
 
     func testADisputedMatchIsResolvedByReReportingToAgree() {
-        // The prompt's Phase 6 test case #3, and §3's own stated recovery path.
+        // The design's own stated recovery path from a dispute.
         // Re-reporting is the same write path called again, not a second
         // feature — if it weren't, a disputed match could never leave `disputed`.
         let disputed = playedGame(
@@ -509,7 +509,7 @@ final class SeasonGameTests: XCTestCase {
 
         XCTAssertEqual(write.homeScore, 21)
         XCTAssertEqual(write.awayScore, 18)
-        // Cosmetic, per plan §1.5 — a score of 21–18 is not a claim about who
+        // Cosmetic — a score of 21–18 is not a claim about who
         // won, and the record never reads it.
         XCTAssertNil(write.result)
     }
@@ -548,7 +548,7 @@ final class SeasonGameTests: XCTestCase {
     }
 
     func testAMatchCannotBeReportedBeforeItIsPlayed() {
-        // Plan §3's "after `scheduledTime`", which the rules enforce as
+        // The design's "after `scheduledTime`", which the rules enforce as
         // `request.time >= scheduledTime` rather than assume.
         let upcoming = game(scheduledOffset: 3600)
 
@@ -565,7 +565,7 @@ final class SeasonGameTests: XCTestCase {
 
         // Agreement is not unilaterally revocable: a leader able to re-report a
         // match both sides settled could turn their own loss back into a
-        // dispute, which is weaker than the standard §3 claims to meet.
+        // dispute, which is weaker than the standard the design claims to meet.
         XCTAssertFalse(playedGame(status: .confirmed, result: "squad-away").isReportable)
         XCTAssertFalse(playedGame(status: .cancelled).isReportable)
     }

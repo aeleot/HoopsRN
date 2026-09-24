@@ -8,9 +8,8 @@ import SwiftUI
 /// reason to open the app at all, so that answer is what this screen leads
 /// with.
 ///
-/// **The redesign is about which element says it** (`UI_REDESIGN_BRIEF.md`
-/// §5.1). The screen asked the right question and then buried the answer: the
-/// largest type on it was a greeting carrying no information, and the run was
+/// **The redesign is about which element says it.** The screen asked the
+/// right question and then buried the answer: the largest type on it was a greeting carrying no information, and the run was
 /// a 17pt line inside a box, under a 12pt label, below the stats card for
 /// anyone who had stats. Now the run *is* the screen — the tip-off time set as
 /// the hero numeral in a full-bleed band, the court under it, everything else
@@ -100,7 +99,7 @@ struct HomeTab: View {
 
     // MARK: - The band
 
-    /// The hero (`UI_REDESIGN_BRIEF.md` M2). Full-bleed, closed by a
+    /// The hero. Full-bleed, closed by a
     /// `hooprSeparatorStrong` baseline.
     ///
     /// **The app's own mark and colour open it** (2026-09-23, at the user's
@@ -328,9 +327,8 @@ struct HomeTab: View {
     /// **A blind reviewer shown only the screenshots could not find a primary
     /// action anywhere on Home** — the band navigates to Runs, but it drew no
     /// affordance at all, so the most-opened screen in the app read as a
-    /// scoreboard you cannot act on. The archetype this screen is built to
-    /// (`UI_REDESIGN_BRIEF.md` §4, A1) requires one action in or under the
-    /// band. It was a "Your runs ›" line until 2026-09-24, when the user
+    /// scoreboard you cannot act on. The screen's design requires one action
+    /// in or under the band. It was a "Your runs ›" line until 2026-09-24, when the user
     /// replaced it with an arrow and made the whole band the target.
     ///
     /// Deliberately a cue rather than a filled button: the action is
@@ -622,8 +620,8 @@ struct HomeTab: View {
 ///
 /// So the cap is `nil` and `HomeHeroMetricsTests` measures **every court in
 /// the shipped dataset** against it. The band is the top of a scroll view; it
-/// can grow. Clipping the screen's own answer is the one thing it must not do
-/// (`UI_REVAMP_PROMPT.md` §2c, "reflow, don't clip").
+/// can grow. Clipping the screen's own answer is the one thing it must not do:
+/// reflow, don't clip.
 ///
 /// The same shape as the retired `ResultPillMetrics`: the number the layout depends on
 /// lives beside the view that draws it, and a test asks whether it still

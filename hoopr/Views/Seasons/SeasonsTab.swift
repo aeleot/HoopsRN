@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// The Seasons tab — plan §5, screens 1 and 2.
+/// The Seasons tab — squad home, or the empty state before there is a squad.
 ///
 /// Two states over one scroll view. With no squad it's a hero empty state that
 /// explains what a season *is* before asking for anything; with a squad it's
 /// squad home — crest, record, roster, and the one card that matters right now.
 ///
-/// **Redesigned in UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.4). The tab
+/// **Redesigned in UI revamp Phase 2b**. The tab
 /// opened on the word "Seasons" at 28pt — the tab bar's own label — over a
 /// stack of three cards, and the squad's **record** — the one number in the
 /// app nobody can type, a query over results two leaders independently
@@ -24,8 +24,8 @@ import SwiftUI
 /// — large, full-strength, its glyph asserted at AA on every fill — which does
 /// the same job: you know whose squad this is before you read the name.
 ///
-/// **The matchmaking card carries screens 5 and 6 as states rather than
-/// destinations** — plan §5's screen 2 already describes this space as "next
+/// **The matchmaking card carries searching and match found as states rather than
+/// destinations** — the design always described this space as "next
 /// match, searching, or find a match", so `MatchmakingCard` swaps its contents
 /// in place instead of pushing anywhere.
 struct SeasonsTab: View {
@@ -40,7 +40,7 @@ struct SeasonsTab: View {
     @ObservedObject private var friendService: FriendService
 
     /// Stored rather than only threaded into the two view models above:
-    /// pushing screen 7 builds a fresh `GameDayViewModel` on demand, and that
+    /// pushing game day builds a fresh `GameDayViewModel` on demand, and that
     /// join needs all four directly.
     private let squadService: SquadService
     private let seasonGameService: SeasonGameService
@@ -57,13 +57,13 @@ struct SeasonsTab: View {
         let id = "create-squad"
     }
 
-    /// Screen 4, presented with `sheet(item:)` like every other sheet here.
+    /// The queue sheet, presented with `sheet(item:)` like every other sheet here.
     private struct QueueRoute: Identifiable {
         let id = "queue"
         let squad: Squad
     }
 
-    /// Every push this stack makes. Screens 7 and 8 carry the match itself
+    /// Every push this stack makes. Game day and the result screen carry the match itself
     /// rather than just its ID — `SeasonGame` is already `Hashable`, and the
     /// object is already in hand at every call site that pushes it, so there's
     /// nothing to look back up.
@@ -147,7 +147,7 @@ struct SeasonsTab: View {
             .background(Color.hooprBackground)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // Every squad the user is on, which is one unless they joined a
-            // second before that stopped being allowed: screen 9's history
+            // second before that stopped being allowed: squad detail's history
             // reads off this listener, and a secondary squad's detail view
             // would otherwise render an empty season rather than its own.
             .task(id: viewModel.squads.map(\.id)) {
@@ -208,7 +208,7 @@ struct SeasonsTab: View {
 
     // MARK: - The band
 
-    /// The tab's hero (`UI_REDESIGN_BRIEF.md` M2) — the same band as Home and
+    /// The tab's hero — the same band as Home and
     /// Runs: full-bleed, `hooprHeroBand`, closed by a `hooprSeparatorStrong`
     /// baseline, the profile button in its shared slot.
     private var band: some View {
@@ -265,7 +265,7 @@ struct SeasonsTab: View {
         }
     }
 
-    // MARK: - Screen 2: squad home
+    // MARK: - Squad home
 
     /// Whose squad, and how they're doing. The name and crest open squad
     /// detail, as the header card did; the record under them is the hero.
@@ -390,7 +390,7 @@ struct SeasonsTab: View {
         }
     }
 
-    // MARK: - Screen 1: no squad
+    // MARK: - No squad
 
     /// A hero, not an error. Someone with no squad hasn't failed at anything —
     /// they've arrived at a feature they haven't used, and the screen's job is

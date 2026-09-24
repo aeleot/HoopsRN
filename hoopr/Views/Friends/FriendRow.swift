@@ -7,8 +7,8 @@ import SwiftUI
 /// list of *people*, and a full-width button under each name made twelve friends
 /// read as twelve forms.
 ///
-/// **A row, not a card, since UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md`
-/// §5.9). It carried an inline, unnamed copy of the card recipe (radius 14,
+/// **A row, not a card, since UI revamp Phase 2b.** It carried an inline,
+/// unnamed copy of the card recipe (radius 14,
 /// border, shadow) around every person; the lists now put these in
 /// `DividedRows`, with the hairline starting under the name
 /// (`FriendRow.textInset`).

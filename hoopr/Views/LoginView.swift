@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Sign in and sign up — the one screen in the app with no data on it.
 ///
-/// **Redesigned in UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.8,
-/// assumption A1). The brand keeps its place as the screen's hero, and gains
+/// **Redesigned in UI revamp Phase 2b.** The brand keeps its place as the
+/// screen's hero, and gains
 /// the one fact a first-time user lacks: what the app is for
 /// (`LoginBrandBand`). It becomes the same band every other screen opens on,
 /// filling the top of the screen; the form sits under it at the bottom, where

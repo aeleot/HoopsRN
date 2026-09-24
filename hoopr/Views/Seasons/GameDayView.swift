@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Screen 7 — game day. Countdown, court, both rosters with live arrival, and
+/// Game day. Countdown, court, both rosters with live arrival, and
 /// "We're here."
 ///
 /// Renders the same regardless of notification permission: a denial states
@@ -8,7 +8,7 @@ import SwiftUI
 /// screen's job is to show the game, not to nag about a decision the user
 /// already made.
 ///
-/// **Redesigned in UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.6). The
+/// **Redesigned in UI revamp Phase 2b**. The
 /// screen answers *do I leave now?*, and the answer, "Tip-off in 42m", was
 /// 22pt inside a card, above seven more cards. Now the countdown is the band's
 /// numeral (`GameDayBand`), **We're here** sits directly under the band, and
@@ -22,7 +22,7 @@ import SwiftUI
 struct GameDayView: View {
     @StateObject private var viewModel: GameDayViewModel
 
-    /// Screen 8. Passed in rather than pushed from here because the stack — and
+    /// The result screen. Passed in rather than pushed from here because the stack — and
     /// its `Route` — belong to `SeasonsTab`, the same way `MatchmakingCard`
     /// takes `onOpenGameDay`.
     private let onOpenResult: (SeasonGame) -> Void
@@ -214,7 +214,7 @@ struct GameDayView: View {
         !wasHere && isHere ? .success : nil
     }
 
-    /// Where §4's T+90 notification — "How'd it go? Record the result." —
+    /// Where the T+90 notification — "How'd it go? Record the result." —
     /// actually lands. The filled button when it is the only thing left to do;
     /// a row under "We're here" while both still apply.
     @ViewBuilder

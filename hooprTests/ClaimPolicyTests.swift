@@ -95,8 +95,8 @@ final class ClaimPolicyTests: XCTestCase {
     // MARK: - Tuning
 
     func testBackOffMatchesThePlan() {
-        XCTAssertEqual(ClaimPolicy.backOffInterval, 15, "plan §2.5 specifies a 15-second poll")
-        XCTAssertEqual(ClaimPolicy.maximumAttempts, 3, "plan §2.5 caps at three attempts")
+        XCTAssertEqual(ClaimPolicy.backOffInterval, 15, "the design specifies a 15-second poll")
+        XCTAssertEqual(ClaimPolicy.maximumAttempts, 3, "the design caps at three attempts")
     }
 
     func testJitterAlwaysLandsInsideItsRange() {

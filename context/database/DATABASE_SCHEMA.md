@@ -125,8 +125,7 @@ being absent:
 ### Nothing private lives here
 
 The read rule grants **any signed-in user**, and covers `list` as well as `get` —
-that's load-bearing (name resolution on rosters, and the player search in
-`plans/FRIENDS.md`), but it means any signed-in account can enumerate every
+that's load-bearing (name resolution on rosters, and player search), but it means any signed-in account can enumerate every
 profile in the app. Firestore has no field-level read ACLs: a document is
 readable whole or not at all.
 
@@ -458,7 +457,7 @@ membership," and a match commits three people to a game. It doesn't violate the
 rule, because **a match names squad IDs, not player uids**: a leader commits their
 squad by writing one identifier they already own, and the rules verify leadership
 with a single `get()`. Nobody's uid is written by anybody else anywhere in
-Seasons. See `../plans/SEASONS.md` §0.3.
+Seasons.
 
 **Document ID is Firestore-generated**, with `id` mirroring it, following `games`.
 
@@ -609,7 +608,7 @@ friend requests themselves (`../GAPS.md`), deliberately not repeated here. A
 ### Where an invite is answered
 
 **In the profile's `InboxSheet`**, alongside friend requests — not on any of
-`../plans/SEASONS.md` §5's numbered screens, and not on the Seasons tab either,
+the Seasons screens, and not on the Seasons tab either,
 which is why it is worth stating. It rendered inline on Squad home at first,
 then moved once the inbox existed: both a friend request and a squad invite
 are "something waiting on you," and one inbox is where that belongs rather
@@ -657,8 +656,17 @@ This is the one collection here **written by somebody who doesn't own the
 document**: the *claim* is another squad's leader taking a ticket out of the
 pool. Firestore serializing contested single-document transactions is what makes
 exactly one of them win, and that guarantee is the entire matchmaker — there is
-no server to pair squads (`../plans/SEASONS.md` §0.1), so matchmaking is pull
-with a lock rather than push.
+no server to pair squads (the project is on the Spark plan, with no Cloud
+Functions), so matchmaking is **pull with a lock** rather than push: every
+queued client watches the same pool, and the one that wins the race creates
+the match.
+
+**Not Game Center matchmaking**, which was considered and rejected: it needs a
+second identity system beside Firebase Auth, produces an ephemeral
+peer-to-peer session rather than a durable document two squads see hours apart,
+knows nothing about courts or real-world times, and can't write to Firestore.
+Its *model* was kept — a ticket per squad, a pure rule set
+(`MatchRules`), criteria that relax as a ticket waits.
 
 | field | type | required | mutable | notes |
 |---|---|---|---|---|
@@ -680,20 +688,15 @@ with a lock rather than push.
 
 ### There is deliberately no `updatedAt`
 
-**A resolved conflict between two halves of the plan, recorded as a resolution
-rather than just an outcome.** `../plans/SEASONS.md` §1.3's field table omits
-`updatedAt`; §2.2's rules snippet lists it inside the claim's `affectedKeys()`.
-Both cannot be right.
-
-**The field table won.** `claimedAt` already *is* this document's "when did this
+**Deliberate, and recorded because the design once listed it both ways.**
+`claimedAt` already *is* this document's "when did this
 change" stamp, and the commit is the ticket's only mutation — so an `updatedAt`
 would be a second name for the same instant, and adding it would mean widening
 the commit's `affectedKeys()` allowlist, which is the one place it should stay
 narrow. A ticket is ephemeral; it has no edit history worth keeping.
 
-If a later phase makes an `updatedAt` genuinely useful, **reopen that
-deliberately** — change the field table, the allowlist and this paragraph
-together. Do not let it drift back in as an incidental field on some other write.
+If an `updatedAt` ever becomes genuinely useful, **reopen that deliberately**
+— change the field table, the allowlist and this paragraph together. Do not let it drift back in as an incidental field on some other write.
 
 ### The commit: one transaction, two tickets, one match
 
@@ -824,9 +827,8 @@ an uneven match happens, never *whether* — the reading that leaves both senten
 true. It is also weighted into the score, at 0.35, so among legal matches the
 closer record still ranks higher.
 
-This is the hook a real skill rating (Elo / TrueSkill) plugs into later —
-`../plans/SEASONS.md` §7 names it as a Phase 8 once there is a corpus of
-confirmed games.
+This is the hook a real skill rating (Elo / TrueSkill) plugs into once there
+is a corpus of confirmed games — see `../gaps/SEASONS.md` "Not built".
 
 ### Not part of `presence/{uid}`
 
@@ -995,7 +997,7 @@ Both squads read the same array off the same listener — the moment a squad
 sees they're first to the court.
 
 **Local notifications, not push.** `NotificationService` schedules the T-60,
-T-0 and T+90 reminders (plan §4) the moment a client's own listener sees a
+T-0 and T+90 reminders the moment a client's own listener sees a
 match land; there is no server to fire them for a client that never opens
 between the match being made and tip-off. Named in `../GAPS.md`, not fixed —
 real push needs FCM and a Cloud Function, the same Blaze-plan requirement the
@@ -1176,9 +1178,7 @@ Two composites:
 - `USER_PROFILE_WORKFLOW.md` — the runtime behaviour on top of this schema.
 - `../DATA_MODEL.md` — the Swift side of the contract.
 - `../BUILD_AND_CONFIG.md` — the Firebase CLI surface and deploy command.
-- `../plans/FRIENDS.md` — why `friendships` is shaped this way, and the UI
-  phases still unbuilt on top of it.
-- `../plans/SEASONS.md` — why `squads`, `squadInvites` and `matchTickets` are
-  shaped this way, the matchmaker's design, and the phases still unbuilt.
+- `../gaps/FRIENDS.md`, `../gaps/SEASONS.md` — what's still unbuilt on top of
+  `friendships` and the Seasons collections.
 - `../../firestore-tests/README.md` — the emulator suite that evaluates these
   rules, and why a dry-run isn't one.

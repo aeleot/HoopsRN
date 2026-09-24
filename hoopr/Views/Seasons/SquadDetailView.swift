@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Squad detail — plan §5, screen 9.
+/// Squad detail — one squad's roster, invites and season history.
 ///
 /// Record, form guide, full game history, roster, leader controls, and the
 /// invite picker.
@@ -13,7 +13,7 @@ import SwiftUI
 /// *query* over confirmed matches, so it moves the moment a result is
 /// confirmed, with nothing to invalidate.
 ///
-/// **Redesigned in UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.5). It was
+/// **Redesigned in UI revamp Phase 2b**. It was
 /// the card-stack pattern at its limit: six `cardChrome()` blocks in one
 /// column, each under its own uppercase label, nothing on the screen larger
 /// than 22pt, and the record at 28pt inside the second card. Now it opens on
@@ -25,10 +25,10 @@ struct SquadDetailView: View {
     let squadId: String
 
     /// The matches this squad has played. Observed so a result confirmed from
-    /// screen 8 moves the record here without a re-push.
+    /// the result screen moves the record here without a re-push.
     @ObservedObject var seasonGameService: SeasonGameService
 
-    /// Screen 8, for a match still waiting on this squad's report.
+    /// The result screen, for a match still waiting on this squad's report.
     let onOpenResult: (SeasonGame) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -95,7 +95,7 @@ struct SquadDetailView: View {
     // MARK: - The band
 
     /// The same band squad home has — crest, name, record, dots — so the push
-    /// reads as a continuation (brief §5.5). Built the way the tab's is: it
+    /// reads as a continuation. Built the way the tab's is: it
     /// starts at the safe area, and its first row holds the back button where
     /// the tab's holds its label and the profile button.
     private func band(_ squad: Squad) -> some View {

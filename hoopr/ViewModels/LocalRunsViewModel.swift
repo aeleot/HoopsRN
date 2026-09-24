@@ -216,7 +216,7 @@ final class LocalRunsViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // The cross-collection join `plans/FRIENDS.md` §4 puts here rather than
+        // The cross-collection join, here rather than
         // in either service: `GameService` holds the rosters, `FriendService`
         // holds the edges, and neither learns about the other. Live, so a
         // friend joining a run you're looking at updates the card without a
@@ -330,8 +330,8 @@ final class LocalRunsViewModel: ObservableObject {
     ///
     /// **This widens nothing.** It reads the roster of a run already on screen
     /// and already readable by this account. A friend's *private* run stays
-    /// invisible — that needs an authorization design `plans/FRIENDS.md` §4
-    /// defers, not a client-side cross-reference.
+    /// invisible — that needs an authorization design, deferred on purpose
+    /// (`context/gaps/FRIENDS.md`), not a client-side cross-reference.
     nonisolated static func friendIds(on game: Game, friendUids: Set<String>) -> [String] {
         guard !friendUids.isEmpty else { return [] }
         return Set(game.playerIds + game.queuedPlayerIds)

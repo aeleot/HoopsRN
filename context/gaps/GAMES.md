@@ -60,11 +60,9 @@ a Cloud Function running with admin credentials.
 **`completed` now is** (2026-09-18). A host gets a "Mark complete" control on
 their own run's card once it has started, which calls
 `GameService.completeGame(id:)` and writes `status: completed` + `completedAt`
-through the host-only `allow update` clause that had been sitting in
-`firestore.rules` unused. That closed the Home stats card gap this section used
-to describe: `completedGames` now receives documents, `HomeViewModel`
-recalculates off them, and `hasStats` turns true on a real account without
-anyone hand-editing `users/{uid}`.
+through the host-only `allow update` clause. That is what feeds Home's stats
+card: `completedGames` receives documents, and `HomeViewModel` recalculates
+off them.
 
 `in_progress` remains declared and never written. Nothing distinguishes it from
 `open` on any screen, so there's no control to hang on it — and a run that is
@@ -124,8 +122,5 @@ first thing to revisit if anyone hits it in practice.
 - `../database/DATABASE_SCHEMA.md` — the `games` rules, including the roster
   membership diff these gaps keep running into.
 - `../plans/LIVE_HEADCOUNT.md` — the design that would close the occupancy gap.
-- `../plans/STATS_CARD.md` — the card completion now feeds. Its §11 lists the
-  completion UI under Future Work and its §14 treats it as an external
-  dependency; both were written before it shipped.
 - [`RATE_LIMITING.md`](RATE_LIMITING.md) — why "needs a Cloud Function" appears
   three times on this page.

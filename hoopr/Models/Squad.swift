@@ -9,11 +9,11 @@ import Foundation
 /// under the app's central rule — a client may only ever write its own
 /// membership. A match names two **squad IDs**, so a leader commits three
 /// people by writing one identifier they already own, and nobody's uid is ever
-/// written by anybody else. See `context/plans/SEASONS.md` §0.3.
+/// written by anybody else. See `context/database/DATABASE_SCHEMA.md`.
 ///
 /// **No `wins` / `losses` here, deliberately.** A record is derived from
 /// confirmed `seasonGames`, not stored on the squad — a counter on a document
-/// you control is a number you can type. See the plan's §1.1; the cost is one
+/// you control is a number you can type. The cost is one
 /// extra query to show an opponent's record.
 ///
 /// Deliberately free of Firebase types, like `Game` and `Friendship`:

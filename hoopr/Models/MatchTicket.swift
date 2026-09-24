@@ -10,7 +10,7 @@ import Foundation
 /// `squadName` for the pool UI, `memberIds` so the no-shared-players rule needs
 /// no extra read, and `wins`/`losses` for opponent ranking. **None of them is
 /// the record of truth.** A squad's real W-L is a query over confirmed
-/// `seasonGames` (plan §1.1); these are display-and-scoring copies a client
+/// `seasonGames`; these are display-and-scoring copies a client
 /// wrote about itself, and treating them as anything more would reintroduce the
 /// forgeable counter the schema deliberately avoids.
 ///

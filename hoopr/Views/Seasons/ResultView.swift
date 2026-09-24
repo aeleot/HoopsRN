@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Screen 8 — result. "Who won?" as two large crest buttons, an optional score,
+/// The result screen. "Who won?" as two large crest buttons, an optional score,
 /// then a waiting / confirmed / *"results don't match"* state.
 ///
 /// **The three states are derived, not chosen.** Everything below reads
@@ -8,7 +8,7 @@ import SwiftUI
 /// over the same two fields — so the screen can never show a match as confirmed
 /// that the server considers disputed, or the other way round.
 ///
-/// **Redesigned in UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.7). The
+/// **Redesigned in UI revamp Phase 2b**. The
 /// screen that delivers the app's one trustworthy number set "You won" at 22pt
 /// inside a card, over a page that was otherwise empty. Now the outcome is the
 /// band's display line (`ResultBand`) — the winner's crest above it and the
@@ -29,7 +29,7 @@ struct ResultView: View {
     @Environment(\.dismiss) private var dismiss
 
     /// Kept as strings because the field is optional and empty has to mean
-    /// "didn't say", not zero. Plan §5 calls the score cosmetic, and it is —
+    /// "didn't say", not zero. The score is cosmetic —
     /// nothing here feeds the record.
     @State private var homeScoreText = ""
     @State private var awayScoreText = ""

@@ -6,7 +6,7 @@ import SwiftUI
 /// card for every run, so a run reads identically whether you're in it or
 /// looking at it — only the primary action differs.
 ///
-/// **Redesigned in UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.2). The
+/// **Redesigned in UI revamp Phase 2b**. The
 /// board is now one list ordered by tip-off rather than two collapsible
 /// sections, which changes what this card has to do:
 ///
@@ -22,7 +22,7 @@ import SwiftUI
 /// - **A waitlisted card says the waitlist doesn't move.** See `waitlistNote`.
 ///
 /// It keeps `cardChrome()`, which is the one container on the screen that
-/// earns its edges under §2c: a run is a single tappable unit carrying its own
+/// earns its edges under the revamp's layer rule: a run is a single tappable unit carrying its own
 /// controls.
 struct GameCard: View {
     let listing: LocalRunsViewModel.Listing
@@ -317,8 +317,8 @@ struct GameCard: View {
     private var timeText: String { game.timeText }
 
     /// Who you know is already on this run — the one piece of social proof on
-    /// the card, and the reason `plans/FRIENDS.md` §4 calls it "you can now see
-    /// it's worth joining."
+    /// the card, and what makes a run look worth joining before you've
+    /// changed anything.
     ///
     /// **Its own line, not a fourth `detail`:** that row is a plain `HStack`
     /// with no `ViewThatFits` ladder, so a fourth entry overflows at

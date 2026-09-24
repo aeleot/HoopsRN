@@ -3,7 +3,7 @@ import SwiftUI
 /// The app's small capsule label — HOSTING, WAITLIST, FULL, "3 SPOTS" (UI
 /// revamp Phase 6).
 ///
-/// The audit (`UI_REVAMP_AUDIT.md` §2.3) found "five spellings of a small pill
+/// The audit found "five spellings of a small pill
 /// with a word in it". By Phase 5 the run-status pill was still built by hand
 /// on Home, the Runs card and the map's court card — each with its own copy of
 /// the rule for *which* status wins — plus a filled variant on the map's "Now"

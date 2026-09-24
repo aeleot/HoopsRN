@@ -6,7 +6,7 @@ import os
 fileprivate let logger = Logger(subsystem: "com.hoopsrn", category: "MatchmakingViewModel")
 
 /// Drives queueing, searching, and the match that comes out the other end —
-/// screens 4, 5 and 6 of `context/plans/SEASONS.md` §5.
+/// the queue sheet and `MatchmakingCard`'s states.
 ///
 /// **The claim → create → mark-matched sequence used to live here, and it had
 /// to stop.** Three writes in order across two collections is not the same
@@ -34,7 +34,7 @@ final class MatchmakingViewModel: ObservableObject {
     /// My squad's ticket, or `nil` when it isn't queued.
     @Published private(set) var ticket: MatchTicket?
 
-    /// The match this squad is about to play, if there is one. Screen 6.
+    /// The match this squad is about to play, if there is one.
     @Published private(set) var nextGame: SeasonGame?
 
     /// The opponent's record, fetched once when a match appears. Decoration on
@@ -51,7 +51,7 @@ final class MatchmakingViewModel: ObservableObject {
     /// never take the card down.
     @Published private(set) var opponentSquad: Squad?
 
-    /// How many other squads are queued in the same pool right now. Screen 5.
+    /// How many other squads are queued in the same pool right now, shown while searching.
     @Published private(set) var poolCount = 0
 
     /// How long this squad has been searching.
@@ -80,7 +80,7 @@ final class MatchmakingViewModel: ObservableObject {
     enum Phase: Equatable {
         /// No ticket worth showing, and no match — "Find a match".
         case idle
-        /// Queued and looking. Screen 5.
+        /// Queued and looking.
         case searching
         /// The ticket is spent and the match itself hasn't arrived on the games
         /// listener yet. Milliseconds, normally — the game and the tickets are
@@ -96,7 +96,7 @@ final class MatchmakingViewModel: ObservableObject {
         /// `phase` reads as `.idle` instead, which is what lets the leader queue
         /// again rather than stare at a screen that will never change.
         case settling
-        /// Matched. Screen 6.
+        /// Matched.
         case matched(SeasonGame)
     }
 
@@ -331,7 +331,7 @@ final class MatchmakingViewModel: ObservableObject {
     ///
     /// The `seasonGames` listener is **not** started here. It watches every
     /// squad the user is on rather than just this one, which is the tab's
-    /// business to know — screen 9's history reads off the same listener for a
+    /// business to know — squad detail's history reads off the same listener for a
     /// squad this view model isn't pointed at.
     func start(squad: Squad) {
         self.squad = squad
@@ -355,7 +355,7 @@ final class MatchmakingViewModel: ObservableObject {
     /// A one-second tick, alive only while searching.
     ///
     /// Elapsed time and the widening state both move on their own without any
-    /// snapshot arriving, and screen 5 shows both. Cancelled the moment the
+    /// snapshot arriving, and the searching state shows both. Cancelled the moment the
     /// search ends, so nothing is ticking behind a match card.
     private func startTicking() {
         tickTask?.cancel()
@@ -536,7 +536,7 @@ final class MatchmakingViewModel: ObservableObject {
 
     // MARK: - Actions
 
-    /// Puts the squad in the queue. Screen 4's Save.
+    /// Puts the squad in the queue. The queue sheet's Save.
     ///
     /// `wins`/`losses` are **derived here**, from confirmed matches, rather than
     /// read off the squad — `squads` deliberately has no such field. The query
@@ -579,7 +579,7 @@ final class MatchmakingViewModel: ObservableObject {
         startTicking()
     }
 
-    /// Leaves the queue. Screen 5's cancel.
+    /// Leaves the queue. The searching state's cancel.
     func leaveQueue() async {
         guard let squad else { return }
         do {
@@ -589,7 +589,7 @@ final class MatchmakingViewModel: ObservableObject {
         }
     }
 
-    /// Calls a match off. Screen 6's leader control.
+    /// Calls a match off. The match card's leader control.
     func cancel(game: SeasonGame) async {
         guard let squad, let uid = matchmakingService.currentUserId,
               game.canCancel(uid: uid) else { return }
@@ -610,7 +610,7 @@ final class MatchmakingViewModel: ObservableObject {
         seasonGameService.retry()
     }
 
-    // MARK: - Screen 4's defaults
+    // MARK: - The queue sheet's defaults
 
     /// The three courts nearest the anchor, which is what the queue sheet
     /// pre-selects so the common case is two taps.
@@ -664,7 +664,7 @@ final class MatchmakingViewModel: ObservableObject {
 
 // MARK: - Time windows
 
-/// The queue sheet's time chips. Screen 4 offers three, and the common case is
+/// The queue sheet's time chips. The sheet offers three, and the common case is
 /// tapping one.
 ///
 /// Pure and `now`-injectable so the arithmetic is testable — the windows are

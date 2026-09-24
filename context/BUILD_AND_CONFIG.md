@@ -89,7 +89,7 @@ swallows.
 `GoogleService-Info.plist` is committed at `hoopr/GoogleService-Info.plist`.
 
 **UI revamp Phase 5 added no package** (2026-09-24, the user's call).
-`plans/UI_REVAMP_PROMPT.md` suggested four and asked for each to be justified
+The revamp's brief suggested four and asked for each to be justified
 by something built-ins can't do. None cleared that bar:
 
 | Suggested | For | Built instead with | Why not the package |

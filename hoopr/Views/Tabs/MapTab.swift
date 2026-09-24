@@ -999,8 +999,8 @@ struct MapTab: View {
     /// **The name gives way, and it gives way in the right order.** It shared
     /// one `HStack` with the star and close buttons, both of which scaled with
     /// the reader's text size — so at `.accessibility3` they took the width the
-    /// name needed and the card showed "East En…" and "Durham · 0.…"
-    /// (`plans/UI_REVAMP_AUDIT.md` §7.4). Now the buttons sit in fixed 44pt
+    /// name needed and the card showed "East En…" and "Durham · 0.…". Now the
+    /// buttons sit in fixed 44pt
     /// targets with capped glyphs, and a name that still doesn't fit sheds its
     /// least informative parts before any letters go: "East End Park" reads
     /// "East End" at `.accessibility3`, not "East En…". (It wrapped to several

@@ -87,7 +87,8 @@ four hours after tip-off.
 
 - **Form a squad** — name it, pick a crest from a fixed palette, and invite
   friends to it. Squads are built from people you're already friends with, not
-  from strangers.
+  from strangers, and **a player is on one squad at a time** — leave (or, as
+  its leader, disband) to join or start another.
 - **Queue up for a match**, choosing which courts you'll travel to and the
   window you're free in. The app pairs your squad with another queued squad
   nearby, picking a court and a tip-off time both squads actually offered.
@@ -98,7 +99,8 @@ four hours after tip-off.
 - **Report who won.** A result only counts once *both* leaders report the same
   winner; if they disagree the match is disputed and counts for nobody until
   someone re-reports. A squad's win-loss record is derived from matches both
-  sides agreed on — it is not a number anyone can type.
+  sides agreed on — it is not a number anyone can type. A confirmed win is
+  celebrated on screen, once.
 
 Matchmaking runs entirely between the two phones involved; there is no server
 pairing squads. A match and both squads' queue entries are written in a single
@@ -211,7 +213,7 @@ carries real coverage — there is no scaffold.
 
 | Suite | Tests | What it protects |
 |---|---|---|
-| **App logic** (`hooprTests`) | 481 across 30 suites | Every stored shape and every rule the app applies before it writes: capacity and scheduling bounds, roster membership, matchmaking's ranking and its claim policy, the matchmaking card's state, result derivation, WCAG contrast, court naming and badges, error classification, reconnection. |
+| **App logic** (`hooprTests`) | 666 across 44 suites | Every stored shape and every rule the app applies before it writes: capacity and scheduling bounds, roster membership, matchmaking's ranking and its claim policy, the matchmaking card's state, result derivation, WCAG contrast, court naming and badges, error classification, reconnection. |
 | **Security rules** (`firestore-tests`) | 141 | What the server actually *permits*, evaluated against the Firestore emulator rather than read. Covers **every collection** as of September 2026, including the matchmaking race run 15 rounds in both shapes, the atomic match commit, and the rate-limit floors (a brand-new document refused, a six-second-old one allowed). |
 
 Two things are worth calling out. **A rules dry-run is not a test** — it
@@ -259,10 +261,9 @@ doesn't:
   location one.
 - **Friends can't see each other's private runs**, and there are no in-app run
   details beyond a card — no player names on a roster, no per-run screen.
-- **No account deletion**, no social sign-in, and no host controls for marking a
-  run in-progress or complete.
-- **The app ships with a placeholder icon**, and the court data's required
-  attribution is not yet displayed — an outstanding licensing obligation.
+- **No account deletion** and no social sign-in. A host can mark their run
+  complete, but nothing marks one in progress, and a run nobody marks just ages
+  out.
 
 ---
 
@@ -275,15 +276,12 @@ These have written designs in `context/plans/` and known implementation paths.
 | Enhancement | Value | What it needs |
 |---|---|---|
 | **Working invite links** | Makes invite-only runs actually usable — today they're a dead end | URL handling, plus a deliberate decision on whether an unguessable link is sufficient authorisation |
-| **Friends' runs surfaced** | "Three friends are on this run" is the strongest reason to join one | Client-side only; no backend work |
+| **A run detail screen** | See who you'd be playing with before you join — today a run is a number out of a number | A privacy decision on which profile fields a roster shows; no backend change |
 | **Live court headcount** | Answers "is anyone there *now*", the question the app can't currently answer at all | A new check-in collection and its rules |
 | **Multi-city scaling** | The current game query doesn't filter by geography, so it doesn't scale past one metro | A geo-partitioned query and a court-data delivery mechanism |
 
 ### Warranted — quality and trust
 
-- **Security-rule testing for the original three collections.** The harness
-  exists and covers season play; profiles, runs and friendships are still
-  unverified.
 - **Push notifications**, which would make friend requests and roster changes
   useful rather than merely visible.
 - **Safety tooling** — blocking, reporting, and rate limiting. Needed before any
@@ -295,7 +293,7 @@ These have written designs in `context/plans/` and known implementation paths.
 
 ### Speculative — worth considering
 
-- Player profiles with skill level and position, and rosters that show names.
+- Player profiles with skill level and position.
 - Recurring runs.
 - Per-run chat.
 - Unique handles, so a display name isn't the only way to identify someone.

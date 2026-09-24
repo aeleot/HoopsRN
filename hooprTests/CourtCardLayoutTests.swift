@@ -5,8 +5,8 @@ import UIKit
 
 /// Pins the map court card's header against the two things that broke it.
 ///
-/// At `.accessibility3` the card showed "East En…" and "Durham · 0.…"
-/// (`plans/UI_REVAMP_AUDIT.md` §7.4): the star and close buttons scaled with
+/// At `.accessibility3` the card showed "East En…" and "Durham · 0.…": the
+/// star and close buttons scaled with
 /// the text, took the width the name needed, and the name truncated — against
 /// `MAP_LAYER.md`'s own rule that *badges are shed, the name is not*. The
 /// redesign fixed it with two mechanisms, and each is asserted here rather than

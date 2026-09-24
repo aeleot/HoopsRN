@@ -102,7 +102,7 @@ nonisolated enum FriendError: Error, Equatable {
     case permissionDenied
     /// Firestore's `failed-precondition`. Declared for parity with `GameError`;
     /// both friendship listeners are single-field equality filters with no
-    /// ordering, so nothing here needs a composite index — see the plan's §7.
+    /// ordering, so nothing here needs a composite index.
     case indexRequired
     case network
     case unknown(String)

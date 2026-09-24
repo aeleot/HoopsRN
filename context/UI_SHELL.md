@@ -86,8 +86,8 @@ reasons are worth keeping because they are the argument against rebuilding one:
 
 - The old header was pinned to `geo.size.height * 0.14`. Its pills were ~40pt
   tall against Apple's 44pt floor, and both the greeting and the pill labels
-  carried `minimumScaleFactor` — type shrinking to fit a fixed bar, which is
-  exactly what `BACKLOG.md` §C4 says to stop doing.
+  carried `minimumScaleFactor` — type shrinking to fit a fixed bar, which the
+  app no longer does anywhere.
 - It needed `.contentShape(Rectangle())` on a clear fill purely so taps stopped
   falling through to MapKit. A system tab bar is hit-tested by the system.
 - It needed a `\.floatingHeaderHeight` environment key to tell `MapTab` how far
@@ -160,50 +160,50 @@ The launch tab, added 2026-08-26. The app used to open on the map, which answers
 can't answer "am I signed up for something tonight?", which is the more common
 reason to open the app, so that is what this screen leads with.
 
-> **Stale as of 2026-09-22 — the composition below is the pre-redesign one.**
-> UI revamp Phase 2b rebuilt this screen: the greeting is gone, the run's
-> tip-off time is the hero as a display numeral in a full-bleed band, the five
-> `cardChrome()` call sites are zero, and the stats card is one caption line.
-> The *reasons* recorded here still hold — why Home exists, why the next-run
-> card is read-only, why the hot list reads nothing new, why the stats are
-> gated — and only the shapes changed.
->
-> **Since then (2026-09-23, at the user's request):** the band opens on the
-> app's mark — `HooprWordmark`, the app icon's basketball beside "hoopsRN" —
-> opposite the profile button, in the row every tab already gives that button;
-> the day label moved down onto the time (and is dropped over "No run
-> tonight", which says it). The band's ground is the brand orange at the
-> band's own luminance (`HeroWash`, `hooprBrandWash`), like Login's and the
-> squad bands', so no ratio on it moved. The HOSTING pill on it is an 8% wash,
-> not a card's 12%: at 12% it measured 4.44:1 on the band in dark mode.
-> **The ball on its way off the page** (the user's design, same day):
-> `HomeBandBall` draws the app icon's basketball two thirds of the band's
-> width across, centred on its trailing edge so only the left half shows in
-> the band's right third, tilted, with the profile button on top. It is
-> `hooprBrandWatermark` — the orange at a pressed row's luminance — so what
-> runs across it (the detail line, a long court name, the profile button, the
-> arrow) reads as it does on a pressed row, asserted on the colour
-> itself. **The whole band opens Runs** (2026-09-24, the user's call), wherever
-> it is pressed except the profile button and the empty state's "Find a court",
-> which keep their own destinations; the arrow at the last row's end is the
-> cue, and replaced a "Your runs ›" line whose words were the only target. The HOSTING pill can't reach it (first on its line, text capped) and
-> would fail over it; the test says so. This entry is restamped when the rest
-> of Phase 2b lands; until then see `plans/UI_REVAMP_CHANGELOG.md` § Phase 2b
-> and `plans/UI_REDESIGN_BRIEF.md` §5.1.
+**One band, then three rows of opportunity** (UI revamp, 2026-09-22 → 24).
 
-Cards, in order — commitment, then opportunity:
+**The band is the answer.** Full-bleed, closed by a `hooprSeparatorStrong`
+baseline, and scrolled away with the page rather than pinned:
 
-- **Next run** — the soonest run you're on. Read-only on purpose: `GameCard`
-  carries join/leave/cancel and the invite link, which are decisions that belong
-  on Runs, so Home draws its own compact card whose only action is to navigate
-  there. It reuses `LocalRunsViewModel.Listing` for the court join and distance
-  formatting, and mirrors `GameCard`'s badge priority (HOSTING → WAITLIST →
-  FULL) so a run reads the same on both screens. With nothing scheduled it
-  becomes a call to action pointing at the map.
-- **Hot right now** — the three courts with the most games today, dotted with
-  `CourtHeat.color(forGameCount:)` so a court's colour means the same thing here
-  as on the map. Tapping one opens the map with that court selected.
-- **Friend requests** — rendered only when there are incoming ones.
+- **Top row:** the app's mark (`HooprWordmark` — the icon's basketball beside
+  "hoopsRN") opposite the profile button, in the row every tab gives that
+  button, so the mark costs no height.
+- **With a run booked:** the day label ("Tonight", "Tomorrow", the weekday)
+  over the tip-off time as the screen's numeral, the court (`CourtTitle`, which
+  wraps and never truncates), then a detail line — your standing as a
+  `RunStatus` badge on the band's 8% wash, spots left, distance — with an arrow
+  at its trailing end.
+- **With nothing booked:** "No run tonight", one line on what to do, and a
+  regular **Find a court** button that opens the map. The same arrow closes the
+  row.
+- **The whole band opens Runs** (the user's call, 2026-09-24), wherever it is
+  pressed — the profile button and "Find a court" excepted, which keep their own
+  destinations. The arrow is the cue; it replaced a "Your runs ›" line whose
+  words were the only target. With a run booked the answer is also one
+  VoiceOver element that opens Runs.
+- **Ground:** the brand orange at the band's own luminance rising from the
+  leading edge (`HeroWash`, `hooprBrandWash`), and the app icon's basketball two
+  thirds of the band wide, half off the trailing edge and tilted
+  (`HomeBandBall`, in `hooprBrandWatermark`). Everything that can cross the ball
+  is asserted on it; the HOSTING badge can't reach it.
+- **Loading is not emptiness.** Until `hasLoaded`, the band draws placeholder
+  blocks at the answer's proportions — never "No run tonight" to someone who
+  has one.
+
+**Why Home draws its own answer rather than a `GameCard`:** the card carries
+join, leave, cancel and the invite link, which are decisions that belong on
+Runs. Home's answer is read-only and navigates there. It reuses
+`LocalRunsViewModel.Listing` for the court join and distance, and `RunStatus`
+for the badge, so a run reads the same on both screens.
+
+Below the band, in order (the user's, 2026-09-23):
+
+- **Your stats** — `StatsCard`, only once there are stats (see below).
+- **Friend requests** — a row, only when there are incoming ones; it opens the
+  profile.
+- **Tonight nearby** — the three courts with the most games today, each dotted
+  with `CourtHeat.color(forGameCount:)` so a court's colour means the same thing
+  here as on the map. Tapping one opens the map with that court selected.
 
 **It reads nothing new.** Every value comes off listeners the app already keeps
 open: `GameService`'s two arrays, `CourtService.courts`, the profile snapshot,
@@ -214,9 +214,7 @@ restating it. No extra Firestore read, no rules change. **A busy court's dot
 glows** (`CourtGlowHalo`, Phase 5), from the same threshold and on the same
 curve as its map pin — see `MAP_LAYER.md` § `CourtHeat`.
 
-**The stats card shipped, and this entry said it hadn't for longer than it
-should have.** `StatsCard` (`Views/Components/StatsCard.swift`) leads the tab
-with three text columns — Runs, Streak, Last Run — fed from the profile's
+**The stats card** (`Views/Components/StatsCard.swift`) is three text columns — Runs, Streak, Last Run — fed from the profile's
 `completedGameCount`, `participationStreak` and `lastCompletedAt`. It is
 **gated on `HomeViewModel.hasStats`** (`completedGameCount > 0`), so a
 brand-new account sees no card at all rather than a row of zeros.
@@ -251,48 +249,34 @@ between rebuilds while showing identical numbers.
 
 ## `LocalRunsTab`
 
-> **Stale as of 2026-09-22 — the composition below is the pre-redesign one.**
-> UI revamp Phase 2b rebuilt this screen: the two collapsible sections are one
-> list ordered by tip-off, the runs you're on carry a rail instead of a
-> section, a band states how many runs are on, and `GameCard` leads with the
-> time and states spots left instead of drawing a capacity bar. **The
-> "collapsible section header" clause of the Invariants list no longer holds
-> for this tab** — the shared card and the one-write-in-flight clauses do.
-> Confirmed with the user before it was written. The *reasons* recorded below
-> still hold; the shapes changed. Restamped when the rest of Phase 2b lands;
-> until then see `plans/UI_REVAMP_CHANGELOG.md` § Phase 2b and
-> `plans/UI_REDESIGN_BRIEF.md` §5.2.
->
-> **Reworked again 2026-09-23, at the user's request** ("very plain, very
-> grey", and the header "does not make sense"). The band's copy — "3 games on
-> the schedule" under a "Tonight"/"Coming up" eyebrow, over "You're suited up
-> for all 3" — is gone. The band is **the week** (`RunsWeekStrip`): today and
-> the six days after it, a dot per run, filled in the accent where you're on
-> it and a ring where you could join; today in an orange disc; a day with runs
-> scrolls the board to its heading. The band reads top to bottom (the user's
-> layout, compact): "This week" over the week's count ("3 runs", `title`) in
-> the profile button's row, then — only when there is one — a waitlist place
-> or runs after the week as facts with glyphs (`RunsBandStat`), and the week
-> strip last, closing the band. There is no "you're in" line: the strip's
-> filled dots say it. The band's ground is the brand fade with the court
-> half off its trailing edge (`RunsBandCourt`, in `hooprBrandWatermark`) —
-> Home's ball, as Runs' emblem. **The board is grouped under a heading per
-> day** ("Today", "Tomorrow", the weekday, then the date), so `GameCard` no
-> longer repeats the day; its court name leads with the court glyph.
+**The band is the week; the board is one list, grouped by day** (UI revamp,
+2026-09-22 → 24, reworked at the user's request — the first band was "very
+plain, very grey" and its header "does not make sense").
 
-Two collapsible sections — **Queued Games** (runs you're on) and **Public
-Games** (discoverable runs inside your `preferredRadius`) — over a single
-`ScrollView`. One scroll gesture stays in charge, and the two are read together
-anyway: "am I busy, and what else is on?"
+- **The band**, top to bottom: "This week" over the week's run count
+  (`title`), in the profile button's row; then — only when there is one — a
+  waitlist place or runs after the week, each a glyph and a number
+  (`RunsBandStat`); and the week strip last (`RunsWeekStrip`): today and the six
+  days after it, a dot per run — **filled** in the accent where you're on it, a
+  **ring** where you could join, "+" past three, a shape difference as well as a
+  colour one. Today sits in an orange disc. A day with runs is a button that
+  scrolls the board to that day's heading. The ground is the brand fade with
+  the court glyph half off the trailing edge (`RunsBandCourt`, in
+  `hooprBrandWatermark`) — Runs' emblem, as the ball is Home's.
+- **The board** is every visible run — the ones you're on and the public ones
+  inside your `preferredRadius` — in **one list ordered by tip-off**, under a
+  heading per day ("Today", "Tomorrow", the weekday within the week, the date
+  beyond it). A run you're on carries a rail down its leading edge rather than
+  living in a section of its own. Cards lift slightly at the scroll view's
+  edges, and a run arriving or leaving moves the others.
+- **Empty** is a sentence and a regular **Start one** button to the map — the
+  one thing that fixes an empty board, and the only filled button on the tab.
 
-Section expansion is **`@AppStorage`, not `@State`**. It was written when a tab
-switch unmounted this tab entirely and view state would reopen both sections on
-every visit. Under the native `TabView` the tab stays mounted, so `@State` would
-now survive a switch — but `@AppStorage` still earns its keep by carrying the
-choice across launches, which `@State` never did.
+This replaced two collapsible sections (Queued Games / Public Games) in Phase
+2b, which is why the Invariants list's "collapsible section header" clause is
+withdrawn for this tab.
 
-Cards are `GameCard`, shared by both sections so a run reads identically
-wherever it appears — only the primary action differs (Join / Join waitlist /
+Cards are `GameCard`, so a run reads identically wherever it appears — only the primary action differs (Join / Join waitlist /
 Leave / Cancel run, resolved by `LocalRunsViewModel.action(for:)`). The action
 is resolved **once per row** and handed to both the button and its confirmation
 dialog, so a dialog saying "Cancel run" can't perform a join.
@@ -302,23 +286,19 @@ and every other card's button goes inert, so a double tap can't race the
 transaction already running.
 
 **A card shows "N friends here" when any of your friends are on its roster or
-waitlist** — the one piece of social proof on the card, and the point of
-`plans/FRIENDS.md` Phase 4: you can see a run is worth joining without changing
-how you join it. It gets **its own line rather than a fourth `detail` chip**
-(that row is a plain `HStack` with no `ViewThatFits` ladder, so a fourth entry
-overflows at accessibility sizes) and **rather than the header badge** (that
+waitlist** — the one piece of social proof on the card: you can see a run is
+worth joining without changing how you join it. It gets **its own line rather
+than a detail chip** and **rather than the header badge** (that
 slot is at most one badge about *your own* relationship to the run — HOSTING →
 WAITLIST → FULL — and who else is here is a different question, so folding them
 into one chain would mean a run you host could never show it). It's drawn in
-`hooprPrimaryText` so it outweighs the grey details above it. (It avoided
-orange when `hooprOrange` failed AA as a foreground; that constraint went with
-`hooprBrandAccent`, so it stands as a hierarchy choice.)
+`hooprPrimaryText` so it outweighs the grey details above it.
 
 The intersection is a `nonisolated static` on `LocalRunsViewModel`, resolved
 once per rebuild alongside the distance rather than per row during scroll, and
 it **widens nothing**: it reads the roster of a run already on screen. A
-friend's *private* run stays invisible — that needs the authorization design
-`plans/FRIENDS.md` §4 defers.
+friend's *private* run stays invisible — that needs an authorization design,
+deferred on purpose (`gaps/FRIENDS.md`).
 
 **A host gets a second control on their own run once it has started: "Mark
 complete".** It is deliberately *not* a `LocalRunsViewModel.Action` case —
@@ -329,16 +309,15 @@ express. It's gated on `LocalRunsViewModel.canComplete(_:currentUserId:now:)`, a
 already completed. The roster isn't consulted — there's no attendance concept,
 so a host who turned up alone may still record that the run happened.
 
-It's drawn as a **secondary** control below the primary button — bordered over
-`hooprFill` like `InviteLinkCard`, the card's other host-only affordance — not a
-second primary and not destructive. Completing takes nothing away, and drawing
+It's drawn as a **secondary** button (`HooprButtonStyle`'s edged role) below
+the primary one — not a second primary and not destructive. Completing takes nothing away, and drawing
 it in `hooprRed` beside "Cancel run" would make two very different outcomes look
 alike. It shares `pendingGameId` with the roster writes, so while either is in
 flight neither is tappable.
 
 **The card disappears once the write lands, and that's correct.**
 `Game.isVisible(at:)` excludes `completed`, so `rebuild()` drops the run from
-both lists the moment the listener echoes it — it has moved to the Home stats
+the board the moment the listener echoes it — it has moved to the Home stats
 card. That's why the confirmation dialog says so ("It moves to your stats and
 leaves this list"): without it, the disappearance reads as a deletion. The
 dialog also has to name the two things that can't be taken back — the write is
@@ -354,25 +333,33 @@ A card for a run you host that isn't public also carries an `InviteLinkCard` —
 the run's `hoopsrn://game/{id}` link, shown in full with a tap that copies it.
 Host-only: an invite-only run is the host's to hand out. **The link doesn't
 resolve yet** — nothing registers the scheme and nothing handles an incoming
-URL, so it's a string to send while the receiving half is built (`GAPS.md` §4).
+URL, so it's a string to send while the receiving half is built
+(`gaps/GAMES.md`).
 
 ## `SeasonsTab`
-
-> **Stale as of 2026-09-22 — the composition below is the pre-redesign one.**
-> UI revamp Phase 2b rebuilt this tab: the 28pt "Seasons" title is gone, the
-> squad's crest, name and **record** sit in a full-bleed band like Home's and
-> Runs', the record set as the screen's numeral with its form beside it, and the
-> roster and other squads are rows rather than cards. `MatchmakingCard` keeps
-> its card only in its matched state. The band is neutral rather than the
-> squad's colour, for a measured contrast reason recorded in `SeasonsTab`. The
-> reasons below — squad invites living in the inbox, other squads getting rows,
-> the four matchmaking states being states rather than destinations — still
-> hold. Restamped when Phase 2b lands; see `plans/UI_REVAMP_CHANGELOG.md`.
 
 The fourth tab: squads, matchmaking, and the record that comes out of them. One
 `NavigationStack` over a scroll view, with two sheets and three pushes.
 
-**Screens 5, 6 and 8's "waiting" are *states*, not destinations.** Squad home
+**Squad home opens on a band like Home's and Runs'** (UI revamp, 2026-09-22 →
+23): the squad's crest and name (`SquadIdentity`, which opens squad detail),
+and the **record** as the screen's numeral with the last five results as dots
+beside it (`SquadRecordLine`, `FormGuide`) — the one number in the app nobody
+can type, a query over results two leaders confirmed. The band's ground is the
+**squad's own colour at the band's luminance** (`HeroWash`,
+`hooprSquadWash`), so no contrast ratio on it moves: dark mode reads as the
+squad's colour, light mode as a faint cast, with the crest carrying it. Under
+the band: `MatchmakingCard`, then the roster as rows under a label. With no
+squad, the band is the hero empty state — crest, "Play a season", one line,
+**Create a squad**.
+
+**One squad per person, and no way to start a second from here**
+(`Squad.membershipBlock`, app-enforced — `gaps/SEASONS.md`). Someone who
+joined two before that rule existed gets their other squad as a row under
+"Your other squads" so they can reach it to leave; delete those rows once
+nobody needs them.
+
+**Searching, match found and "waiting" are *states*, not destinations.** Squad home
 has one card that matters right now — *find a match*, *searching*, *match
 found*, or *next match* — and `MatchmakingCard` swaps its contents in place
 rather than pushing. Making them separate screens would mean navigating between
@@ -445,13 +432,13 @@ waiting on you belongs in one place" reasoning. See the Friends section's
 `InboxSheet` entry below.
 
 **The `seasonGames` listener is pointed from this tab**, at every squad the user
-is on rather than only the primary one — screen 9's history reads off the same
+is on rather than only the primary one — squad detail's history reads off the same
 listener, so a secondary squad's detail view would otherwise show an empty
 season. See `ARCHITECTURE.md`'s session-scoped listeners.
 
 ### Reporting a result
 
-Screen 8 renders three states off `SeasonGame.reportOutcome`, and **a
+The result screen renders three states off `SeasonGame.reportOutcome`, and **a
 disagreement is a designed outcome rather than a failure**: "Results don't
 match" is a card explaining that nobody's record moves until the two leaders
 agree, not an error banner. Whoever was wrong reports again — the same write
@@ -620,7 +607,7 @@ sheet swaps the form for an invite step titled "Run Created". Cancel is dropped
 there and Create becomes Done: the run already exists, so offering Cancel would
 read as "discard it".
 
-**The invite step leads with what works** (UI revamp Phase 2b, brief §5.11 — a
+**The invite step leads with what works** (UI revamp Phase 2b — a
 correctness fix): the link opens nothing and an invite-only run holds only its
 host (`gaps/GAMES.md`), so the step says so under its title ("Invites don't work
 yet, so send your players the court and time"), shows the court and time in a
@@ -743,8 +730,7 @@ simply be read. A row is the opposite trade: one field per line, a symbol on
 the left, label over value, chevron when it leads somewhere, values free to run
 the width of the page.
 
-**Since UI revamp Phase 2b the rows sit on the page** (`UI_REDESIGN_BRIEF.md`
-§5.9). Each field used to carry its own card *and* a tinted icon tile — 7 panels
+**Since UI revamp Phase 2b the rows sit on the page.** Each field used to carry its own card *and* a tinted icon tile — 7 panels
 and 14 shapes in one screenful, the boxiest screen in the app. Now the rows are
 grouped under `label`s ("Your game", "Account") inside `DividedRows`, the symbol
 is a plain secondary mark in a fixed 28pt column, and the identity above is the
@@ -824,7 +810,7 @@ keeps a light-only value from creeping back in.
 | `hooprBackground` | The page behind everything. |
 | `hooprSurface` | Cards and sheets. Equal to the background in light mode (separation there comes from border + shadow); lifted in dark mode, where a shadow on black conveys nothing. |
 | `hooprFill` | Field and button fills, unselected chips, the empty half of a capacity bar. |
-| `hooprSquadWash(_:)` / `hooprBrandWash` | A crest colour, or the brand orange, **at the hero band's own luminance** — scaled toward black in dark mode, mixed toward white in light, in linear light. The ground of the squad bands, game day's band and Login's (`HeroWash`). Contrast depends only on luminance, so every ratio on the band holds unchanged: the brief measured a *tint* out of the band in Phase 2b (M3), and this is the answer that passes. Dark reads as the squad's colour (a maroon, a navy); **light is necessarily faint**, because near white sRGB has almost no room for colour at that luminance. `ThemeContrastTests` asserts the luminance match, a visible cast in dark, and every band pairing on every wash and on the mixes the mesh draws between wash and band. |
+| `hooprSquadWash(_:)` / `hooprBrandWash` | A crest colour, or the brand orange, **at the hero band's own luminance** — scaled toward black in dark mode, mixed toward white in light, in linear light. The ground of the squad bands, game day's band and Login's (`HeroWash`). Contrast depends only on luminance, so every ratio on the band holds unchanged: a plain *tint* strong enough to read as the squad's colour was measured out of the band in Phase 2b, and this is the answer that passes. Dark reads as the squad's colour (a maroon, a navy); **light is necessarily faint**, because near white sRGB has almost no room for colour at that luminance. `ThemeContrastTests` asserts the luminance match, a visible cast in dark, and every band pairing on every wash and on the mixes the mesh draws between wash and band. |
 | `hooprGroupedBackground` | The ground of an inset-grouped form — `CreateGameSheet` — whose `FormPanel`s are `hooprSurface`, so the page steps *down* around them: `hooprFill`'s value in light, the page's black in dark. Resolves to those proven values on purpose, so every pairing drawn on it is already asserted; `ThemeContrastTests` pins that and that a panel steps off it in both appearances. |
 | `hooprBorder` | Rules, dividers, unfocused borders, the sheet's drag handle. Deliberately faint (1.2:1 on white) — a hairline that tidies a card's edge, not a boundary. |
 | `hooprElevatedSurface` | A surface raised one level above a card — a card inside a sheet, a popover. **Dark carries the lift in the fill** (`#242426`, one visible step above a card and one below a field); **light cannot** — nothing is lighter than white — so it *is* white there and the lift comes from `hooprShadow`. Defined and asserted in Phase 1, not yet drawn anywhere. Whether light mode's page ground moves off pure white is a design decision the role does not make. |
@@ -1051,7 +1037,7 @@ already drifted. A new screen picks from these rather than drawing its own:
 - **`CardChrome`** needed no folding: the two drifted copies the Phase 0 audit
   found (`profileRowChrome`, `FriendRow`'s inline card) went with their Phase 2b
   redesigns, and four call sites remain — `GameCard`, the map's run rows,
-  `StatsCard`, `MatchmakingCard`'s matched state — each a card Phase 2c kept.
+  `StatsCard`, `MatchmakingCard`'s matched state — each a card the redesign kept.
 - **Section labels** are `.hooprType(.label)` everywhere now; the last two hand
   spellings (the map's search header, the match card's "Next match") went.
 

@@ -10,7 +10,8 @@ import Foundation
 /// `MatchmakingService` merely carries them out. A method that both decides and
 /// schedules is, in this project, untestable.
 ///
-/// The design is the plan's §2.5 and the error table's first two rows.
+/// It handles the two ways a claim fails before any write: contention and a
+/// stale pool.
 nonisolated enum ClaimOutcome: String, Sendable, Equatable, CaseIterable {
     /// The ticket is ours. Phase 4 turns this into a `seasonGames` document.
     case claimed
@@ -44,7 +45,7 @@ nonisolated enum ClaimOutcome: String, Sendable, Equatable, CaseIterable {
 nonisolated enum ClaimPolicy {
     /// How many times contention is retried before the loop goes quiet.
     ///
-    /// Three, from plan §2.5. Past that the pool is either genuinely contested
+    /// Three. Past that the pool is either genuinely contested
     /// or we are ranking a candidate everybody else ranks first too, and either
     /// way hammering it makes both worse.
     static let maximumAttempts = 3
@@ -60,7 +61,7 @@ nonisolated enum ClaimPolicy {
     /// A randomized pause before claiming, so six clients seeing the same new
     /// ticket in the same instant don't all transact in the same instant.
     ///
-    /// The cheapest of the §2.5 mitigations and the only one that helps before
+    /// The cheapest of the thundering-herd mitigations and the only one that helps before
     /// the race rather than after it. At the scale this feature will actually
     /// see it is insurance, not a hot path.
     static let jitter: ClosedRange<TimeInterval> = 0.5...3.0

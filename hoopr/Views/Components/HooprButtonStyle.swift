@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The app's filled button (UI revamp Phase 6).
 ///
-/// **Why it exists.** The Phase 0 audit (`UI_REVAMP_AUDIT.md` §2.3) found the
+/// **Why it exists.** The Phase 0 audit found the
 /// filled button built from scratch at six heights and four corner radii, and
 /// by Phase 5 it was fifteen hand-built copies at five heights (36, 42, 44, 48,
 /// 52) in two shapes. Now a button says what size and what job it is, and this

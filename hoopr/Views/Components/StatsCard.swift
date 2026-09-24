@@ -7,8 +7,8 @@ import UIKit
 /// grey sentence.** UI revamp Phase 2b demoted it to a caption line at the
 /// bottom of Home, on the reasoning that these are self-reported counters and
 /// must not look as authoritative as a squad's confirmed record. The second
-/// half of that still holds; the first half overshot. `plans/STATS_CARD.md`
-/// states the product intent — "a minimal card" that surfaces engagement —
+/// half of that still holds; the first half overshot. The card's product
+/// intent was always "a minimal card" that surfaces engagement —
 /// and a bare sentence read to the user as a feature that had broken or not
 /// been finished. So it is a card again, with its icons back, and the
 /// authority line is held by *type tier* instead of by hiding it: the values
@@ -18,8 +18,8 @@ import UIKit
 /// **It can no longer break mid-word, and the reason is the layout rather than
 /// a cap.** The old card gave each stat an equal third of the width. At the
 /// default text size that is 93pt, and "Yesterday" needs 92; one size up it
-/// needs 116, so it broke — "Last / Run", "Ru / ns"
-/// (`plans/UI_REVAMP_AUDIT.md` §7.4). Now the columns hug their content and
+/// needs 116, so it broke — "Last / Run", "Ru / ns". Now the columns hug
+/// their content and
 /// `ViewThatFits` switches the whole card to a stack only when the row
 /// genuinely doesn't fit, which `StatsCardMetrics` measures and
 /// `HomeHeroMetricsTests` pins: a row through `.xxxLarge`, a stack from

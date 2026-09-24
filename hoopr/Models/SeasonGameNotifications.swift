@@ -37,10 +37,10 @@ nonisolated enum SeasonGameNotifications {
         case recap      // T+90
     }
 
-    /// How long before tip-off the reminder fires. Plan §4.
+    /// How long before tip-off the reminder fires.
     static let reminderLead: TimeInterval = 60 * 60
 
-    /// How long after tip-off the recap prompt fires. Plan §4. Points at a
+    /// How long after tip-off the recap prompt fires. Points at a
     /// screen Phase 6 builds — shipped anyway, because the schema and the copy
     /// are already settled, and a notification added later would miss every
     /// game played between now and then.

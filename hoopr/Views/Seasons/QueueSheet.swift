@@ -23,7 +23,7 @@ private enum QueueDay: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-/// Screen 4 — putting a squad in the queue.
+/// The queue sheet — putting a squad in the queue.
 ///
 /// **Two taps in the common case**, which is the whole design brief for this
 /// sheet: Today is preselected with an evening window already filled in, and
@@ -31,7 +31,7 @@ private enum QueueDay: String, CaseIterable, Identifiable {
 /// obvious thing taps Save. Everything else is there for the leader who wants
 /// something else.
 ///
-/// **Redesigned in UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.11): one
+/// **Redesigned in UI revamp Phase 2b**: one
 /// form on one surface instead of three cards — the squad, the window (summed
 /// up as a numeral line over its two rows), the courts — each under a `label`,
 /// the rows separated by hairlines. The time rows' `ViewThatFits` ladder is

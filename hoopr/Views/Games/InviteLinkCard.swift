@@ -12,7 +12,7 @@ import SwiftUI
 /// refuses a non-member — so a recipient who taps it gets nothing, and **an
 /// invite-only run still holds only its host** (`gaps/GAMES.md`). Both
 /// surfaces presented it as a working invite. Drawing a feature as working
-/// that a gap file says isn't is an automatic fail under the revamp's §2d, so
+/// that a gap file says isn't is an automatic fail under the revamp's purpose rule, so
 /// the note below is a correctness fix, not copy polish, and it lives on the
 /// component so neither surface can drift back.
 ///

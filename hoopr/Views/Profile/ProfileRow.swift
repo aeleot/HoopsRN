@@ -10,7 +10,7 @@ import SwiftUI
 /// is the opposite trade: one column, one field per line, values free to run the
 /// width of the screen.
 ///
-/// **A row, not a card (UI revamp Phase 2b, `UI_REDESIGN_BRIEF.md` §5.9).** The
+/// **A row, not a card (UI revamp Phase 2b).** The
 /// row fixed the mosaic and kept the card: every field had its own
 /// `profileRowChrome()` *and* a tinted icon tile, which made the profile the
 /// boxiest screen in the app — 7 panels and 14 shapes in one screenful. Now the

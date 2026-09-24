@@ -8,23 +8,20 @@ the files it touches so it can be picked up cold.
 
 This is **ordering**, not design. A specific feature's design lives in
 `plans/`; what's wrong with what exists lives in `gaps/`. This page is the one
-place that says which to reach for first.
+place that says which to reach for first. **Only open work is listed** — when
+an item ships, delete it; git history has what was done.
 
 `Scope: —` because it owns no source paths. Re-read it by hand whenever
 something ships.
 
-> **Deployed as of 2026-09-16:** rules and all indexes are live, including the
-> Seasons atomic commit and the three burst-rate floors. Nothing below is
-> blocked on a deploy.
+> **Deployed as of 2026-09-16:** rules and all indexes, including the Seasons
+> atomic commit and the three burst-rate floors. The rules' last commit is a
+> day later (`gaps/SEASONS.md`), so confirm the live ruleset matches before
+> relying on that date.
 
-**§1, §2 and §5 closed on 2026-09-20** and are kept below with what actually
-shipped, rather than deleted — each leaves a named remainder worth not
-rediscovering. Numbered items are struck in place so the numbering other
-documents cite stays stable.
-
-**What's actually next:** §0 gates the most, §4 (the invite link's receiving
-half) is the largest thing that needs no infrastructure decision, and §7's four
-items are each an afternoon.
+**What's actually next:** §1 (verify the rebuilt UI on a device) costs nothing
+but time and de-risks everything else; §0 gates the most; §3 is the largest
+thing that needs no infrastructure decision.
 
 ---
 
@@ -33,111 +30,62 @@ items are each an afternoon.
 **Whether the project takes on server-side infrastructure** — Cloud Functions
 on the Blaze plan, and/or App Check. It is one decision, and it unblocks:
 
-- waitlist promotion (§3)
-- **automatic** run completion — a scheduled sweep that finishes a run its host
-  never marked. *Host-triggered* completion shipped 2026-09-18 on Spark and is
-  not part of this decision: it's an ordinary client write against a host-only
-  rule, the same authorization shape as cancel, and it already unstalled the
-  Home stats card. What Blaze would add is completion without a host action, so
-  a streak reflects the runs that happened rather than the ones someone
-  remembered to record
+- waitlist promotion (§2)
+- **automatic** run completion — finishing a run whose host never marked it.
+  Host-triggered completion already ships on Spark.
 - real rate limiting and the friend-request block list
 - push notifications
 - a real `userNameLower` backfill
-- a server-side sweep for matches awaiting a report forever
+- a server-side sweep for Seasons matches awaiting a report forever
 
 Six features, one decision, and **it is worth making deliberately rather than
 arriving at by accident** — which is what happens if each of the six gets
 deferred separately for the same unstated reason. See
 [`gaps/RATE_LIMITING.md`](gaps/RATE_LIMITING.md) for what rules genuinely
-cannot do without it.
+cannot do without it, and `plans/LAUNCH_READINESS.md` §1 for App Check.
 
----
+## 1. Verify the rebuilt UI on a device
 
-## 1. ✅ Done — the grace period, and the window that never moved
+The UI revamp (2026-09-21 → 24) rebuilt every screen and is covered by unit
+tests and off-device renders only. The live pass is owed — both appearances,
+`.accessibility3`, Reduce Motion, VoiceOver — and is listed in
+[`gaps/ACCESSIBILITY.md`](gaps/ACCESSIBILITY.md). Alongside it, the two
+two-account checks nothing else can close: the Seasons report/confirm flow
+([`gaps/SEASONS.md`](gaps/SEASONS.md)) and a friend's join appearing live on
+the other phone's run card.
 
-`Game.visibilityGrace` is **4 hours** after `scheduledTime` (raised from three
-on 2026-09-20), applied in two places that must agree: the Firestore query's
-cutoff, and `Game.isVisible(at:)` re-applied on every rebuild.
-
-The subtler half is fixed too. The query's cutoff was fixed when the listener
-attached, and `ListenerSupervisor` only ever re-attached a listener that
-*failed* — so a healthy session left open overnight went on querying last
-night's window, paying for rows `isVisible(at:)` would hide and spending the
-`limit(to:)` budget on runs that never render.
-
-The supervisor already observed `willEnterForeground` and dropped the signal
-when nothing was broken; it now exposes `onForeground` alongside `onRetry`, and
-`GameService` re-attaches once its own window has drifted past an hour. See
-[`ARCHITECTURE.md`](ARCHITECTURE.md).
-
-What's still open is the *server-side* version — a scheduled Function writing
-`status: "completed"` so a run retires without anyone's app being open. That is
-the automatic completion §0 gates.
-
-## 2. ✅ Done — rules coverage for `games`, `friendships` and `users`
-
-`firestore-tests/` covered **Seasons only** until 2026-09-20. The three original
-collections are backfilled: 39 tests across `games.test.mjs`,
-`friendships.test.mjs` and `users.test.mjs`, taking the suite from 102 to 141.
-All seven collections now have emulator coverage.
-
-Mutation-tested on the way in — three rules deliberately weakened, exactly the
-three corresponding tests failed — because `assertFails` passes for any failure,
-including a malformed test. See [`gaps/TESTING.md`](gaps/TESTING.md).
-
-One thing it deliberately does not reach: whether `FriendService.sendRequest`
-*recovers* from the simultaneous-request refusal the rules now provably issue.
-That's a client concern, and still unverified.
-
-## 3. Waitlist promotion — needs a Cloud Function
+## 2. Waitlist promotion — needs a Cloud Function
 
 The update rule deliberately forbids writing another user's uid, so promotion
 cannot be done by the leaving client. A triggered Function running with admin
 credentials is the intended answer, and the same Function is the natural home
-for `in_progress` / `completed`. **This is the first thing in the project that
-requires the Blaze plan** — see §0.
+for `in_progress` / automatic `completed`. **This is the first thing in the
+project that requires the Blaze plan** — see §0 and `plans/BACKLOG.md` D6.
 
-## 4. Invites — the receiving half
+## 3. Invites — the receiving half
 
 Sending shipped 2026-08-15; the link currently goes nowhere. The work is URL
 scheme registration, `.onOpenURL` handling, `GameService.fetchGame(byId:)` and
 an `InviteJoinView` — **plus one real decision**: split the `games` read rule
 into `get`/`list`, or add an `inviteToken`. An unguessable ID is not an
-authorization model. Full detail in [`gaps/GAMES.md`](gaps/GAMES.md).
+authorization model. Detail in [`gaps/GAMES.md`](gaps/GAMES.md); design in
+`plans/BACKLOG.md` C6.
 
-## 5. ✅ Done — friends' public runs (Phase 4)
-
-Shipped 2026-09-18 in `4b072e5`, and this page was simply stale about it:
-`LocalRunsViewModel` takes `friendService`, `GameCard` renders the "N friends
-here" badge, and `LocalRunsViewModelTests` covers the join from both sides of
-the stored pair. No rules, index or listener, as predicted.
-
-Still outstanding is the live two-account check — one friend joins a public run,
-the other sees the badge appear without a refresh. That needs a second signed-in
-device.
-
-## 6. Confirm the tip-off default across time zones
+## 4. Confirm the tip-off default across time zones
 
 `CreateGameViewModel.defaultTipOff` computes now + 1h rounded up to the quarter
 hour. On the simulator at 00:54 local it produced a picker showing **5:00 AM** —
 a three-hour gap that suggests a mismatch between the simulator clock and the
 `DatePicker`'s display zone rather than the arithmetic. Reproduce on a device
-before changing anything: `Date(timeIntervalSinceReferenceDate:)` rounding is
-zone-independent, so the arithmetic is probably innocent.
+before changing anything.
 
-## 7. Smaller, self-contained
+## 5. Smaller, self-contained
 
-- **Give `hooprOrange` a readable companion role** so it can be used as a
-  foreground without failing AA in light mode. The tab bar's selected item is
-  the most-seen instance, and `MainTabView`'s `.tint` is the single call site
-  that would consume the new role first. See
-  [`gaps/ACCESSIBILITY.md`](gaps/ACCESSIBILITY.md).
-- **Display the ODbL attribution** — `CourtService` discards it today, so this
-  means holding the value as well as rendering it. An unmet licence obligation.
-- **Rename `FindAMatchViewModel` to match `MapTab`.** The view was renamed when
-  the third tab became Friends; its view model wasn't, so the file backing the
-  court map is still named for matchmaking.
+- **Rename `FindAMatchViewModel` to match `MapTab`.** The view was renamed; its
+  view model wasn't, so the file backing the court map is still named for
+  matchmaking.
+- **Retire the "Your other squads" rows** on the Seasons tab once nobody is left
+  on two squads (`gaps/SEASONS.md`).
 - **Delete the live test friendship** between the developer's account and
   `chaseallen122` in the production project, when it stops being useful.
 

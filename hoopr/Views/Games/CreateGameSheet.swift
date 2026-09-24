@@ -22,7 +22,7 @@ import SwiftUI
 /// rules allow; the time is a wheel. One is open at a time and neither is by
 /// default, so the three-tap path — Start Run, Create, done — doesn't rise.
 ///
-/// **The invite step tells the truth** (brief §5.11, a correctness fix): the
+/// **The invite step tells the truth** (a correctness fix): the
 /// link opens nothing and an invite-only run holds only its host
 /// (`gaps/GAMES.md`), so the step leads with the court and time to send, via
 /// the system share sheet, and keeps the link below as a labelled reference.

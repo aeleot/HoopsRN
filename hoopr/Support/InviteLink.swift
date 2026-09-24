@@ -10,7 +10,7 @@ import Foundation
 ///
 /// **The link is not yet openable.** Nothing registers `hoopsrn://` and nothing
 /// handles an incoming URL, so today this is a string a host can send while
-/// the receiving half is built — see `GAPS.md` §4.
+/// the receiving half is built — see `context/gaps/GAMES.md`.
 enum InviteLink {
     /// Must match the `CFBundleURLSchemes` entry once the scheme is registered.
     static let scheme = "hoopsrn"

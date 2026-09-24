@@ -4,7 +4,7 @@ import os
 
 fileprivate let logger = Logger(subsystem: "com.hoopsrn", category: "ResultViewModel")
 
-/// Drives screen 8 — "Who won?", and the waiting / confirmed / results-don't-
+/// Drives the result screen — "Who won?", and the waiting / confirmed / results-don't-
 /// match state that follows.
 ///
 /// A cross-collection join, per `ARCHITECTURE.md`: the match comes from
@@ -126,7 +126,7 @@ final class ResultViewModel: ObservableObject {
 
     // MARK: - Reads
 
-    /// The three states screen 8 renders, derived from the two reports rather
+    /// The three states the result screen renders, derived from the two reports rather
     /// than from anything this screen chose.
     var outcome: SeasonGame.ReportOutcome { game.reportOutcome }
 

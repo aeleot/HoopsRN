@@ -68,11 +68,11 @@ final class CreateGameViewModel: ObservableObject {
     }
 
     /// **Says what invite-only actually does today** (UI revamp Phase 2b,
-    /// brief §5.11). It promised "a link to share with the players you want
+    ///). It promised "a link to share with the players you want
     /// in" — but the link opens nothing, and the `games` read rule refuses a
     /// non-member, so an invite-only run holds only its host
     /// (`gaps/GAMES.md`). Choosing it on that promise is the kind of claim the
-    /// revamp's §2d fails outright. `nonisolated static` so it's testable
+    /// revamp's purpose rule fails outright. `nonisolated static` so it's testable
     /// without a `GameService`.
     ///
     /// Each is one short line under its option (2026-09-23 — the sheet had

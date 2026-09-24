@@ -3,8 +3,8 @@ import SwiftUI
 /// The squad's crest, name, and format · region — the top of the band on both
 /// squad home and squad detail.
 ///
-/// **One view so the push reads as a continuation** (`UI_REDESIGN_BRIEF.md`
-/// §5.5): tapping the squad on the Seasons tab opens a screen whose band starts
+/// **One view so the push reads as a continuation**: tapping the squad on the
+/// Seasons tab opens a screen whose band starts
 /// with exactly what was tapped, at the same size, in the same place. Phase 3's
 /// `matchedGeometryEffect` will join the two; this is what makes that possible.
 struct SquadIdentity: View {
@@ -45,7 +45,7 @@ struct SquadIdentity: View {
 /// to the band's bottom-right corner.
 ///
 /// **The record, set as a scoreboard.** It is a query over results two leaders
-/// independently confirmed (plan §1.1) — the one number in the app nobody can
+/// independently confirmed — the one number in the app nobody can
 /// type — so it takes the numeral tier, and Home's self-reported run count
 /// deliberately never does. "0–0" before the first confirmed game, as a
 /// scoreboard reads before tip-off.

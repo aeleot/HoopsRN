@@ -1,11 +1,12 @@
 # Plan — Scaling Up
 
-**Status:** proposed, not started
-**Drafted:** 2026-08-21
+**Status:** proposed — the multi-city work below is unbuilt
+**Drafted:** 2026-08-21 · **Pruned:** 2026-09-24 (the ship-blockers,
+friends' badge and profile sheet, and emulator rules tests shipped and were
+removed)
 **Touches:** `firestore.rules`, `firestore.indexes.json`, `hoopr/Models/Game.swift`,
 `hoopr/Services/GameService.swift`, `hoopr/Services/CourtService.swift`,
-`hoopr/Resources/`, `hoopr.xcodeproj/project.pbxproj`,
-`hoopr/Assets.xcassets/`, `context/COURT_DATASET.md`,
+`hoopr/Resources/`, `context/COURT_DATASET.md`,
 `context/database/DATABASE_SCHEMA.md`, `context/ARCHITECTURE.md`
 
 > `context/plans/` is not a dictionary entry and carries no `Scope`/`Verified`
@@ -20,7 +21,7 @@ made when it was scoped:
 
 1. **Stay on the Spark plan for now.** No Cloud Functions. Everything below
    is designed to work without one, and the items that genuinely can't are
-   pulled into their own section (§7) rather than quietly assumed away.
+   pulled into their own section (§5) rather than quietly assumed away.
 2. **The growth axis is geography.** The plan is to add cities and metros
    beyond the current six-city Triangle-NC dataset, not just more users
    inside it. That decision reaches directly into §1 — it's what makes the
@@ -28,7 +29,7 @@ made when it was scoped:
 3. **No firm user-count target.** The design below is sized to hold whether
    the next stop is a few thousand users or a few hundred thousand, rather
    than tuned to one number.
-4. **Feature growth leads.** The roadmap in §4 is ordered by adoption value
+4. **Feature growth leads.** The roadmap in §3 is ordered by adoption value
    first. §1 is the one exception — it's written as a feature (multi-city
    support) but it's also the fix that prevents the app from getting
    measurably worse, for every user, every time a city is added. It has to
@@ -51,7 +52,7 @@ publicListener = database
     .limit(to: Limit.published)   // 100
 ```
 
-*(`GameService.swift:174-179`.)* There is no city, region, or geographic
+*(`GameService.attachListeners()`.)* There is no city, region, or geographic
 filter anywhere in it. Every signed-in user's client asks Firestore for the
 same thing: the soonest 100 public runs **on Earth**, ordered by tip-off
 time. `LocalRunsViewModel` then filters that list down to the ones within the
@@ -88,7 +89,7 @@ gets worse — not just more expensive — as more cities are added:
 Denormalize a region key onto `games` at write time, and query by it. The
 client already has everything it needs to do this for free — `CourtService`
 already holds the full `Court` for the chosen `courtId` before
-`GameService.createGame` is ever called, and `Court.city` (`Models/Court.swift:21`)
+`GameService.createGame` is ever called, and `Court.city` (`Models/Court.swift`)
 is already populated for every court in the bundled dataset.
 
 | Field | Type | Notes |
@@ -116,10 +117,10 @@ every prior field addition has (the two-step rule in
 `database/DATABASE_SCHEMA.md` applies exactly as written).
 
 **"Which region is the user's" is the one real product question here**, and
-it's genuinely a few different shapes depending on how location is meant to
-work once it's not hardcoded to Durham (see §4, Phase 1 — this plan assumes
-that work lands alongside this one, since both touch the same "what is my
-home area" concept):
+it's genuinely a few different shapes. `LocationService.homeLocation` has
+followed the device since 2026-08-27, so a GPS-derived region is available;
+what's undecided is whether the region follows the device or is chosen once
+(see §3, Phase 1):
 
 - Coarsest and cheapest: the six-city list (soon to be N-city list) becomes a
   literal picker — onboarding asks "which city," `UserProfile` gets a
@@ -177,42 +178,12 @@ still correct and shouldn't be abandoned. Add a path that can grow past it:
 
 ---
 
-## 3. Two things that block getting *any* new users, regardless of scale
+## 3. Roadmap
 
-These aren't architecture — they're the reason "host more users" could fail
-before the rest of this plan is even relevant. Both are already named in
-`GAPS.md`; repeating them here because a scaling plan that doesn't lead with
-them is incomplete.
-
-**S3.1 — Fix the iOS deployment target — SHIPPED 2026-09-20**
-The target is **iOS 18.0**. This item's premise ("nothing in the app calls a
-26-only API") was false — six sites did, five of them `glassEffect` — and the
-fix was to gate them behind `Support/Glass.swift` rather than to discover the
-floor was already free. See `plans/LAUNCH_READINESS.md` §3.
-*Remaining:* the fallback path has never run below iOS 26. Tracked in
-`gaps/CONFIGURATION.md`, not here.
-
-**S3.2 — Ship a real app icon and accent color — ICON SHIPPED 2026-09-20**
-`AppIcon.appiconset` carries three 1024×1024 opaque images (light, dark,
-tinted), rendered from the same `basketball.fill` symbol the launch screen
-draws. This item also understated the stakes — an app with no icon is not "a
-signal that the app isn't finished", it is a build App Store Connect refuses.
-*Still open:* `AccentColor` is set (or the unused colorset is removed if every
-color is intentionally sourced from `Theme.swift` instead — either is fine,
-leaving it half-declared isn't).
-
----
-
-## 4. Roadmap
-
-Ordered by adoption value, per the "feature growth first" call — with §1 and
-§3 folded in at the point they have to ship, not deferred to an "infra
-phase" nobody gets to.
-
-### Phase 0 — Ship-blockers (S3.1, S3.2)
-
-Small, self-contained, and ahead of everything else because they cap how
-many new users *can* arrive no matter what else ships.
+Ordered by adoption value, per the "feature growth first" call — with §1
+folded in at the point it has to ship, not deferred to an "infra phase" nobody
+gets to. (The ship-blockers that were Phase 0 — the deployment target and the
+app icon — shipped 2026-09-20.)
 
 ### Phase 1 — Multi-city foundation (S1.1–S1.3, S2.1–S2.2)
 
@@ -229,7 +200,7 @@ highest-leverage adoption feature available: every invite link sent is an
 acquisition channel for someone who doesn't have the app yet, and today that
 link goes nowhere.
 
-*Stories (restating GAPS.md §4 as shippable units):*
+*Stories (the `gaps/GAMES.md` invite gap as shippable units):*
 
 **S4.1 — Register the URL scheme and route a pending invite through cold start / sign-in**
 *Acceptance criteria:* `hoopr` is registered under `CFBundleURLSchemes`;
@@ -260,18 +231,12 @@ changes its design. Its own §8 already flags the cold-start risk (counts
 read zero until enough people check in) — worth the same honest framing here
 that it gets there.
 
-### Phase 4 — Friends, phases 4–5
+### Phase 4 — Friends: abuse containment
 
-Per `plans/FRIENDS.md` and the TODO in `GAPS.md`:
+The friends'-public-runs badge and the friend profile sheet shipped. What's
+left here overlaps `plans/BACKLOG.md` B3, which has the acceptance criteria:
 
-**S4.4 — Friends' public-runs badge (Phase 4)**: `LocalRunsViewModel` gains
-`friendService`; `GameCard` shows "N friends here." Client-side intersection
-of two lists the app already holds — no rules, index, or listener change.
-
-**S4.5 — Friend profile detail**: tapping a friend shows name + home court,
-once the visibility question `plans/FRIENDS.md` §6 raises is settled.
-
-**S4.6 — Spark-compatible abuse containment (pulled forward from Phase 5)**:
+**S4.6 — Spark-compatible abuse containment**:
 `GAPS.md` names "no blocking, reporting, or rate limiting on friend
 requests" as needing Cloud Functions. That's true for a *hard* server-side
 cap, but a client-side throttle (a per-caller cooldown enforced the same way
@@ -280,12 +245,12 @@ work) plus a **block list** are both buildable now: a block list is just
 another owner-only field a client checks before allowing a search result to
 be actioned on — no Function required, since it's the *acting* user's own
 client declining to send, not a server-enforced limit. Ship this as the
-interim answer; the real rate limit stays flagged in §7 until Blaze.
+interim answer; the real rate limit stays flagged in §5 until Blaze.
 
 ### Phase 5 — Waitlist promotion, the Spark-compatible way
 
 `GAPS.md` frames waitlist promotion as blocked on Cloud Functions, and a
-server-authoritative version is — see §7. But the `games` update rule
+server-authoritative version is — see §5. But the `games` update rule
 doesn't actually require that: it forbids a caller from writing *someone
 else's* uid into `playerIds`, not from writing *their own*. A waitlisted
 player is already allowed to move themselves from `queuedPlayerIds` to
@@ -337,24 +302,7 @@ explain at 100,000.
 
 ---
 
-## 5. Reliability work that scales with contributor count, not user count
-
-Not urgent because of user growth directly, but the risk it guards against
-gets more expensive the more surface area (cities, features, contributors)
-sits on top of unverified rules.
-
-**S7.1 — Rules coverage via the Firebase emulator**
-`firebase emulators:exec` plus `@firebase/rules-unit-testing` doesn't need
-Blaze — it's local. `GAPS.md` items #2 and #6 already call for this; every
-phase above adds a new rules clause (`region`, the invite `get`/`list` split,
-the `private` subcollection), which is exactly the kind of change
-`FirestoreRulesParityTests` is explicit about *not* covering (it pins shared
-constants, not rule behavior). Worth doing once, early, rather than once per
-phase's rules change.
-
----
-
-## 6. Read-cost sanity check
+## 4. Read-cost sanity check
 
 Rough, not a bill estimate — just enough to confirm the shape of §1's fix
 matters more than any single number:
@@ -379,7 +327,7 @@ sustainable rather than self-defeating.
 
 ---
 
-## 7. Deferred until Blaze
+## 5. Deferred until Blaze
 
 Named here so they aren't rediscovered mid-phase-planning and aren't
 silently dropped either. All genuinely need Cloud Functions (or another
@@ -389,11 +337,11 @@ paid service) and none are designed around in the plan above:
   "a spot opened up" — nothing can notify a *different* user's device from a
   client; that's what a Function triggered on write is for.
 - **Server-authoritative waitlist promotion**, strict-order and race-free —
-  §5's client self-promotion is the honest stopgap, not the replacement.
+  Phase 5's client self-promotion is the honest stopgap, not the replacement.
 - **Scheduled `in_progress`/`completed` transitions** for `games` — currently
   substituted by `Game.visibilityGrace` aging runs out client-side.
 - **Real rate limiting and reporting** on friend requests and, later,
-  invites — §4's Phase 4 client-side throttle and block list are the
+  invites — §3's Phase 4 client-side throttle and block list are the
   interim answer.
 - **Server-side `userNameLower` backfill as an ongoing migration** — the
   one-off Admin SDK script in S1.3 handles the current backlog once; new
@@ -402,16 +350,16 @@ paid service) and none are designed around in the plan above:
   doesn't recur.
 
 Worth a standing note: **none of the plan above requires this section to
-happen first.** Every phase in §4 is designed to ship on Spark. This section
+happen first.** Every phase in §3 is designed to ship on Spark. This section
 is a shopping list for whenever the Blaze decision is revisited, not a
 blocker on anything above it.
 
 ---
 
-## 8. Documentation debt
+## 6. Documentation debt
 
 When a phase ships, fold it into the entry named and strike it here — same
-convention `plans/FRIENDS.md` and `plans/LIVE_HEADCOUNT.md` already follow.
+convention `plans/LIVE_HEADCOUNT.md` already follows.
 
 | Entry | Change |
 |---|---|
@@ -419,15 +367,15 @@ convention `plans/FRIENDS.md` and `plans/LIVE_HEADCOUNT.md` already follow.
 | `DATA_MODEL.md` | `Game.region`; note the `users/private` split once S6.1 ships. |
 | `COURT_DATASET.md` | The hosted-dataset layer alongside the bundled file, once S2.1 ships. |
 | `ARCHITECTURE.md` | No vendor-boundary change expected — everything here stays inside existing services, unlike `plans/LIVE_HEADCOUNT.md`'s `CheckInService` addition. |
-| `BUILD_AND_CONFIG.md` | The lowered deployment target (S3.1); the one-off backfill scripts (S1.3, S6.1) as documented manual operations. |
-| `GAPS.md` | ~~Strike the iOS 26.5 and app-icon items once S3.1/S3.2 ship~~ — done 2026-09-20. Strike the invite-receiving gap once Phase 2 ships; update the waitlist-promotion item to describe the client-self-promotion stopgap once S5.1 ships. |
+| `BUILD_AND_CONFIG.md` | The one-off backfill scripts (S1.3, S6.1) as documented manual operations. |
+| `GAPS.md` | Remove the invite-receiving gap once Phase 2 ships; update the waitlist-promotion item to describe the client-self-promotion stopgap once S5.1 ships. |
 | `INDEX.md` | This plan's status line, as phases complete. |
 
 ## See also
 
-- `GAPS.md` — most of §3–§7 above restates or extends a gap already named
+- `GAPS.md` — most of §3–§5 above restates or extends a gap already named
   there; this plan is the "what to do about it, in what order" layer on top.
-- `plans/FRIENDS.md`, `plans/LIVE_HEADCOUNT.md` — the two feature plans this
+- `plans/LIVE_HEADCOUNT.md`, `plans/BACKLOG.md` — the feature plans this
   roadmap sequences work around rather than duplicates.
 - `database/DATABASE_SCHEMA.md` — the two-step rule every schema change
   above (`region`, `homeRegion`, the `private` subcollection) has to follow.

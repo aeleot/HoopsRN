@@ -126,7 +126,7 @@ final class SeasonGameNotificationsTests: XCTestCase {
     }
 
     /// Between tip-off and the recap window, only the recap is still ahead of
-    /// `now` — and it still gets scheduled. Ship-it-anyway (plan §4): the recap
+    /// `now` — and it still gets scheduled. Ship-it-anyway: the recap
     /// points at a screen Phase 6 hasn't built yet, but a notification added
     /// later would miss every game played between now and then.
     func testAGameJustPastTipOffStillPlansTheRecap() {

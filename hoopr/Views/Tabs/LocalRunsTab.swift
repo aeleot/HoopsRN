@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The Runs tab: everything on the schedule, soonest first.
 ///
-/// **Redesigned in UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.2). It used
+/// **Redesigned in UI revamp Phase 2b**. It used
 /// to be two collapsible sections — *Queued Games* and *Public Games* — over
 /// one scroll view, on the reasoning that they are read together ("am I busy,
 /// and what else is on?"). That reasoning holds; the shape it produced did

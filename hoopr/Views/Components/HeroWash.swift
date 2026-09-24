@@ -4,7 +4,7 @@ import SwiftUI
 /// `MeshGradient` from a luminance-matched wash — `Color.hooprSquadWash`,
 /// `Color.hooprBrandWash` — into the plain `hooprHeroBand`.
 ///
-/// **Identity, not ornament.** §2d fails a gradient whose only job is looks;
+/// **Identity, not ornament.** The revamp's purpose rule fails a gradient whose only job is looks;
 /// each use of this one answers a question the band otherwise answers only
 /// once you've read it. On Seasons and squad detail, *whose squad is this* —
 /// more than one squad is legal, and a pushed screen looked the same for all of

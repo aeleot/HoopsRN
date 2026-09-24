@@ -320,7 +320,7 @@ service cloud.firestore {
     // rather than a person or a pair. That's what makes squad-vs-squad play
     // legal here: a match names two squad IDs, so a leader commits three
     // people by writing one identifier they already own, and nobody's uid is
-    // ever written by anybody else. See `context/plans/SEASONS.md` §0.3.
+    // ever written by anybody else. See `context/database/DATABASE_SCHEMA.md`.
     //
     // Readable by any signed-in user, like `users` and unlike `friendships`.
     // An opponent has to be able to render your crest and name on a match
@@ -581,8 +581,8 @@ service cloud.firestore {
     // transaction — the claimer's write reaches across to spend the other
     // squad's ticket, and the two update rules below are that transaction's two
     // halves. See the commit rule's own comment for why it reads and writes
-    // both tickets rather than one, and `context/plans/SEASONS.md` §2.2 for the
-    // pull-with-a-lock design this replaced a single-document claim inside.
+    // both tickets rather than one, and `context/database/DATABASE_SCHEMA.md`
+    // (`matchTickets`) for the pull-with-a-lock design.
     //
     // > **Raced, not assumed.** `firestore-tests/claim-race.test.mjs` runs
     // > concurrent clients against the Firestore emulator fifteen rounds each,
@@ -819,8 +819,7 @@ service cloud.firestore {
     // break the rule, because it names *squad IDs*, not player uids: the away
     // leader writes one identifier they already own, and everything about the
     // home side is verified against the home squad's own ticket. Nobody's uid
-    // is written by anybody else anywhere in Seasons. See
-    // `context/plans/SEASONS.md` §0.3.
+    // is written by anybody else anywhere in Seasons.
     //
     // **Readable by any signed-in user**, like `squads` and `matchTickets` and
     // unlike `games`, which gates on `isPublic` or roster membership. Season
@@ -862,7 +861,7 @@ service cloud.firestore {
         return get(/databases/$(database)/documents/squads/$(id)).data;
       }
 
-      // MARK: Reporting helpers — plan §3's mutual confirmation, as predicates.
+      // MARK: Reporting helpers — mutual confirmation, as predicates.
 
       // A report names one of the two squads in this match. `homeSquadId` and
       // `awaySquadId` are read off `resource` rather than `request` because the
@@ -874,7 +873,7 @@ service cloud.firestore {
       }
 
       // Absent is legitimate: it's how a leader clears their own report on the
-      // way to re-entering it, which is §3's stated way out of a dispute.
+      // way to re-entering it, which is the designed way out of a dispute.
       function homeReportIsWellFormed() {
         return !('homeReport' in incoming())
           || namesASquadInThisMatch(incoming().homeReport);
@@ -1066,7 +1065,7 @@ service cloud.firestore {
         && (request.auth.uid in squad(resource.data.homeSquadId).memberIds
             || request.auth.uid in squad(resource.data.awaySquadId).memberIds);
 
-      // Reporting — plan §3's mutual confirmation, and the reason a squad's
+      // Reporting — mutual confirmation, and the reason a squad's
       // record is worth believing without a server to keep it honest.
       //
       // A third `allow update`, separate from cancel and arrival, following the
@@ -1079,7 +1078,7 @@ service cloud.firestore {
       // reads them straight off the document — which is the entire payoff for
       // denormalizing them, and exactly why a forged one is refused at create.
       //
-      // **Re-reporting is this same path, called again.** §3's stated way out
+      // **Re-reporting is this same path, called again.** The designed way out
       // of a disagreement is a leader clearing their own report and re-entering
       // it, so `disputed` is a reportable starting state and an existing report
       // may be overwritten or cleared. A rule that only permitted absent →
@@ -1089,7 +1088,7 @@ service cloud.firestore {
       // **`confirmed` is deliberately not reportable.** A leader able to
       // re-report a match both sides already agreed on could turn their own
       // loss back into a dispute unilaterally — strictly weaker than the
-      // rec-league scoresheet standard §3 claims to meet, and not something the
+      // rec-league scoresheet standard the design claims to meet, and not something the
       // recovery path needs. `cancelled` is out for the same reason it is out
       // of every other path here: a called-off match has no result.
       // **A floor on re-reporting, scoped to one leader's own field — not the
@@ -1122,7 +1121,7 @@ service cloud.firestore {
 
       allow update: if isSignedIn()
         && (resource.data.status == 'scheduled' || resource.data.status == 'disputed')
-        // A match cannot be reported before it has been played. Plan §3's
+        // A match cannot be reported before it has been played. The design's
         // "after `scheduledTime`", enforced rather than assumed.
         && request.time >= resource.data.scheduledTime
         // Each report field is pinned to its own leader, in both directions,

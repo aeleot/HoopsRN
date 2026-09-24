@@ -5,16 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Quick start
 
 - **Read first**: [`context/INDEX.md`](context/INDEX.md) is a routing table into architecture, data model, UI structure, and more. Start there for any major change. It separates three kinds of doc: **entries** describe code that exists, [`gaps/`](context/gaps/) describes what's wrong with it, and [`plans/`](context/plans/) describes code that doesn't exist yet.
-- **Tests**: `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:hooprTests`
+- **Tests**: `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -only-testing:hooprTests`
 - **Run**: Open `hoopr.xcodeproj` in Xcode, select the `hoopr` scheme, pick an iOS 26.5 Simulator, Cmd+R.
-- **Run a single test**: `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:hooprTests/SuiteName/testName`
+- **Run a single test**: `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -only-testing:hooprTests/SuiteName/testName`
 
 ## Common commands
 
 | Task | Command |
 |---|---|
-| Run all unit tests | `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:hooprTests` |
-| Run a specific test suite | `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:hooprTests/GameTests` |
+| Run all unit tests | `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -only-testing:hooprTests` |
+| Run a specific test suite | `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -only-testing:hooprTests/GameTests` |
 | Dry-run Firebase rules/indexes | `npm install -g firebase-tools && firebase login && firebase deploy --only firestore:rules,firestore:indexes --dry-run` |
 | **Evaluate** the rules against the emulator | `npm install && npm run test:rules` |
 | Check if docs are stale | `python3 tools/check_context_drift.py` |
@@ -133,7 +133,7 @@ Until `firestore.rules` is deployed, writes fail with `permission-denied` — th
 `Big-Boss-LLC.hoopr` binds to the Firebase app `hoopsrn-4f1e9`. Changing it requires a new app in the Firebase console and a fresh `GoogleService-Info.plist` — it orphans existing installs.
 
 ### Tests are unit-focused, UI tests skip
-`hooprTests/` has 463 real test methods across 28 suites, and `firestore-tests/` has 141 covering all seven collections. `hooprUITests` fails to launch on this project (SpringBoard `RequestDenied`), so don't run it. The fixture data in test files is non-scaffolding — it's either real Firestore documents or realistic test doubles.
+`hooprTests/` has 666 real test methods across 44 suites (counted from the `.xcresult`, 2026-09-24), and `firestore-tests/` has 141 covering all seven collections. The test destination pins `OS=26.5`: the iOS 27 runtime installed alongside it has no iPhone 17, so an unpinned `name=iPhone 17` fails to resolve. `hooprUITests` fails to launch on this project (SpringBoard `RequestDenied`), so don't run it. The fixture data in test files is non-scaffolding — it's either real Firestore documents or realistic test doubles.
 
 ## Token efficiency
 

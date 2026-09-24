@@ -108,8 +108,8 @@ struct PlayerProfileSheet: View {
     /// takes a band across the top instead of the full-width block a screen
     /// with its own scroll can afford.
     ///
-    /// **The relationship is the header's one strong line** (UI revamp Phase 2b,
-    /// `UI_REDESIGN_BRIEF.md` §5.10): it is what this sheet is opened to
+    /// **The relationship is the header's one strong line** (UI revamp Phase 2b):
+    /// it is what this sheet is opened to
     /// resolve, so it sits under the name rather than in small grey type above
     /// the buttons. The handle wraps to two lines instead of shrinking.
     private var identityHeader: some View {

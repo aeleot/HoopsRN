@@ -1,7 +1,7 @@
 // The `friendships` rules, evaluated rather than read.
 //
 // Walked through by hand with two accounts once, in August, and never since.
-// `plans/FRIENDS.md` Phase 1 listed six manual two-account checks as still
+// The Friends design listed six manual two-account checks as still
 // outstanding; these are those checks, minus the two that are really about the
 // client (`FriendService.sendRequest`'s collision recovery) rather than the
 // ruleset.

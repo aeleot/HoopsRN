@@ -4,7 +4,7 @@ import UIKit
 /// Who you are, set large at the top of the profile and scrolled past like any
 /// other content.
 ///
-/// **In the band, since UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.9): the
+/// **In the band, since UI revamp Phase 2b**: the
 /// handle at `display`, and under it the one fact that identifies you *to other
 /// people* — your home court, which is what a friend sees next to your name.
 /// The uid stays, demoted to a caption, keeping its copy-on-tap.

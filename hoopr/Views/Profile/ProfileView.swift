@@ -242,7 +242,7 @@ struct ProfileView: View {
 
     // MARK: - Identity
 
-    /// The identity as the screen's band (`UI_REDESIGN_BRIEF.md` M2): the same
+    /// The identity as the screen's band: the same
     /// ground and baseline every screen opens on, continuing up through the top
     /// bar at rest (`ProfileTopBar`), so the page opens on one band rather
     /// than a bar, a strip of page, then the block.
@@ -347,7 +347,7 @@ struct ProfileView: View {
     /// Now / Nearby / Saved treatment, so the app has one way of switching
     /// between views of the same thing.
     ///
-    /// **No filled ground** (brief §5.9). It was an orange pill sliding over a
+    /// **No filled ground.** It was an orange pill sliding over a
     /// grey track: the screen's loudest shape, for a choice between two
     /// halves of one page. The underline still slides between the two.
     private var paneSelector: some View {

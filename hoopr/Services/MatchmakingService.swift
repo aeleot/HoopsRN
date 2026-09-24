@@ -9,7 +9,7 @@ fileprivate let logger = Logger(subsystem: "com.hoopsrn", category: "Matchmaking
 /// Owns the `matchTickets` collection — the matchmaking pool, and the search
 /// loop that runs against it.
 ///
-/// **There is no server.** `context/plans/SEASONS.md` §0.1: nothing can wake up,
+/// **There is no server** (the Spark plan; no Cloud Functions): nothing can wake up,
 /// look at a pool of waiting squads and pair them. So matchmaking is *pull with
 /// a lock* — every queued client watches the same pool, and the winner of a
 /// contested transaction gets the match. This service is the pull: the pool
@@ -466,7 +466,7 @@ final class MatchmakingService: ObservableObject {
         }
 
         // Jitter before the claim, not after: six clients seeing the same new
-        // ticket in the same instant is exactly the thundering herd §2.5
+        // ticket in the same instant is exactly the thundering herd the jitter
         // describes, and spreading the transactions is the only mitigation that
         // works *before* the race rather than after it.
         var generator = SystemRandomNumberGenerator()
@@ -574,7 +574,7 @@ final class MatchmakingService: ObservableObject {
     ///
     /// - Parameters:
     ///   - wins/losses: the squad's record, **derived by the caller** from
-    ///     confirmed `seasonGames` (plan §1.1) rather than stored on the squad.
+    ///     confirmed `seasonGames` rather than stored on the squad.
     ///     Zero until Phase 6 confirms anything, which is correct rather than
     ///     merely tolerable — `MatchTicket.winPercentage` reads an unplayed
     ///     squad as 0.5, not as a squad that loses everything.

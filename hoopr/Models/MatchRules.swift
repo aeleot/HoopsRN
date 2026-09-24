@@ -33,7 +33,7 @@ nonisolated struct MatchCandidate: Identifiable, Sendable, Equatable {
 /// no service, no main actor, and the single source of truth that both the
 /// scan and the tests read.
 ///
-/// The design it implements is the plan's §2.1. Two categories:
+/// Two categories of rule:
 ///
 /// - **Hard rules** reject outright. A hard rule is one where the match is
 ///   impossible or illegal, not merely worse: the squads share a player, the
@@ -76,7 +76,7 @@ nonisolated enum MatchRules {
 
     /// How far apart two win percentages may be.
     ///
-    /// A note on where this comes from, because the plan reads two ways: §2.1
+    /// A note on where this comes from, because the design read two ways: it
     /// lists record proximity only under *soft* rules, but its relaxation
     /// paragraph names "the record-proximity tolerance" as something relaxation
     /// widens — and a tolerance nothing enforces isn't a tolerance. It is

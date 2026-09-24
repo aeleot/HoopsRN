@@ -176,7 +176,7 @@ struct MainTabView: View {
             }
 
             // Fourth, and the practical ceiling. The label was measured before
-            // it was fixed, per the plan's §5: rendered at `.accessibility3`,
+            // it was fixed: rendered at `.accessibility3`,
             // "Seasons" is 42pt wide in the 80pt slot a four-tab bar gives it
             // on a 320pt screen. It keeps the noun the feature is actually
             // called rather than being shortened to "Squad" pre-emptively.

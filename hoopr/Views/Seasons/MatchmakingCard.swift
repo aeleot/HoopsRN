@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Screens 5 and 6 — searching, and match found.
+/// Searching, and match found — squad home's live card.
 ///
-/// **States of squad home, not separate destinations.** Plan §5's screen 2
+/// **States of squad home, not separate destinations.** The design
 /// already describes this space as "the one card that matters right now — *next
 /// match*, *searching*, or *find a match*", so all three live in one card that
 /// swaps its contents rather than three screens a user has to navigate between.
@@ -156,7 +156,7 @@ struct MatchmakingCard: View {
         .accessibilityLabel("Match found. Loading the details.")
     }
 
-    // MARK: - Screen 5: searching
+    // MARK: - Searching
 
     private var searchingState: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -223,12 +223,12 @@ struct MatchmakingCard: View {
         }
     }
 
-    // MARK: - Screen 6: match found
+    // MARK: - Match found
 
     @ViewBuilder
     private func matchState(_ game: SeasonGame) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            // The whole card body opens game day — screen 7 — except the
+            // The whole card body opens game day — except the
             // cancel control below, which stays its own un-nested button so
             // cancelling never also navigates.
             Button {

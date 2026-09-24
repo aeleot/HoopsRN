@@ -17,11 +17,9 @@ pass.
 Seasons entries live here and nowhere else; the app-wide list points here rather
 than restating them.
 
-**Not the same thing as `../plans/SEASONS.md` §7.** That section names what was
-*never in scope for v1* — server-side matchmaking, skill rating, standings,
-other formats. This file records what shipped and falls short of what a
-reasonable person would expect from it. A §7 item only appears below when it has
-a live consequence somebody will actually hit.
+It records what shipped and falls short of what a reasonable person would
+expect, and — at the end — what was never in scope, so neither gets
+rediscovered.
 
 ---
 
@@ -74,8 +72,8 @@ them is currently surfaced as anything but silence.
   on; a client-side one can't be trusted, because the client that benefits from
   a forfeit is the one that would be declaring it.
 
-- **A dispute has no arbiter and no expiry.** `../plans/SEASONS.md` §8 accepts
-  this — disputed games count for nobody, and re-reporting is allowed — but the
+- **A dispute has no arbiter and no expiry.** The design accepts this —
+  disputed games count for nobody, and re-reporting is allowed — but the
   practical shape is worth stating: two leaders who each believe they won leave a
   permanently disputed match, and neither squad's record moves. Designed, and
   still a dead end when it happens.
@@ -101,9 +99,9 @@ Limits that are working as built, and will surprise somebody anyway.
   between the match being made and tip-off never has those requests on their
   device, and finds out only if a squad-mate's phone happened to be open. Real
   push needs FCM (not linked) plus a Cloud Function triggered off the
-  `seasonGames` write — the same Blaze-plan requirement `../plans/SEASONS.md`
-  §0.1 and §7 name for server-side matchmaking. The local-notification design's
-  known ceiling, not a bug in it.
+  `seasonGames` write — the same Blaze-plan requirement server-side matchmaking
+  has (see "Not built" below). The local-notification design's known ceiling,
+  not a bug in it.
 
 - **One squad per person is enforced by the app, not the server.** Creating a
   squad and accepting an invite are refused while you're on another one
@@ -144,54 +142,16 @@ Limits that are working as built, and will surprise somebody anyway.
     "disband it" — which ends the squad for everyone on it.
 
 - **An empty pool is the default experience in a new city**, not the edge case.
-  `../plans/SEASONS.md` §8 names relaxation plus honest UI as the mitigation, and
-  both shipped — but the *seeding* idea it floats (a one-sided open challenge
-  anyone can accept) was never built. With two squads in a region, matchmaking is
+  The mitigation was relaxation plus honest UI, and both shipped — but the
+  *seeding* idea (a one-sided open challenge any squad can accept) was never
+  built. With two squads in a region, matchmaking is
   two leaders agreeing to queue at the same time.
 
 - **Forging a win takes two colluding squads.** Stated so it isn't mistaken for a
-  defect: mutual confirmation is the ceiling without a server, and
-  `../plans/SEASONS.md` §7 says so. It is the standard a rec-league scoresheet
+  defect: mutual confirmation is the ceiling without a server. It is the standard a rec-league scoresheet
   meets, not cryptographic integrity.
 
 ---
-
-## Fixed, and worth remembering
-
-- **Two matches for one pair used to be the *ordinary* outcome, not a rare
-  one.** This file recorded it as a narrow window — a third squad re-claiming a
-  stale ticket whose game already existed — and said rules could not prevent it
-  because rules cannot query. Both halves were wrong.
-
-  The real cause was two squads picking *each other*. A match was made in three
-  writes, the first of which claimed a **single** ticket and leaned on Firestore
-  serializing contested writes to one document. Two mutual claims touch two
-  different documents, so nothing serialized them: both won, both clients wrote a
-  match, and both squads were told they had more than one scheduled. With two
-  squads queued in a region that is what normally happened.
-
-  It never needed a query — only a read set wide enough to contend. The commit
-  now reads and writes both tickets and the match in one transaction, each of
-  the three documents proving the other two with `getAfter()`, and a ticket may
-  only go `open` -> `matched`. `firestore-tests/claim-race.test.mjs` races the
-  mutual case fifteen rounds and asserts exactly one match survives.
-
-  Three things went with it: the `claimed` status, `MatchRules.staleClaim` and
-  its four-places-that-must-agree, and the two-writer `matched` transition. All
-  three existed to clean up after a gap that no longer exists.
-
-- **A spent ticket used to read as a live search.** Nothing deletes a ticket
-  once it is spent; it ages out on `expiresAt`, up to a day later. The card read
-  any non-nil ticket as "searching", so the moment a match stopped being live —
-  played and confirmed, cancelled, or simply aged out — a squad was shown a
-  spinner and a timer counting from when they first queued, with a "Cancel
-  search" button that cancelled nothing. `MatchTicket.isSearching` is now the
-  only question that state may ask, and `MatchmakingViewModelTests` pins each
-  way a match can end.
-
-  The same stale ticket also blocked re-queueing: a `setData` over it is an
-  *update*, which no rule admits, so the squad was refused for as long as the
-  ticket lived. `MatchmakingService.queue` now deletes a spent ticket first.
 
 ## Costs accepted on purpose
 
@@ -211,8 +171,9 @@ Limits that are working as built, and will surprise somebody anyway.
 
 ## Not built, and known not to be
 
-`../plans/SEASONS.md` §7 is the authority; these are the ones with a live
-consequence today rather than a purely future one.
+Out of reach by design, not by oversight — recorded here so nobody spends a day
+rediscovering them. (The Seasons design plan these came from shipped and was
+removed on 2026-09-24; it's in git history.)
 
 - **No kicking a member mid-season, and no leader transfer.** The rules can
   express both (a leader-only single-uid removal); a squad whose leader goes
@@ -224,14 +185,19 @@ consequence today rather than a purely future one.
   counter cache `database/DATABASE_SCHEMA.md` deliberately defers.
 - **No skill rating.** The record-proximity gate in `MatchRules` is already the
   hook one would plug into.
+- **No server-side matchmaking and no real push.** Both need Cloud Functions on
+  the Blaze plan (`../ROADMAP.md` §0). Matchmaking is client-side "pull with a
+  lock" for that reason — see `../database/DATABASE_SCHEMA.md` § `matchTickets`.
+- **No cross-region play.** A squad's pool is its `region`, today `Court.city`;
+  matching across regions waits on `../plans/SCALE_UP.md` S1.1's real region key.
+- **3v3 only.** `format` has been in the schema from day one, so 1v1 and 5v5 are
+  an allowlist entry and a roster bound each, not a migration.
 
 ---
 
 ## See also
 
 - `../GAPS.md` — the app-wide list. Everything not Seasons.
-- `../plans/SEASONS.md` — §7 for what was never in scope, §8 for the risks this
-  file's ceilings came from.
 - `../database/DATABASE_SCHEMA.md` — the reporting rules and why a record is
   trustworthy.
 - `../BUILD_AND_CONFIG.md` — the rules suite, and why a dry-run is not a test.

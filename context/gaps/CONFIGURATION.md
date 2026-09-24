@@ -3,10 +3,7 @@
 **Scope:** —
 **Verified:** 2026-09-20 @ 349d309
 
-The half-finished rename, and the iOS 18 fallback path nothing has run below
-iOS 26. The deployment target and the over-declared platforms were fixed on
-2026-09-20 and are struck below rather than deleted, because both sections
-recorded a claim that turned out to be false.
+The half-finished rename, and the iOS 18 fallback path nothing has run.
 
 `Scope: —` because this is a narrative over the Xcode project and bundle
 identity, which `BUILD_AND_CONFIG.md` owns. It can't be diffed, so it's re-read
@@ -29,28 +26,19 @@ agreed prefix (`hoops`) if the identifiers are ever renamed.
 
 ---
 
-## ~~The deployment target excludes almost every device in use~~ — fixed 2026-09-20
+## Nothing below iOS 26 has ever run
 
-**iOS 18.0 now.** The claim this section used to make — "no API the app calls
-requires it" — was false: `glassEffect(_:in:)` (five sites) and `MKAddress`
-(one) are iOS 26. Both are gated now; see `../BUILD_AND_CONFIG.md`.
+The deployment target is iOS 18.0, and every iOS 26 API is gated — but the only
+simulator runtimes installed are iOS 26.5 and 27.0, so the fallback branches
+have never executed: `Support/Glass.swift`'s `.ultraThinMaterial` path (every
+glass surface), `MapTab`'s pre-26 Maps hand-off, and the confetti and glow's
+`TimelineView` paths on iOS 18. The compiler proves they *build*; nobody has
+seen them. Closing it needs an iOS 18 runtime or device.
 
-**What's left is a real-device pass below iOS 26.** Nothing in the fallback path
-has run on anything but the iOS 26 simulator, so `Support/Glass.swift`'s
-`.ultraThinMaterial` branch and `MapTab`'s pre-26 Maps hand-off are both
-unexercised. The compiler proves they *build*; nobody has seen them.
-
----
-
-## ~~The project claims platforms the UI doesn't support~~ — fixed 2026-09-20
-
-`SUPPORTED_PLATFORMS` is `iphoneos iphonesimulator` and the device family is
-`1`. The UI is still iPhone-portrait-shaped throughout — that hasn't changed and
-isn't a gap any more, because the project no longer claims otherwise.
-
-Reversing it is one line per setting when an iPad layout actually exists.
-`XROS_DEPLOYMENT_TARGET` is still set and inert; `../BUILD_AND_CONFIG.md` says
-why it was left.
+The UI is iPhone-portrait throughout, and the project says so
+(`SUPPORTED_PLATFORMS` is `iphoneos iphonesimulator`, device family `1`), so
+that is no longer a gap. `XROS_DEPLOYMENT_TARGET` is set and inert;
+`../BUILD_AND_CONFIG.md` says why.
 
 ---
 

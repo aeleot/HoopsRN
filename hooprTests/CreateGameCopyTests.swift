@@ -4,7 +4,7 @@ import XCTest
 /// What the "Start a Run" sheet says about invite-only runs, and what it hands
 /// a host to send.
 ///
-/// **The rule these pin** (`gaps/GAMES.md`, brief §5.11): the invite link opens
+/// **The rule these pin** (`gaps/GAMES.md`): the invite link opens
 /// nothing and the `games` read rule refuses a non-member, so an invite-only
 /// run holds only its host. The sheet must not promise otherwise — it did,
 /// twice ("You'll get a link to share with the players you want in", and "send

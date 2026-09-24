@@ -225,20 +225,13 @@ already in hand.
 
 ### Injection
 
-`MapTab` and `FindAMatchViewModel` currently take `courtService` +
-`locationService` only. `CheckInService` has to be threaded through the same
-chain the location work also needs to extend:
+`CheckInService` has to be threaded through the view models that draw a court
+— at least `FindAMatchViewModel`, through `MapTab` and `MainTabView` from
+`hooprApp.swift`, the same explicit-injection chain every service follows (no
+`@EnvironmentObject`). Check the current initializers when this is picked up;
+they have grown since this plan was drafted.
 
-```
-hooprApp.swift  →  RootView  →  MainTabView  →  MapTab  →  FindAMatchViewModel
-```
-
-`MainTabView.swift:114` constructs `MapTab(courtService:locationService:)`
-today. **If the `homeLocation` work (which needs `UserProfileService` on the
-same chain) is done around the same time, do both init-signature changes in one
-pass** rather than editing four files' initializers twice.
-
-`FindAMatchViewModel.select(_:)` — the empty hook at line 92 — is the natural
+`FindAMatchViewModel.select(_:)` is the natural
 place to start/stop the per-court headcount listener.
 
 ---
@@ -263,7 +256,7 @@ Ship-check: nothing in the app changes visually, and nothing regresses.
 
 ### Phase 2 — Detail sheet: count + check in/out
 
-The court detail card (`courtCard`, `MapTab.swift:300`) grows a count
+The court detail card (`courtCard` in `MapTab.swift`) grows a count
 line and a primary action button. One listener, scoped to the selected court,
 started from `select(_:)` and torn down on `dismissDetail()`.
 

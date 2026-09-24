@@ -8,7 +8,7 @@ import Foundation
 /// names *squad IDs*, not player uids. The away leader writes one identifier
 /// they already own, and the rules verify the rest against the home squad's own
 /// ticket. Nobody's uid is written by anybody else anywhere in Seasons. See
-/// `context/plans/SEASONS.md` §0.3.
+/// `context/database/DATABASE_SCHEMA.md`.
 ///
 /// Distinct from `Game`, and deliberately not a variant of it: a run has a host
 /// and a roster of individuals, a season game has two squads and a result two
@@ -108,7 +108,7 @@ nonisolated extension SeasonGame {
     /// the time it takes to argue about the score.
     static let visibilityGrace: TimeInterval = 3 * 60 * 60
 
-    /// When the result prompt is worth showing — plan §4's T+90.
+    /// When the result prompt is worth showing — the T+90 prompt.
     static let reportingDelay: TimeInterval = 90 * 60
 
     var isScheduled: Bool { status == .scheduled }
@@ -174,7 +174,7 @@ nonisolated extension SeasonGame {
     ///
     /// **This is the record of truth**, and it is arithmetic over documents two
     /// different leaders had to agree on rather than a counter a client could
-    /// type. `squads` deliberately has no `wins`/`losses` field; plan §1.1.
+    /// type. `squads` deliberately has no `wins`/`losses` field, on purpose.
     ///
     /// Until Phase 6 confirms anything this returns `(0, 0)` for everybody,
     /// which is correct rather than merely tolerable —
@@ -289,7 +289,7 @@ nonisolated extension SeasonGame {
 
     /// The two reports, resolved.
     ///
-    /// This is the whole of §3's mutual confirmation as arithmetic: agreement
+    /// This is the whole of mutual confirmation as arithmetic: agreement
     /// confirms, disagreement disputes, and one report on its own settles
     /// nothing. Forging a win takes two colluding squads rather than one lying
     /// client — not cryptographic integrity, and the plan doesn't claim it is.
@@ -304,7 +304,7 @@ nonisolated extension SeasonGame {
 
     /// The statuses a report may be written from.
     ///
-    /// `disputed` is here because §3's stated way out of a disagreement is a
+    /// `disputed` is here because the designed way out of a disagreement is a
     /// leader re-entering their own report — a rule that only permitted
     /// *absent → present* would make the design's own recovery path
     /// unreachable.
@@ -312,7 +312,7 @@ nonisolated extension SeasonGame {
     /// `confirmed` is deliberately **not** here. A leader able to re-report a
     /// match both sides already agreed on could turn their own loss back into a
     /// dispute unilaterally, which is weaker than the rec-league scoresheet
-    /// standard §3 claims to meet.
+    /// standard the design claims to meet.
     var isReportable: Bool {
         status == .scheduled || status == .disputed
     }

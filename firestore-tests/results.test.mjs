@@ -1,4 +1,4 @@
-// Reporting, mutual confirmation, and the disputed state — plan §3.
+// Reporting, mutual confirmation, and the disputed state.
 //
 // **This is the file the reporting design exists to be checked by.** Mutual
 // confirmation's entire subject is *two different people agreeing or
@@ -268,7 +268,7 @@ test('a leader may re-touch their own report once five seconds have passed', asy
 // MARK: - Re-reporting is the same path, called again
 
 test('a disputed match is resolved by one leader re-reporting to agree', async () => {
-  // The prompt's Phase 6 test case #3, and §3's own stated recovery path. If
+  // The design's own stated recovery path from a dispute. If
   // the rule only permitted absent → present, this write would be refused and a
   // disputed match would stay disputed forever.
   await seedGame({

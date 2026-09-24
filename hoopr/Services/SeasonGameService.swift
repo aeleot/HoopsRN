@@ -305,7 +305,7 @@ final class SeasonGameService: ObservableObject {
 
     /// A one-off read of **another** squad's record.
     ///
-    /// The plan's §1.1 cost, paid deliberately: a record is derived rather than
+    /// A cost paid deliberately: a record is derived rather than
     /// stored, so showing an opponent's takes one query. Legal because
     /// `seasonGames` is readable by any signed-in account.
     ///
@@ -596,7 +596,7 @@ final class SeasonGameService: ObservableObject {
         }
     }
 
-    /// Marks the signed-in user's own squad as arrived. Screen 7's "We're
+    /// Marks the signed-in user's own squad as arrived. Game day's "We're
     /// here."
     ///
     /// Self-add only, enforced server-side: the diff is exactly the caller's
@@ -631,7 +631,7 @@ final class SeasonGameService: ObservableObject {
         }
     }
 
-    /// Records this leader's own report of who won — screen 8's two crest
+    /// Records this leader's own report of who won — the result screen's two crest
     /// buttons — and, when it completes a matching pair, confirms the match in
     /// the same commit.
     ///

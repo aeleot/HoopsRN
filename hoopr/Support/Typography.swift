@@ -140,8 +140,7 @@ private struct ScaledSystemFont: ViewModifier {
 /// `hooprFont` fixed the scaling problem — a literal size that still respects
 /// Dynamic Type — but left every call site choosing its own number, so the app
 /// grew six spellings of the same uppercase section label at two sizes and two
-/// weights (`context/plans/UI_REVAMP_AUDIT.md` §2.4). These roles are the
-/// vocabulary above the numbers: a view says what a piece of text *is*, and
+/// weights. These roles are the vocabulary above the numbers: a view says what a piece of text *is*, and
 /// this file decides how big that is.
 ///
 /// **Constraint 2 still holds.** Every role resolves to a `hooprFont` call, so

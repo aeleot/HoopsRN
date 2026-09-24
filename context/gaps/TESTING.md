@@ -50,7 +50,7 @@ What they pin, beyond the obvious per-rule cases:
 - **`games`' two update paths** — a roster write and a completion carry disjoint
   key allowlists, so neither can smuggle the other's fields.
 - **`friendships`' simultaneous-request collision**, which
-  `plans/FRIENDS.md` §2 predicted and nothing had exercised: both people tap Add,
+  the Friends design predicted and nothing had exercised: both people tap Add,
   the second `create`-shaped write lands on the existing document and falls
   through to the tighter `update` allowlist, which refuses it. That refusal is
   the correct signal, and `FriendService.sendRequest` recovers from it.

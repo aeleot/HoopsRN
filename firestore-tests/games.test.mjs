@@ -87,7 +87,8 @@ test('a private run is readable only by the people on it', async () => {
 
   // This is the whole of the privacy model for an invite-only run: no rule
   // consults `friendships`, so a friend who isn't on the roster is a stranger
-  // here. `plans/FRIENDS.md` §4 defers that deliberately.
+  // here. Friends' private runs are deferred deliberately
+  // (`context/gaps/FRIENDS.md`).
   const stranger = testEnv.authenticatedContext('stranger').firestore();
   await assertFails(getDoc(doc(stranger, 'games', 'game-private')));
 });

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The "Create a squad" form — plan §5, screen 3.
+/// The "Create a squad" form.
 ///
 /// Four decisions: a name, a crest glyph, a crest colour, and a format. The
 /// region isn't among them and deliberately isn't shown as a field: it's
@@ -9,7 +9,7 @@ import SwiftUI
 /// to. It's stated as context instead, so nobody has to wonder why their squad
 /// only ever sees Durham opponents.
 ///
-/// **Redesigned in UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.11). Four
+/// **Redesigned in UI revamp Phase 2b**. Four
 /// cards became one form: **the crest preview is the hero** — the one crest in
 /// the app that is feedback rather than decoration — centred at the top, large,
 /// over the name as it will read; then Name, Crest and Format under `label`s on

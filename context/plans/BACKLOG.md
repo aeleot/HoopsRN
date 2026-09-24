@@ -1,30 +1,27 @@
 # Plan — Enhancement Backlog
 
-**Status:** proposed, not started
-**Drafted:** 2026-08-21
-**Touches:** everything below names its own files
+**Status:** proposed — every story below is unbuilt
+**Drafted:** 2026-08-21 · **Pruned:** 2026-09-24 (shipped stories removed —
+they're in git history and the dictionary entries)
+**Touches:** each story names its own files
 
 > `context/plans/` is not a dictionary entry and carries no `Scope`/`Verified`
 > stamp. A plan describes work that hasn't happened; the dictionary describes
-> code that has. When a story below ships, fold what's true into the dictionary
-> entries it names and strike it from here.
+> code that has. When a story below ships, fold what's true into the entries it
+> names and **delete the story** from here.
 
-Medium-to-large stories across four tracks: the **Queue Up** feature, the
-**Friends** system, **UI** depth, and **correctness/standards**. Each is sized
-to be a real chunk of work — a few days, not an afternoon — because the small
-one-line fixes have been consolidated into the themed stories that own them
-rather than listed individually.
-
-`plans/SCALE_UP.md` sequences the multi-city scaling work. This document is the
-layer beneath it: enhancements to what already exists. Where a story here is a
-hard dependency of one there, it says so.
+Medium-to-large stories across four tracks: a solo **Queue Up**, **Friends**,
+**UI** depth, and one **Blaze-gated** correctness story. `plans/SCALE_UP.md`
+sequences multi-city scaling; this is the layer beneath it.
 
 ---
 
-## Track A — Queue Up
+## Track A — Queue Up (solo)
 
 **The goal:** a player who wants to hoop right now taps one button and ends up
 in a run with nearby players, without scheduling anything or knowing anybody.
+Squads already have this in Seasons (`matchTickets`); this is the same idea for
+one player and the `games` collection.
 
 ### The constraint that shapes the whole design
 
@@ -50,56 +47,11 @@ That inverts the usual matchmaking shape and it's worth stating plainly before
 anyone writes code, because the obvious design — "the queue assigns you to a
 game" — is precisely the one the rules forbid.
 
-### Hard dependency: A0 must ship first
-
-Every story in this track is meaningless until the app knows where the user
-actually is. Today `LocationService.homeLocation` returns a hardcoded downtown
-Durham coordinate for every user on Earth (`LocationService.swift:19`), and
-every distance in the app measures from it. "Nearby players" computed from that
-is "players near Durham," for a user in Phoenix included.
-
----
-
-### A0 — Anchor the app to the device's real location
-
-**Size:** Medium · **Blocks:** every other story in Track A, and
-`SCALE_UP.md` S2.2
-
-`LocationService.userLocation` is published and, per `GAPS.md`, consumed by
-nothing. `homeLocation` is a `static var` returning `defaultLocation` — a
-comment above it already names swapping it for a profile-owned value as "the
-intended future change," and notes that doing it in that one place moves the
-map's initial region, the nearby-courts list, the recenter target, and the
-Local Runs radius filter together.
-
-That single-seam design is the reason this is a Medium and not a Large. The
-work is mostly deciding the fallback chain, not rewiring four call sites.
-
-*Acceptance criteria:*
-- `homeLocation` becomes an instance property resolved through a documented
-  precedence: device location (when authorized and fresh) → the profile's
-  `homeRegion`/`homeCourtId` centroid → the current Durham constant as the
-  last-resort fallback. The constant stays; it stops being the only answer.
-- Location permission is requested at a moment that explains itself (a "find
-  courts near me" affordance), not silently on first recenter as today.
-- A user who **declines** location permission still gets a usable app — the
-  profile-derived fallback is what they get, and the UI says which anchor is
-  in use rather than silently showing distances from somewhere else.
-- Distances visibly change when the anchor changes, in all four consumers, with
-  no edit outside `LocationService` and the injection chain.
-- `MAP_LAYER.md`'s "Distances and location" section and its final invariant are
-  updated — both currently document the hardcoded point as intended behavior.
-
-*Open decision:* whether the anchor is *live* (follows the user as they move)
-or *sticky per session*. Live is what a queue wants; sticky is cheaper and
-avoids a list that reorders while being read. Recommend sticky-per-foreground:
-resolve on foreground, hold for the session.
-
 ---
 
 ### A1 — Instant match: find-or-create a run at a nearby court
 
-**Size:** Large · **Depends on:** A0
+**Size:** Large
 
 The first and most important insight about this feature: **most of it needs no
 new collection.** A "Queue Up" button that finds the best open public run near
@@ -116,8 +68,8 @@ state is a rare fallback rather than the main experience.
    ("now", "within an hour", "tonight").
 2. The client ranks already-visible public runs — it already holds them, via
    `GameService.publicGames` — by fit: has space, starts inside the window, is
-   within `preferredRadius` of the A0 anchor, and (once F2 ships) has friends
-   on it.
+   within `preferredRadius` of `LocationService.homeLocation`, and has friends
+   on it (the friends-here count `LocalRunsViewModel` already computes).
 3. Best fit → join it, using the existing self-join write.
 4. Nothing fits → create a public run at the nearest sensible court with a
    default roster size, which then becomes the thing the *next* player's Queue
@@ -191,8 +143,7 @@ to put a second row.
 >
 > **Partly resolved by Seasons, 2026-08-29.** A third ephemeral collection has
 > since shipped — `matchTickets`, a squad's standing offer to play — and it is
-> deliberately **not** part of this unification. `plans/SEASONS.md` §1.3 settled
-> that and `database/DATABASE_SCHEMA.md`'s `matchTickets` section records the
+> deliberately **not** part of this unification. `database/DATABASE_SCHEMA.md`'s `matchTickets` section records the
 > reasoning: its subject is a squad rather than a person, its lifecycle is a
 > two-party negotiation rather than a self-declaration, and its ID space is
 > squad IDs. Folding a squad ticket into a per-user presence document would put
@@ -262,7 +213,7 @@ alphanumeric, so every client's `<` agrees — the same property
   (4 for a 2v2 is the recommended starting point, not 10).
 - A player whose run was auto-formed gets an unmistakable in-app state change —
   they cannot be *notified*, because push needs Cloud Functions
-  (`SCALE_UP.md` §7). **This is the feature's biggest honest limitation:** a
+  (`SCALE_UP.md` §5). **This is the feature's biggest honest limitation:** a
   player who backgrounds the app will not learn their run formed until they
   reopen it. Design the queue as a foreground activity ("stay on this screen"),
   and note push as the thing that fixes it properly whenever Blaze is
@@ -325,35 +276,6 @@ and loses nothing functional.
 
 ---
 
-### B2 — Friends in context: badges on runs and the queue
-
-**Size:** Medium-Large
-
-`plans/FRIENDS.md` Phase 4 is the "N friends here" badge on `GameCard` — a
-client-side intersection of two lists the app already holds, needing no rules,
-index, or listener change. `MainTabView` already has `friendService` to pass in.
-
-Worth extending in the same story rather than shipping the badge alone: the
-same intersection is what makes Track A's queue feel social instead of
-anonymous ("2 friends are waiting at Rockwood"), and it's what should bias A1's
-ranking toward runs your friends are already on.
-
-*Acceptance criteria:*
-- `LocalRunsViewModel` gains `friendService`; `GameCard` shows a friends badge
-  when the intersection is non-empty and nothing when it's empty.
-- The intersection is a pure function with unit coverage, following the
-  `FriendsViewModel` `nonisolated static` pattern that exists precisely so
-  these decisions test without Firebase or a main actor.
-- A1's ranking treats "a friend is on this run" as a ranking input.
-- **The privacy line is drawn deliberately:** this surfaces friends on runs
-  *already visible to you*. It does not make a friend's private run visible —
-  that needs the authorization design `plans/FRIENDS.md` and
-  `database/DATABASE_SCHEMA.md` both defer, and it stays out of scope here.
-- Names resolve through the existing `UserProfileService.profiles(for:)` cache;
-  an unresolved name degrades to a count, never a blank row.
-
----
-
 ### B3 — Abuse containment: blocking, and the limits of a client-side guard
 
 **Size:** Medium-Large
@@ -364,7 +286,8 @@ Anyone signed in can search for anyone and send them a request; declining
 person asking again."
 
 That's a real problem at any scale and a worse one as the user base grows,
-which is why it's here rather than deferred to Phase 5 with the rest.
+which is why it's here rather than deferred with the rest of the Friends
+safety work (below).
 
 *What is buildable on Spark:* a **block list** in the owner-only
 `users/{uid}/private/…` subcollection that `SCALE_UP.md` S6.1 introduces (this
@@ -390,37 +313,11 @@ guards.
 - Reporting is explicitly out of scope (it needs somewhere for reports to *go*)
   and recorded as such rather than half-built.
 
----
-
-### B4 — Close out the friends verification and backfill debt
-
-**Size:** Medium
-
-Two known-open items from the Friends TODO in `GAPS.md`, plus its search gap:
-
-- **`sendRequest`'s simultaneous-request collision has never run against a live
-  pair.** Phase 3 made it reachable from the UI for the first time; reaching it
-  needs two accounts requesting each other before either sees the other's
-  request. Still not done.
-- **The six-check manual rules pass "was a one-time manual pass, not
-  coverage."** Nothing in the repo re-runs it. Any edit to the `friendships`
-  block or the `users` allowlists is unverified until someone repeats it by
-  hand.
-- **`userNameLower` is missing on every pre-search account**, so those people
-  are unfindable by name until their owner reopens the app. The client-side
-  self-heal is the whole migration today.
-
-*Acceptance criteria:*
-- The collision path is exercised against a real pair and the result recorded —
-  including confirming a genuine `permission-denied` (undeployed rules) is
-  still distinguishable from the collision, since both reach the same catch.
-- The `userNameLower` backfill runs as a one-off Admin SDK script — which needs
-  a service account, **not** the Blaze plan — folded into the same script pass
-  as `SCALE_UP.md` S1.3 rather than run separately.
-- The six manual checks are converted into emulator tests as part of C4/D3
-  below, or explicitly re-run and re-dated if that story hasn't landed.
-- Test data is cleaned: the hand-seeded friendship between the developer's
-  account and `chaseallen122` in the production project is deleted.
+*Deferred alongside it, each needing a Cloud Function or a real search index:*
+push notifications on a friend request or acceptance; unique handles and
+typo-tolerant search (B1 is the first half of that); mutual-friend counts; and
+friends' **private** runs, which needs a real authorization design and should be
+settled with C6's invite decision rather than separately.
 
 ---
 
@@ -465,36 +362,17 @@ you can look at.
 
 ---
 
-### C2 — Court detail depth and the licence obligation
+### C2 — `school` courts read as public
 
-**Size:** Medium-Large
+**Size:** Small
 
-The court detail card carries name, address, badges and Start Run. `CourtBadges`
-(used at `MapTab.swift:488` and `CourtRow.swift:29`) already surfaces hoops,
-lights, covered, surface and restricted access — so the dataset's attributes
-are *partly* used. What's still missing is the depth that makes the map worth
-opening, and one outright obligation:
-
-- **The ODbL attribution is never displayed.** `CourtDataset.attribution`
-  carries "Court data © OpenStreetMap contributors, ODbL 1.0" and nothing
-  renders it. This is a licence term the app is currently not meeting — the one
-  item in this document that is a compliance issue rather than a preference.
-- `access` is only surfaced for `restricted`; `school` courts render as
-  ordinary public ones, which is misleading for a court you may not be able to
-  use during school hours.
-- No way to get directions to a court, which is the obvious next action after
-  "this one."
+`access` is only surfaced for `restricted`; `school` courts render as ordinary
+public ones, which is misleading for a court you may not be able to use during
+school hours. (The rest of this story — directions, the ODbL notice — shipped.)
 
 *Acceptance criteria:*
-- Attribution is displayed somewhere durable and discoverable — the court
-  detail sheet's footer, an About row on the profile, or both. Not a log line.
-- `school` access is visually distinguished with an honest caveat, not silently
-  equated to public.
-- A "Directions" action hands off to Maps.
-- Favorites and the run count at a court (once Track A exists) are visible from
-  the detail card.
-- `COURT_DATASET.md`'s invariant about the attribution "travelling with the
-  data" is extended to say where it surfaces.
+- `school` access is visually distinguished with an honest caveat in
+  `CourtBadges`, not silently equated to public, and `CourtBadgesTests` pins it.
 
 ---
 
@@ -512,420 +390,22 @@ nobody in it is the default state in a new market.
 This story treats the empty state as a designed surface rather than the absence
 of one.
 
+**The screens' own empty states are designed now** — the UI revamp gave Home,
+Runs, Seasons and the inbox each a composed empty state with its next action.
+What's left is the Track A queue's (once it exists) and first-run onboarding.
+
 *Acceptance criteria:*
-- Every list surface — Local Runs (both sections), Friends, search results,
-  nearby courts, and the Track A queue — has a designed empty state that says
-  what's happening and offers the useful next action. `LIVE_HEADCOUNT.md`
-  already models the tone: "No one here yet" over "0 players."
+- The Track A queue's empty state says what's happening and offers the next
+  action. `LIVE_HEADCOUNT.md` already models the tone: "No one here yet" over
+  "0 players."
 - First-run onboarding covers the three things that make the app work: location
-  permission (with the reason, per A0), home region/city
+  permission (with the reason), home region/city
   (`SCALE_UP.md` S2.2), and a display name.
 - The distinction between "nothing here" and "we couldn't load it" is never
   ambiguous — the existing `ErrorBanner` + `isRecovering` treatment stays for
   the second, and empty states never impersonate it.
 - A brand-new account with no friends and no runs nearby has a coherent path
   forward on every screen, not four blank panels.
-
----
-
-### C4 — Accessibility and Dynamic Type audit
-
-**Size:** Medium
-
-The type system is already built for this — `.hooprFont(_:weight:maximumSize:)`
-scales through `UIFontMetrics`, `ProfileView`'s cards take a floor rather than a
-fixed height specifically so seams stay aligned at every Dynamic Type size, and
-`maximumSize` caps scaling only where a frame genuinely can't grow. The
-foundation is unusually good; what's missing is verification that it holds
-everywhere.
-
-*Acceptance criteria:*
-- Every screen is walked at the largest accessibility text size; anything that
-  clips or overlaps is fixed by the floor-plus-stretch pattern `ProfileView`
-  already establishes, not by adding a `maximumSize` cap to make the problem
-  invisible.
-- VoiceOver labels on every interactive control. `MapTab` already labels
-  recenter, favorite and close — the map's court annotations deliberately
-  populate `title` for VoiceOver while rendering no label, and that should be
-  verified as actually reaching the user.
-- Both appearances checked, including the map's `UIColor` marker tint, whose
-  documented failure mode (a colour frozen at whichever appearance was current
-  when it was assigned to a `CALayer`) is exactly the bug that hides until
-  someone toggles dark mode mid-session.
-- Contrast ratios verified for `hooprSecondaryText` on `hooprSurface` and for
-  `hooprOnBrand` on both orange values.
-- **Scope note:** this is iPhone-portrait only, and since 2026-09-20 the build
-  says so — `SUPPORTED_PLATFORMS` is `iphoneos iphonesimulator` and the device
-  family is `1`. The declaration was narrowed rather than the UI widened, so
-  real adaptive layout is still a separate story; don't let this one quietly
-  become that.
-
----
-
-## Track D — Correctness and standards
-
-### D1 — Repair the context dictionary
-
-**Size:** Medium
-
-The context library is the reason this codebase can be picked up cold, and it
-has drifted. `GAPS.md` is supposed to be where drift is recorded — it has
-itself drifted, which is the worst place for it to happen, because it's the
-entry every other entry tells you to read before trusting a comment.
-
-**Verified against the source on 2026-08-21:**
-
-| Where | Says | Actually |
-|---|---|---|
-| `GAPS.md` §7 | "Fix `RootViewModel`'s retain cycle to match the other two view models" | Already fixed. `RootViewModel.swift:28-34` uses `sink { [weak self] }` with a comment explaining why. All four view models now do. |
-| `GAPS.md` §7 | "Replace `UIScreen.main.bounds` in `MapTab`; it's the only deprecation warning in the build" | Already fixed. `MapTab.swift:59-63` uses `onGeometryChange`-fed `containerHeight`, seeded at 852, with a comment saying it avoids the deprecated API. No `UIScreen.main` call remains anywhere. |
-| `GAPS.md` (Assets and data) | "`courts_updated.json` … is committed and bundled but never loaded" | Not present. `Resources/` contains only `courts.json`. |
-| `GAPS.md` (Unfinished) | `hoops`, `surface`, `isLit`, `isCovered`, `access` "are read **nowhere** except the filter chips" | `CourtBadges.swift` renders all five, used by `CourtRow.swift:29` and the court detail card at `MapTab.swift:488`. |
-| `ARCHITECTURE.md` (ownership table) | `CourtService` publishes `courts: [Court]`, `loadError: String?` | No `loadError` exists anywhere in the Swift sources. `CourtService` publishes `courts` only and logs failures. |
-| `COURT_DATASET.md` | A load failure "publishes `loadError = "Court data unavailable"`" | Same — it logs and leaves `courts` empty. The doc describes UI that was never built. |
-| `DATA_MODEL.md` (`CourtDataset`) | "`CourtService` reads `version` and `attribution` into stored properties" | It reads `version` inline for a log line and never stores it; `attribution` is never read at all. |
-| `MAP_LAYER.md` | Sheet state is `.list` / `.collapsed` / `.detail(court:returningTo: RestState)`; "Sheet height is `UIScreen.main.bounds.height / 3`" | `MapTab.swift:7-33` has a three-case `Detent` (`collapsed`/`medium`/`expanded`) and `SheetState` of `.rest(Detent)` / `.detail(court:returningTo: Detent)`. Heights are fractions of `containerHeight`. |
-
-*Acceptance criteria:*
-- Every row above is either corrected in the owning entry or, if it's a real
-  gap, restated accurately.
-- The `attribution` row is **not** simply deleted — it's a live licence
-  obligation (C2). Correcting the doc must not lose the obligation.
-- `Verified` stamps are re-dated on every entry touched.
-- The refresh workflow in `context/INDEX.md` is run, and if it did not catch
-  these, that workflow is improved — a drift-detection process that misses
-  four stale claims in one entry needs adjusting, not just re-running.
-
----
-
-### D2 — Unit-test the untested decisions
-
-**Size:** Large
-
-`GAPS.md` names what's worth testing and untested. The pattern to follow already
-exists and is good: `FriendsViewModel`'s three helpers are `nonisolated static`
-*precisely* so they test without Firebase, a live service, or a main actor.
-Most items below are already pure or one refactor away.
-
-*Acceptance criteria (each gets real coverage):*
-- `RootViewModel`'s gating rule — the reason the type exists separately from
-  `RootView`.
-- `FindAMatchViewModel.nearby(courts:to:)` filtering and ordering, including
-  the `preferredRadius` edge case `DATA_MODEL.md` warns about: a stored `0`
-  read directly instead of through `validRadius` silently empties the list.
-- `LocalRunsViewModel.action(for:)` and its radius/dedupe filtering — the
-  function whose correctness the "resolve once, reuse for button and dialog"
-  invariant depends on.
-- All four services' `mapped(_:)` error translations, including
-  `AuthError.notConfigured`'s string-match-before-code path, which is fragile
-  by necessity and untested.
-- `FriendsViewModel`'s profile-resolution cache, including the
-  name-that-never-resolves case.
-- Track A's ranking (A1) and leader election (A3) land with tests as part of
-  those stories, not here.
-- **Also fix the UI test target**, which fails to launch its runner
-  (`RequestDenied` from SpringBoard), forcing every `xcodebuild test` to be
-  scoped with `-only-testing:hooprTests`. A test target that can't run is worse
-  than none, because it makes the working suite awkward to invoke.
-
----
-
-### D3 — Rules coverage via the Firebase emulator
-
-**Size:** Large
-
-The rules carry the project's most consequential logic — the membership diff,
-pinned server timestamps, derived status, duplicate-roster guards, the
-friendship's asymmetric authority — and **none of it has automated coverage.**
-`FirestoreRulesParityTests` pins shared *constants* and is explicit about not
-being a rules evaluator.
-
-`firebase emulators:exec` with `@firebase/rules-unit-testing` runs locally and
-needs no billing change. It needs a Node test target rather than a Swift one.
-
-This is listed twice in `GAPS.md` (items 2 and 6) and in `SCALE_UP.md` §5,
-which is a fair signal of how overdue it is. Every story above that touches
-rules — A2's `queueEntries`, B1's `handles`, B3's block list, `SCALE_UP.md`'s
-`region` and `private` subcollection — adds a clause that nothing will verify
-until this exists.
-
-*Acceptance criteria:*
-- Emulator setup committed and documented in `BUILD_AND_CONFIG.md`, runnable in
-  one command.
-- `games` covered: a non-member can't read a private run; the membership diff
-  rejects writing another uid; duplicate rosters are rejected; the host can't
-  leave; rosters stay disjoint; only the host deletes.
-- `friendships` covered: the six checks from the 2026-08-14 manual pass become
-  automated, closing B4's "one-time pass, not coverage."
-- `users` covered: the create and update key allowlists, and that a
-  non-owner cannot write.
-- The suite runs in CI, or — if there's no CI yet — the story includes standing
-  it up, because a local-only suite is one people forget to run.
-
----
-
-### D4 — Retire finished runs on a schedule the client can trust
-
-**Size:** Medium
-
-`SCALE_UP.md` fixes *which* runs are queried; this fixes *when* they stop
-being queried. `GAPS.md` step 1 describes it: `Game.visibilityGrace` is 3h, and
-the query's cutoff is **fixed when the listener attaches**. A session left open
-overnight keeps querying against last night's cutoff. `isVisible(at:)` hides
-those rows client-side so nothing wrong is displayed, but the query keeps paying
-for them and spends its `limit(to:)` budget on runs that will never render.
-
-`attachListeners()` recomputes the cutoff per attach, but only runs on sign-in
-and on recovery — a healthy long-lived session holds its original cutoff
-indefinitely.
-
-*Acceptance criteria:*
-- The cutoff is recomputed and the listeners re-attached on foreground, via
-  `scenePhase` — the cheapest of the three options `GAPS.md` lists, and the one
-  that doesn't remove an index or need a Cloud Function.
-- Re-attach reuses the existing `ListenerSupervisor` path rather than adding a
-  second way to attach, and every new snapshot still reports success/failure by
-  listener key — a listener that skips this is one that never comes back.
-- The grace window is confirmed as a deliberate value (6h was floated) and, if
-  changed, changed in `Models/Game.swift` where both consumers read it.
-- The `in_progress` / `completed` statuses stay unwritten and that stays
-  documented — moving retirement server-side needs a scheduled Function
-  (`SCALE_UP.md` §7). This story makes the client-side window honest, not
-  authoritative.
-
----
-
-### C5 — Heat-colored court markers by today's scheduled game count
-
-> **Shipped 2026-08-21; kept here only as the design record.** What's true now
-> lives in `MAP_LAYER.md` (`CourtHeat`) and `PRODUCT_OVERVIEW.md`. Two things
-> below did **not** land as written: the palette is a five-stop all-orange
-> scale of fixed, non-dynamic colours in `CourtHeat.swift` rather than
-> light/dark `Theme.swift` roles (it's a data scale read against the basemap,
-> not app chrome), and **every cluster criterion is void** — clustering was
-> removed outright on 2026-08-22, so `configureAsCluster` and any
-> member-aggregation policy no longer exist. See `MAP_LAYER.md`'s "There is no
-> clustering" for why.
-
-**Size:** Medium-Large
-
-Every court pin reads identically today regardless of activity —
-`CourtMarkerView.configureAsCourt` sets the disc to `hooprOrange`
-(`hooprDarkOrange` if selected), full stop (`MapView.swift:115`), and
-`configureAsCluster` always uses `hooprDarkOrange` (`MapView.swift:132`). A
-court with eight runs scheduled today and one with none look the same until
-the sheet is opened. This story turns the disc into a heatmap of that day's
-scheduled activity, so the map itself answers "where's it happening today"
-at a glance — the thing `plans/LIVE_HEADCOUNT.md` §1 identifies as missing
-("the map stops being a static directory... only once headcounts exist"),
-delivered here from data the app **already has**, before that plan's new
-`checkins` collection exists at all.
-
-**The good news: this needs no new collection, query, index, or rule.**
-`GameService.publicGames` is already a live, session-scoped listener over
-public runs (`GameService.swift:174-179`); every court a pin represents has
-a stable `Court.id` every `Game.courtId` already references. The whole
-feature is a client-side grouping of data already in memory — the same move
-`LocalRunsViewModel` makes joining runs to the bundled court dataset, and
-the reason `plans/LIVE_HEADCOUNT.md` §5 insists on "listen to documents,
-don't use `count()`": the documents are already in hand, so counting them is
-free.
-
-*Design decisions this story has to settle, not default into:*
-
-- **"Today" is a pure, testable boundary function**, not an inline date
-  comparison — `startOfDay`/`endOfDay` against the device's calendar,
-  mirroring how `Game.isVisible(at:)` and `Game.visibilityGrace` are kept as
-  pure functions on the model specifically so they're testable without
-  Firestore. Get the midnight-boundary and timezone cases into a unit test
-  from the start.
-- **Counting is derived, not queried.** Group `GameService.publicGames` by
-  `courtId`, filter to today's window, and count — recomputed only when
-  `courtService.$courts` or `gameService.$publicGames` emits, via the same
-  `CombineLatest`-computed-once discipline `MAP_LAYER.md` documents for
-  `NearbyCourt` ("computed once when the list is built... never during
-  scroll"). Never a query keyed on `courtId` per visible pin — that's the
-  per-court fan-out `plans/LIVE_HEADCOUNT.md` §6 Phase 3 explicitly warns off
-  ("not one listener per court and not a query over all 213").
-- **New Theme.swift roles, not a reused one.** `hooprRed` is already the
-  app's error/destructive color (Sign Out, Remove home court) — routing "lots
-  of games here" through it would tell a user something is wrong. Add a
-  small ordered ramp (recommend three or four steps: none / light / busy /
-  packed) as named roles next to the existing brand colors, each a
-  light/dark pair through `Color.hoopr(light:dark:)` like every other role,
-  never a literal RGB in `MapView.swift`.
-- **Bucket thresholds are a stated table**, not a formula improvised at the
-  call site — e.g. 0 → neutral, 1–2 → light, 3–5 → busy, 6+ → packed. Tune
-  against real data once available; the point is that the boundaries live in
-  one named place, the way `Game.maxPlayersRange` and `visibilityGrace` do.
-- **Cluster color needs its own policy, stated plainly.** A cluster today is
-  always `hooprDarkOrange` regardless of what it contains. Recommend the
-  cluster shows the **hottest bucket among its members** — a cluster
-  containing one packed court should read as packed, not hide it behind an
-  average. Whatever is chosen, document it here and in `MAP_LAYER.md`; "the
-  cluster averages/maxes/ignores member heat" is a real behavior difference
-  someone will otherwise have to reverse-engineer from the diff.
-- **Selection and heat both want the disc color**, and only one can have it.
-  Recommend heat owns the disc's fill unconditionally, and selection keeps
-  communicating through the existing scale-up transform and
-  `displayPriority`/`zPriority` bump rather than also swapping color — those
-  are already sufficient to mark a selected pin (per `MapView.swift:122-126`)
-  without needing `hooprDarkOrange` to double as "selected." Document
-  whichever way this goes in the `configureAsCourt` doc comment, since the
-  current comment ("Selected pins outrank their neighbours...") doesn't
-  anticipate a second color signal competing for the same property.
-- **Color is never the only signal.** A colorblind user or anyone glancing
-  at a small disc shouldn't need to distinguish four hues correctly.
-  `CourtRow` and the court detail sheet (`C2`) should show the same count as
-  a number — "6 runs scheduled today" — so the map's color is a preview of
-  something stated in text elsewhere, not the only place the information
-  exists. This is exactly the color-is-not-the-only-encoding rule `C4`'s
-  accessibility audit exists to catch; landing it correctly here means C4
-  doesn't have to find it later.
-
-*Acceptance criteria:*
-- A pure function mapping `[Game]` + `courtId` + "today" → a count, unit
-  tested independently of Firestore, MapKit, or a view model — including a
-  game scheduled just before midnight and one just after.
-- A pure function mapping count → bucket, unit tested at every boundary
-  (the off-by-one the roster-status parity tests already guard against
-  elsewhere in this codebase is exactly the class of bug to watch for here).
-- `FindAMatchViewModel` gains `gameService` as a dependency and publishes a
-  `courtHeat: [String: Bucket]` (or similar), recomputed via `CombineLatest`
-  over courts and public games — not recomputed per render, per pin, or
-  during a map pan.
-- **Injection chain updated**: `MainTabView` → `MapTab` →
-  `FindAMatchViewModel` currently takes `courtService` + `locationService` +
-  `userProfileService` + `recentCourtsStore`, no `gameService`
-  (`ViewModels/FindAMatchViewModel.swift:86-96`). `plans/LIVE_HEADCOUNT.md`
-  §5 already flags that its own `CheckInService` needs the same chain
-  extended — **do both init-signature threadings in one pass** if the two
-  stories land near each other, exactly as that plan recommends for its own
-  overlapping case.
-- `CourtMarkerView.configureAsCourt` takes a bucket and sets `disc
-  .backgroundColor` from the new Theme roles — as a `UIView.backgroundColor`,
-  never `CALayer.backgroundColor`, matching the file's existing, deliberate
-  convention (`MapView.swift:41-45`) so the color re-resolves on a light/dark
-  trait change instead of freezing.
-- `configureAsCluster` implements the stated aggregation policy.
-- Colors update **live** as `publicGames` delivers new snapshots — a run
-  booked at a court while the map is open shifts that pin's bucket without a
-  refresh, reusing the listener that's already open.
-- A legend or one-time explainer exists somewhere reachable (the list
-  header is the cheapest option) — an unlabeled color-coded map is a
-  guessing game the first time someone sees it.
-
-*Correctness dependency worth naming, not a blocker today:* counts are
-derived from `GameService.publicGames`, which today has no city/region
-filter and is capped at `Limit.published` (100) — `SCALE_UP.md` §1's exact
-concern. At the current single-metro scale every relevant game is in that
-list. Once `SCALE_UP.md` S1.2 ships (querying by `region`), this feature's
-counts get *more* correct, not less — a busy local court currently at risk
-of being crowded out of the global top-100 by another city's earlier-tipping
-runs would undercount today. No action needed now; just don't be surprised
-if heat readings look off in a second city before S1.2 lands.
-
-*Explicitly a different signal from `plans/LIVE_HEADCOUNT.md`:* this is
-**"how much is scheduled here today"**; that plan is **"how many people are
-actually here right now."** They're complementary, not duplicates — a court
-can be scheduled solid and empty at check-in time, or unscheduled and full
-of pickup players who never opened the app. Don't merge the two encodings
-into one color scale without a deliberate design pass; note the relationship
-in both docs and leave them as two signals for now.
-
----
-
-### D5 — Ship a real app icon and accent color
-
-**Size:** Small-Medium
-
-`Assets.xcassets/AppIcon.appiconset/Contents.json` declares the full modern
-icon-slot set and every slot is empty; `Assets.xcassets/AccentColor.colorset`
-declares no color. `GAPS.md` calls this out under *Assets and data*: "The app
-ships with the default placeholder icon." Every other polish story in this
-backlog assumes there's a shipped-looking app underneath it — this is the one
-gap that's visible before a user opens the app at all, on the home screen and
-in the App Store listing alike.
-
-*Acceptance criteria:*
-- A real icon fills every slot `Contents.json` declares, at the checked-in
-  resolutions. If the target moves to the single 1024×1024 "all sizes" format
-  Xcode 26 supports, `Contents.json` itself is updated to match rather than
-  left declaring slots nothing fills.
-- `AccentColor` gets a deliberate value — recommend deriving it from
-  `Color.hooprOrange` in `Theme.swift` rather than a fresh literal, so the
-  system-level tint (widgets, the Settings app-icon row, share-sheet chrome)
-  agrees with the in-app brand color instead of introducing a second orange
-  nobody chose on purpose. `AccentColor.colorset` supports the same
-  light/dark split `Theme.swift` uses for every other role — use it, and
-  confirm the result reads correctly on both an actual light and dark home
-  screen.
-- The `hoopsRN`-vs-`hoopr` naming gap in `GAPS.md`'s Configuration section
-  doesn't block this — icon and accent color are visual assets, not
-  identifiers, so this story doesn't wait on that decision.
-- `GAPS.md`'s Assets and data row for this is struck once shipped.
-
----
-
-### D6 — Waitlist promotion and *automatic* run completion
-
-**Size:** Large · **Note:** the first story in this backlog that needs the
-Blaze plan
-
-**Partly shipped 2026-09-18, and the shipped half never needed Blaze.** This
-story used to bundle two things under one plan decision. They have come apart:
-
-- **Host-triggered completion — done.** A host marks their own started run
-  complete from `GameCard`; `GameService.completeGame(id:)` writes
-  `status: completed` + `completedAt` through a host-only `allow update`
-  clause that was already in `firestore.rules`. It is an ordinary client
-  write with the same authorization shape as cancel, so it shipped on Spark.
-  It also closed the Home stats card gap this story used to carry.
-- **Automatic completion — still Blaze.** A run whose host never taps the
-  control is never completed; it ages out via `Game.visibilityGrace` instead.
-  Finishing it without a host action needs a scheduled Function.
-- **Waitlist promotion — still Blaze.** Unchanged: "the freed slot isn't
-  handed to the first waitlisted player — the update rule forbids writing
-  another user's uid, deliberately."
-
-What remains in this story is the two Blaze halves. `in_progress` is still
-declared and never written, and there is still no control for it — nothing on
-any screen distinguishes it from `open`.
-
-The `games` update rule's membership diff is exactly as deliberate as Track
-A's design note says: a caller may only move themselves across
-`playerIds`/`queuedPlayerIds`, so *no client write* can hand a departing
-player's seat to someone else. That's correct and shouldn't be loosened — it's
-the same guarantee Track A leans on. The honest fix is server-side, which this
-project has avoided everywhere else specifically to stay on Spark. This story
-is the one place in the backlog to name that directly and make the call
-rather than let it sit as an unstated gap forever.
-
-*Acceptance criteria:*
-- **The plan decision is made explicitly and recorded**, not defaulted into.
-  If the project moves to Blaze: a Cloud Function triggered on `games`
-  updates promotes the first `queuedPlayerIds` entry into `playerIds` when a
-  confirmed player leaves a run that still has a waitlist, and a scheduled
-  Function transitions `open`/`full` → `in_progress` at `scheduledTime` and →
-  `completed` after some duration, superseding the client-side
-  `visibilityGrace` hiding used today (`D4`). If the project stays on Spark:
-  this story is recorded as explicitly deferred in `GAPS.md`, not silently
-  dropped, since two "Next steps" items already point at it.
-- Promotion selection is a **pure function** over `queuedPlayerIds`
-  (first-in, first-out unless a different order is chosen deliberately), unit
-  tested independent of the Function runtime — the same discipline every
-  other matching decision in this backlog follows.
-- The Function runs with admin credentials, so it is exempt from the
-  membership-diff rule by design (Cloud Functions bypass Firestore security
-  rules) — state that next to the rule itself in
-  `database/DATABASE_SCHEMA.md`, so a future reader doesn't conclude the rule
-  was weakened.
-- A promoted player gets an in-app state change; per `A3`'s honest
-  limitation, they cannot be *pushed* to unless `SCALE_UP.md` §7's push
-  design lands alongside this.
-- `D4`'s client-side `visibilityGrace` window stays as the fallback for any
-  run this Function hasn't reached yet (deploy lag, a cold Function), so a
-  stale run never renders as live even if the status write is late.
 
 ---
 
@@ -939,7 +419,7 @@ is created, and `GameCard`/`InviteLinkCard` repeat it for a host. None of it
 does anything yet: `hoopsrn` isn't registered under `CFBundleURLSchemes`,
 nothing implements `.onOpenURL` in `hooprApp.swift`, and the `games` `read`
 rule refuses a non-member exactly as it should for a run with `isPublic ==
-false` — so a recipient who taps the link today gets nothing. `GAPS.md` §4
+false` — so a recipient who taps the link today gets nothing. `gaps/GAMES.md`
 has the full worked shape; this story is building it.
 
 *The decision this story has to make, not default into:* the current `read`
@@ -959,9 +439,7 @@ Two ways to close that honestly:
   invite" affordance somewhere.
 
 `context/gaps/GAMES.md` carries the load-bearing decision — the `get`/`list`
-split versus an `inviteToken`. The fuller worked design that lived in
-`context/prompts/` was removed on 2026-09-16; `git log` has it if the
-view-model skeleton is wanted.
+split versus an `inviteToken`. 
 
 *Acceptance criteria:*
 - The decision above is recorded in `database/DATABASE_SCHEMA.md` with its
@@ -979,140 +457,79 @@ view-model skeleton is wanted.
 - Joining through an invite link uses the same self-join write `C1`'s roster
   actions and `A1`'s Queue Up use — no second join path into `games`.
 - `InviteLink.swift`'s doc comment ("**The link is not yet openable**") and
-  `GAPS.md` §4 are both updated once this ships.
+  `gaps/GAMES.md` are both updated once this ships.
 
 ---
 
-### C7 — Color system redesign: a genuinely new palette, not another shade tweak
+## Track D — Needs the Blaze plan
 
-**Size:** Medium-Large
+### D6 — Waitlist promotion and *automatic* run completion
 
-Every palette change so far has been a one-line retune of the *existing*
-system: `6e2fe50` desaturated `hooprOrange` by 20 points, the same day
-`hooprOnBrand` flipped white→black on the same fill. Both were narrow,
-justified, and left the app looking like the same app. Nobody has taken a
-step back and asked whether one orange plus a neutral gray scale plus one red
-is the palette a run-finding social app should have, or just the palette it
-started with. This story is that step back: a deliberate visual redesign of
-the color system, driven by what looks good and distinctive, not by a
-one-field diff.
+**Size:** Large · **Note:** the first story in this backlog that needs the
+Blaze plan
 
-`Theme.swift` today is genuinely narrow by design — brand (`hooprOrange`,
-`hooprDarkOrange`), one semantic red (`hooprRed`), two neutral surfaces
-(`hooprBackground`, `hooprSurface`, `hooprFill`, `hooprBorder`), and two text
-weights (`hooprPrimaryText`, `hooprSecondaryText`). `CourtHeat.swift` adds a
-five-stop literal ramp on top, deliberately outside this system. That's a
-reasonable *starting* palette, not a ceiling — this story should feel free to
-propose a genuinely different direction (a second accent hue, a warmer or
-cooler neutral base, a more considered relationship between the brand color
-and the map's heat ramp) rather than only reshading what's there.
+What's left: **waitlist promotion** — "the freed slot isn't handed to the
+first waitlisted player; the update rule forbids writing another user's uid,
+deliberately" — and **automatic completion**, finishing a run whose host never
+marks it. (Host-triggered completion shipped 2026-09-18 on Spark.)
+`in_progress` is still declared and never written.
 
-*Suggested approach:* mock up two or three real candidate palettes against
-actual screens — `LoginView`, `MapTab`'s court sheet, `GameCard`, `ProfileView`
-— before touching `Theme.swift`, so the choice is made by looking at the app
-rather than by eyeballing hex values. The `design` skill is built for exactly
-this kind of comp. Pick one direction and land it as a single considered
-change, not another drip of one-role patches.
-
-> **Update 2026-09-21:** the AA gap below **closed on its own**, ahead of this
-> story, as `hooprBrandAccent` in Phase 1 of the UI revamp — the pin it
-> describes (`testBrandAsForegroundIsATrackedGap`) no longer exists. The
-> constraint that "every colour used as text or a thin glyph has to clear AA in
-> both appearances" still stands, and is now enforced by `BrandMarkUsageTests`
-> as well as `ThemeContrastTests`. See `gaps/ACCESSIBILITY.md`.
-
-*The AA gap folds into this, as a constraint rather than the driver:*
-`hooprOrange` currently fails WCAG AA as a **foreground** — 2.55:1 on
-`hooprBackground`/`hooprSurface`, 2.34:1 on `hooprFill` in light mode, both
-under the 4.5:1 text floor and the 3:1 graphic floor. It's drawn as a
-foreground in at least nine places: `ProfileRow.swift`'s leading symbols,
-`PlayerAvatar.swift`'s initials, `CourtRow.swift`'s filled favorite star,
-`ProfileIdentity.swift`'s avatar ring, `MapTab.swift`'s recenter and favorite
-glyphs, and `GameCard.swift`'s basketball glyph. `hooprTests/ThemeContrastTests.swift`
-pins this as `testBrandAsForegroundIsATrackedGap`, a deliberately *failing*
-test with a comment reading "**Add the real assertion in the same change that
-adds the role.**" Whatever the new palette turns out to be, every color used
-as text or a thin glyph has to clear AA in both appearances before this story
-is done — that requirement shapes the redesign, it doesn't wait for a
-follow-up.
+The `games` update rule's membership diff is exactly as deliberate as Track
+A's design note says: a caller may only move themselves across
+`playerIds`/`queuedPlayerIds`, so *no client write* can hand a departing
+player's seat to someone else. That's correct and shouldn't be loosened — it's
+the same guarantee Track A leans on. The honest fix is server-side, which this
+project has avoided everywhere else specifically to stay on Spark. This story
+is the one place in the backlog to name that directly and make the call
+rather than let it sit as an unstated gap forever.
 
 *Acceptance criteria:*
-- A candidate palette is chosen against real screens (mockups or comps), not
-  tuned live in `Theme.swift` by trial and error.
-- The result is still expressed entirely as named roles in `Theme.swift`,
-  each with a light/dark pair through `Color.hoopr(light:dark:)` — the file's
-  own stated invariant is "there are no literal colours left in `Views/`,"
-  and this redesign should tighten that discipline, not create an exception
-  for itself.
-- Every role that can be drawn as text or a thin glyph clears 4.5:1 (or 3:1
-  for a purely graphic mark) against every surface it's actually drawn on, in
-  **both** appearances — extend `ThemeContrastTests` with the same
-  three-ground pattern `testSecondaryTextOnEverySurfaceItIsDrawnOn` already
-  uses, and replace `testBrandAsForegroundIsATrackedGap`'s failing pin with a
-  real passing assertion in the same change. `GAPS.md`'s Accessibility entry
-  is struck once this lands.
-- **`CourtHeat.swift`'s relationship to the new palette is a stated decision,
-  not an oversight.** Its five-stop ramp is deliberately "fixed rather than
-  routed through `Theme.swift`'s light/dark provider," on the reasoning that
-  it's a data scale read against the map's basemap, not app chrome — decide
-  whether that ramp gets restyled to match the new brand hue, stays exactly
-  as it is, or is redesigned as its own considered scale, and say which in
-  both `CourtHeat.swift`'s doc comment and `MAP_LAYER.md`.
-- Every top-level screen gets a visual pass with the new palette, not just
-  the components that happen to reference `Color.hooprOrange` today —
-  `LoginView`, `MainTabView`'s tab bar, `MapTab` (map chrome and the court
-  sheet), `ProfileView`, the Friends screens, `GameCard`, `CreateGameSheet`.
-  A redesign that reads as coherent in `Theme.swift` but disjointed on an
-  actual screen isn't done.
-- `UI_SHELL.md` is updated with the new palette's roles and the reasoning
-  behind the direction chosen, replacing its current description of the
-  brand color rather than appending to it.
-- **Sequence this ahead of `D5`** if both are picked up: `D5` recommends
-  deriving `AccentColor` from `Color.hooprOrange`, and that should point at
-  whatever this story lands on, not at a value about to be replaced.
+- **The plan decision is made explicitly and recorded**, not defaulted into.
+  If the project moves to Blaze: a Cloud Function triggered on `games`
+  updates promotes the first `queuedPlayerIds` entry into `playerIds` when a
+  confirmed player leaves a run that still has a waitlist, and a scheduled
+  Function transitions `open`/`full` → `in_progress` at `scheduledTime` and →
+  `completed` after some duration, superseding the client-side
+  `visibilityGrace` hiding used today. If the project stays on Spark:
+  this story stays recorded as deferred in `gaps/GAMES.md` and
+  `ROADMAP.md` §0, not silently dropped.
+- Promotion selection is a **pure function** over `queuedPlayerIds`
+  (first-in, first-out unless a different order is chosen deliberately), unit
+  tested independent of the Function runtime — the same discipline every
+  other matching decision in this backlog follows.
+- The Function runs with admin credentials, so it is exempt from the
+  membership-diff rule by design (Cloud Functions bypass Firestore security
+  rules) — state that next to the rule itself in
+  `database/DATABASE_SCHEMA.md`, so a future reader doesn't conclude the rule
+  was weakened.
+- A promoted player gets an in-app state change; per `A3`'s honest
+  limitation, they cannot be *pushed* to unless `SCALE_UP.md` §5's push
+  design lands alongside this.
+- The client-side `visibilityGrace` window stays as the fallback for any
+  run this Function hasn't reached yet (deploy lag, a cold Function), so a
+  stale run never renders as live even if the status write is late.
 
 ---
 
 ## Suggested sequencing
 
-Not a commitment, just the order with the fewest blocked dependencies:
+Not a commitment — the order with the fewest blocked dependencies:
 
-1. **A0** (real location) — blocks all of Track A and half of `SCALE_UP.md`.
-2. **D1** (dictionary repair) — cheap, and every story below reads these docs.
-3. **C1** (run detail) + **B2** (friend badges) — the two that make runs feel
-   social, and both are prerequisites for Track A being trustworthy.
-4. **A1** (instant match) — the feature, at its smallest useful size.
-5. **D3** (rules coverage) — before A2/B1/B3 each add an unverified rules block.
-6. **A2** (the queue) + the `presence`-vs-`checkins` decision.
-7. **B1** (handles) / **B3** (blocking) / **C2** / **C3** / **C5** (heat
-   markers) / **C7** (color redesign) — parallel tracks. None of these has a
-   rules or index dependency, so each can slot in wherever there's capacity
-   rather than waiting its turn. If **D5** (app icon) is picked up too, land
-   it after C7 — D5's accent color derives from the palette C7 settles on.
-8. **A3** (auto-form), **D2**, **D4**, **C4**, **C6** (invite links) — as
-   capacity allows.
-9. **D6** (waitlist promotion / automatic completion) — what's left of it is
-   gated on the Blaze-plan decision it names, otherwise sequence-independent of
-   everything above. Its host-triggered completion half shipped 2026-09-18.
-
-## Documentation debt
-
-| Entry | Change |
-|---|---|
-| `database/DATABASE_SCHEMA.md` | `queueEntries` (or `presence`) and its rules/indexes; the `handles` collection if B1 takes that path; the block list under `private`; the invite-access decision (C6); the admin-Function-bypasses-rules note (D6). |
-| `DATA_MODEL.md` | The queue model and its error enum; the handle decision; correct the `CourtDataset` claim (D1). |
-| `ARCHITECTURE.md` | The new queue service in the ownership table; correct `CourtService`'s published properties (D1). |
-| `UI_SHELL.md` | The run detail screen's presentation and its player-display subset; the `@handle` rationale after B1; the queue's surface; the new heat color roles once C5 ships; the redesigned palette and its roles once C7 ships. |
-| `MAP_LAYER.md` | The `Detent`/`SheetState` model and container-height sizing (D1); court detail additions from C2; the location anchor after A0; C5's heat encoding, bucket thresholds, and cluster-aggregation policy. |
-| `COURT_DATASET.md` | Where attribution surfaces (C2); correct the `loadError` claim (D1). |
-| `BUILD_AND_CONFIG.md` | Emulator setup and how to run it (D3); the fixed UI test target (D2). |
-| `GAPS.md` | Strike every row in D1's table that was a stale claim; add the honest client-side boundary on B3; restate A3's duplicate-run race. |
-| `plans/LIVE_HEADCOUNT.md` | Reconcile with A2's `presence` decision — this plan is still unbuilt and shares its shape. |
+1. **C1** (run detail) — the biggest missing surface, and a prerequisite for
+   Track A feeling trustworthy.
+2. **C6** (invite links) — the largest thing that needs no infrastructure
+   decision; settles friends' private runs with it.
+3. **A1** (instant match) — the feature at its smallest useful size.
+4. **A2** (the queue) + the `presence`-vs-`checkins` decision it shares with
+   `plans/LIVE_HEADCOUNT.md`.
+5. **B1** / **B3** / **C2** / **C3** — parallel; none has a rules or index
+   dependency on the others.
+6. **A3** (auto-form) — only if A1 and A2 leave people waiting.
+7. **D6** — gated on the Blaze decision in `ROADMAP.md` §0.
 
 ## See also
 
-- `plans/SCALE_UP.md` — the multi-city scaling roadmap this backlog sits under.
-- `plans/FRIENDS.md` — Phases 4–5, which B2 and B3 draw from.
-- `plans/LIVE_HEADCOUNT.md` — the `checkins` design A2 must be reconciled with
-  before either is built.
-- `GAPS.md` — the source for most of Track D, and itself the subject of D1.
+- `plans/SCALE_UP.md` — the multi-city scaling this backlog sits under.
+- `plans/LIVE_HEADCOUNT.md` — the `checkins` design A2 must be reconciled with.
+- `ROADMAP.md` — what to reach for first, across plans and gaps.
+- `GAPS.md` — what's wrong with what already exists.
