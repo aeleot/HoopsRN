@@ -210,7 +210,9 @@ open: `GameService`'s two arrays, `CourtService.courts`, the profile snapshot,
 and `FriendService`. The hot list calls
 `FindAMatchViewModel.gameCountsByCourt(queued:published:)` directly — it is
 `nonisolated static` and pure, so Home shares the map's counting rule instead of
-restating it. No extra Firestore read, no rules change.
+restating it. No extra Firestore read, no rules change. **A busy court's dot
+glows** (`CourtGlowHalo`, Phase 5), from the same threshold and on the same
+curve as its map pin — see `MAP_LAYER.md` § `CourtHeat`.
 
 **The stats card shipped, and this entry said it hadn't for longer than it
 should have.** `StatsCard` (`Views/Components/StatsCard.swift`) leads the tab
@@ -454,6 +456,15 @@ disagreement is a designed outcome rather than a failure**: "Results don't
 match" is a card explaining that nobody's record moves until the two leaders
 agree, not an error banner. Whoever was wrong reports again — the same write
 path, called a second time.
+
+**Your squad's confirmed win throws confetti, once** (`ConfettiBurst`, UI
+revamp Phase 5). `ResultViewModel.shouldCelebrate` decides: a confirmed win
+for *this* squad, not already celebrated on this device
+(`CelebratedWinsStore`, on-device like recents), confirmed within the last
+week. It fires on opening the result or live as the other leader's report
+lands, never again on reopening or re-render. It takes no touch, is hidden from
+VoiceOver, draws nothing under Reduce Motion, and ends by itself after 2.6s.
+Unseen live, like the rest of this screen (`gaps/SEASONS.md`).
 
 The two crest buttons are the only place a `SquadCrest` is not decorative, so
 they carry explicit labels naming the squad and the action. Reachable from game

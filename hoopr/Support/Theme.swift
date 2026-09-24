@@ -64,7 +64,32 @@ extension Color {
     /// different jobs, which is why this is a role and not a retune of
     /// `hooprOrange`. `ThemeContrastTests` asserts every ground above.
     static let hooprBrandAccent = Color.hoopr(
-        light: UIColor(red: 184 / 255, green: 64 / 255, blue: 15 / 255, alpha: 1),
+        light: brandAccentLight,
+        dark: brandOrangeDark
+    )
+
+    private static let brandAccentLight = UIColor(red: 184 / 255, green: 64 / 255, blue: 15 / 255, alpha: 1)
+
+    /// The halo a busy court glows with — Home's heat dot and the map's pin
+    /// (UI revamp Phase 5, `Motion.Glow`).
+    ///
+    /// **The brand accent's hues, not the court's heat colour.** The courts
+    /// that glow are the top two heat tiers, which are deep reds, and a
+    /// translucent deep red over the dark page all but vanished in a render.
+    ///
+    /// **Its alpha differs by appearance, and that is the point.** A halo is
+    /// drawn translucent, and translucent orange over near-black composites to
+    /// brown, not light: at the opacity that reads as a glow on white, it was
+    /// still barely there on black (measured in a render, 2026-09-24). So the
+    /// dark value is opaque and the light one carries 0.53 alpha, and
+    /// `Motion.Glow`'s one curve (peaking at 0.85) lands at about 0.85 on
+    /// black and 0.45 on white. Kept here rather than as two curves so the map's
+    /// pin, which holds this in a view, re-resolves it on an appearance change
+    /// without re-adding its animation.
+    ///
+    /// Decorative, with nothing drawn on it, so it asserts no pairing.
+    static let hooprCourtGlow = Color.hoopr(
+        light: brandAccentLight.withAlphaComponent(0.53),
         dark: brandOrangeDark
     )
 

@@ -26,6 +26,14 @@ import UIKit
 /// the first time. A view that wants motion on appearance is doing something
 /// this vocabulary deliberately doesn't offer.
 ///
+/// **One exception, and it isn't a change: a busy court's glow** (`Glow`,
+/// Phase 5). It is an ambient indicator — "this court is live today", the way
+/// a recording light is on — so it runs for as long as it's on screen. It is
+/// bounded three ways: only courts over `CourtHeat.glowsFrom` have it, it is
+/// drawn behind the heat dot and never moves layout, and under Reduce Motion it
+/// holds still. It never carries information alone: the count and the heat
+/// colour say the same thing.
+///
 /// The static `Animation` and `AnyTransition` members read
 /// `UIAccessibility.isReduceMotionEnabled`, the setting SwiftUI's
 /// `accessibilityReduceMotion` mirrors, so an action closure — which has no
@@ -107,6 +115,69 @@ enum Motion {
     /// fanfare.
     static func bounces(from old: Int, to new: Int, reduceMotion: Bool) -> Bool {
         new > old && !reduceMotion
+    }
+
+    /// A busy court's glow: a halo (`hooprCourtGlow`) that swells out of the
+    /// dot and fades, once every `period`, like a sonar ping.
+    ///
+    /// **One curve for both screens.** Home's hot list draws it in SwiftUI
+    /// (`CourtGlowHalo`) and the map's pins in Core Animation
+    /// (`CourtMarkerView`), which samples `samples(count:)` into a keyframe
+    /// animation rather than approximating the curve with a timing function —
+    /// so a court pulses identically on both. Both phase it off the reference
+    /// date, so every glowing court on a screen pulses together rather than
+    /// each starting when it scrolled in.
+    enum Glow {
+        /// Slow enough to read as ambient rather than as an alert.
+        static let period: TimeInterval = 2.0
+        /// How far the halo swells, as a multiple of the dot it sits behind.
+        static let peakScale: CGFloat = 2.2
+        /// The halo's opacity as it leaves the dot, fading to nothing. Before
+        /// `hooprCourtGlow`'s own alpha, which is what makes the same curve
+        /// right on white and on black — see there.
+        static let peakOpacity: Double = 0.85
+        /// Under Reduce Motion the halo holds still, about where it would be
+        /// halfway through a ping — still a glow, never a movement.
+        static let restingScale: CGFloat = 1.8
+        static let restingOpacity: Double = 0.4
+
+        struct Frame: Equatable {
+            let scale: CGFloat
+            let opacity: Double
+        }
+
+        /// Where the halo is `elapsed` seconds into any cycle. Ease-out, so it
+        /// leaves the dot quickly and slows as it fades.
+        static func frame(at elapsed: TimeInterval, reduceMotion: Bool) -> Frame {
+            if reduceMotion {
+                return Frame(scale: restingScale, opacity: restingOpacity)
+            }
+            var progress = elapsed.truncatingRemainder(dividingBy: period) / period
+            if progress < 0 { progress += 1 }
+            return frame(atProgress: progress)
+        }
+
+        /// `count + 1` evenly spaced frames across one cycle, both ends
+        /// included — the keyframe values `CourtMarkerView` animates through.
+        static func samples(count: Int) -> [Frame] {
+            let steps = max(count, 1)
+            return (0...steps).map { frame(atProgress: Double($0) / Double(steps)) }
+        }
+
+        /// How far into the current cycle the reference clock is, so a halo
+        /// started now joins the others in phase.
+        static func phase(at date: Date) -> TimeInterval {
+            let offset = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period)
+            return offset < 0 ? offset + period : offset
+        }
+
+        private static func frame(atProgress progress: Double) -> Frame {
+            let eased = 1 - (1 - progress) * (1 - progress)
+            return Frame(
+                scale: 1 + (peakScale - 1) * CGFloat(eased),
+                opacity: peakOpacity * (1 - eased)
+            )
+        }
     }
 }
 

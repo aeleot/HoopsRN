@@ -88,6 +88,17 @@ swallows.
 
 `GoogleService-Info.plist` is committed at `hoopr/GoogleService-Info.plist`.
 
+**UI revamp Phase 5 added no package** (2026-09-24, the user's call).
+`plans/UI_REVAMP_PROMPT.md` suggested four and asked for each to be justified
+by something built-ins can't do. None cleared that bar:
+
+| Suggested | For | Built instead with | Why not the package |
+|---|---|---|---|
+| `lottie-spm` | launch, loading, empty states, match found | nothing | No animation assets exist, and the four uses break the prompt's own rules: a launch animation delays the first screen, empty-state motion animates on first appearance, and match found already has a transition and a haptic. |
+| `Pow` | banner/card effects, a shine on the hot list | `CourtGlowHalo` (`TimelineView`) and a keyframe `CAAnimation` on the map pin | Phase 3's transitions already cover the entrances; the "live" signal is one curve (`Motion.Glow`) drawn on both screens, which a SwiftUI-only package couldn't draw on a UIKit pin anyway. |
+| `ConfettiSwiftUI` | a won match, streak milestones | `ConfettiBurst` (`Canvas` + `TimelineView`, ~100 lines) | Small enough to own, and testable as a pure particle model (`CelebrationTests`). Streaks aren't celebrated at all: they're self-reported counters the brief holds at row weight. |
+| `swiftui-introspect` | UIKit escape hatch | — | Nothing needs one. |
+
 **`UserNotifications` needs no dependency and no project change.** It is a
 system framework and auto-links; local notifications need no APNs token, which
 is why `AppDelegate` still registers nothing. Real push would need FCM

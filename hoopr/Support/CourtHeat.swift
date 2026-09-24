@@ -34,6 +34,17 @@ enum CourtHeat {
     /// re-deriving the stop count.
     static let maxTier = Color.hooprHeatMaxTier
 
+    /// How many runs today make a court **busy** enough to glow (UI revamp
+    /// Phase 5). The top two tiers, not every court with a run: on Home's list
+    /// every row has at least one, and a glow on all of them would say nothing
+    /// about any. One number for the map and Home, so a court that glows on one
+    /// glows on the other.
+    static let glowsFrom = 3
+
+    static func glows(forGameCount gameCount: Int) -> Bool {
+        gameCount >= glowsFrom
+    }
+
     /// Negative counts clamp to the quietest tier rather than trapping — nothing
     /// produces one today, but a lookup should never crash on a bad index.
     static func tier(forGameCount gameCount: Int) -> Int {

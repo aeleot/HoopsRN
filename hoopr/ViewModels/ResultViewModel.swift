@@ -24,10 +24,21 @@ final class ResultViewModel: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var isReporting = false
 
+    /// A win to celebrate — set the first time this device sees this squad's
+    /// confirmed win, whether that's on opening the screen or live, as the
+    /// other leader's report lands; cleared when the confetti finishes. See
+    /// `shouldCelebrate` for what counts.
+    @Published private(set) var celebration: Celebration?
+
+    struct Celebration: Equatable {
+        let gameId: String
+    }
+
     let mySquadId: String
 
     private let seasonGameService: SeasonGameService
     private let squadService: SquadService
+    private let celebratedWins: CelebratedWinsStore
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -35,22 +46,82 @@ final class ResultViewModel: ObservableObject {
         game: SeasonGame,
         mySquadId: String,
         seasonGameService: SeasonGameService,
-        squadService: SquadService
+        squadService: SquadService,
+        celebratedWins: CelebratedWinsStore = CelebratedWinsStore()
     ) {
         self.game = game
         self.mySquadId = mySquadId
         self.seasonGameService = seasonGameService
         self.squadService = squadService
+        self.celebratedWins = celebratedWins
 
         seasonGameService.$games
             .receive(on: DispatchQueue.main)
             .sink { [weak self] games in
                 guard let self, let updated = games.first(where: { $0.id == game.id }) else { return }
                 self.game = updated
+                self.considerCelebrating()
             }
             .store(in: &cancellables)
 
+        considerCelebrating()
+
         Task { await self.loadSquads() }
+    }
+
+    // MARK: - Celebrating a win
+
+    /// How old a confirmation may be and still be celebrated. Past this, the
+    /// win is history being browsed — squad detail's list, or a new phone
+    /// opening an old result — not news.
+    nonisolated static let celebrationWindow: TimeInterval = 7 * 24 * 60 * 60
+
+    /// Whether to throw confetti for `game`, as seen by `mySquadId`.
+    ///
+    /// Only **your squad's confirmed win**: a loss isn't celebrated at you, a
+    /// dispute counts for nobody, and one report settles nothing. Only **once**
+    /// per device, which is what `alreadyCelebrated` carries — reopening the
+    /// result, or the listener re-emitting the same game, must not fire it
+    /// again. And only **recently**: `confirmedAt` is the server's stamp, and
+    /// `nil` means it hasn't resolved yet, which is a confirmation seconds old.
+    ///
+    /// Pure and `nonisolated`, so `CelebrationTests` can hold it without a
+    /// service.
+    nonisolated static func shouldCelebrate(
+        game: SeasonGame,
+        mySquadId: String,
+        alreadyCelebrated: Bool,
+        now: Date
+    ) -> Bool {
+        guard case .confirmed(let winnerId) = game.reportOutcome, winnerId == mySquadId else {
+            return false
+        }
+        guard !alreadyCelebrated else { return false }
+        if let confirmedAt = game.confirmedAt,
+           now.timeIntervalSince(confirmedAt) > celebrationWindow {
+            return false
+        }
+        return true
+    }
+
+    /// Records the win *before* showing it, so a burst that never gets to run
+    /// — Reduce Motion, the screen popped mid-fall — still counts as seen.
+    private func considerCelebrating() {
+        guard celebration == nil,
+              Self.shouldCelebrate(
+                game: game,
+                mySquadId: mySquadId,
+                alreadyCelebrated: celebratedWins.contains(game.id),
+                now: Date()
+              )
+        else { return }
+
+        celebratedWins.record(game.id)
+        celebration = Celebration(gameId: game.id)
+    }
+
+    func celebrationFinished() {
+        celebration = nil
     }
 
     // MARK: - Reads

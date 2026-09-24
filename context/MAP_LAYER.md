@@ -172,6 +172,24 @@ clamped at both ends — and exposes `color(forGameCount:)` and
 decides what the colours *are*, only what count goes in; Home's hot-court dot
 calls the same functions, so "how busy is this court" has one definition.
 
+**A busy court glows** (UI revamp Phase 5, 2026-09-24). From
+`CourtHeat.glowsFrom` runs today (3, the top two tiers) a halo swells out
+from behind the ring and fades, every two seconds. It is `hooprCourtGlow`,
+not the pin's heat colour: the busy tiers are deep reds, and a translucent
+deep red over a dark ground barely showed in a render. That role carries its
+own per-appearance alpha (see `Theme.swift`), which is why a halo held by a
+view needs no re-add when the appearance flips.
+`CourtMarkerView` animates it as a keyframe `CAAnimation` sampled from
+`Motion.Glow` — the same curve Home's dot draws in SwiftUI — phased off the
+clock so every glowing pin pulses together. Three details are load-bearing:
+the halo is a view, not a layer, for the dynamic-colour reason above; it
+reaches past the pin's `bounds` but collision is computed from `bounds`, so a
+glow never costs a neighbour its place; and the animation is kept on
+completion, or backgrounding the app would strip it and the pins would come
+back still. A running glow is left alone on restyle rather than restarted.
+Under Reduce Motion the halo holds still, read on each configure. The count
+and the colour already say how busy the court is; the glow never says it alone.
+
 **The fill and its label are one table, and the label is not `hooprOnBrand`.**
 The pin's count used to be black on every tier, which is 6.62:1 on the quietest
 and only **4.01:1 and 3.43:1** on tiers 3 and 4 — under the 4.5:1 a 12pt bold

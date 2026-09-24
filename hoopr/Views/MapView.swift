@@ -55,10 +55,18 @@ final class CourtMarkerView: MKAnnotationView {
     private static let courtDiameter: CGFloat = 27
     private static let ringWidth: CGFloat = 3
 
+    /// A busy court's glow, behind everything else (UI revamp Phase 5). A view
+    /// rather than a sublayer for the reason the type's note gives: its colour
+    /// is a palette `UIColor`, held by a view so it would re-resolve. It sits
+    /// outside the pin's bounds at its peak, which is deliberate — collision is
+    /// computed from `bounds`, so a glow never costs a neighbour its place.
+    private let halo = UIView()
     private let ring = UIView()
     private let disc = UIView()
     private let glyph = UIImageView()
     private let countLabel = UILabel()
+
+    private static let glowAnimationKey = "courtGlow"
 
     /// The count a pin draws, exact through 9.
     ///
@@ -85,6 +93,10 @@ final class CourtMarkerView: MKAnnotationView {
         // saying the same thing.
         canShowCallout = false
         backgroundColor = .clear
+
+        halo.isUserInteractionEnabled = false
+        halo.isHidden = true
+        addSubview(halo)
 
         ring.backgroundColor = UIColor(Color.hooprSurface)
         ring.isUserInteractionEnabled = false
@@ -143,6 +155,8 @@ final class CourtMarkerView: MKAnnotationView {
         countLabel.text = nil
         countLabel.isHidden = true
         glyph.isHidden = false
+        // Or a recycled busy pin keeps glowing on a quiet court.
+        stopGlowing()
     }
 
     /// - Parameters:
@@ -175,6 +189,12 @@ final class CourtMarkerView: MKAnnotationView {
 
         countLabel.frame = disc.bounds
         glyph.frame = disc.bounds
+
+        if CourtHeat.glows(forGameCount: gameCount) {
+            glow()
+        } else {
+            stopGlowing()
+        }
 
         // Priority, not size, is what makes a busy court win a collision.
         // MapKit resolves collisions during its own layout pass, *before*
@@ -209,6 +229,72 @@ final class CourtMarkerView: MKAnnotationView {
 
         disc.frame = ring.bounds.insetBy(dx: Self.ringWidth, dy: Self.ringWidth)
         disc.layer.cornerRadius = disc.bounds.width / 2
+
+        // Set through `bounds` and `center`, not `frame`: the halo carries a
+        // scale transform under Reduce Motion, and `frame` is undefined on a
+        // transformed view.
+        halo.bounds = CGRect(origin: .zero, size: bounds.size)
+        halo.center = CGPoint(x: bounds.midX, y: bounds.midY)
+        halo.layer.cornerRadius = diameter / 2
+    }
+
+    /// Starts the glow, or leaves a running one alone — `configureAsCourt` is
+    /// called on every restyle, and restarting would stutter every busy pin
+    /// each time a run was booked anywhere.
+    ///
+    /// Reduce Motion is read here, per configure, rather than observed: a
+    /// change to it reaches the pins on the next restyle.
+    private func glow() {
+        // `hooprCourtGlow`, not the heat colour: see there. Dynamic, which is
+        // why the halo is a view.
+        halo.backgroundColor = UIColor(Color.hooprCourtGlow)
+        halo.isHidden = false
+
+        if UIAccessibility.isReduceMotionEnabled {
+            halo.layer.removeAnimation(forKey: Self.glowAnimationKey)
+            let still = Motion.Glow.frame(at: 0, reduceMotion: true)
+            halo.transform = CGAffineTransform(scaleX: still.scale, y: still.scale)
+            halo.alpha = still.opacity
+            return
+        }
+
+        // The model values stay at rest; the animation draws everything.
+        halo.transform = .identity
+        halo.alpha = 0
+        guard halo.layer.animation(forKey: Self.glowAnimationKey) == nil else { return }
+        halo.layer.add(Self.glowAnimation(for: halo.layer), forKey: Self.glowAnimationKey)
+    }
+
+    private func stopGlowing() {
+        halo.layer.removeAnimation(forKey: Self.glowAnimationKey)
+        halo.transform = .identity
+        halo.alpha = 0
+        halo.isHidden = true
+    }
+
+    /// `Motion.Glow`'s curve as keyframes, so the pin and Home's dot pulse the
+    /// same way, and started part-way through a cycle so it joins the others in
+    /// phase.
+    ///
+    /// Kept on completion: an infinite animation is otherwise removed when the
+    /// app goes to the background, and the pins would come back still.
+    private static func glowAnimation(for layer: CALayer) -> CAAnimation {
+        let frames = Motion.Glow.samples(count: 24)
+
+        let scale = CAKeyframeAnimation(keyPath: "transform.scale")
+        scale.values = frames.map { $0.scale }
+
+        let opacity = CAKeyframeAnimation(keyPath: "opacity")
+        opacity.values = frames.map { $0.opacity }
+
+        let group = CAAnimationGroup()
+        group.animations = [scale, opacity]
+        group.duration = Motion.Glow.period
+        group.repeatCount = .infinity
+        group.isRemovedOnCompletion = false
+        group.beginTime = layer.convertTime(CACurrentMediaTime(), from: nil)
+            - Motion.Glow.phase(at: Date())
+        return group
     }
 }
 

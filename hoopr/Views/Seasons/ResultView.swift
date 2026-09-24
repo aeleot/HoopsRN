@@ -83,6 +83,19 @@ struct ResultView: View {
         .hooprStatusBarScrim()
         .background(Color.hooprBackground)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Your squad's win, once (UI revamp Phase 5). Over everything, down to
+        // the status bar, and it takes no touch — the screen under it works
+        // while it falls. Whether to fire is the view model's call.
+        .overlay {
+            if let celebration = viewModel.celebration {
+                ConfettiBurst(
+                    colors: confettiColors,
+                    seed: Confetti.seed(for: celebration.gameId),
+                    onFinished: { viewModel.celebrationFinished() }
+                )
+                .ignoresSafeArea()
+            }
+        }
         // The band carries the back button, as squad detail's does. See
         // `BandBackButton`. The title stays for VoiceOver.
         .navigationTitle("Result")
@@ -111,6 +124,13 @@ struct ResultView: View {
     private var winner: ResultBand.Winner? {
         guard case .confirmed(let winnerId) = viewModel.outcome else { return nil }
         return ResultBand.Winner(squad: viewModel.squad(id: winnerId))
+    }
+
+    /// The winner's own colour, twice so it leads, then the brand's orange and
+    /// gold. Only a win of *yours* is celebrated, so the crest is this squad's.
+    private var confettiColors: [Color] {
+        let crest = Color.hooprSquad(viewModel.squad(id: viewModel.mySquadId)?.colorKey ?? Squad.defaultColorKey)
+        return [crest, crest, .hooprOrange, .hooprSquad("gold")]
     }
 
     /// This squad's score first, as squad detail's history reads it.

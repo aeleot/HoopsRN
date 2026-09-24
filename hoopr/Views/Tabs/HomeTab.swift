@@ -511,6 +511,15 @@ struct HomeTab: View {
                 Circle()
                     .fill(CourtHeat.color(forGameCount: hot.gameCount))
                     .frame(width: 10, height: 10)
+                    // A busy court glows, as its pin does on the map. The
+                    // background, so the halo swells past the dot without
+                    // pushing the name: at its peak it reaches 7pt beyond the
+                    // dot, and the name starts 12pt away.
+                    .background {
+                        if CourtHeat.glows(forGameCount: hot.gameCount) {
+                            CourtGlowHalo()
+                        }
+                    }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(hot.court.displayName)

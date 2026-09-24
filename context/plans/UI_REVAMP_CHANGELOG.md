@@ -7,7 +7,9 @@ and all of §5.11's sheets (Checkpoint 2 passed after a blind read sent Home
 back once); Start a Run since rebuilt as a grouped form, and the court glyph
 redrawn as a basketball court, from user feedback. Blind reads beyond Home and
 Runs not run. **Phase 3 (motion) built** — see its entry; its live pass is
-outstanding. **Phase 4 (glass and materials) built**
+outstanding. **Phase 4 (glass and materials) built.** **Phase 5 built with
+no package** (the user's call) — a won match celebrates and busy courts glow;
+live pass outstanding. Phase 6 (consolidation) not started.
 **Drafted:** 2026-09-21 @ 1a2710d
 **Touches:** `hoopr/Support/Theme.swift`, `hoopr/Support/Spacing.swift` (new),
 `hoopr/Support/CourtHeat.swift`, `hoopr/Views/` (30 files: the 22 the accent sweep
@@ -18,6 +20,91 @@ docs named under each entry
 > record `UI_REVAMP_PROMPT.md` asks for after every phase: **what changed, what
 > was deliberately left alone, and why.** Phase 2 adds its 2e evidence row per
 > screen here. Measurements it cites live in `UI_REVAMP_AUDIT.md`.
+
+---
+
+## Phase 5 — Rich content, built in (2026-09-24)
+
+The prompt listed four packages and asked that each do something built-ins
+can't. Asked which way to go, **the user chose built-ins**; none of the four
+was added, and `BUILD_AND_CONFIG.md` § Dependencies records why each wasn't
+needed. Two things the definition of done names were missing, and are built:
+
+### What changed
+
+- **A won match celebrates** — `ConfettiBurst`, `Canvas` + `TimelineView`
+  over a pure, seeded particle model (`Confetti`). It fires for **your squad's
+  confirmed win** (`ResultViewModel.shouldCelebrate`): not a loss, not a
+  dispute, not a lone report; **once per device** (`CelebratedWinsStore`,
+  on-device like recents, recorded *before* it's shown so a skipped burst still
+  counts); and only within a week of `confirmedAt`, so a new phone opening an
+  old result isn't told it's news. It fires on opening the result or live as
+  the other leader's report lands. It **never takes a touch** (so there is
+  nothing to skip past), is hidden from VoiceOver, draws nothing under Reduce
+  Motion, and ends by itself after 2.6s. Colours: the squad's crest twice, the
+  brand orange, gold.
+- **Busy courts glow** — Home's hot-list dot (`CourtGlowHalo`) and the map's
+  pin (`CourtMarkerView`), from `CourtHeat.glowsFrom` (3 runs today, the top
+  two tiers — every row on Home has at least one run, so glowing on one would
+  mean nothing). One curve, `Motion.Glow`: a halo swells from the dot and
+  fades every 2s. The pin animates a keyframe `CAAnimation` **sampled from that
+  curve**, so the two screens can't drift, and both phase off the clock, so
+  every glowing court pulses together. Under Reduce Motion it holds still.
+- **`hooprCourtGlow`** (new role). The halo was first drawn in the court's
+  heat colour and **the render caught it**: the busy tiers are deep reds, and
+  translucent red over the dark page was nearly invisible. Switched to the
+  accent's orange — still faint in dark, because translucent orange over
+  near-black composites to brown. The role now carries its own alpha per
+  appearance (opaque in dark, 0.53 in light) under one curve peaking at 0.85,
+  so a halo reads as light on black and stays a soft ring on white.
+- **`Motion.swift`'s "nothing animates on first appearance" gains one named
+  exception**: the glow, an ambient indicator rather than a change — bounded
+  to busy courts, behind the dot, never moving layout, still under Reduce
+  Motion, and never the only carrier of how busy a court is.
+
+### Deliberately left alone, and why
+
+- **Streak confetti on Home** (the prompt's second `ConfettiSwiftUI` use). A
+  streak is a self-reported counter that under-counts by construction, and
+  the brief holds it at row weight; celebrating it would give it the weight of
+  a confirmed result, which §2d fails automatically.
+- **Lottie's four uses.** A launch animation delays the first screen; motion
+  on an empty state animates on first appearance; match found already has a
+  transition and a haptic; and no animation assets exist.
+- **`Pow`'s shine on the hot list.** The glow is that signal, on both screens.
+- **No haptic with the confetti.** Phase 3 buzzes only for a change the user
+  caused, and opening a result someone else confirmed isn't one.
+- **The confetti passes over the band's text for about a second.** It takes no
+  touch and the text is readable through it (render below); stated rather than
+  engineered around.
+
+### Tests
+
+`CelebrationTests` (21, new): the celebration rule case by case (your win, a
+pending timestamp, a loss, a dispute, one report, already celebrated, the
+week's edge); the store (persists across instances, bounded, a repeat doesn't
+take two slots); the particle model (a seed falls the same way, a game's seed
+is stable across launches, every piece starts wholly above the screen, pieces
+fade rather than vanish, nothing before or after the burst, it falls through
+the band while still visible, the flutter never goes fully edge-on); the glow
+(the threshold on both screens, still under Reduce Motion, a ping swells and
+fades and repeats without a seam, never smaller than the dot, the map's
+keyframes are the same curve, the phase comes off the clock). Full suite:
+**655 passed, 0 failed**, run again after the glow colour change.
+
+### Evidence
+
+- **Rendered** off-device from the real components (`ResultBand` with the
+  model drawn at 0.6s and 1.4s; Home rows at five glow phases, Reduce Motion,
+  a two-run court, and the real `CourtGlowHalo`), light and dark. The dark
+  glow was re-rendered twice, for the reason above.
+- **Not verified:** anything live — the simulator was the user's running
+  session. So the confetti in motion, the glow pulsing, **the map pin's glow at
+  all** (a Core Animation keyframe doesn't render in a snapshot), Reduce Motion
+  toggled live, and the confetti firing live, which needs two accounts and has
+  never been possible on this screen (`gaps/SEASONS.md`). The wiring from the
+  listener to `shouldCelebrate` is not unit-covered — it needs
+  `SeasonGameService`.
 
 ---
 
