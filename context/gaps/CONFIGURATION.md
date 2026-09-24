@@ -1,7 +1,7 @@
 # hoopsRN — Configuration gaps
 
 **Scope:** —
-**Verified:** 2026-09-20 @ 349d309
+**Verified:** 2026-09-24 @ f30e4b2
 
 The half-finished rename, and the iOS 18 fallback path nothing has run.
 

@@ -65,3 +65,17 @@ nonisolated struct CourtDataset: Sendable, Codable {
     let cities: [String]
     let courts: [Court]
 }
+
+nonisolated extension Court.Access {
+    /// The plain-language caveat the court card shows under its chips, or
+    /// `nil` when the chip says everything. A school court is normally playable
+    /// after hours and at weekends, which is why this is a sentence and not a
+    /// red warning — but drawing it as an ordinary public court would send
+    /// people to a locked gate on a weekday afternoon.
+    var caveat: String? {
+        switch self {
+        case .public, .restricted: return nil
+        case .school:              return "School court — it may be closed during school hours."
+        }
+    }
+}

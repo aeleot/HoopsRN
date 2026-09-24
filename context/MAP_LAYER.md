@@ -5,17 +5,18 @@
 `hoopr/Views/Tabs/SheetGeometry.swift`,
 `hoopr/Views/Components/CourtBadges.swift`, `hoopr/Support/CourtHeat.swift`,
 `hoopr/Support/CourtSearch.swift`
-**Verified:** 2026-09-20 @ 349d309
+**Verified:** 2026-09-24 @ f30e4b2
 
 The map tab and its bottom sheet — the densest interaction code in the app, and
 the part most likely to break subtly when edited. Read this before touching
 `MapView.swift` or `MapTab.swift`. The Local Runs tab and the profile are in
 `UI_SHELL.md`.
 
-`MapTab` was called `FindAMatchTab` until the third tab stopped being a
-"Find Match" placeholder and became Friends — at which point a file named for
-matchmaking that renders the court map was purely confusing. Its view model is
-still `FindAMatchViewModel`.
+`MapTab` and `MapViewModel` were `FindAMatchTab` and `FindAMatchViewModel` until
+2026-09-24 (the tab first, when the third tab stopped being a "Find Match"
+placeholder and became Friends; the view model, and its tests, later). Both
+names are gone from the code — an older note or commit saying "find a match"
+means this.
 
 ---
 
@@ -159,8 +160,12 @@ here too — see the `title` note above.
 
 ## `CourtHeat` — the pins' heat-map colouring
 
-Added 2026-08-21. Every pin's disc is coloured by **how many games are
-scheduled at that court today**: an all-orange scale that *starts* on the
+Added 2026-08-21. Every pin's disc is coloured by **how many runs are still on
+the board at that court today** — scheduled for today and not completed or
+aged out (`Game.isVisible(at:)`), so the number on a pin, Home's "N today" and
+the court card's list always agree (they didn't until 2026-09-24, when a
+completed run still counted toward a pin the card then showed empty). An
+all-orange scale that *starts* on the
 brand orange for nothing scheduled and darkens and reddens in even steps to a
 saturated reddish orange for the busiest tier.
 
@@ -226,7 +231,7 @@ collision priority in `configureAsCourt`. Conflating "selected" with "busy"
 would have made a cool, quiet court flash warm the moment you tapped it — the
 opposite of what the colour is supposed to mean.
 
-**Where the count comes from.** `FindAMatchViewModel.gameCountsByCourt` (see
+**Where the count comes from.** `MapViewModel.gameCountsByCourt` (see
 `ARCHITECTURE.md`) buckets `GameService`'s `queuedGames` + `publicGames` by
 court for the current calendar day, and publishes it as
 `gameCountByCourtID: [String: Int]`. `MapTab` threads that straight into
@@ -470,7 +475,7 @@ query returns nothing rather than the whole dataset. Three call sites share it
 rather than each rolling their own: this search field, `QueueSheet`'s court
 picker (`MatchmakingViewModel.searchCourts(matching:)`), and the profile's
 home-court picker — which is why it lives in `Support/` rather than as a
-private helper on `FindAMatchViewModel`.
+private helper on `MapViewModel`.
 
 `courtToSelect` is a `Court?` binding the shell writes when a Home hot-court row
 is tapped. `MapTab` consumes it in `.onChange`, clears it so the same court can
@@ -482,7 +487,7 @@ uses rather than reaching into the sheet's state machine.
 Three segments, added when the sheet's list grew a way to answer "is anyone
 playing" instead of only "what's near me." **Recent isn't a fourth** — it moved
 to the search field's empty state (below) when `.now` took its slot, which is
-why `FindAMatchViewModel.ListTab` has exactly three cases.
+why `MapViewModel.ListTab` has exactly three cases.
 
 - **Now** — courts with a run scheduled today, soonest tip-off first. The
   segment's whole reason to exist, and the map's answer, in list form, to the
@@ -526,22 +531,23 @@ runs at that court, if any — with the same Join/Leave/Cancel actions the Runs
 tab offers**, and finally the same `CourtBadges` the list row shows, plus two
 buttons:
 
-- **Directions** — hands the court to Maps via `MKMapItem.openInMaps`, driving
+- **Directions** — a large secondary button (`HooprButtonStyle`), which hands the court to Maps via `MKMapItem.openInMaps`, driving
   mode. The app knows where courts are and nothing about how to get to one.
   Two constructions behind one `#available`: `MKMapItem(location:address:)` on
   iOS 26, which carries the court's street address into the Maps callout, and
   `MKMapItem(placemark:)` below it, which carries only the coordinate. **The
   route is identical either way** — the address is a label, not an input.
-- **Start Run** — presents `CreateGameSheet` for that court. One button covers
-  both entry points because both converge here. See `UI_SHELL.md`.
+- **Start Run** ("Add a run" once the court has one) — a large primary button
+  presenting `CreateGameSheet` for that court. One button covers both entry
+  points because both converge here. See `UI_SHELL.md`.
 
 **Runs lead the card and `CourtBadges` moved below them** — a card that opened
 with amenity badges put the surface material ahead of the thing a
 "find a game right now" tab actually exists to answer. `viewModel.gamesToday(at:)`
-filters to `Game.isVisible(at:)`, same cutoff the `Now` segment uses, so a run
-that finished two hours ago is gone from both rather than sitting here with a
-stale Join button. Each run row's action comes from
-`FindAMatchViewModel.action(for:)`, which calls straight through to
+filters to `Game.isVisible(at:)`, same cutoff the `Now` segment and the pin
+counts use, so a run that finished two hours ago is gone from all three rather
+than sitting here with a stale Join button. Each run row's action comes from
+`MapViewModel.action(for:)`, which calls straight through to
 `LocalRunsViewModel.action(for:)` rather than restating the rule — the map and
 the Runs tab must never offer a different button for the same run. One write
 in flight at a time via `pendingGameId`, the same `GameCard`/`LocalRunsTab`
@@ -577,8 +583,10 @@ font size. At `.accessibility3` "East End Park" reads "East End".
 `CourtNameTests` and `CourtCardLayoutTests` pin the rule.
 
 **Each run row reads like a run on the Runs board** — time first as the row's
-rank, spots left as a number, the same HOSTING / WAITLIST / FULL badge in
-`GameCard`'s priority, and the same waitlist-doesn't-promote note. It stays a
+rank, spots left as a number, the same HOSTING / WAITLIST / FULL badge
+(`RunStatus`'s one priority ladder, drawn by `HooprBadge`) and the same
+waitlist-doesn't-promote note, with a compact `HooprButtonStyle` action —
+the row's action button now has the 44pt tap target it lacked. It stays a
 compact row rather than a `GameCard` because every run here is at *this* court.
 
 **There is no address row, deliberately.** In this dataset `address` is the city
@@ -603,11 +611,18 @@ The old invariant still holds in the direction that mattered: the card is never
 the *poorer* of the two.
 
 `amenities(for:limit:)` is where the narrowing lives, and it has one rule worth
-knowing before touching it: **a caution is never the badge that gets dropped.**
-"Restricted" is emitted last for display, so a plain `prefix` would shed exactly
-the chip a player most needs. Cautions are kept first and the leftover slots
-filled with features, then re-emitted in display order. `CourtBadgesTests` pins
-this.
+knowing before touching it: **a warning is never the badge that gets dropped.**
+Each chip is an `Amenity` with a kind — *feature* (hoops, lit, surface),
+*notice* ("School": a school court is normally playable after hours, so it is
+an outlined chip in secondary text, not red) or *caution* ("Restricted": red
+outline, you may not get on). The warning is emitted last for display, so a
+plain `prefix` would shed exactly the chip a player most needs. Warnings are
+kept first and the leftover slots filled with features, then re-emitted in
+display order. A school court's chip is spoken with its caveat ("School court,
+may be closed during school hours") and the court card adds a plain sentence
+under its chips (`Court.Access.caveat`) — 32 of the 214 courts were drawing no
+chip at all before, and read as ordinary public courts. `CourtBadgesTests` pins
+all of this.
 
 ### The data's licence notice
 
@@ -659,7 +674,7 @@ figure — a map pin never had a `NearbyCourt` — so it calls
 `distanceText(for:)`, one `CLLocation.distance(from:)` against the same origin.
 That's safe per render; the whole-dataset sort is not.
 
-**Distances follow the device.** `FindAMatchViewModel.homeLocation` forwards to
+**Distances follow the device.** `MapViewModel.homeLocation` forwards to
 `LocationService.homeLocation`, which returns the last accepted fix and falls
 back to Durham (35.9940, −78.8986) until one lands or if permission is denied.
 A new fix replaces the anchor only once it is `significantMove` (100m) from the
@@ -687,7 +702,7 @@ map exists cannot reach it that way. `initialFix` is the one-shot that does:
 is real, a user outside it sees an empty map rather than a Durham one. That is
 correct behaviour exposing a data-coverage gap, not a location bug.
 
-`FindAMatchViewModel.select(_:)` records the court as recently viewed; the
+`MapViewModel.select(_:)` records the court as recently viewed; the
 sheet's own `select(_:recenter:)` does the visible work.
 
 The court detail card carries the **"Start Run"** button, which presents
@@ -735,7 +750,7 @@ nearby-list row — already open this card, so one button serves both. See
 - Distances are computed on `rebuild()`, not during scroll. The radius comes
   from the profile's `preferredRadius`, via `preferredRadiusMiles`.
 - The initial region, list distances, and the recenter target all read
-  `FindAMatchViewModel.homeLocation`, which forwards to
+  `MapViewModel.homeLocation`, which forwards to
   `LocationService.homeLocation`. Keep the single anchor. It follows the device
   now; `initialFix` is the one-shot that moves the map to the first fix, and it
   must never fire over an active selection.
@@ -769,6 +784,6 @@ nearby-list row — already open this card, so one button serves both. See
 - `COURT_DATASET.md` — where the annotations' data comes from.
 - `DATA_MODEL.md` — `Court` fields, and the `displayName` derivation every
   court label on this screen goes through.
-- `ARCHITECTURE.md` — `FindAMatchViewModel`'s dependencies and the
+- `ARCHITECTURE.md` — `MapViewModel`'s dependencies and the
   cross-collection joins, including `gameCountsByCourt`.
 - `PRODUCT_OVERVIEW.md` — the heat map described in product terms.

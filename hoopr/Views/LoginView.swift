@@ -11,10 +11,11 @@ import SwiftUI
 /// and at the largest text sizes the whole screen scrolls rather than
 /// clipping.
 ///
-/// **The form is on the page ground, not `hooprElevatedSurface`** as the brief
-/// drew it. In dark mode the band *is* the elevated surface's value, so a form
-/// on it would read as the band continuing. On the page ground it separates
-/// from the band in both appearances, as every other screen's content does.
+/// **The form is on the page ground, not `hooprElevatedSurface`**, though the
+/// redesign first drew it there. In dark mode the band *is* the elevated
+/// surface's value, so a form on it would read as the band continuing. On the
+/// page ground it separates from the band in both appearances, as every other
+/// screen's content does.
 struct LoginView: View {
     @StateObject private var viewModel: LoginViewModel
     @FocusState private var focusedField: Field?

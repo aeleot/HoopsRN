@@ -12,7 +12,7 @@ import Foundation
 /// "unknown" third state for a call site to forget to handle.
 nonisolated struct CourtActivity: Equatable, Sendable {
     /// Today's runs at this court, soonest first, as
-    /// `FindAMatchViewModel.gamesByCourt(queued:published:)` produced them.
+    /// `MapViewModel.gamesByCourt(queued:published:)` produced them.
     ///
     /// Scoped to what the signed-in account is already allowed to see: the two
     /// listeners behind it are the user's own runs and the public ones, so

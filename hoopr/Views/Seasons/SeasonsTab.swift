@@ -14,7 +14,7 @@ import SwiftUI
 /// on a band like Home's and Runs': the squad's crest and name, and the record
 /// set as the screen's numeral, with its last five results as dots beside it. The match card
 /// follows directly, so **Queue up** sits under the band rather than two cards
-/// down, and the roster and other squads are rows rather than cards.
+/// down, and the roster is rows rather than a card.
 ///
 /// **The band is neutral, not the squad's colour — measured, not chosen.** The
 /// brief proposed the crest colour as the band's ground. No tint strong enough
@@ -146,10 +146,9 @@ struct SeasonsTab: View {
             .hooprStatusBarScrim()
             .background(Color.hooprBackground)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // Every squad the user is on, which is one unless they joined a
-            // second before that stopped being allowed: squad detail's history
-            // reads off this listener, and a secondary squad's detail view
-            // would otherwise render an empty season rather than its own.
+            // Every squad the user is on — one, now, but the listener takes a
+            // list, and squad detail's history reads off it: a squad missing
+            // from it would render an empty season rather than its own.
             .task(id: viewModel.squads.map(\.id)) {
                 seasonGameService.observe(squadIds: viewModel.squads.map(\.id))
             }
@@ -306,15 +305,6 @@ struct SeasonsTab: View {
         .task(id: squad.id) { matchmaking.start(squad: squad) }
 
         rosterSection(squad)
-
-        // A person is on one squad at a time now, and there's deliberately no
-        // way to start a second from here. This is for whoever joined a second
-        // squad before that rule existed: without it the extra one would be
-        // unreachable, which means they could never leave it. It can be
-        // deleted once no such person is left.
-        if viewModel.squads.count > 1 {
-            otherSquads(besides: squad)
-        }
     }
 
     /// Rows under a label, not a card: the roster is one list, and a box
@@ -344,50 +334,6 @@ struct SeasonsTab: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    @ViewBuilder
-    private func otherSquads(besides primary: Squad) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("Your other squads")
-                .hooprType(.label)
-                .foregroundStyle(Color.hooprSecondaryText)
-
-            VStack(spacing: 0) {
-                ForEach(Array(viewModel.squads.filter { $0.id != primary.id }.enumerated()), id: \.element.id) { index, squad in
-                    if index > 0 {
-                        Divider().overlay(Color.hooprBorder)
-                    }
-
-                    Button {
-                        path.append(.squad(squad.id))
-                    } label: {
-                        HStack(spacing: Spacing.md) {
-                            SquadCrest(squad: squad, size: SquadCrest.Size.row)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(squad.name)
-                                    .hooprType(.subhead)
-                                    .foregroundStyle(Color.hooprPrimaryText)
-                                Text(squad.rosterText)
-                                    .hooprType(.caption)
-                                    .foregroundStyle(Color.hooprSecondaryText)
-                            }
-
-                            Spacer(minLength: 0)
-
-                            Image(systemName: "chevron.right")
-                                .hooprFont(13, weight: .semibold, maximumSize: 18)
-                                .foregroundStyle(Color.hooprSecondaryText)
-                        }
-                        .padding(.vertical, Spacing.sm)
-                        .contentShape(Rectangle())
-                        .hooprZoomSource(id: Self.zoomID(forSquad: squad.id), in: zoom)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
     }
 
     // MARK: - No squad

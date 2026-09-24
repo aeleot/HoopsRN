@@ -1,7 +1,7 @@
 # hoopsRN — Roadmap
 
 **Scope:** —
-**Verified:** 2026-09-20 @ e6968e0
+**Verified:** 2026-09-24 @ f30e4b2
 
 What to do next, roughly in order of value per unit of effort. Each item names
 the files it touches so it can be picked up cold.
@@ -81,11 +81,6 @@ before changing anything.
 
 ## 5. Smaller, self-contained
 
-- **Rename `FindAMatchViewModel` to match `MapTab`.** The view was renamed; its
-  view model wasn't, so the file backing the court map is still named for
-  matchmaking.
-- **Retire the "Your other squads" rows** on the Seasons tab once nobody is left
-  on two squads (`gaps/SEASONS.md`).
 - **Delete the live test friendship** between the developer's account and
   `chaseallen122` in the production project, when it stops being useful.
 

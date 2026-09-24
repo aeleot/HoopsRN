@@ -124,13 +124,16 @@ Limits that are working as built, and will surprise somebody anyway.
 
   Three edges of it will surprise somebody:
 
-  - **It isn't retroactive.** Anyone who joined a second squad before it landed
-    still has both, and is refused a third. The "other squads" rows on the
-    Seasons tab exist only so they can reach the extra one to leave it; delete
-    them once nobody is left. For them, **only the most recently changed squad
-    gets the live match card** — `SeasonsTab` renders `MatchmakingCard` for
-    `primarySquad`, and the other is reachable only through its own detail
-    screen. The ten-squad `array-contains-any` ceiling
+  - **It isn't retroactive, and the way out was removed.** Anyone who joined a
+    second squad before it landed still has both, and is refused a third. The
+    "Your other squads" rows that let them reach the extra one to leave it were
+    **deleted 2026-09-24 without checking that nobody was left on two** — that
+    needs a query over production `squads`, which nothing in the repo can run.
+    Such a person now sees only their most recently changed squad (`SeasonsTab`
+    renders `primarySquad`) and can't open the other from the app; the fix is to
+    remove their uid from the extra squad's `memberIds` by hand in the console,
+    or to restore the rows (git history has `otherSquads(besides:)`). The
+    ten-squad `array-contains-any` ceiling
     (`SeasonGameService.Limit.observedSquads`) is no longer reachable through
     the app.
   - **The invite picker can't see it.** A leader can invite a friend who is on

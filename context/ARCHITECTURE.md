@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr/hooprApp.swift`, `hoopr/Services/`, `hoopr/ViewModels/`,
 `hoopr/Support/FailureText.swift`, `hoopr/Support/PreferredRadiusPublisher.swift`
-**Verified:** 2026-09-20 @ e6968e0
+**Verified:** 2026-09-24 @ f30e4b2
 
 How the app is assembled: who owns what, what gets injected where, and the two
 orderings/boundaries that break the design if violated. Read this before
@@ -22,11 +22,12 @@ can be built with a stub.
 |---|---|---|
 | `AuthService` | `currentUser: AuthenticatedUser?`, `hasLoadedInitialState: Bool` | `hasLoadedInitialState` exists because Firebase restores a cached session asynchronously — session state is genuinely unknown until the first listener callback. |
 | `UserProfileService` | `currentProfile: UserProfile?`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns a `ListenerSupervisor`. |
-| `CourtService` | `courts: [Court]`, `loadError: String?` | Loads the bundled dataset synchronously in `init()`, sorted by `name`. A missing or undecodable `courts.json` leaves `courts` empty **and sets `loadError`** — `FindAMatchViewModel` mirrors it as `datasetError` so the map's empty state can say why rather than reading as "no courts near you". No retry: the dataset is in the app bundle, so a failure is a build problem. |
+| `CourtService` | `courts: [Court]`, `loadError: String?`, `attribution: String?` | Loads the bundled dataset synchronously in `init()`, sorted by `name`. `attribution` is the dataset's own ODbL notice (with `attributionURL` beside it), which the map sheet shows. A missing or undecodable `courts.json` leaves `courts` empty **and sets `loadError`** — `MapViewModel` mirrors it as `datasetError` so the map's empty state can say why rather than reading as "no courts near you". No retry: the dataset is in the app bundle, so a failure is a build problem. |
 | `LocationService` | `authorizationStatus`, `coordinate: CLLocationCoordinate2D?` | `CLLocationManagerDelegate` wrapper. Also owns `homeLocation`, the single anchor every distance in the app measures from — **and since 2026-08-27 it follows the device**: `didUpdateLocations` feeds `adopt(_:)`, which takes the first fix and then only fixes ≥ 100m (`significantMove`) from the last one, and `homeLocation` reads that. Without a fix (denied, or not yet arrived) it stays at `defaultLocation`, downtown Durham. `coordinate` is published separately so a view model can react to a fix *arriving* — the map moves to it once — rather than only reading wherever the anchor points. The `userLocation` property removed 2026-08-22 was a different, unread one. |
 | `GameService` | `queuedGames: [Game]`, `publicGames: [Game]`, `completedGames: [Game]`, `hasLoadedGames: Bool`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns **three** session-scoped query listeners and a `ListenerSupervisor` that keys their health separately. The third, `completedGames`, is the only one **not** windowed to the future: it filters `status == completed` and orders by `completedAt` descending, capped rather than time-bounded, because `completedGameCount` is a lifetime total. |
 | `FriendService` | `friends: [Friendship]`, `incomingRequests: [Friendship]`, `outgoingRequests: [Friendship]`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Two session-scoped query listeners (`uidA == me`, `uidB == me`) merged client-side, and a `ListenerSupervisor` keying their health separately. |
 | `RecentCourtsStore` | `recentCourtIds: [String]` | `UserDefaults`-backed; deliberately on-device. |
+| `CelebratedWinsStore` | — | The same idea for the result screen's confetti: which wins this device has already celebrated, so it fires once. `UserDefaults`-backed, on-device, and **not** owned by `hooprApp` — `ResultViewModel` builds its own by default and takes it as an injectable `init` parameter, so tests pass a scratch suite. |
 | `SquadService` | `squads: [Squad]`, `incomingInvites`/`sentInvites: [SquadInvite]`, `errorMessage`, `isRecovering`, `hasLoadedSquads` | `@MainActor`. Subscribes to `AuthService` itself. **Owns two collections** — `squads` and `squadInvites` — justified because a `squadInvite` has no independent existence: it is created against a squad, consumed by a write to that same squad, and deleted in the same breath. |
 | `MatchmakingService` | `myTicket: MatchTicket?`, `pool: [MatchTicket]`, `isBackingOff: Bool` | `@MainActor`. Owns `matchTickets`, the pool listener and the scan. It no longer performs the contested write — that spans two collections and lives in `SeasonGameService.commitMatch`, reached through an injected `MatchCommitting`. Its retry is about contention, not network health, and is deliberately separate from the supervisor's. |
 | `SeasonGameService` | `games: [SeasonGame]`, `errorMessage`, `isRecovering`, `hasLoadedGames` | `@MainActor`. Owns `seasonGames`, and holds **the one contested write in the app** — `commitMatch`, which creates a match and spends both `matchTickets` atomically. A `seasonGame` earns its own service where a `squadInvite` didn't: it outlives both tickets, has its own listener, and is what a squad's record is derived from. |
@@ -34,8 +35,8 @@ can be built with a stub.
 
 Twelve view models are built from them, each `@StateObject` inside the view it
 backs: `RootViewModel` (from `AuthService`), `LoginViewModel` (`AuthService`),
-`FindAMatchViewModel` (`CourtService` + `LocationService` + `GameService` +
-`UserProfileService`), `HomeViewModel` (`AuthService` + `CourtService` +
+`MapViewModel` (`CourtService` + `LocationService` + `GameService` +
+`UserProfileService` + `RecentCourtsStore`), `HomeViewModel` (`AuthService` + `CourtService` +
 `GameService` + `UserProfileService` + `FriendService`), `ProfileViewModel`
 (`AuthService` + `UserProfileService` + `CourtService`), `LocalRunsViewModel`
 (`GameService` + `CourtService` + `UserProfileService` + `FriendService`),
@@ -47,11 +48,12 @@ built per-presentation rather than per-screen, inside `CreateGameSheet`),
 `SquadViewModel` (`SquadService` + `FriendService` + `UserProfileService` +
 `CourtService`), `MatchmakingViewModel` (`MatchmakingService` +
 `SeasonGameService` + `CourtService` + `SquadService` + `NotificationService`),
-`GameDayViewModel` and `ResultViewModel` (both `SeasonGameService` +
-`SquadService`, the latter two built per-presentation from the value being
-pushed).
+`GameDayViewModel` (`SeasonGameService` + `SquadService` + `UserProfileService` +
+`NotificationService` + `CourtService`) and `ResultViewModel`
+(`SeasonGameService` + `SquadService`, plus the celebration store above), the
+latter two built per-presentation from the value being pushed.
 
-`LocalRunsViewModel`, `FriendsViewModel`, `FindAMatchViewModel`,
+`LocalRunsViewModel`, `FriendsViewModel`, `MapViewModel`,
 `SquadViewModel`, `GameDayViewModel` and `ResultViewModel` are where
 **cross-collection joins live**. A service owns one collection and never
 learns about another's: `LocalRunsViewModel` joins runs to the bundled court
@@ -59,9 +61,9 @@ dataset for its distance filter **and to `friendships` for the "friends here"
 count on each card** — `games` holds the rosters, `friendships` holds the
 edges, and neither service learns the other exists — `FriendsViewModel` joins
 friendship uids to
-profiles for their names, and `FindAMatchViewModel` joins `GameService`'s
+profiles for their names, and `MapViewModel` joins `GameService`'s
 `queuedGames` + `publicGames` to the court dataset to colour the map's pins by
-how busy each court is today — see `MAP_LAYER.md`'s `CourtHeat` section, and
+how busy each court is today (runs still on the board — `isVisible(at:)`) — see `MAP_LAYER.md`'s `CourtHeat` section, and
 `gameCountsByCourt`'s doc comment for why summing those two arrays needs a
 dedup. On the Seasons side, `SquadViewModel` joins `squadInvites` to
 `friendships` for the invite picker (the join that makes it a view model at
@@ -201,7 +203,7 @@ its own call site:
   invalid email.
 - **`Support/PreferredRadiusPublisher.swift`** — `preferredRadiusMiles`, the
   `UserProfile?` → miles pipeline (`effectivePreferredRadius`, the default while
-  signed out, `removeDuplicates`, `receive(on:)`) that `FindAMatchViewModel` and
+  signed out, `removeDuplicates`, `receive(on:)`) that `MapViewModel` and
   `LocalRunsViewModel` both need. It shares the *operator chain*, not the
   subscription — each view model still subscribes to
   `userProfileService.$currentProfile` itself, so isolation is unchanged and the

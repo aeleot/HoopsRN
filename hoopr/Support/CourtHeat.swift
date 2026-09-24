@@ -23,8 +23,8 @@ import SwiftUI
 /// *court* first and a quiet one second. The cost is real: "nothing today" and
 /// "one game" are one step apart in darkness.
 ///
-/// `MapTab` / `FindAMatchViewModel` compute *what* to feed this — the count of
-/// games scheduled at a court today, from the same `queuedGames` + `publicGames`
+/// `MapTab` / `MapViewModel` compute *what* to feed this — the count of
+/// runs still on the board at a court today, from the same `queuedGames` + `publicGames`
 /// the app already holds, so this needs no new read and no rules change.
 /// `MapView` and Home's hot list are the callers, and since clustering was
 /// dropped there is exactly one kind of lookup: a single court's own count.

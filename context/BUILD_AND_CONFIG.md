@@ -3,7 +3,7 @@
 **Scope:** `hoopr.xcodeproj/`, `hooprTests/`, `hooprUITests/`,
 `hoopr/Assets.xcassets/`, `hoopr/GoogleService-Info.plist`, `.gitignore`,
 `tools/check_context_drift.py`, `package.json`, `package-lock.json`
-**Verified:** 2026-09-20 @ e6968e0
+**Verified:** 2026-09-24 @ f30e4b2
 
 `Package.resolved` isn't listed separately — it lives under `hoopr.xcodeproj/`
 and is covered by it. (Anything backticked between the `Scope` and `Verified`
@@ -126,11 +126,41 @@ deleted, that script needs its own `npm install` in its own directory.
 
 ## Assets
 
-`Assets.xcassets` holds `AppIcon.appiconset` and `AccentColor.colorset` (**no
-colour defined**). Nothing in the app *code* references an asset catalogue entry
-— every colour comes from `Theme.swift` and every in-app icon is an SF Symbol.
+`Assets.xcassets` holds `AppIcon.appiconset`, `AccentColor.colorset` (**no
+colour defined**) and **`hoopr.court.fill.symbolset`**, a custom SF Symbol of a
+basketball court (`Image.court`) — SF Symbols has none, and the system's
+`sportscourt.fill` reads as a soccer pitch. **The SVG is generated, never
+hand-edited:** `swift tools/make_court_symbol.swift` draws it (add `--preview
+out.png` to see it), and its comment explains the one non-obvious constraint —
+the path must carry no class and the file no `<style>`, or the compiled asset
+draws as a faint black outline that ignores `.foregroundStyle`. Every colour
+comes from `Theme.swift`, so nothing else in the code references the catalogue.
 `.gitignore` covers the usual Xcode noise plus `node_modules/` and
 `*.xcworkspace`.
+
+### Building and signing on this machine
+
+Two traps that look like app bugs (found 2026-09-21):
+
+- **Never put `-derivedDataPath` inside the repo.** The checkout is on a File
+  Provider–backed volume, so anything created in it is stamped with
+  `com.apple.FinderInfo`, and `codesign` rejects that on the SPM resource
+  bundles ("resource fork, Finder information, or similar detritus not
+  allowed"). Use the default DerivedData, or a path under `/tmp`.
+- **Never use `CODE_SIGNING_ALLOWED=NO` for an app that will be run.** It builds
+  and installs, but yields a `linker-signed` binary with no
+  `application-identifier` entitlement, so `securityd` denies every keychain
+  call (`-34018`) and Firebase Auth reports `ERROR_KEYCHAIN_ERROR` — only after
+  a *correct* password, which is why it reads as a password problem. That is
+  `AuthError.keychainUnavailable`. Check a build with `codesign -dvvv <app>`
+  (want `flags=0x2(adhoc)`, not `linker-signed`).
+
+**Testing next to a running app:** `xcodebuild test` on the booted simulator
+launches into the same data container as a live Run session and dies on
+Firestore's exclusive LevelDB lock — and makes the user's own runs crash the
+same way. Test on a shut-down device with its own `-derivedDataPath`, and count
+results from the `.xcresult` (`xcrun xcresulttool get test-results summary`),
+not the log. The blank-white-screen variant of the same lock is in `CLAUDE.md`.
 
 **The app icon shipped 2026-09-20.** Three 1024×1024 slots — `AppIcon.png`
 (light), `AppIcon-Dark.png`, `AppIcon-Tinted.png` — replacing the 14 declared-
@@ -248,7 +278,7 @@ for a ruleset it never evaluated is worse than no rules suite at all.
 
 There are **two** suites, in two languages, and neither can do the other's job.
 
-- **`hooprTests` — 666 test methods across 44 suites**, from a green
+- **`hooprTests` — 675 test methods across 44 suites**, from a green
   `-only-testing:hooprTests` run on 2026-09-24 (counted from the `.xcresult`,
   not from the log: interleaved output from parallel clones mangles the odd
   line, and a log grep read this suite as 462 once). All of them carry real
@@ -292,7 +322,7 @@ measurement style would be one too many.
 | `MatchTicketTests` | 22 | Ticket validation, claimability, `isSearching` vs. `isClaimable`, `winPercentage`'s unplayed midpoint. |
 | `FirestoreRulesParityTests` | 21 | Every bound mirrored between Swift and `firestore.rules`, parsed out of the rules file as text — including the `open` -> `matched` transition and the two burst-rate floors. |
 | `LocalRunsViewModelTests` | 38 | Which button a run offers; whether the host may mark a run complete (host-only, not before tip-off, not twice, and a roster of one is still a run); and the friends-on-a-run join: resolving an edge from either side of the stored pair, never counting yourself, both rosters, sorted and deduped, and the badge's own singular/plural copy. |
-| `FindAMatchViewModelTests` | 18 | `gameCountsByCourt` — the per-court/per-day join behind the map's heat colours and pin counts — plus `rankActive`, the **Now** segment's ordering: soonest run first, distance/name tiebreaks, `isVisible(at:)` filtering, and that every `ActiveCourt` has at least one game. |
+| `MapViewModelTests` | 21 | `gameCountsByCourt` — the per-court/per-day join behind the map's heat colours and pin counts — plus `rankActive`, the **Now** segment's ordering: soonest run first, distance/name tiebreaks, `isVisible(at:)` filtering, and that every `ActiveCourt` has at least one game. |
 | `UserProfileTests` | 17 | Decoding, the radius coercion ladder, name validation. |
 | `SquadViewModelTests` | 17 | `invitableUids`, the roster sort, and the region derivation. |
 | `ServiceFailureTests` | 23 | Backoff schedule, per-listener recovery, read/write messaging, `FirestoreFailure` classification — and the stale query window: that the foreground hook fires while healthy (which `retryNow()` deliberately does not), and when `GameService` judges its cutoff worth re-attaching for. |
@@ -312,7 +342,7 @@ measurement style would be one too many.
 | `SeasonsAccessibilityTests` | 4 | Dynamic Type behind the Seasons tab: that a fixed-diameter pill keeps its glyph inside its own circle at every content size, and that the cap making that true is load-bearing. |
 | `LocationServiceTests` | 6 | The home-location anchor. |
 | `CourtTests` | 6 | `Court.displayName`. |
-| `CourtBadgesTests` | 6 | `amenities(for:limit:)` — that narrowing a row's badges never drops the "Restricted" caution. |
+| `CourtBadgesTests` | 12 | `amenities(for:limit:)` — that narrowing a row's badges never drops a warning (the "Restricted" caution or the "School" notice), that a school notice isn't drawn as a caution, and what VoiceOver and the card's caveat line say. |
 | `CourtMarkerTests` | 4 | Marker count formatting and truncation. |
 | `TabBarLabelTests` | 3 | That four tab labels fit the narrowest bar at `.accessibility3` — the evidence behind "Seasons" over "Squad". |
 | `CelebrationTests` | 21 | UI revamp Phase 5: when a confirmed win throws confetti (yours, once per device, within a week of `confirmedAt`), the on-device store that remembers it, the seeded particle model (nothing appears mid-air, pieces fade rather than vanish), and the busy-court glow's one curve — its threshold, Reduce Motion, and that the map's keyframes are the same curve Home draws. |
@@ -369,13 +399,14 @@ Two further cases assert the ramp's *shape* rather than its values: that every
 stop is darker than the one before it, and that the steps are evenly sized. The
 hex assertions alone can't distinguish a deliberate retune from one that
 accidentally flattens two tiers into looking identical.
-`FindAMatchViewModelTests` covers the join underneath it:
+`MapViewModelTests` covers the join underneath it:
 `gameCountsByCourt` dedupes a game that appears on both `queuedGames` and
 `publicGames` (a public run the signed-in user also hosts or joined) down to
-one, buckets by calendar day rather than a rolling 24 hours, and counts a
-private run the same as a public one — deliberately, since by the time a game
-reaches either array the read rule has already decided this account may see
-it.
+one, buckets by calendar day rather than a rolling 24 hours, **counts only runs
+still on the board** (not completed, not past `visibilityGrace` — so a pin,
+Home's count and the Runs tab agree), and counts a private run the same as a
+public one — deliberately, since by the time a game reaches either array the
+read rule has already decided this account may see it.
 
 `GameTests` covers the stored `games` shape, pending server timestamps, the
 `in_progress` raw value, required-field failures, and the pure rules the client
@@ -408,7 +439,7 @@ were deleted on 2026-08-15; every file in `hooprTests/` now carries real
 coverage.
 
 Worth testing and currently untested: `RootViewModel`'s gating rule,
-`FindAMatchViewModel`'s plain nearby-radius `ranked(courts:from:)` (as opposed
+`MapViewModel`'s plain nearby-radius `ranked(courts:from:)` (as opposed
 to `rankActive`, now covered — see above), and the four `mapped(_:)` error
 translations. (`MapTab`'s detent transitions were on this list until
 `MapTabDetentTests` landed — see the suite table above. The zoom-conversion

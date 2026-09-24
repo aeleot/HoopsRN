@@ -14,7 +14,7 @@ private nonisolated struct SheetMetrics: Equatable {
 }
 
 struct MapTab: View {
-    @StateObject private var viewModel: FindAMatchViewModel
+    @StateObject private var viewModel: MapViewModel
     @State private var recenterTrigger: RecenterTrigger?
     @State private var sheetState: SheetState = .rest(.medium)
 
@@ -120,7 +120,7 @@ struct MapTab: View {
         self.squadService = squadService
         self.onOpenProfile = onOpenProfile
         _courtToSelect = courtToSelect
-        _viewModel = StateObject(wrappedValue: FindAMatchViewModel(
+        _viewModel = StateObject(wrappedValue: MapViewModel(
             courtService: courtService,
             locationService: locationService,
             userProfileService: userProfileService,
@@ -798,7 +798,7 @@ struct MapTab: View {
     /// lists — the map and its filters are unaffected.
     private var listTabs: some View {
         HStack(spacing: 0) {
-            ForEach(FindAMatchViewModel.ListTab.allCases) { tab in
+            ForEach(MapViewModel.ListTab.allCases) { tab in
                 let isSelected = viewModel.selectedTab == tab
 
                 Button {
@@ -977,6 +977,13 @@ struct MapTab: View {
 
                     CourtBadges(court: court)
                         .padding(.top, 2)
+
+                    if let caveat = court.access.caveat {
+                        Text(caveat)
+                            .hooprType(.caption)
+                            .foregroundStyle(Color.hooprSecondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .padding(.horizontal, Spacing.pageMargin)
                 .padding(.top, Self.cardScrollTopInset)

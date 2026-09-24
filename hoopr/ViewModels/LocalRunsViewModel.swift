@@ -7,7 +7,7 @@ import Foundation
 ///
 /// The distance filter lives here rather than in `GameService` because it's a
 /// join across two sources — Firestore holds the run, the bundled dataset holds
-/// the court's coordinates. Same division as `FindAMatchViewModel`, which does
+/// the court's coordinates. Same division as `MapViewModel`, which does
 /// its geo math over `CourtService` while the profile listener stays in
 /// `UserProfileService`.
 @MainActor
@@ -113,7 +113,7 @@ final class LocalRunsViewModel: ObservableObject {
     /// The screen shows one merged timeline now, and an empty timeline has two
     /// very different meanings: *nobody is playing tonight* and *we haven't
     /// looked yet*. `GameService` has carried the answer all along and this
-    /// republishes it — the same value `FindAMatchViewModel` already consumes,
+    /// republishes it — the same value `MapViewModel` already consumes,
     /// not a new read.
     @Published private(set) var hasLoaded = false
 
@@ -381,7 +381,7 @@ final class LocalRunsViewModel: ObservableObject {
     /// **Not an `Action` case, deliberately.** `action(for:currentUserId:)`
     /// returns exactly one thing to offer, and a host already gets `.cancel`;
     /// after tip-off both have to be available at once, which one-of-N can't
-    /// express. That function is also shared with `FindAMatchViewModel` for the
+    /// express. That function is also shared with `MapViewModel` for the
     /// map's court card, so a new case would change a second screen for a
     /// control only the Runs tab wants.
     ///

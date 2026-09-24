@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr/Models/`, `hoopr/Support/Distance.swift`,
 `hoopr/Support/InviteLink.swift`
-**Verified:** 2026-09-20 @ e6968e0
+**Verified:** 2026-09-24 @ f30e4b2
 
 `Support/CourtSearch.swift` moved to `MAP_LAYER.md`'s scope — it was listed in
 both entries, which `INDEX.md` says scopes must never do. It's a search
@@ -67,9 +67,11 @@ quietly starts mangling names when the dataset's naming changes.
 The versioned envelope around the bundled file: `version`, `generated`,
 `attribution`, `cities`, `courts`. `version` exists so a future CDN-hosted copy
 can be compared against the bundled one without parsing the court array.
-`CourtService` reads `version` and `attribution` into stored properties;
-neither is displayed anywhere yet, and the ODbL attribution string in
-particular is a licence obligation currently unmet in the UI.
+`CourtService` reads `version` and `attribution` into stored properties. The
+attribution is the notice the map sheet shows at the foot of every court list
+(and in its empty state), linked to OpenStreetMap's copyright page — read from
+the dataset rather than restated, so a rebuilt dataset carries its own.
+`version` is still unused.
 
 ---
 
@@ -88,6 +90,7 @@ particular is a licence obligation currently unmet in the UI.
 | `network`, `tooManyRequests` | Transport and throttling. |
 | `notConfigured` | **Authentication was never enabled on the Firebase project at all.** The SDK has no error code for this — it arrives as a generic internal error whose `userInfo` contains `CONFIGURATION_NOT_FOUND`, which is why `mapped(_:)` string-matches for it *before* looking at `AuthErrorCode`. |
 | `providerDisabled` | Maps `.operationNotAllowed` — the project exists but email/password sign-in is switched off. |
+| `keychainUnavailable` | Maps `.keychainError`. Firebase touches the keychain only **after** the server has accepted the credentials, so this never shows for a wrong password — which is what makes it look like one when a password was right. Almost always a build with no `application-identifier` entitlement (`securityd` denies every access group, `-34018`); see `BUILD_AND_CONFIG.md` on why `CODE_SIGNING_ALLOWED=NO` builds do this. `LoginViewModel` says the session couldn't be stored, not that the password is wrong. |
 | `unknown(String)` | Carries `localizedDescription`; `LoginViewModel` shows it verbatim. |
 
 ## `UserProfile` and `UserProfileError`
@@ -203,6 +206,13 @@ the rest; `GameService` owns all encoding.
   The format itself lives in `Support/InviteLink.swift` rather than on the
   model, because the create sheet builds one from a bare document ID before any
   `Game` exists. `GameTests` pins the exact string; see below.
+
+**Its display text lives on the model, in one place** — `timeText`, `dayText`
+("Tonight" from `eveningStartHour`, 17:00, otherwise "Today", "Tomorrow", or the
+date) and `spotsText` ("Full", "1 spot left", "N spots left"), each with a static
+form taking a bare `Date` for callers with no `Game` yet (the create sheet). Home,
+the Runs card, the map's court card and the create sheet all read them, so a run's
+time and spots read identically everywhere.
 
 `GameError` mirrors `UserProfileError` case-for-case where the meanings match
 (`notSignedIn`, `permissionDenied`, `network`, `unknown`), and adds
@@ -406,7 +416,10 @@ than more UI.
 
 ## `Distance`
 
-Miles conversion and the `"1.2 mi"` / `"12 mi"` format rule, in one place.
+Miles conversion and the `"1.2 mi"` / `"12 mi"` format rule, in one place. The
+number and its unit are separately available (`valueText`, `unit`) for the
+screens that set the number in a heavier weight than its unit (Home's detail
+line); `text` joins them.
 Extracted because the nearby-courts list and the Local Runs list measure from
 the same origin and render the same string — before this each carried its own
 copy of the conversion factor.

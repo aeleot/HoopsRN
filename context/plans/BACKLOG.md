@@ -79,7 +79,7 @@ state is a rare fallback rather than the main experience.
 - One primary action reaches a joined run in a single tap when a fit exists,
   and in one tap plus a confirm when a run has to be created.
 - Ranking is a **pure, testable function** over `[Game]` + anchor + window +
-  radius, in the `Game.isVisible(at:)` / `FindAMatchViewModel.nearby(courts:to:)`
+  radius, in the `Game.isVisible(at:)` / `MapViewModel.nearby(courts:to:)`
   tradition — no Firestore needed to test it, and it gets real unit coverage as
   part of this story rather than joining the untested pile.
 - Creating a run from Queue Up produces a document indistinguishable from one
@@ -362,20 +362,6 @@ you can look at.
 
 ---
 
-### C2 — `school` courts read as public
-
-**Size:** Small
-
-`access` is only surfaced for `restricted`; `school` courts render as ordinary
-public ones, which is misleading for a court you may not be able to use during
-school hours. (The rest of this story — directions, the ODbL notice — shipped.)
-
-*Acceptance criteria:*
-- `school` access is visually distinguished with an honest caveat in
-  `CourtBadges`, not silently equated to public, and `CourtBadgesTests` pins it.
-
----
-
 ### C3 — Empty states, first-run, and the cold-start problem
 
 **Size:** Medium-Large
@@ -522,7 +508,7 @@ Not a commitment — the order with the fewest blocked dependencies:
 3. **A1** (instant match) — the feature at its smallest useful size.
 4. **A2** (the queue) + the `presence`-vs-`checkins` decision it shares with
    `plans/LIVE_HEADCOUNT.md`.
-5. **B1** / **B3** / **C2** / **C3** — parallel; none has a rules or index
+5. **B1** / **B3** / **C3** — parallel; none has a rules or index
    dependency on the others.
 6. **A3** (auto-form) — only if A1 and A2 leave people waiting.
 7. **D6** — gated on the Blaze decision in `ROADMAP.md` §0.

@@ -70,10 +70,10 @@ Three things break the design if violated:
 
 ### Cross-collection joins live in view models
 
-`LocalRunsViewModel`, `FriendsViewModel`, and `FindAMatchViewModel` join data from multiple services — the services themselves have no dependencies on each other. For example:
+`LocalRunsViewModel`, `FriendsViewModel`, and `MapViewModel` join data from multiple services — the services themselves have no dependencies on each other. For example:
 - `LocalRunsViewModel` joins runs to the bundled court dataset for distance filtering.
 - `FriendsViewModel` joins friendship UIDs to profiles for names.
-- `FindAMatchViewModel` colours map pins by court busyness (summing queued and public games, deduped by court ID).
+- `MapViewModel` colours map pins by court busyness (summing queued and public games, deduped by court ID).
 
 Pushing joins into a service layer would create unwanted collection-to-collection dependencies.
 
@@ -133,7 +133,7 @@ Until `firestore.rules` is deployed, writes fail with `permission-denied` — th
 `Big-Boss-LLC.hoopr` binds to the Firebase app `hoopsrn-4f1e9`. Changing it requires a new app in the Firebase console and a fresh `GoogleService-Info.plist` — it orphans existing installs.
 
 ### Tests are unit-focused, UI tests skip
-`hooprTests/` has 666 real test methods across 44 suites (counted from the `.xcresult`, 2026-09-24), and `firestore-tests/` has 141 covering all seven collections. The test destination pins `OS=26.5`: the iOS 27 runtime installed alongside it has no iPhone 17, so an unpinned `name=iPhone 17` fails to resolve. `hooprUITests` fails to launch on this project (SpringBoard `RequestDenied`), so don't run it. The fixture data in test files is non-scaffolding — it's either real Firestore documents or realistic test doubles.
+`hooprTests/` has 675 real test methods across 44 suites (counted from the `.xcresult`, 2026-09-24), and `firestore-tests/` has 141 covering all seven collections. The test destination pins `OS=26.5`: the iOS 27 runtime installed alongside it has no iPhone 17, so an unpinned `name=iPhone 17` fails to resolve. `hooprUITests` fails to launch on this project (SpringBoard `RequestDenied`), so don't run it. The fixture data in test files is non-scaffolding — it's either real Firestore documents or realistic test doubles.
 
 ## Token efficiency
 

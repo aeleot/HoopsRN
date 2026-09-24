@@ -84,8 +84,8 @@ end-to-end heal is not.
 ## Untested and worth it
 
 Roughly in order of value: `RootViewModel`'s gating rule,
-`FindAMatchViewModel`'s plain nearby-radius `ranked(courts:from:)` (`rankActive`
-— the **Now** segment's ordering — is covered now, by `FindAMatchViewModelTests`),
+`MapViewModel`'s plain nearby-radius `ranked(courts:from:)` (`rankActive`
+— the **Now** segment's ordering — is covered now, by `MapViewModelTests`),
 `LocalRunsViewModel`'s radius/dedupe filtering, `FriendsViewModel`'s
 profile-resolution cache (including the name-that-never-resolves case), and the
 four `mapped(_:)` error translations.

@@ -45,7 +45,7 @@ nonisolated struct ActiveCourt: Identifiable, Equatable {
     }
 }
 
-final class FindAMatchViewModel: ObservableObject {
+final class MapViewModel: ObservableObject {
     /// Which list the sheet is showing.
     ///
     /// `Recent` used to be the third segment. It moved to the search field's
@@ -176,7 +176,7 @@ final class FindAMatchViewModel: ObservableObject {
     /// it as a `RecenterTrigger`, which routes through `biasedNorth(_:)` like
     /// every other region change.
     let initialRegion = MKCoordinateRegion(
-        center: FindAMatchViewModel.homeLocation,
+        center: MapViewModel.homeLocation,
         span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
     )
 
@@ -408,19 +408,23 @@ final class FindAMatchViewModel: ObservableObject {
     /// not a rolling 24 hours, so the heat map resets at midnight rather than
     /// drifting.
     ///
-    /// Deliberately **not** filtered by `Game.isVisible(at:)` or by status: a
-    /// full run or one that tipped off two hours ago still happened at that
-    /// court today, and the heat map is answering "how busy was/is this court
-    /// today", not "what can I still join". `GameService`'s own query cutoff
-    /// (`Game.visibilityCutoff`) already drops anything more than three hours
-    /// past its start, so nothing from yesterday leaks in regardless.
+    /// **Only runs still on the board are counted** — `Game.isVisible(at:)`, the
+    /// rule the Runs tab, Home's next run and the court card's list all apply.
+    /// A run its host marked complete, or one that tipped off more than
+    /// `Game.visibilityGrace` ago, is gone from every list; counting it here
+    /// made a pin and Home's "3 today" promise runs that the lists under them
+    /// then couldn't show (2026-09-24: Rockwood read 3 on Home and the map and
+    /// 1 on the Runs tab). This used to be deliberately unfiltered, on the idea
+    /// that the heat map asks "how busy was this court today" — but the number
+    /// sits beside "today" and a badge people read as runs they can join, and
+    /// the tally has to agree with the list it summarises.
     ///
-    /// The **Now** segment asks the other question and filters this result on
-    /// `isVisible(at:)` separately — see `rankActive`. Two questions, two
-    /// predicates, one join.
+    /// The readers that re-apply `isVisible(at:)` at render time
+    /// (`gamesToday(at:)`, `rankActive`) still do: this is computed when
+    /// `GameService` publishes, and a run can age out before the next snapshot.
     ///
     /// `nonisolated static` and pure — `queued`/`published` passed in rather
-    /// than read off `self` — so `FindAMatchViewModelTests` can pin the
+    /// than read off `self` — so `MapViewModelTests` can pin the
     /// dedup-by-id and day-boundary rules without constructing a `GameService`
     /// or touching Firebase, the same shape `Game.status(playerCount:maxPlayers:)`
     /// and `Game.validate` already use for their own pure rules.
@@ -434,6 +438,7 @@ final class FindAMatchViewModel: ObservableObject {
 
         for game in queued + published {
             guard seen.insert(game.id).inserted else { continue }
+            guard game.isVisible(at: now) else { continue }
             guard Calendar.current.isDate(game.scheduledTime, inSameDayAs: now) else { continue }
             byCourt[game.courtId, default: []].append(game)
         }

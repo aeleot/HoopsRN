@@ -13,7 +13,7 @@
 `hoopr/Support/Theme.swift`,
 `hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`,
 `hoopr/Support/Glass.swift`, `hoopr/Support/Spacing.swift`
-**Verified:** 2026-09-20 @ 349d309
+**Verified:** 2026-09-24 @ f30e4b2
 
 Navigation structure and the visual conventions every screen follows. Read this
 before adding a screen, changing how one is presented, or picking a colour or a
@@ -208,13 +208,13 @@ Below the band, in order (the user's, 2026-09-23):
 **It reads nothing new.** Every value comes off listeners the app already keeps
 open: `GameService`'s two arrays, `CourtService.courts`, the profile snapshot,
 and `FriendService`. The hot list calls
-`FindAMatchViewModel.gameCountsByCourt(queued:published:)` directly — it is
+`MapViewModel.gameCountsByCourt(queued:published:)` directly — it is
 `nonisolated static` and pure, so Home shares the map's counting rule instead of
 restating it. No extra Firestore read, no rules change. **A busy court's dot
 glows** (`CourtGlowHalo`, Phase 5), from the same threshold and on the same
 curve as its map pin — see `MAP_LAYER.md` § `CourtHeat`.
 
-**The stats card** (`Views/Components/StatsCard.swift`) is three text columns — Runs, Streak, Last Run — fed from the profile's
+**The stats card** (`Views/Components/StatsCard.swift`) is three text columns — Runs, Streak, Last Run, each hugging its content rather than taking an equal third (an equal third broke "Last / Run" mid-word), with a `ViewThatFits` that stacks them one per row from `.accessibility1` up — fed from the profile's
 `completedGameCount`, `participationStreak` and `lastCompletedAt`. It is
 **gated on `HomeViewModel.hasStats`** (`completedGameCount > 0`), so a
 brand-new account sees no card at all rather than a row of zeros.
@@ -327,7 +327,7 @@ the roster, since the roster clause only admits a run whose status is
 
 **Runs tab only.** The map's court card renders its rows from the same `Action`,
 and since completion isn't a case of it, that surface gets nothing — intended,
-and what keeps the blast radius off `FindAMatchViewModel`.
+and what keeps the blast radius off `MapViewModel`.
 
 A card for a run you host that isn't public also carries an `InviteLinkCard` —
 the run's `hoopsrn://game/{id}` link, shown in full with a tap that copies it.
@@ -354,10 +354,10 @@ squad, the band is the hero empty state — crest, "Play a season", one line,
 **Create a squad**.
 
 **One squad per person, and no way to start a second from here**
-(`Squad.membershipBlock`, app-enforced — `gaps/SEASONS.md`). Someone who
-joined two before that rule existed gets their other squad as a row under
-"Your other squads" so they can reach it to leave; delete those rows once
-nobody needs them.
+(`Squad.membershipBlock`, app-enforced — `gaps/SEASONS.md`). The "Your other
+squads" rows that once let someone who joined two squads before that rule
+reach the extra one were removed 2026-09-24; see `gaps/SEASONS.md` for who that
+strands.
 
 **Searching, match found and "waiting" are *states*, not destinations.** Squad home
 has one card that matters right now — *find a match*, *searching*, *match
@@ -814,7 +814,8 @@ keeps a light-only value from creeping back in.
 | `hooprGroupedBackground` | The ground of an inset-grouped form — `CreateGameSheet` — whose `FormPanel`s are `hooprSurface`, so the page steps *down* around them: `hooprFill`'s value in light, the page's black in dark. Resolves to those proven values on purpose, so every pairing drawn on it is already asserted; `ThemeContrastTests` pins that and that a panel steps off it in both appearances. |
 | `hooprBorder` | Rules, dividers, unfocused borders, the sheet's drag handle. Deliberately faint (1.2:1 on white) — a hairline that tidies a card's edge, not a boundary. |
 | `hooprElevatedSurface` | A surface raised one level above a card — a card inside a sheet, a popover. **Dark carries the lift in the fill** (`#242426`, one visible step above a card and one below a field); **light cannot** — nothing is lighter than white — so it *is* white there and the lift comes from `hooprShadow`. Defined and asserted in Phase 1, not yet drawn anywhere. Whether light mode's page ground moves off pure white is a design decision the role does not make. |
-| `hooprHoverFill` | A row or control being touched or hovered, drawn over a card. Light `#ECECEC` matches the pill the iOS 26 tab bar draws behind its selected item (`#EDEDED`, sampled). Dark is deliberately no lighter than `#2E2E30` — primary text, secondary text and the accent must keep clearing 4.5:1 on it, and the accent is the ceiling. Not yet drawn anywhere. |
+| `hooprCourtGlow` | The halo a busy court's dot and pin pulse with (`CourtGlowHalo`, `CourtMarkerView`). The brand accent's hue with **its own alpha per appearance** — opaque in dark, ~0.53 in light — because translucent orange over near-black composites to brown, not light, so one alpha can't serve both. Decorative, so it asserts no pairing. See `MAP_LAYER.md`. |
+| `hooprHoverFill` | A row or control being touched or hovered, drawn over a card. Light `#ECECEC` matches the pill the iOS 26 tab bar draws behind its selected item (`#EDEDED`, sampled). Dark is deliberately no lighter than `#2E2E30` — primary text, secondary text and the accent must keep clearing 4.5:1 on it, and the accent is the ceiling. Drawn as the tab bar's selection pill and as the loading skeletons' fill (Home, Runs, Seasons). |
 | `hooprSeparatorStrong` | A line that has to be *seen* — a component boundary at the 3:1 WCAG 1.4.11 asks of one, on every ground in both appearances. Where `hooprBorder` is faint on purpose. Drawn as every hero band's baseline, the Login fields' unfocused outline, `WinnerButton`'s edge, game day's not-yet-arrived circle and the create sheet's unselected radio — each where a boundary has to be seen, not merely tidied. |
 | `hooprHeat(tier:)` / `hooprOnHeat(tier:)` | The "how busy is this court today" ramp — five fixed fills, each paired with the label that reads on it. **One table**, so a fill and its label can't be retuned apart: black through tier 2, white from tier 3, where black stops clearing 4.5:1 (it was 4.01 and 3.43 on the two deepest, on the map pin's count). Fixed, not appearance-aware, on purpose — a data scale read against the map's own basemap. Views call `CourtHeat`, which owns the count-to-tier rule. |
 | `hooprPrimaryText` | Titles, values, primary labels. |
@@ -910,6 +911,15 @@ environment; `MotionTests` pins the rules through the pure functions.
 transition on an insertion — so a screen draws in its final state the first
 time.
 
+**One named exception: a busy court's glow** (`Motion.Glow`, UI revamp Phase
+5). It is an ambient indicator rather than a change — "this court is live
+today" — so it runs for as long as it's on screen. It is bounded: only courts
+at `CourtHeat.glowsFrom` runs (3) or more, behind the dot so it never moves
+layout, still under Reduce Motion, and never the only carrier of how busy a
+court is (the count and the heat colour say the same thing). The confetti on a
+confirmed win *is* keyed to a change — the confirmation arriving — and fires
+once per device (`CelebratedWinsStore`).
+
 What it's used for:
 
 - **Press feedback:** `.buttonStyle(.hooprPress)` on every button that draws
@@ -932,7 +942,7 @@ What it's used for:
   a run, joining a waitlist or marking one complete is `.success`; leaving or
   cancelling is a light impact; starting a run, copying a link, marking yourself
   here and a search turning into a match are `.success`. The run haptics hang off
-  `lastConfirmation` on `LocalRunsViewModel` and `FindAMatchViewModel`, which
+  `lastConfirmation` on `LocalRunsViewModel` and `MapViewModel`, which
   only a write the server accepted sets — a roster changing under the listener
   never buzzes. Match found is keyed on the card going *from searching* to
   matched, so opening the tab onto an existing match is silent.

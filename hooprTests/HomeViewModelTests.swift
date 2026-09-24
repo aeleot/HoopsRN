@@ -13,7 +13,7 @@ import UIKit
 /// a city is quiet.
 ///
 /// Pure and `nonisolated`, so none of this needs a service or Firebase — the
-/// same shape `FindAMatchViewModelTests` uses for `gameCountsByCourt`.
+/// same shape `MapViewModelTests` uses for `gameCountsByCourt`.
 final class HomeViewModelTests: XCTestCase {
 
     // MARK: - Fixtures

@@ -76,7 +76,7 @@ final class HomeViewModel: ObservableObject {
     /// second for however long the listener took — the empty state's call to
     /// action flashing at a user who is, in fact, signed up for something.
     /// `GameService.hasLoadedGames` has carried the answer all along;
-    /// `FindAMatchViewModel` already consumes it. This is the same value, not
+    /// `MapViewModel` already consumes it. This is the same value, not
     /// a new read.
     @Published private(set) var hasLoaded = false
 
@@ -302,7 +302,7 @@ final class HomeViewModel: ObservableObject {
     ///
     /// `nonisolated static` and pure so the ranking can be tested without
     /// constructing a service or touching Firebase — the same shape
-    /// `FindAMatchViewModel.gameCountsByCourt` and `Game.validate` already use.
+    /// `MapViewModel.gameCountsByCourt` and `Game.validate` already use.
     ///
     /// Ties break on `displayName`, not on dictionary order: a `[String: Int]`
     /// has no stable iteration order, so without a second key the list would
@@ -364,7 +364,7 @@ final class HomeViewModel: ObservableObject {
         queued: [Game]? = nil,
         published: [Game]? = nil
     ) {
-        let counts = FindAMatchViewModel.gameCountsByCourt(
+        let counts = MapViewModel.gameCountsByCourt(
             queued: queued ?? gameService.queuedGames,
             published: published ?? gameService.publicGames
         )

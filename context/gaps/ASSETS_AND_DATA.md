@@ -1,7 +1,7 @@
 # hoopsRN — Assets and data gaps
 
 **Scope:** —
-**Verified:** 2026-09-20 @ 349d309
+**Verified:** 2026-09-24 @ f30e4b2
 
 The empty accent colour, two scripts that can't be re-run cleanly, and a
 dataset that covers six cities.
