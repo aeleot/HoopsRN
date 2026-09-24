@@ -80,6 +80,7 @@ struct ResultView: View {
                 .padding(.bottom, Spacing.xxxl)
             }
         }
+        .hooprStatusBarScrim()
         .background(Color.hooprBackground)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // The band carries the back button, as squad detail's does. See

@@ -166,7 +166,28 @@ reason to open the app, so that is what this screen leads with.
 > `cardChrome()` call sites are zero, and the stats card is one caption line.
 > The *reasons* recorded here still hold — why Home exists, why the next-run
 > card is read-only, why the hot list reads nothing new, why the stats are
-> gated — and only the shapes changed. This entry is restamped when the rest
+> gated — and only the shapes changed.
+>
+> **Since then (2026-09-23, at the user's request):** the band opens on the
+> app's mark — `HooprWordmark`, the app icon's basketball beside "hoopsRN" —
+> opposite the profile button, in the row every tab already gives that button;
+> the day label moved down onto the time (and is dropped over "No run
+> tonight", which says it). The band's ground is the brand orange at the
+> band's own luminance (`HeroWash`, `hooprBrandWash`), like Login's and the
+> squad bands', so no ratio on it moved. The HOSTING pill on it is an 8% wash,
+> not a card's 12%: at 12% it measured 4.44:1 on the band in dark mode.
+> **The ball on its way off the page** (the user's design, same day):
+> `HomeBandBall` draws the app icon's basketball two thirds of the band's
+> width across, centred on its trailing edge so only the left half shows in
+> the band's right third, tilted, with the profile button on top. It is
+> `hooprBrandWatermark` — the orange at a pressed row's luminance — so what
+> runs across it (the detail line, a long court name, the profile button, the
+> arrow) reads as it does on a pressed row, asserted on the colour
+> itself. **The whole band opens Runs** (2026-09-24, the user's call), wherever
+> it is pressed except the profile button and the empty state's "Find a court",
+> which keep their own destinations; the arrow at the last row's end is the
+> cue, and replaced a "Your runs ›" line whose words were the only target. The HOSTING pill can't reach it (first on its line, text capped) and
+> would fail over it; the test says so. This entry is restamped when the rest
 > of Phase 2b lands; until then see `plans/UI_REVAMP_CHANGELOG.md` § Phase 2b
 > and `plans/UI_REDESIGN_BRIEF.md` §5.1.
 
@@ -239,6 +260,23 @@ between rebuilds while showing identical numbers.
 > still hold; the shapes changed. Restamped when the rest of Phase 2b lands;
 > until then see `plans/UI_REVAMP_CHANGELOG.md` § Phase 2b and
 > `plans/UI_REDESIGN_BRIEF.md` §5.2.
+>
+> **Reworked again 2026-09-23, at the user's request** ("very plain, very
+> grey", and the header "does not make sense"). The band's copy — "3 games on
+> the schedule" under a "Tonight"/"Coming up" eyebrow, over "You're suited up
+> for all 3" — is gone. The band is **the week** (`RunsWeekStrip`): today and
+> the six days after it, a dot per run, filled in the accent where you're on
+> it and a ring where you could join; today in an orange disc; a day with runs
+> scrolls the board to its heading. The band reads top to bottom (the user's
+> layout, compact): "This week" over the week's count ("3 runs", `title`) in
+> the profile button's row, then — only when there is one — a waitlist place
+> or runs after the week as facts with glyphs (`RunsBandStat`), and the week
+> strip last, closing the band. There is no "you're in" line: the strip's
+> filled dots say it. The band's ground is the brand fade with the court
+> half off its trailing edge (`RunsBandCourt`, in `hooprBrandWatermark`) —
+> Home's ball, as Runs' emblem. **The board is grouped under a heading per
+> day** ("Today", "Tomorrow", the weekday, then the date), so `GameCard` no
+> longer repeats the day; its court name leads with the court glyph.
 
 Two collapsible sections — **Queued Games** (runs you're on) and **Public
 Games** (discoverable runs inside your `preferredRadius`) — over a single
@@ -502,6 +540,16 @@ shown empty**, unlike the two friend sections — a squad invite is rare enough
 that a standing "nothing here" placeholder would outweigh the one time it has
 something to say.
 
+**Join is absent, not dimmed, when you're already on a squad.** A person is on
+one squad at a time, so `SquadInviteRow` drops the Join button and puts the
+reason where the roster line was ("You're on Rim Reapers. Leave it to join or
+start another squad."; a leader is told to disband instead). Absent rather than
+disabled because `hooprPress` adds nothing to a disabled state, and a greyed
+capsule would leave the reason to be guessed — and because this sheet has no
+error banner, so a refusal reported after the tap would land on the Seasons
+tab behind it. Decline stays. The same rule is why the Seasons tab has no
+"Create another squad" button. See `gaps/SEASONS.md` for what's app-only about it.
+
 Two kinds of notification now, not one, and the design call still holds: a
 second kind cost one more section rather than a shared `InboxItem`
 abstraction, which is still invented structure for two cases rather than
@@ -658,10 +706,14 @@ clear fill doesn't hit-test, and content scrolls directly underneath).
 respond to a touch with.
 
 **Glass is never called directly.** `.hooprGlass(tint:interactive:in:)` in
-`Support/Glass.swift` wraps the one `#available(iOS 26)` for the whole app and
+`Support/Glass.swift` wraps the `#available(iOS 26)` for the whole app and
 falls back to `.ultraThinMaterial` below it — the floor is iOS 18. That covers
-this header, `GlassChip`, `HooprSearchField`'s glass ground, and the two map
-controls in `MAP_LAYER.md`.
+this header, `GlassChip`, `HooprSearchField`'s glass ground, `BandBackButton`,
+and the two map controls in `MAP_LAYER.md`. Glass shapes that sit side by side
+are grouped with `HooprGlassGroup` (iOS 26's `GlassEffectContainer`, the
+content unchanged below it) — the map's filter chips, since glass can't sample
+other glass (UI revamp Phase 4). The map's sheet stays deliberately opaque: it
+holds rows you read (`MAP_LAYER.md`).
 
 The handle is **rendered, not stored** — `userName` is a display name (see
 `UserProfile`), so it strips whitespace and prefixes an `@`. The uid comes from
@@ -761,6 +813,7 @@ keeps a light-only value from creeping back in.
 | `hooprBackground` | The page behind everything. |
 | `hooprSurface` | Cards and sheets. Equal to the background in light mode (separation there comes from border + shadow); lifted in dark mode, where a shadow on black conveys nothing. |
 | `hooprFill` | Field and button fills, unselected chips, the empty half of a capacity bar. |
+| `hooprSquadWash(_:)` / `hooprBrandWash` | A crest colour, or the brand orange, **at the hero band's own luminance** — scaled toward black in dark mode, mixed toward white in light, in linear light. The ground of the squad bands, game day's band and Login's (`HeroWash`). Contrast depends only on luminance, so every ratio on the band holds unchanged: the brief measured a *tint* out of the band in Phase 2b (M3), and this is the answer that passes. Dark reads as the squad's colour (a maroon, a navy); **light is necessarily faint**, because near white sRGB has almost no room for colour at that luminance. `ThemeContrastTests` asserts the luminance match, a visible cast in dark, and every band pairing on every wash and on the mixes the mesh draws between wash and band. |
 | `hooprGroupedBackground` | The ground of an inset-grouped form — `CreateGameSheet` — whose `FormPanel`s are `hooprSurface`, so the page steps *down* around them: `hooprFill`'s value in light, the page's black in dark. Resolves to those proven values on purpose, so every pairing drawn on it is already asserted; `ThemeContrastTests` pins that and that a panel steps off it in both appearances. |
 | `hooprBorder` | Rules, dividers, unfocused borders, the sheet's drag handle. Deliberately faint (1.2:1 on white) — a hairline that tidies a card's edge, not a boundary. |
 | `hooprElevatedSurface` | A surface raised one level above a card — a card inside a sheet, a popover. **Dark carries the lift in the fill** (`#242426`, one visible step above a card and one below a field); **light cannot** — nothing is lighter than white — so it *is* white there and the lift comes from `hooprShadow`. Defined and asserted in Phase 1, not yet drawn anywhere. Whether light mode's page ground moves off pure white is a design decision the role does not make. |
@@ -886,6 +939,31 @@ What it's used for:
   only a write the server accepted sets — a roster changing under the listener
   never buzzes. Match found is keyed on the card going *from searching* to
   matched, so opening the tab onto an existing match is silent.
+
+### Hero washes
+
+`HeroWash` (`Views/Components/HeroWash.swift`, UI revamp Phase 4) is a band's
+ground with colour in it: a static, linearly interpolated `MeshGradient` from a
+wash into the plain `hooprHeroBand`, which is always drawn underneath so the
+colour fades *in* over it when a squad loads. **It carries identity, never
+decoration** — the squad's colour on Seasons, squad detail and game day (*whose
+squad, which of mine is playing*), the brand's on Login (*what app is this*).
+Home carries the brand's (the user's call, 2026-09-23: the home page wanted
+"some sort of design" and the logo), with the wordmark above it. Runs and
+Profile have no owner colour and stay plain; `ResultView` stays
+plain too, because its hero is the winner's crest and a band in one squad's
+colour would read as the answer.
+
+### The status bar scrim
+
+The band screens — Home, Runs, Seasons, squad detail, game day, result — have
+no bar: the band is the header and it scrolls. `hooprStatusBarScrim()` puts the
+status bar's own strip in the page colour, solid behind the clock and fading
+over its lower quarter, so scrolled content passes under it rather than under
+the clock and battery. **At rest it's invisible** — the band starts below the
+status bar — and it sizes itself from its view's position on screen (62pt on
+iPhone 17). iOS 26's scroll edge effect was tried first and draws nothing
+without real bar content.
 
 ### The court glyph
 

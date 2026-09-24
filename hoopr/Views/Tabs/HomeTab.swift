@@ -78,40 +78,53 @@ struct HomeTab: View {
                         ErrorBanner(message: message)
                     }
 
-                    hotCourts
+                    if viewModel.hasStats {
+                        yourStats
+                    }
 
                     if viewModel.incomingRequestCount > 0 {
                         friendRequestRow
                     }
 
-                    if viewModel.hasStats {
-                        yourStats
-                    }
+                    hotCourts
                 }
                 .padding(.horizontal, Spacing.pageMargin)
                 .padding(.top, Spacing.xxl)
                 .padding(.bottom, Spacing.xxxl)
             }
         }
+        .hooprStatusBarScrim()
         .background(Color.hooprBackground)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - The band
 
-    /// The hero (`UI_REDESIGN_BRIEF.md` M2). Full-bleed, grounded in
-    /// `hooprHeroBand`, closed by a `hooprSeparatorStrong` baseline.
+    /// The hero (`UI_REDESIGN_BRIEF.md` M2). Full-bleed, closed by a
+    /// `hooprSeparatorStrong` baseline.
     ///
-    /// The ground ignores the top safe area so the band runs under the status
-    /// bar while its content stays below it — the band is *content*, not
-    /// chrome, so it scrolls away with everything else rather than pinning.
+    /// **The app's own mark and colour open it** (2026-09-23, at the user's
+    /// request — the home page wanted "some sort of design" and "maybe the
+    /// hoopsRN logo"). The top row is the wordmark opposite the profile button,
+    /// in the row every tab already spends on that button, so it costs no
+    /// height; the day label moves down to sit on the time it qualifies. The
+    /// ground is the brand orange at the band's own luminance, rising from
+    /// behind the mark (`HeroWash`, `hooprBrandWash`) — Login's colour, and the
+    /// same move the squad bands make with a crest's — so every ratio on the
+    /// band is the one `ThemeContrastTests` already holds.
+    ///
+    /// **The whole band opens Runs** (2026-09-24, at the user's request),
+    /// wherever it's pressed — the profile button and "Find a court" excepted,
+    /// which are buttons of their own and take the touch first. The arrow at the
+    /// last row's trailing edge is what says so: it replaced a "Your runs ›" line
+    /// that named the destination but only the words were a target.
+    ///
+    /// The band is *content*, not chrome, so it scrolls away with everything
+    /// else rather than pinning.
     private var heroBand: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
-            HStack(alignment: .top, spacing: Spacing.sm) {
-                Text(bandLabel)
-                    .hooprType(.label)
-                    .foregroundStyle(Color.hooprSecondaryText)
-                    .padding(.top, Spacing.xs)
+            HStack(alignment: .center, spacing: Spacing.sm) {
+                HooprWordmark()
 
                 Spacer(minLength: 0)
 
@@ -122,21 +135,43 @@ struct HomeTab: View {
                 )
             }
 
-            bandAnswer
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                // Not over "No run tonight", which says it already.
+                if !isOpen {
+                    Text(bandLabel)
+                        .hooprType(.label)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                }
+
+                bandAnswer
+            }
         }
         .padding(.horizontal, Spacing.pageMargin)
         // The profile button's slot — the same point on every tab.
         .padding(.top, ProfileButton.Slot.top)
         .padding(.bottom, Spacing.xxl)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // After the padding, so the margins and the empty space between rows
+        // take the press too, not only the text.
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onOpenRuns)
         .background {
-            Color.hooprHeroBand.ignoresSafeArea(edges: .top)
+            ZStack {
+                HeroWash(placement: .leading(.hooprBrandWash))
+                HomeBandBall()
+            }
+            .clipped()
+            .ignoresSafeArea(edges: .top)
         }
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Color.hooprSeparatorStrong)
                 .frame(height: 1)
         }
+    }
+
+    private var isOpen: Bool {
+        viewModel.hasLoaded && viewModel.nextRun == nil
     }
 
     /// The label above the answer. It names the *day* when there is a run,
@@ -151,12 +186,7 @@ struct HomeTab: View {
         if !viewModel.hasLoaded {
             loadingAnswer
         } else if let listing = viewModel.nextRun {
-            Button(action: onOpenRuns) {
-                bookedAnswer(listing)
-            }
-            .buttonStyle(.plain)
-            .accessibilityElement(children: .combine)
-            .accessibilityHint("Double tap to open your runs")
+            bookedAnswer(listing)
         } else {
             openAnswer
         }
@@ -180,13 +210,20 @@ struct HomeTab: View {
 
             courtLine(listing)
 
-            detailLine(for: listing)
-                .padding(.top, Spacing.xs)
-
-            openRunsCue
+            rowWithArrow {
+                detailLine(for: listing)
+            }
+            .padding(.top, Spacing.xs)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
+        // One element, read as one sentence, that opens Runs — what the
+        // `Button` this replaced gave it. The band's own tap gesture is for
+        // touch; VoiceOver needs an element that says what it does. The arrow
+        // is hidden, so it stays out of the sentence.
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Double tap to open your runs")
+        .accessibilityAction { onOpenRuns() }
     }
 
     /// Where. The glyph is a court rather than a pin: the line names *which
@@ -219,7 +256,22 @@ struct HomeTab: View {
                     .foregroundStyle(badge.foreground)
                     .padding(.horizontal, Spacing.Pill.horizontal)
                     .padding(.vertical, Spacing.Pill.vertical)
-                    .background(Capsule().fill(badge.wash.opacity(0.12)))
+                    // 8% here, not the 12% a card's pill uses: the band is
+                    // lighter than a card in dark mode, and at 12% HOSTING
+                    // measured 4.44:1 on it (4.37 on the brand wash) — under
+                    // AA since Phase 2b, when only the card was asserted.
+                    // `ThemeContrastTests.testTheHostingPillReadsOnHomesBand`.
+                    .background(Capsule().fill(badge.wash.opacity(0.08)))
+                    // **Aligns the word, not the capsule** (2026-09-24, at the
+                    // user's request). The pill's own padding put "HOSTING"
+                    // 8pt in from the time, the court and the day label above
+                    // it — and at 8% the capsule is too faint to read as the
+                    // edge, so the word read as the indent. Pulling the frame
+                    // in by that padding lets the capsule reach out past the
+                    // margin and the text land on it, the way a tinted chip is
+                    // set in a column of text. The gap to the next item is
+                    // still measured from the capsule's trailing edge.
+                    .padding(.leading, -Spacing.Pill.horizontal)
             }
 
             spotsItem(listing.game)
@@ -276,31 +328,51 @@ struct HomeTab: View {
         .accessibilityLabel(spoken)
     }
 
-    /// The band is a button, and until this line nothing said so.
+    /// The band is a button, and this is what says so.
     ///
     /// **A blind reviewer shown only the screenshots could not find a primary
     /// action anywhere on Home** — the band navigates to Runs, but it drew no
     /// affordance at all, so the most-opened screen in the app read as a
     /// scoreboard you cannot act on. The archetype this screen is built to
     /// (`UI_REDESIGN_BRIEF.md` §4, A1) requires one action in or under the
-    /// band; the first build implemented everything but that clause.
+    /// band. It was a "Your runs ›" line until 2026-09-24, when the user
+    /// replaced it with an arrow and made the whole band the target.
     ///
     /// Deliberately a cue rather than a filled button: the action is
     /// *navigation to a decision*, not the decision itself — join, leave and
     /// cancel belong on Runs, which is the rationale `UI_SHELL.md` records for
     /// this card being read-only, and a filled button here would promise the
     /// commitment rather than the trip.
-    private var openRunsCue: some View {
-        HStack(spacing: 4) {
-            Text("Your runs")
-                .hooprType(.body)
-                .fontWeight(.semibold)
+    ///
+    /// **Primary text, not white and not the accent** (the user asked for
+    /// white, 2026-09-24). `hooprPrimaryText` *is* white in dark mode, where
+    /// the band is #242426, and black in light mode, where the band is #F5F5F5
+    /// and a literal white would be 1.1:1 — invisible. It is also asserted on
+    /// the watermark ball this sits on the rim of (`ThemeContrastTests`,
+    /// "court name over the ball").
+    ///
+    /// Hidden from VoiceOver: it is a picture of the action, and the action is
+    /// on the element beside it (`bookedAnswer`).
+    private var runsArrow: some View {
+        Image(systemName: "arrow.right")
+            .hooprFont(18, weight: .semibold, maximumSize: 24)
+            .foregroundStyle(Color.hooprPrimaryText)
+            .accessibilityHidden(true)
+    }
 
-            Image(systemName: "chevron.right")
-                .hooprFont(12, weight: .semibold, maximumSize: 16)
+    /// The band's last row, with the arrow at its trailing edge.
+    ///
+    /// In the row rather than laid over the corner, because the court title
+    /// above it has no width to give: `CourtTitle` records a 3pt margin at
+    /// `.accessibility3`, so nothing may narrow it. This row is the one that
+    /// wraps freely — `FlowLayout` moves only the item that has to move.
+    private func rowWithArrow<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        HStack(alignment: .center, spacing: Spacing.md) {
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            runsArrow
         }
-        .foregroundStyle(Color.hooprBrandAccent)
-        .padding(.top, Spacing.xs)
     }
 
     /// Nothing booked.
@@ -312,8 +384,12 @@ struct HomeTab: View {
     /// headline about nothing. Now it has the booked state's own shape: the
     /// icon-and-title line the court name uses, at the same `title` size; one
     /// line saying what the button leads to; and the button on the band's
-    /// left edge, where "Your runs ›" sits when there is a run. It is still
-    /// the largest thing on the screen, which is what the answer should be.
+    /// left edge, in the row the detail line takes when there is a run — with
+    /// the same arrow at its far end. It is still the largest thing on the
+    /// screen, which is what the answer should be.
+    ///
+    /// **"Find a court" keeps its own destination** (the map). Pressing
+    /// anywhere else on the band opens Runs, as it does with a run booked.
     private var openAnswer: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
@@ -333,23 +409,25 @@ struct HomeTab: View {
                 .foregroundStyle(Color.hooprSecondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Button {
-                onOpenMap(nil)
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "map.fill")
-                        .hooprFont(14, weight: .semibold, maximumSize: 20)
-                    Text("Find a court")
-                        .hooprType(.body)
-                        .fontWeight(.semibold)
+            rowWithArrow {
+                Button {
+                    onOpenMap(nil)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "map.fill")
+                            .hooprFont(14, weight: .semibold, maximumSize: 20)
+                        Text("Find a court")
+                            .hooprType(.body)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundStyle(Color.hooprOnBrand)
+                    .padding(.horizontal, Spacing.xl)
+                    .frame(minHeight: 44)
+                    .background(Color.hooprOrange)
+                    .clipShape(Capsule())
                 }
-                .foregroundStyle(Color.hooprOnBrand)
-                .padding(.horizontal, Spacing.xl)
-                .frame(minHeight: 44)
-                .background(Color.hooprOrange)
-                .clipShape(Capsule())
+                .buttonStyle(.hooprPress)
             }
-            .buttonStyle(.hooprPress)
             .padding(.top, Spacing.sm)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -362,8 +440,10 @@ struct HomeTab: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             placeholder(width: 180, height: 46)
             placeholder(width: 240, height: 30)
-            placeholder(width: 140, height: 16)
-                .padding(.top, Spacing.xs)
+            rowWithArrow {
+                placeholder(width: 140, height: 16)
+            }
+            .padding(.top, Spacing.xs)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityLabel("Loading your next run")
@@ -473,10 +553,11 @@ struct HomeTab: View {
 
     /// The participation card, under the same kind of label as the hot list.
     ///
-    /// Below the answer and below what's on tonight, because it looks back
-    /// rather than forward — but a card again, not the sentence the redesign
-    /// first cut it to. See `StatsCard` for why, and for why it can't break
-    /// mid-word any more.
+    /// Directly under the band, above what's on tonight (swapped with it
+    /// 2026-09-23, at the user's request — it was last, on the reasoning that it
+    /// looks back rather than forward). Still a card and still at row weight,
+    /// not the sentence the redesign first cut it to. See `StatsCard` for why,
+    /// and for why it can't break mid-word any more.
     private var yourStats: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text("Your stats")
@@ -581,5 +662,43 @@ nonisolated enum HomeHeroMetrics {
             context: nil
         )
         return max(1, Int((box.height / font.lineHeight).rounded()))
+    }
+}
+
+/// The app icon's basketball, enlarged and half off the band's trailing edge —
+/// the ball on its way off the page (the user's design, 2026-09-23). Two
+/// thirds of the band's width across, centred on its right edge, so the
+/// visible half fills the band's right third; the profile button sits over it.
+///
+/// **Drawn at a pressed row's lightness** (`hooprBrandWatermark`): a notch off
+/// the band in the orange's hue, so it reads as a shape without taking a
+/// contrast ratio from anything that runs across it — the detail line, a long
+/// court name, the profile button. `ThemeContrastTests` holds each of those on
+/// its colour. The seams are the symbol's own knockouts, so the band shows
+/// through them.
+///
+/// Decorative: hidden from VoiceOver, and it never takes a touch.
+struct HomeBandBall: View {
+    /// Tilted a little, so the seams read as a ball in motion rather than a
+    /// badge set square.
+    private static let tilt: Angle = .degrees(-20)
+
+    var body: some View {
+        GeometryReader { proxy in
+            let diameter = proxy.size.width * 2 / 3
+
+            Image(systemName: "basketball.fill")
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(Color.hooprBrandWatermark)
+                .rotationEffect(Self.tilt)
+                .frame(width: diameter, height: diameter)
+                // Centred on the trailing edge, and high enough that the
+                // profile button sits on the ball rather than on its rim —
+                // measured on the device, where 58% put the rim through it.
+                .position(x: proxy.size.width, y: proxy.size.height * 0.5)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }

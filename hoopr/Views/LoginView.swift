@@ -224,7 +224,7 @@ struct LoginView: View {
 /// whole of a screen with one task, not the top of a list.
 ///
 /// Its own view, taking nothing, so it can be rendered without an
-/// `AuthService` — and so Phase 4's `MeshGradient` has one place to land.
+/// `AuthService` — and so Phase 4's `MeshGradient` had one place to land.
 struct LoginBrandBand: View {
     /// What a first-time user doesn't know yet. Both halves are true today:
     /// the court dataset covers the Triangle, and Seasons ships.
@@ -254,7 +254,11 @@ struct LoginBrandBand: View {
         }
         .padding(.horizontal, Spacing.pageMargin)
         .frame(maxWidth: .infinity)
-        .background(Color.hooprHeroBand)
+        // The brand orange rising from behind the glyph, at the band's own
+        // luminance (UI revamp Phase 4, `HeroWash`): the one screen whose
+        // hero is the product, drawn in the product's colour, with every
+        // ratio the plain band had.
+        .background(HeroWash(placement: .centred(.hooprBrandWash)))
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Color.hooprSeparatorStrong)

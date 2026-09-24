@@ -105,16 +105,43 @@ Limits that are working as built, and will surprise somebody anyway.
   §0.1 and §7 name for server-side matchmaking. The local-notification design's
   known ceiling, not a bug in it.
 
-- **A person on more than ten squads sees matches for the first ten.**
-  `SeasonGameService` uses `array-contains-any`, whose ceiling is Firestore's ten
-  — named in `Limit.observedSquads` rather than left as a silent truncation, but
-  still a truncation. Nothing in the app stops an eleventh squad being joined.
+- **One squad per person is enforced by the app, not the server.** Creating a
+  squad and accepting an invite are refused while you're on another one
+  (`Squad.membershipBlock`, asked by `SquadService` as the enforcement and by
+  the inbox row so it stops offering the Join). `firestore.rules` can't back it:
+  rules can't query, so there is no way to ask "which squads is this uid on".
+  Closing it server-side would take a per-person document written atomically
+  with every create, join and leave — the `matchTickets/{squadId}` trick with
+  the uid as the ID — plus stale-entry cleanup when a leader disbands, a
+  backfill for existing members, and a rules deploy. Not built; a modified
+  client can still join a second squad.
 
-- **Only the primary squad gets the live match card.** `SeasonsTab` renders
-  `MatchmakingCard` for `viewModel.primarySquad`; a second squad's match is
-  reachable only through its own detail screen. Queueing is likewise
-  primary-squad-only from squad home. Fine while almost everyone has one squad,
-  and the wrong shape the moment they don't.
+  **The backstop is thinner than it looks.** `MatchRules` skips a pairing of two
+  squads that share a player, so an honest client never plays someone against
+  themselves — but that is a client-side filter. `firestore.rules` doesn't check
+  it either: the ticket's `memberIds` is pinned to the squad document so that a
+  server rule *could*, and no rule reads it. So a person on two squads can be
+  matched against themselves by a modified client. That was already true before
+  this rule and is the same gap, not a new one.
+
+  Three edges of it will surprise somebody:
+
+  - **It isn't retroactive.** Anyone who joined a second squad before it landed
+    still has both, and is refused a third. The "other squads" rows on the
+    Seasons tab exist only so they can reach the extra one to leave it; delete
+    them once nobody is left. For them, **only the most recently changed squad
+    gets the live match card** — `SeasonsTab` renders `MatchmakingCard` for
+    `primarySquad`, and the other is reachable only through its own detail
+    screen. The ten-squad `array-contains-any` ceiling
+    (`SeasonGameService.Limit.observedSquads`) is no longer reachable through
+    the app.
+  - **The invite picker can't see it.** A leader can invite a friend who is on
+    another squad; that friend's inbox row loses its Join and says to leave
+    first. The leader is never told. Knowing would cost a read per friend on
+    every picker open.
+  - **A leader has to disband to move.** A leader can't leave (see "Not built"
+    below on leader transfer), so "leave it to join another squad" is, for them,
+    "disband it" — which ends the squad for everyone on it.
 
 - **An empty pool is the default experience in a new city**, not the edge case.
   `../plans/SEASONS.md` §8 names relaxation plus honest UI as the mitigation, and

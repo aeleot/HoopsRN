@@ -31,9 +31,15 @@ struct GameDayView: View {
 
     @State private var confirmingCancel = false
 
+    /// Your squad's crest colour, for the band's wash (UI revamp Phase 4) —
+    /// which of your squads is playing. Handed in by `SeasonsTab`, which holds
+    /// the squad already; `nil` leaves the band plain.
+    private let squadColorKey: String?
+
     init(
         game: SeasonGame,
         mySquadId: String,
+        squadColorKey: String? = nil,
         seasonGameService: SeasonGameService,
         squadService: SquadService,
         userProfileService: UserProfileService,
@@ -42,6 +48,7 @@ struct GameDayView: View {
         onOpenResult: @escaping (SeasonGame) -> Void
     ) {
         self.onOpenResult = onOpenResult
+        self.squadColorKey = squadColorKey
         _viewModel = StateObject(wrappedValue: GameDayViewModel(
             game: game,
             mySquadId: mySquadId,
@@ -69,7 +76,8 @@ struct GameDayView: View {
                             isCancelled: game.status == .cancelled
                         ),
                         courtName: viewModel.courtName,
-                        detail: detailLine
+                        detail: detailLine,
+                        wash: squadColorKey.map { .leading(.hooprSquadWash($0)) } ?? .plain
                     )
                 }
 
@@ -99,6 +107,7 @@ struct GameDayView: View {
                 .padding(.bottom, Spacing.xxxl)
             }
         }
+        .hooprStatusBarScrim()
         .background(Color.hooprBackground)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // The band carries the back button, as squad detail's does. See
@@ -360,6 +369,9 @@ struct GameDayBand: View {
     let headline: GameDayCountdown.Headline
     let courtName: String
     let detail: String
+    /// Your squad's colour on the band (UI revamp Phase 4). Plain by default,
+    /// so a render can draw the band with no squad at all.
+    var wash: HeroWash.Placement = .plain
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
@@ -393,7 +405,7 @@ struct GameDayBand: View {
         .padding(.bottom, Spacing.xxl)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            Color.hooprHeroBand.ignoresSafeArea(edges: .top)
+            HeroWash(placement: wash).ignoresSafeArea(edges: .top)
         }
         .overlay(alignment: .bottom) {
             Rectangle()

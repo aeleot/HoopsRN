@@ -1101,8 +1101,9 @@ reach `confirmed`, which is also why the reporting rule may never write
 Two composites:
 
 - `(squadIds CONTAINS, scheduledTime ASC)` — the listener, which uses
-  `array-contains-any` so a person on more than one squad gets all their matches
-  from one query. The same index serves `array-contains`.
+  `array-contains-any` so a person still on more than one squad (the app stops a
+  second one now, but doesn't remove existing ones) gets all their matches from
+  one query. The same index serves `array-contains`.
 - `(squadIds CONTAINS, status ASC)` — `SeasonGameService.fetchRecord(for:)`, the
   one-off read of **another** squad's record. An `array-contains` combined with
   an equality on a second field needs its own composite; without it the read

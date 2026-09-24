@@ -128,6 +128,13 @@ that squad.
   and gold even at 10%. The squad's colour is carried by the crest instead —
   large and full-strength in the band. Phase 4's gradient will meet the same
   arithmetic.
+- **Built in Phase 4 (2026-09-23), by changing the arithmetic's input.** The
+  measurement above was of a tint that changes the band's *lightness*. A
+  colour with the band's exact relative luminance and the crest's hue changes
+  no ratio at all (`Color.hooprSquadWash`), so the squad bands, squad detail
+  and game day now carry the squad's colour in a `MeshGradient` (`HeroWash`) —
+  unmistakable in dark mode, a faint cast in light, where the gamut near white
+  has no room for more.
 
 ### Not a motif: the heat ramp
 

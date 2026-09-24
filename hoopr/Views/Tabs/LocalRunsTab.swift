@@ -60,9 +60,19 @@ struct LocalRunsTab: View {
     }
 
     var body: some View {
+        ScrollViewReader { proxy in
+            content(scrollTo: { day in
+                withAnimation(.hooprSpring) {
+                    proxy.scrollTo(day, anchor: .top)
+                }
+            })
+        }
+    }
+
+    private func content(scrollTo: @escaping (Date) -> Void) -> some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                heroBand
+                heroBand(scrollTo: scrollTo)
 
                 if let errorMessage = viewModel.errorMessage {
                     ErrorBanner(
@@ -81,6 +91,7 @@ struct LocalRunsTab: View {
             }
             .padding(.bottom, 32)
         }
+        .hooprStatusBarScrim()
         .background(Color.hooprBackground)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // On the screen, not the list: cancelling the last run empties the
@@ -94,37 +105,68 @@ struct LocalRunsTab: View {
 
     /// The board's summary, and the screen's hero.
     ///
-    /// The tab used to open on the word "Runs" at 28pt — the tab bar's own
-    /// label, restated as the largest thing on the screen. It states a number
-    /// instead: how many games are on the schedule, which is the question the
-    /// tab exists to answer and the only one that can't be answered by
-    /// scrolling.
+    /// **Redesigned 2026-09-23, at the user's request** — the band was "very
+    /// plain, very grey", and its header "does not make sense". It said "3
+    /// games on the schedule" under an eyebrow that flipped between "Tonight"
+    /// and "Coming up", over "You're suited up for all 3": three lines of
+    /// copy for what a calendar says at a glance. Now:
     ///
-    /// Written for a player, quietly: the board is *the schedule*, and the
-    /// line under it says where you stand on it — suited up, waitlisted, or a
-    /// free agent — rather than a count of rows.
-    private var heroBand: some View {
-        VStack(alignment: .leading, spacing: Spacing.lg) {
+    /// - **The week** (`RunsWeekStrip`) — seven days, a dot a run, filled where
+    ///   you're on it; tapping a day scrolls the board to it.
+    /// - **The count leads** — "3 runs" under the "This week" label — and the
+    ///   week closes the band, with a waitlist place or runs after the week
+    ///   over it when there are any (the user's layout, 2026-09-23).
+    /// - **The juice** — the brand orange rising from the leading edge, as on
+    ///   Home, and the court half off the trailing edge (`RunsBandCourt`), as
+    ///   Home has its ball. Both at luminances every pairing on the band
+    ///   already clears.
+    ///
+    /// **Compact** (the user's call, 2026-09-23: "make the header smaller"):
+    /// the label and the count share the profile button's row rather than
+    /// stacking under it, the count is `title` rather than the 44pt numeral,
+    /// and the band closes tighter under the week.
+    ///
+    /// **Opened up a little** (the user's call, 2026-09-24): the count sat
+    /// hard against both the top and the calendar. It now starts 12pt down
+    /// from its row's top (was 4) and there is 20pt between that row and the
+    /// week (was 12) — 16pt taller in all. The profile button does not move:
+    /// its slot is the same point on every tab, so the room is made by the
+    /// text block's own padding rather than by the band's.
+    private func heroBand(scrollTo: @escaping (Date) -> Void) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xl) {
             HStack(alignment: .top, spacing: Spacing.sm) {
-                Text(viewModel.eyebrowText)
-                    .hooprType(.label)
-                    .foregroundStyle(Color.hooprSecondaryText)
-                    .padding(.top, Spacing.xs)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("This week")
+                        .hooprType(.label)
+                        .foregroundStyle(Color.hooprSecondaryText)
+
+                    if viewModel.hasLoaded {
+                        weekCount
+                    } else {
+                        placeholder(width: 110, height: 30)
+                    }
+                }
+                .padding(.top, Spacing.md)
 
                 Spacer(minLength: 0)
 
                 ProfileButton(friendService: friendService, squadService: squadService, action: onOpenProfile)
             }
 
-            bandAnswer
+            bandAnswer(scrollTo: scrollTo)
         }
         .padding(.horizontal, Spacing.pageMargin)
         // The profile button's slot — the same point on every tab.
         .padding(.top, ProfileButton.Slot.top)
-        .padding(.bottom, Spacing.xxl)
+        .padding(.bottom, Spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            Color.hooprHeroBand.ignoresSafeArea(edges: .top)
+            ZStack {
+                HeroWash(placement: .leading(.hooprBrandWash))
+                RunsBandCourt()
+            }
+            .clipped()
+            .ignoresSafeArea(edges: .top)
         }
         .overlay(alignment: .bottom) {
             Rectangle()
@@ -134,65 +176,72 @@ struct LocalRunsTab: View {
     }
 
     @ViewBuilder
-    private var bandAnswer: some View {
+    private func bandAnswer(scrollTo: @escaping (Date) -> Void) -> some View {
         if !viewModel.hasLoaded {
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                placeholder(width: 150, height: 46)
-                placeholder(width: 210, height: 18)
-            }
-            .accessibilityLabel("Loading the schedule")
+            placeholder(width: 362, height: 76)
+                .accessibilityLabel("Loading the schedule")
         } else {
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                let count = viewModel.timelineCount
-                let schedule = LocalRunsViewModel.scheduleText(count: count)
-
-                HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
-                    Text("\(count)")
-                        .hooprType(.numeral)
-                        .foregroundStyle(Color.hooprPrimaryText)
-                        .hooprNumericTransition(count)
-
-                    Text(schedule)
-                        .hooprType(.headline)
-                        .foregroundStyle(Color.hooprSecondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
+            // The count sits up in the top row; a waitlist place or runs after
+            // the week, when there are any, and the calendar close the band
+            // (the user's layout, 2026-09-23).
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                if viewModel.waitlistedCount > 0 || viewModel.laterCount > 0 {
+                    standing
                 }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(count) \(schedule)")
-
-                rosterLine
+                RunsWeekStrip(days: viewModel.weekStrip, onSelect: scrollTo)
             }
         }
     }
 
-    /// Where you stand, marked with the rail your runs carry below.
-    ///
-    /// The rail is the same mark as `GameCard`'s, in the same accent and
-    /// width, so the band is what teaches it: the line that says "you're
-    /// suited up" is drawn the way the runs you're suited up for are. A free
-    /// agent has no runs to point at, so no rail — and the line drops to
-    /// secondary, because it's a state rather than news.
-    ///
-    /// It replaced "you're in 2 · within 14 miles" in 13pt grey, which read as
-    /// a footnote and put the radius — a fact about the board — on the line
-    /// about you. The radius left the band; see `eyebrowText`.
-    private var rosterLine: some View {
-        HStack(spacing: Spacing.sm) {
-            if viewModel.hasRosterSpot {
-                Capsule()
-                    .fill(Color.hooprBrandAccent)
-                    .frame(width: 3)
+    /// "3 runs", under the "This week" label, so the line doesn't say the
+    /// week again. `title`, not the numeral: the band is compact now, and the
+    /// week strip under it is what the eye goes to.
+    private var weekCount: some View {
+        let count = viewModel.weekStrip.reduce(0) { $0 + $1.total }
+
+        return HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("\(count)")
+                .hooprType(.title)
+                .monospacedDigit()
+                .foregroundStyle(Color.hooprPrimaryText)
+                .hooprNumericTransition(count)
+
+            Text(count == 1 ? "run" : "runs")
+                .hooprType(.headline)
+                .foregroundStyle(Color.hooprSecondaryText)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(count == 1 ? "1 run this week" : "\(count) runs this week")
+    }
+
+    /// What the week's dots can't say — a waitlist place, and runs after the
+    /// week — each a glyph, a number and what it counts, and only when there
+    /// is one. **"You're in" is gone** (the user's call, 2026-09-23): the
+    /// strip's filled dots are the runs you're in, so the line said it twice.
+    private var standing: some View {
+        let waitlisted = viewModel.waitlistedCount
+        let later = viewModel.laterCount
+
+        return FlowLayout(spacing: Spacing.lg, lineSpacing: Spacing.sm) {
+            if waitlisted > 0 {
+                RunsBandStat(
+                    symbol: "hourglass",
+                    value: "\(waitlisted)",
+                    unit: "waitlisted",
+                    spoken: "Waitlisted for \(waitlisted)"
+                )
             }
 
-            Text(viewModel.rosterText)
-                .hooprType(.body)
-                .fontWeight(viewModel.hasRosterSpot ? .semibold : .regular)
-                .foregroundStyle(viewModel.hasRosterSpot ? Color.hooprPrimaryText : Color.hooprSecondaryText)
-                .fixedSize(horizontal: false, vertical: true)
+            if later > 0 {
+                RunsBandStat(
+                    symbol: "calendar.badge.clock",
+                    value: "\(later)",
+                    unit: "later",
+                    spoken: later == 1 ? "1 more run after this week" : "\(later) more runs after this week"
+                )
+            }
         }
-        // Lets the rail take the text's height, however many lines it wraps to.
-        .fixedSize(horizontal: false, vertical: true)
-        .accessibilityElement(children: .combine)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func placeholder(width: CGFloat, height: CGFloat) -> some View {
@@ -216,38 +265,43 @@ struct LocalRunsTab: View {
         } else if viewModel.timeline.isEmpty {
             emptyBoard
         } else {
-            VStack(spacing: Spacing.interRow) {
-                ForEach(viewModel.timeline) { entry in
-                    // Resolved once, so the button that's rendered and the
-                    // one that fires can't disagree — a confirmation
-                    // dialog reading "Cancel run" must not perform a join.
-                    let action = viewModel.action(for: entry.listing)
+            VStack(alignment: .leading, spacing: Spacing.interRow) {
+                ForEach(viewModel.sections) { section in
+                    sectionHeader(section)
+                        .id(section.day)
 
-                    GameCard(
-                        listing: entry.listing,
-                        action: action,
-                        isHost: viewModel.isHost(entry.listing),
-                        isWaitlisted: viewModel.isWaitlisted(entry.listing),
-                        isYours: entry.isYours,
-                        isPending: viewModel.pendingGameId == entry.id,
-                        // One write at a time, so a second tap can't race
-                        // the transaction already in flight.
-                        isDisabled: viewModel.pendingGameId != nil
-                            && viewModel.pendingGameId != entry.id,
-                        // Resolved at render, so the control appears on the
-                        // next rebuild after tip-off rather than on a timer
-                        // — the same cadence `Game.isVisible(at:)` retires a
-                        // run on, and the rule is the real gate anyway.
-                        canComplete: viewModel.canComplete(entry.listing),
-                        onAction: {
-                            Task { await viewModel.perform(action, on: entry.listing) }
-                        },
-                        onComplete: {
-                            Task { await viewModel.complete(entry.listing) }
-                        }
-                    )
-                    .transition(.hooprLift)
-                    .hooprScrollLift()
+                    ForEach(section.entries) { entry in
+                        // Resolved once, so the button that's rendered and the
+                        // one that fires can't disagree — a confirmation
+                        // dialog reading "Cancel run" must not perform a join.
+                        let action = viewModel.action(for: entry.listing)
+
+                        GameCard(
+                            listing: entry.listing,
+                            action: action,
+                            isHost: viewModel.isHost(entry.listing),
+                            isWaitlisted: viewModel.isWaitlisted(entry.listing),
+                            isYours: entry.isYours,
+                            isPending: viewModel.pendingGameId == entry.id,
+                            // One write at a time, so a second tap can't race
+                            // the transaction already in flight.
+                            isDisabled: viewModel.pendingGameId != nil
+                                && viewModel.pendingGameId != entry.id,
+                            // Resolved at render, so the control appears on the
+                            // next rebuild after tip-off rather than on a timer
+                            // — the same cadence `Game.isVisible(at:)` retires a
+                            // run on, and the rule is the real gate anyway.
+                            canComplete: viewModel.canComplete(entry.listing),
+                            onAction: {
+                                Task { await viewModel.perform(action, on: entry.listing) }
+                            },
+                            onComplete: {
+                                Task { await viewModel.complete(entry.listing) }
+                            }
+                        )
+                        .transition(.hooprLift)
+                        .hooprScrollLift()
+                    }
                 }
             }
             // A run arriving or leaving the board moves the others out of its
@@ -255,8 +309,35 @@ struct LocalRunsTab: View {
             // a roster changing inside a card doesn't re-run it.
             .animation(.hooprSwap, value: viewModel.timeline.map(\.id))
             .padding(.horizontal, Spacing.pageMargin)
-            .padding(.top, Spacing.xl)
+            .padding(.top, Spacing.md)
         }
+    }
+
+    /// A day's heading: "Today" and its date, and how many runs are on it.
+    /// Where the strip's tap lands, so it also carries the card's lost day.
+    private func sectionHeader(_ section: LocalRunsViewModel.DaySection) -> some View {
+        let title = LocalRunsViewModel.sectionTitle(for: section.day, now: Date())
+        let count = section.entries.count
+
+        return HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+            Text(title)
+                .hooprType(.label)
+                .foregroundStyle(Color.hooprPrimaryText)
+
+            Text(section.day.formatted(.dateTime.month(.abbreviated).day()))
+                .hooprType(.caption)
+                .foregroundStyle(Color.hooprSecondaryText)
+
+            Spacer(minLength: Spacing.sm)
+
+            Text(count == 1 ? "1 run" : "\(count) runs")
+                .hooprType(.caption)
+                .monospacedDigit()
+                .foregroundStyle(Color.hooprSecondaryText)
+        }
+        .padding(.top, Spacing.md)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 
     /// Loaded, and genuinely nothing on.

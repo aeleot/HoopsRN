@@ -261,10 +261,13 @@ another's collection. So they are pointed by a view: `SeasonsTab` calls
 starts the pool listener for the squad its card is showing.
 
 `seasonGames` uses `array-contains-any` rather than `array-contains` precisely
-because the tab passes *all* of them — a person on two squads gets both from one
-query, and screen 9's history works for a squad that isn't the primary one. The
-ceiling is Firestore's ten, named in `SeasonGameService.Limit.observedSquads`
-rather than left as a silent truncation.
+because the tab passes *all* of them. A person is now on one squad at a time
+(app-enforced — `gaps/SEASONS.md`), so that is normally a list of one; it stays
+a list because someone who joined a second squad before the rule existed still
+has both, and screen 9's history has to work for the one that isn't the
+primary. The ceiling is Firestore's ten, named in
+`SeasonGameService.Limit.observedSquads` rather than left as a silent
+truncation — and no longer reachable through the app.
 
 `ProfileViewModel` mirrors `userProfileService.$errorMessage` as well as
 handling its own throws, so failures the service raises on its own (profile

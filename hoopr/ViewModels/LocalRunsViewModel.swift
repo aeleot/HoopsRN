@@ -530,89 +530,132 @@ final class LocalRunsViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Presentation helpers
+    // MARK: - The week strip (Runs' band)
 
-    /// The hero's number: how many runs are on the board at all.
-    var timelineCount: Int { timeline.count }
-
-    /// The words beside the hero's number — "2 games on the schedule".
+    /// One day of the band's week strip: how many runs are on it, and how many
+    /// of those are yours.
     ///
-    /// *Schedule*, not *tonight*: a run can be booked up to
-    /// `Game.schedulingWindow` ahead, so the board is whatever is coming up.
-    /// It's also the player's word for it — you check the schedule.
-    nonisolated static func scheduleText(count: Int) -> String {
-        count == 1 ? "game on the schedule" : "games on the schedule"
+    /// **Why the band is a week** (redesigned 2026-09-23, at the user's
+    /// request — the band "does not make sense"). It opened on "3 games on the
+    /// schedule" under an eyebrow that flipped between "Tonight" and "Coming
+    /// up", over "You're suited up for all 3". Three lines of copy to answer a
+    /// question a calendar answers at a glance: *when are the runs, and which
+    /// am I in?* Seven columns — today first — each with a dot per run, filled
+    /// where you're on it.
+    nonisolated struct DaySummary: Identifiable, Equatable {
+        /// Start of the day.
+        let day: Date
+        let total: Int
+        let yours: Int
+
+        var id: Date { day }
     }
 
-    /// The band's eyebrow.
-    var eyebrowText: String {
-        Self.eyebrowText(tipOffs: timeline.map(\.listing.game.scheduledTime), now: Date())
+    /// How many days the strip shows.
+    nonisolated static let stripLength = 7
+
+    var weekStrip: [DaySummary] {
+        Self.weekStrip(timeline: timeline, now: Date())
     }
 
-    /// "Tonight" while nothing on the board is later than today, "Coming up"
-    /// once anything is.
-    ///
-    /// The band used to say "Tonight" unconditionally, which was wrong for any
-    /// board holding tomorrow's run. It doesn't carry the radius either: only
-    /// the public half is built with it — a run you're on is listed however far
-    /// away it is — so "Within 14 miles" over the count wasn't true of the
-    /// board. The empty board still names the radius, which is where it's the
-    /// answer.
-    ///
-    /// Tested against the start of tomorrow rather than for *today*, so a run
-    /// that tipped off late last night and is still inside
-    /// `Game.visibilityGrace` doesn't turn the board into "Coming up".
-    nonisolated static func eyebrowText(
-        tipOffs: [Date],
+    /// Today and the six days after it, each with its runs counted. A run
+    /// from late last night, still listed inside `Game.visibilityGrace`, counts
+    /// toward today — the strip has no column for yesterday, and the run is
+    /// still on the board.
+    nonisolated static func weekStrip(
+        timeline: [TimelineEntry],
         now: Date,
         calendar: Calendar = .current
-    ) -> String {
-        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)) else {
-            return "Tonight"
-        }
-        return tipOffs.contains { $0 >= tomorrow } ? "Coming up" : "Tonight"
-    }
+    ) -> [DaySummary] {
+        let today = calendar.startOfDay(for: now)
+        let days = (0..<stripLength).compactMap { calendar.date(byAdding: .day, value: $0, to: today) }
 
-    /// Whether you hold a place on any run on the board — what the band's
-    /// rail marks, the same rail `GameCard` draws down each of those runs.
-    var hasRosterSpot: Bool { !queued.isEmpty }
-
-    /// The line under the hero: where you stand, in a player's words.
-    var rosterText: String {
-        let waitlisted = queued.filter(isWaitlisted).count
-        return Self.rosterText(
-            suitedUp: queued.count - waitlisted,
-            waitlisted: waitlisted,
-            onSchedule: timelineCount
-        )
-    }
-
-    /// Where you stand on the board.
-    ///
-    /// It read "you're in 2 · within 14 miles" — lower-case, and "in" what?
-    /// It now says it the way a player would, and it tells a spot from a place
-    /// on the waitlist, because the rail marks both and only one of them means
-    /// you're playing.
-    ///
-    /// "Both" and "all" when every run on the board is yours: "2 games on the
-    /// schedule — you're suited up for 2" says the number twice.
-    nonisolated static func rosterText(suitedUp: Int, waitlisted: Int, onSchedule: Int) -> String {
-        guard suitedUp > 0 else {
-            return waitlisted > 0 ? "You're on the waitlist for \(waitlisted)" : "You're a free agent"
-        }
-
-        let suited: String
-        if suitedUp == onSchedule {
-            switch onSchedule {
-            case 1:  suited = "You're suited up"
-            case 2:  suited = "You're suited up for both"
-            default: suited = "You're suited up for all \(onSchedule)"
+        return days.map { day in
+            let onDay = timeline.filter { entry in
+                let runDay = max(calendar.startOfDay(for: entry.listing.game.scheduledTime), today)
+                return runDay == day
             }
-        } else {
-            suited = "You're suited up for \(suitedUp)"
+            return DaySummary(day: day, total: onDay.count, yours: onDay.filter(\.isYours).count)
         }
+    }
 
-        return waitlisted > 0 ? "\(suited) · waitlisted for \(waitlisted)" : suited
+    /// Runs on the board after the strip's last day — "2 later".
+    var laterCount: Int {
+        Self.laterCount(timeline: timeline, now: Date())
+    }
+
+    nonisolated static func laterCount(
+        timeline: [TimelineEntry],
+        now: Date,
+        calendar: Calendar = .current
+    ) -> Int {
+        guard let end = calendar.date(byAdding: .day, value: stripLength, to: calendar.startOfDay(for: now)) else {
+            return 0
+        }
+        return timeline.filter { $0.listing.game.scheduledTime >= end }.count
+    }
+
+    /// Runs you're waitlisted for — the one standing the week's dots can't
+    /// show, since a waitlist place is drawn as yours like a roster spot.
+    var waitlistedCount: Int { queued.filter(isWaitlisted).count }
+
+    // MARK: - Day sections (Runs' list)
+
+    /// The board, grouped under one heading per day, so a card no longer has
+    /// to repeat its day — and so the strip has somewhere to jump to.
+    nonisolated struct DaySection: Identifiable, Equatable {
+        /// Start of the day.
+        let day: Date
+        let entries: [TimelineEntry]
+
+        var id: Date { day }
+    }
+
+    var sections: [DaySection] {
+        Self.sections(timeline: timeline, now: Date())
+    }
+
+    /// Consecutive runs on the same day, in the timeline's own order. Last
+    /// night's run still inside the grace window files under today, as it does
+    /// on the strip.
+    nonisolated static func sections(
+        timeline: [TimelineEntry],
+        now: Date,
+        calendar: Calendar = .current
+    ) -> [DaySection] {
+        let today = calendar.startOfDay(for: now)
+        var sections: [DaySection] = []
+
+        for entry in timeline {
+            let day = max(calendar.startOfDay(for: entry.listing.game.scheduledTime), today)
+            if let last = sections.last, last.day == day {
+                sections[sections.count - 1] = DaySection(day: day, entries: last.entries + [entry])
+            } else {
+                sections.append(DaySection(day: day, entries: [entry]))
+            }
+        }
+        return sections
+    }
+
+    /// A section's heading: "Today", "Tomorrow", the weekday within the week,
+    /// and the date beyond it.
+    nonisolated static func sectionTitle(for day: Date, now: Date, calendar: Calendar = .current) -> String {
+        let today = calendar.startOfDay(for: now)
+        let offset = calendar.dateComponents([.day], from: today, to: calendar.startOfDay(for: day)).day ?? 0
+
+        // Formatted in the calendar's own zone, so the heading names the day
+        // the offset was counted in.
+        var weekday = Date.FormatStyle.dateTime.weekday(.wide)
+        weekday.timeZone = calendar.timeZone
+        var date = Date.FormatStyle.dateTime.weekday(.abbreviated).month(.abbreviated).day()
+        date.timeZone = calendar.timeZone
+
+        switch offset {
+        case ...0: return "Today"
+        case 1: return "Tomorrow"
+        case 2..<stripLength: return day.formatted(weekday)
+        default: return day.formatted(date)
+        }
     }
 
     /// What the board says when the listener has answered and there is
@@ -620,21 +663,5 @@ final class LocalRunsViewModel: ObservableObject {
     /// renders separately.
     var emptyBoardText: String {
         "No runs within \(Int(radiusMiles)) miles tonight."
-    }
-
-    var queuedCountText: String {
-        queued.count == 1 ? "1 run" : "\(queued.count) runs"
-    }
-
-    var nearbyCountText: String {
-        nearby.count == 1 ? "1 run" : "\(nearby.count) runs"
-    }
-
-    var queuedEmptyText: String {
-        "Join a public run below, or start your own from the Court Map."
-    }
-
-    var nearbyEmptyText: String {
-        "No public runs within \(Int(radiusMiles)) miles. Start one from the Court Map."
     }
 }

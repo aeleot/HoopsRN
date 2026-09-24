@@ -251,6 +251,12 @@ final class ServiceFailureTests: XCTestCase {
             (.squadFull, "full"),
             (.leaderCannotLeave, "disband"),
             (.missingRegion, "city"),
+            // Names the squad in the way, and the way out — which differs: a
+            // member leaves, a leader can only disband.
+            (.alreadyOnASquad(name: "Rim Reapers", isLeader: false), "rim reapers"),
+            (.alreadyOnASquad(name: "Rim Reapers", isLeader: false), "leave it"),
+            (.alreadyOnASquad(name: "Rim Reapers", isLeader: true), "disband it"),
+            (.squadsNotLoaded, "loading"),
         ]
 
         for (error, expected) in cases {

@@ -389,6 +389,8 @@ final class SquadService: ObservableObject {
     ) async throws -> String {
         guard let uid = observedUID else { throw SquadError.notSignedIn }
 
+        try requireNoOtherSquad(whileDoing: "creating your squad")
+
         let name = Squad.normalizedName(rawName)
 
         // Rejected, not reshaped: silently truncating a too-long name would
@@ -557,11 +559,19 @@ final class SquadService: ObservableObject {
     /// they're a member. So a failed delete is logged and swallowed rather than
     /// undoing a join that succeeded.
     ///
+    /// Refused while the caller is on a *different* squad — see
+    /// `Squad.membershipBlock`. The invite is left where it is, so leaving that
+    /// squad and accepting again works. An invite to the squad they're already
+    /// on isn't refused: that's a leftover from a join whose cleanup failed,
+    /// and consuming it is exactly what the `false` return below is for.
+    ///
     /// - Returns: `true` when the roster changed; `false` when the caller was
     ///   already a member, so the caller can stay quiet instead of reporting a
     ///   failure.
     @discardableResult
     func acceptInvite(_ invite: SquadInvite) async throws -> Bool {
+        try requireNoOtherSquad(joining: invite.squadId, whileDoing: "joining the squad")
+
         let joined = try await mutateRoster(squadId: invite.squadId, joining: true)
 
         do {
@@ -719,6 +729,29 @@ final class SquadService: ObservableObject {
 
     // MARK: - Helpers
 
+    /// Enforces one squad per person on the two paths that put someone on one:
+    /// creating and accepting an invite. The rule itself is
+    /// `Squad.membershipBlock`, which the view model also asks so the UI stops
+    /// offering what this would refuse.
+    ///
+    /// Reported as well as thrown — the inbox has no banner of its own, so this
+    /// is a backstop for the race the UI can't see (an accept sent while a
+    /// snapshot that changes the answer is in flight), and the Seasons tab's
+    /// banner is where it lands.
+    ///
+    /// **Not a server guarantee.** See `Squad.membershipBlock`.
+    private func requireNoOtherSquad(joining squadId: String? = nil, whileDoing action: String) throws {
+        guard let blocked = Squad.membershipBlock(
+            among: squads,
+            haveLoaded: hasLoadedSquads,
+            viewedBy: observedUID,
+            joining: squadId
+        ) else { return }
+
+        report(blocked, whileDoing: action, context: .write)
+        throw blocked
+    }
+
     /// Clears the banner and forgets where it came from, so a later snapshot
     /// can't resurrect stale provenance.
     private func clearError() {
@@ -776,6 +809,14 @@ final class SquadService: ObservableObject {
             return "That squad is full."
         case .alreadyMember:
             return "You're already on that squad."
+        case .alreadyOnASquad(let name, let isLeader):
+            // Also the line under a Join the inbox won't offer, so it has to
+            // read as an explanation there, not only as a failure.
+            return isLeader
+                ? "You lead \(name). Disband it to join or start another squad."
+                : "You're on \(name). Leave it to join or start another squad."
+        case .squadsNotLoaded:
+            return "Still loading your squads. Try again in a moment."
         case .leaderCannotLeave:
             return "You lead this squad — disband it instead of leaving."
         case .notLeader:

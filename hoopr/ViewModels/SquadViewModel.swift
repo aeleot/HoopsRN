@@ -204,9 +204,34 @@ final class SquadViewModel: ObservableObject {
 
     // MARK: - Reads
 
-    /// The squad this tab treats as "yours" when there's exactly one place to
-    /// land. Squad home renders it; with none, the hero empty state does.
+    /// The squad this tab treats as "yours". Squad home renders it; with none,
+    /// the hero empty state does.
+    ///
+    /// A person is on one squad at a time (`Squad.membershipBlock`), so this is
+    /// *the* squad, not the first of several. It's `first` rather than
+    /// `onlyElement` because someone who joined a second squad before that rule
+    /// existed still has both, and the most recently changed one is the better
+    /// answer than none.
     var primarySquad: Squad? { squads.first }
+
+    /// Why joining `invite`'s squad would be refused right now, worded for the
+    /// row that would otherwise offer it — or `nil` when the join is open.
+    ///
+    /// The inbox has no error banner, so a refusal reported after the tap would
+    /// land on the Seasons tab behind the sheet. Asking first lets the row say
+    /// so up front and drop the button. Thin on purpose: the rule is
+    /// `Squad.membershipBlock`, and `SquadService.acceptInvite` asks the same
+    /// question again as the enforcement.
+    func joinBlockedReason(for invite: SquadInvite) -> String? {
+        guard let block = Squad.membershipBlock(
+            among: squads,
+            haveLoaded: hasLoaded,
+            viewedBy: currentUserId,
+            joining: invite.squadId
+        ) else { return nil }
+
+        return SquadService.message(for: block, whileDoing: "joining the squad", context: .write)
+    }
 
     func squad(id: String) -> Squad? {
         squads.first { $0.id == id }

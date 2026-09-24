@@ -453,6 +453,101 @@ extension Color {
 
     /// Wraps a light/dark pair in a `UIColor` that resolves against whatever
     /// trait collection asks for it.
+    // MARK: - Washes
+
+    /// A squad's colour **at the hero band's own luminance** — the colour a
+    /// squad's band is washed with (UI revamp Phase 4, `HeroWash`).
+    ///
+    /// **Why the band could be neutral no longer, and still passes.** The
+    /// brief's M3 wanted the crest colour as the ground of every screen about
+    /// a squad, and Phase 2b measured it out: any tint strong enough to read as
+    /// the squad's colour dropped the band's secondary text under AA (4.26:1
+    /// on gold at 14%) and its baseline under 3:1. That measured a tint that
+    /// *changes the band's lightness*. Contrast depends on nothing but
+    /// relative luminance, so a colour with the band's exact luminance and the
+    /// crest's hue changes no ratio at all: in dark mode the red squad's band
+    /// becomes a deep maroon, the blue squad's a navy, each exactly as dark as
+    /// `hooprHeroBand` — and every pairing `ThemeContrastTests` holds on the
+    /// band holds on it unchanged.
+    ///
+    /// **Light mode is necessarily faint.** Near white, sRGB has almost no room
+    /// for colour at the band's luminance (the widest a red, blue or purple
+    /// can go there is about 0.015 OKLCH chroma), so the light wash is a
+    /// pastel cast and the crest still carries the colour. That is the gamut,
+    /// not a choice; darkening the band to make room would cost the win dot
+    /// its 3:1.
+    static func hooprSquadWash(_ colorKey: String) -> Color {
+        wash(of: hooprSquad(colorKey))
+    }
+
+    /// The brand orange at the band's luminance — Login's hero (`HeroWash`).
+    static let hooprBrandWash = wash(of: hooprOrange)
+
+    /// The brand orange at **`hooprHoverFill`'s** luminance — the colour of the
+    /// big half-ball on Home's band (`HomeBandBall`, 2026-09-23).
+    ///
+    /// A shape, not a ground wash, so it needs a visible step as well as a hue:
+    /// a notch lighter than the band in dark mode, a notch darker in light —
+    /// the same step a pressed row takes. And because it is exactly that
+    /// step, everything drawn over it is a pairing `ThemeContrastTests`
+    /// already holds on `hooprHoverFill` (primary, secondary, the accent, the
+    /// baseline) — asserted again on this colour itself.
+    static let hooprBrandWatermark = wash(of: hooprOrange, at: hooprHoverFill)
+
+    private static func wash(of color: Color, at groundColor: Color = hooprHeroBand) -> Color {
+        let tint = UIColor(color)
+        let ground = UIColor(groundColor)
+        return Color(UIColor { traits in
+            luminanceMatched(
+                tint.resolvedColor(with: traits),
+                to: ground.resolvedColor(with: traits)
+            )
+        })
+    }
+
+    /// `tint`'s chromaticity at `ground`'s relative luminance, computed in
+    /// linear light so the luminance matches exactly: scaled toward black when
+    /// the ground is darker than the tint, mixed toward white when it's
+    /// lighter. Both moves keep every channel in range and keep the hue.
+    nonisolated static func luminanceMatched(_ tint: UIColor, to ground: UIColor) -> UIColor {
+        let t = linearRGB(tint)
+        let g = linearRGB(ground)
+        let tintLuminance = relativeLuminance(t)
+        let groundLuminance = relativeLuminance(g)
+
+        let matched: [CGFloat]
+        if groundLuminance <= tintLuminance {
+            let scale = tintLuminance > 0 ? groundLuminance / tintLuminance : 0
+            matched = t.map { $0 * scale }
+        } else {
+            let scale = (1 - groundLuminance) / (1 - tintLuminance)
+            matched = t.map { 1 - (1 - $0) * scale }
+        }
+        return UIColor(
+            red: encoded(matched[0]),
+            green: encoded(matched[1]),
+            blue: encoded(matched[2]),
+            alpha: 1
+        )
+    }
+
+    private nonisolated static func linearRGB(_ color: UIColor) -> [CGFloat] {
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        color.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        return [red, green, blue].map { value in
+            value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+        }
+    }
+
+    private nonisolated static func encoded(_ value: CGFloat) -> CGFloat {
+        let clamped = min(max(value, 0), 1)
+        return clamped <= 0.0031308 ? clamped * 12.92 : 1.055 * pow(clamped, 1 / 2.4) - 0.055
+    }
+
+    private nonisolated static func relativeLuminance(_ linear: [CGFloat]) -> CGFloat {
+        0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+    }
+
     private static func hoopr(light: UIColor, dark: UIColor) -> Color {
         Color(UIColor { traits in
             traits.userInterfaceStyle == .dark ? dark : light

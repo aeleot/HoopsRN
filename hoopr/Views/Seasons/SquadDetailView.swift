@@ -81,6 +81,7 @@ struct SquadDetailView: View {
                 goneState
             }
         }
+        .hooprStatusBarScrim()
         .background(Color.hooprBackground)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // The band carries the back button, so the bar is hidden and the band
@@ -111,8 +112,11 @@ struct SquadDetailView: View {
         .padding(.top, ProfileButton.Slot.top)
         .padding(.bottom, Spacing.xxl)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // The squad's own colour, at the band's luminance (UI revamp Phase 4):
+        // which squad this is, before the name is read.
         .background {
-            Color.hooprHeroBand.ignoresSafeArea(edges: .top)
+            HeroWash(placement: .leading(.hooprSquadWash(squad.colorKey)))
+                .ignoresSafeArea(edges: .top)
         }
         .overlay(alignment: .bottom) {
             Rectangle()

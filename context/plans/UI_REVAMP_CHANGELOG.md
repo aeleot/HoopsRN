@@ -7,7 +7,7 @@ and all of §5.11's sheets (Checkpoint 2 passed after a blind read sent Home
 back once); Start a Run since rebuilt as a grouped form, and the court glyph
 redrawn as a basketball court, from user feedback. Blind reads beyond Home and
 Runs not run. **Phase 3 (motion) built** — see its entry; its live pass is
-outstanding
+outstanding. **Phase 4 (glass and materials) built**
 **Drafted:** 2026-09-21 @ 1a2710d
 **Touches:** `hoopr/Support/Theme.swift`, `hoopr/Support/Spacing.swift` (new),
 `hoopr/Support/CourtHeat.swift`, `hoopr/Views/` (30 files: the 22 the accent sweep
@@ -18,6 +18,172 @@ docs named under each entry
 > record `UI_REVAMP_PROMPT.md` asks for after every phase: **what changed, what
 > was deliberately left alone, and why.** Phase 2 adds its 2e evidence row per
 > screen here. Measurements it cites live in `UI_REVAMP_AUDIT.md`.
+
+---
+
+## Runs, reworked: the week, and the court (2026-09-23)
+
+The user: the Runs page "is very plain, very grey and the header does not make
+sense. I like having the header, but we need to give it some juice."
+
+### What changed
+
+- **The header is the week.** `RunsWeekStrip`: seven columns from today, a
+  dot per run — **filled** accent where you're on it, a **ring** where you
+  could join (a shape difference, not just a colour one), "+" past three.
+  Today sits in an orange disc. A day with runs is a button that scrolls the
+  board to its heading. It replaced three lines of copy ("3 games on the
+  schedule", an eyebrow that flipped between "Tonight" and "Coming up", "You're
+  suited up for all 3") with the thing they were describing.
+- **Facts under it, with glyphs** (`RunsBandStat`): runs this week, the ones
+  you're in, waitlisted (said apart, as before), and runs after the week; "Not
+  on one yet" when you're on none. They wrap a fact at a time.
+- **The juice**: the brand fade from the leading edge, and the court glyph two
+  thirds of the band wide, half off the trailing edge and tilted
+  (`RunsBandCourt`) — Home's ball, as Runs' emblem, in the same
+  `hooprBrandWatermark`, so what crosses it (the strip's later days, the
+  profile button) is already asserted.
+- **Then reordered by the user**: the count moved to the top, under "This
+  week", as the band's numeral ("3 runs" — the label already says the week);
+  "you're in" and the strip moved to the bottom, the strip last. Then
+  "you're in" (and its zero case, "Not on one yet") went altogether — the
+  strip's filled dots are those runs; waitlisted and "later" stay, shown only
+  when non-zero. And **smaller**: the label and the count moved into the
+  profile button's row, the count dropped from the 44pt numeral to `title`,
+  and the band closes tighter — about 110pt shorter on the device (it ended
+  at ~335pt, now ~223pt).
+- **The board is grouped by day** — "Today · Sep 23 · 3 runs", "Tomorrow",
+  the weekday within the week, the date beyond it. `GameCard` dropped its day
+  (the heading carries it) and leads its court name with the court glyph.
+- **Removed as dead:** the old band's `eyebrowText`, `scheduleText`,
+  `rosterText`, `hasRosterSpot` and their tests; and four strings left over
+  from the two-section board (`queuedCountText`, `nearbyCountText`,
+  `queuedEmptyText`, `nearbyEmptyText`) that nothing had read since Phase 2b.
+
+### Tests
+
+`LocalRunsViewModelTests`: the strip counts each day's runs and yours; last
+night's run in the grace window counts toward today; runs after the week are
+"later"; one heading per day in order; last night's run files under today; an
+empty board has no sections; headings say "Today", "Tomorrow", the weekday,
+the date; what VoiceOver says for a day with and without runs. A heading test
+caught the headings formatting in the device's zone while counting days in the
+calendar's; they now format in the calendar's.
+
+### Evidence
+
+- **Live** (dark, the user's three runs today): the strip, the stats, the
+  court, the Today heading, the cards; tapping today's column scrolls the
+  board (as far as the content allows).
+- **Rendered** (a busy week — rings, "+", waitlisted, later), light and dark,
+  default and `.accessibility3`: the strip keeps seven columns at the largest
+  size (its numbers capped inside a fixed 36pt disc) and the facts wrap.
+
+---
+
+## Phase 4 follow-up — Home's band: the logo and the brand fade (2026-09-23)
+
+The user asked for "some sort of design (like the Raptorz red fade)" on Home
+and "some sort of icon, maybe the hoopsRN logo".
+
+- **The mark.** `HooprWordmark` — the app icon's basketball in the accent,
+  beside "hoopsRN" — opens the band, opposite the profile button, in the row
+  every tab already spends on that button, so Home gains no height. The day
+  label ("TONIGHT") moved down to sit on the time it qualifies, and is dropped
+  over "No run tonight".
+- **The fade.** The band's ground is `HeroWash` with `hooprBrandWash` rising
+  from behind the mark: burnt orange in dark mode, a peach cast in light, at
+  the band's luminance — every pairing on it already asserted.
+- **Found by the new assertion: HOSTING missed AA on Home's band since Phase
+  2b.** The pill is a 12% orange wash, and the only test measured it over a
+  card; over the band it was 4.44:1 in dark and 4.497:1 in light, and 4.37:1
+  over the new wash. Home's pill is now 8%, which clears on both
+  (`testTheHostingPillReadsOnHomesBand`). The card's and the map's pills sit on
+  `hooprSurface` and stay at 12%.
+- **Then the ball** (the user's design: "an enlarged, left half of the logo,
+  seeming like the ball is moving off the page", the profile button over it).
+  `HomeBandBall` — the app icon's basketball, two thirds of the band's width
+  across, centred on the trailing edge, tilted 20°, clipped to the band. Its
+  colour is `hooprBrandWatermark`, the orange at `hooprHoverFill`'s luminance:
+  a visible step off the band (1.14:1 dark, 1.08:1 light) that every pairing
+  already clears, asserted again on the colour itself (+3 tests). The HOSTING
+  pill is the one pairing that fails over it (4.08:1 dark) and the one that
+  can't reach it: first on its line with its text capped, it ends by 110pt;
+  the ball starts at 268pt. The first placement put the ball's rim through
+  the profile button on the device; it sits higher now.
+- **Found along the way:** a failing `xcodebuild test` hangs for up to ten
+  minutes afterwards while `simctl diagnose` collects diagnostics — kill it
+  rather than waiting.
+- **Evidence:** live on the device (dark, booked state — the user's 4:45 PM
+  run); rendered booked and open states, light and dark.
+
+---
+
+## Phase 4 — Glass and materials (2026-09-23)
+
+### What changed
+
+- **The squad's colour is on its band, at last** — the brief's M3, which Phase
+  2b measured out. It measured a tint that changes the band's lightness; a
+  colour with the band's exact luminance and the crest's hue changes no ratio
+  at all. `Color.hooprSquadWash(_:)` computes it in linear light (scaled toward
+  black in dark mode, mixed toward white in light), and `HeroWash` lays it into
+  the band as a static `MeshGradient`: colour from the crest's side easing into
+  the plain band. On Seasons, squad detail and game day. **Dark mode reads as
+  the squad's own** — the red squad maroon, the blue one navy; **light mode is
+  a faint cast**, because near white sRGB has almost no room for colour at the
+  band's luminance (0.013–0.06 OKLCH chroma at most), and the crest still
+  carries it there.
+- **Login's band is the brand's**, the orange rising from behind the glyph
+  (`hooprBrandWash`), with every ratio the plain band had.
+- **Scrolled content no longer sits under the clock.** The band screens have
+  no bar, so once a band scrolled, its label and the profile button slid under
+  the status bar's text (device). `hooprStatusBarScrim()` gives the strip the
+  page colour, invisible at rest. iOS 26's scroll edge effect was the brief's
+  plan for this and was tried first: with no real bar content it draws
+  nothing.
+- **The map's chips are one glass group** (`HooprGlassGroup`, iOS 26's
+  `GlassEffectContainer`, in `Glass.swift`): glass can't sample other glass,
+  so a row of it renders together.
+
+### Acceptance
+
+- `Glass.swift` is still the only file that names a glass API — `hooprGlass`
+  and `HooprGlassGroup`, each with its iOS 18 fallback.
+- **Contrast:** `ThemeContrastTests` +3 — each wash has the band's luminance
+  (±0.5%) in both appearances; each dark wash is visibly its colour; every
+  band pairing (text, a mark, an error, the baseline, the form dots) clears its
+  floor on every wash and on the 25/50/75% mixes the mesh draws. The tightest,
+  the win dot on the light band, still clears 3:1. **626 passed, 0 failed.**
+- **No control became untappable:** the scrim and the washes don't hit-test.
+
+### Deliberately left alone, and why
+
+- **`glassEffectID`.** The phase's example — a court card on Home morphing into
+  its map annotation — crosses tabs, and the ID only morphs between glass
+  shapes in one container. Nothing in the app has two glass shapes that
+  become each other, and inventing one would be §2d's decoration.
+- **The profile top bar, the map's floating controls, the collapsed sheet
+  pill** were glass already. **The map sheet stays opaque**: it holds rows you
+  read, and §2c keeps glass off rows (its reason is in `MAP_LAYER.md`).
+- **`ResultView`'s band stays plain.** Its hero is the winner's crest; a band
+  in one squad's colour would read as the result.
+- **No animated mesh** — nothing drifts behind a record.
+
+### Evidence
+
+- **Renders** (real band components, light and dark): all eight squad colours
+  on the Seasons band, game day's band, Login's band.
+- **Live** (iPhone 17, dark): the Seasons band and squad detail in the Raptorz
+  red (back button included); the Runs scrim at rest and scrolled; the map's
+  grouped chips. Found and fixed on the device: the first scrim covered 20pt of
+  the 62pt strip and the second hid the band's label at rest; the band dipped
+  nearly to black while the wash cross-faded in, fixed by keeping the plain
+  band underneath.
+- **Not verified:** light mode live; Login live (needs a sign-out); game day
+  live (needs a match); **the iOS 18 fallback** — the only runtimes installed
+  are iOS 26.5 and 27.0 (`context/gaps/CONFIGURATION.md`: nothing below iOS 26
+  has run).
 
 ---
 

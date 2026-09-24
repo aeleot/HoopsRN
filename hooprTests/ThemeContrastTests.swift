@@ -440,6 +440,132 @@ final class ThemeContrastTests: XCTestCase {
         )
     }
 
+    // MARK: - Hero washes (UI revamp Phase 4)
+
+    /// Every wash the app draws: one per crest colour, and the brand's.
+    private var washes: [(name: String, color: Color)] {
+        Squad.colorKeys.map { ($0, Color.hooprSquadWash($0)) } + [("brand", Color.hooprBrandWash)]
+    }
+
+    /// **The premise the washes rest on.** Each has the band's own relative
+    /// luminance, in both appearances — which is what lets a band carry a
+    /// squad's colour without moving a single ratio drawn on it.
+    func testEveryWashHasTheBandsLuminance() {
+        for (name, wash) in washes {
+            for style in [UIUserInterfaceStyle.light, .dark] {
+                let band = luminance(UIColor(Color.hooprHeroBand), style)
+                XCTAssertEqual(
+                    luminance(UIColor(wash), style), band, accuracy: band * 0.005,
+                    "\(name) wash, style \(style.rawValue)"
+                )
+            }
+        }
+    }
+
+    /// And it is the squad's colour, not the band again. In dark mode every
+    /// wash carries a visible cast — its channels spread at least 0.08 apart,
+    /// where the band's spread is 0.008. (Light mode can't: see
+    /// `Color.hooprSquadWash` on the gamut near white.)
+    func testEveryDarkWashIsVisiblyItsColour() {
+        let dark = UITraitCollection(userInterfaceStyle: .dark)
+        for (name, wash) in washes {
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            UIColor(wash).resolvedColor(with: dark).getRed(&r, green: &g, blue: &b, alpha: &a)
+            XCTAssertGreaterThanOrEqual(max(r, g, b) - min(r, g, b), 0.08, "\(name) wash reads as grey")
+        }
+    }
+
+    /// **Everything drawn on a band clears its floor on every colour the mesh
+    /// draws** — each wash, and the sRGB mixes between a wash and the plain
+    /// band at a quarter, half and three quarters, which are where two
+    /// equal-luminance colours mixed in sRGB dip darkest. The pairings are the
+    /// band's: its text, a mark, an error, the baseline, and the form dots.
+    func testEveryBandPairingHoldsAcrossEveryWash() {
+        let pairings: [(color: Color, floor: CGFloat, label: String)] = [
+            (.hooprPrimaryText, aaText, "primary text"),
+            (.hooprSecondaryText, aaText, "secondary text"),
+            (.hooprBrandAccent, aaText, "a mark"),
+            (.hooprRed, aaText, "an error"),
+            (.hooprSeparatorStrong, aaLarge, "the baseline"),
+            (.hooprFormWin, aaLarge, "a win dot"),
+            (.hooprFormLoss, aaLarge, "a loss dot"),
+            (.hooprFormUnplayed, 2.0, "an unplayed dot"),
+        ]
+        for (name, wash) in washes {
+            for fraction: CGFloat in [1, 0.75, 0.5, 0.25] {
+                for style in [UIUserInterfaceStyle.light, .dark] {
+                    let ground = luminance(washed(wash, alpha: fraction, over: .hooprHeroBand, style), style)
+                    for pairing in pairings {
+                        let mark = luminance(UIColor(pairing.color), style)
+                        let measured = (max(mark, ground) + 0.05) / (min(mark, ground) + 0.05)
+                        XCTAssertGreaterThanOrEqual(
+                            measured, pairing.floor,
+                            String(
+                                format: "%@ on the %@ wash at %.0f%%, style %d: %.2f:1",
+                                pairing.label, name, Double(fraction * 100), style.rawValue, Double(measured)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /// Home's HOSTING pill is an orange wash on the band, and the band is now
+    /// Home's brand wash (2026-09-23) — orange on orange, so it is asserted on
+    /// that composite, and on the plain band it sits on while the wash fades
+    /// in. **At the 12% a card's pill uses it failed on both** — 4.44:1 on the
+    /// plain band in dark, a defect since Phase 2b that nothing asserted,
+    /// because the badge test above measures over a card. Home's pill is 8%.
+    func testTheHostingPillReadsOnHomesBand() {
+        assertContrast(
+            .hooprBrandAccent, onWashOf: .hooprOrange, alpha: 0.08, over: .hooprHeroBand,
+            atLeast: aaText, "HOSTING on the plain band"
+        )
+        assertContrast(
+            .hooprBrandAccent, onWashOf: .hooprOrange, alpha: 0.08, over: .hooprBrandWash,
+            atLeast: aaText, "HOSTING on Home's brand wash"
+        )
+    }
+
+    /// Home's half-ball is the brand orange at a pressed row's luminance, so
+    /// the text that can run over it — the detail line, a long court name —
+    /// and the profile button on top of it read as they do on a pressed row.
+    func testHomesBallSitsAtTheHoverFillsLuminance() {
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            let target = luminance(UIColor(Color.hooprHoverFill), style)
+            XCTAssertEqual(
+                luminance(UIColor(Color.hooprBrandWatermark), style), target, accuracy: target * 0.005,
+                "style \(style.rawValue)"
+            )
+        }
+    }
+
+    /// What can reach the band's right third: the detail line's spots and
+    /// distance, a long court name, the profile button, and the arrow at the
+    /// last row's end — primary text, so it is the first pairing below. (It was
+    /// the accent's "Your runs" cue until 2026-09-24.)
+    ///
+    /// **Not the HOSTING pill, and it would fail** (4.08:1 in dark): it is
+    /// always the first item on its line, its text capped at 14pt, so it
+    /// spans at most the band's first 110pt and the ball starts at 268pt.
+    /// If the pill ever moves right, this is the pairing to add.
+    func testEverythingDrawnOverHomesBallReads() {
+        assertContrast(.hooprPrimaryText, on: .hooprBrandWatermark, atLeast: aaText, "court name and the arrow over the ball")
+        assertContrast(.hooprSecondaryText, on: .hooprBrandWatermark, atLeast: aaText, "detail line and profile button over the ball")
+        assertContrast(.hooprBrandAccent, on: .hooprBrandWatermark, atLeast: aaText, "a mark over the ball")
+    }
+
+    /// And it is visibly a shape on the band, not the band again.
+    func testHomesBallStepsOffTheBand() {
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            XCTAssertGreaterThan(
+                ratio(.hooprBrandWatermark, on: .hooprHeroBand, style), 1.05,
+                "style \(style.rawValue)"
+            )
+        }
+    }
+
     // MARK: - Grouped forms
 
     /// The grouped ground resolves to proven values — `hooprFill` in light,

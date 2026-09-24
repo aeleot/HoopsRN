@@ -369,17 +369,23 @@ struct MapTab: View {
         .padding(.trailing, Spacing.pageMargin)
     }
 
+    /// One `HooprGlassGroup`, so the chips are rendered as one row of glass
+    /// rather than three pieces sampling the map separately (UI revamp
+    /// Phase 4). Inside the scroll view, because the group has to contain the
+    /// shapes it groups.
     private var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(CourtFilter.allCases) { filter in
-                    GlassChip(
-                        symbolName: filter.symbolName,
-                        label: filter.label,
-                        isActive: viewModel.isActive(filter)
-                    ) {
-                        withAnimation(.hooprSnap) {
-                            viewModel.toggle(filter)
+            HooprGlassGroup {
+                HStack(spacing: 8) {
+                    ForEach(CourtFilter.allCases) { filter in
+                        GlassChip(
+                            symbolName: filter.symbolName,
+                            label: filter.label,
+                            isActive: viewModel.isActive(filter)
+                        ) {
+                            withAnimation(.hooprSnap) {
+                                viewModel.toggle(filter)
+                            }
                         }
                     }
                 }

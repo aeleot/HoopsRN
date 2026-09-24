@@ -49,6 +49,8 @@ struct GameCard: View {
     /// border it runs down.
     private static let cornerRadius: CGFloat = 16
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     @State private var isConfirmingCancel = false
     @State private var isConfirmingComplete = false
 
@@ -61,7 +63,12 @@ struct GameCard: View {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 header
                 courtLine
-                details
+
+                // Nothing left to say for a public run with no distance —
+                // and an empty row would still take the stack's spacing.
+                if listing.distanceText != nil || !game.isPublic {
+                    details
+                }
 
                 if let friendsHereText = listing.friendsHereText {
                     friendsHere(friendsHereText)
@@ -231,20 +238,33 @@ struct GameCard: View {
 
     /// Where. Second, because the board is ordered by time — you already know
     /// roughly when, and the court is what you weigh against it.
+    ///
+    /// Led by the court glyph (2026-09-23), the mark Home's band and the map
+    /// card set a court's name with — so a run's *where* reads the same
+    /// everywhere. Shed at the accessibility sizes, as `CourtTitle` sheds it.
     private var courtLine: some View {
-        Text(listing.courtName)
-            .hooprType(.subhead)
-            .foregroundStyle(Color.hooprPrimaryText)
-            .fixedSize(horizontal: false, vertical: true)
-            .multilineTextAlignment(.leading)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            if CourtTitle.showsGlyph(at: dynamicTypeSize) {
+                Image.court
+                    .hooprType(.caption)
+                    .foregroundStyle(Color.hooprBrandAccent)
+            }
+
+            Text(listing.courtName)
+                .hooprType(.subhead)
+                .foregroundStyle(Color.hooprPrimaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .multilineTextAlignment(.leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// The day, the distance, and whether it's invite-only.
+    /// The distance, and whether it's invite-only.
     ///
-    /// The day survives here rather than in the rank line because the board
-    /// runs past midnight: two runs at "6:45 PM" on different days sort
-    /// correctly but read identically without it.
+    /// **The day left this line on 2026-09-23**: the board is grouped under a
+    /// heading per day now (`LocalRunsTab.sectionHeader`), which is what used
+    /// to need it here — two runs at "6:45 PM" on different days sort
+    /// correctly but read identically without one.
     ///
     /// A `ViewThatFits` ladder rather than a plain `HStack` — the old row was
     /// flat, which is what let it break mid-word at `.accessibility3`
@@ -260,8 +280,6 @@ struct GameCard: View {
 
     @ViewBuilder
     private var detailPieces: some View {
-        detail(symbol: "calendar", text: dayText)
-
         if let distanceText = listing.distanceText {
             detail(symbol: "location.fill", text: distanceText)
         }
@@ -302,8 +320,6 @@ struct GameCard: View {
     /// live — so the board's rank line and Home's band can't disagree about
     /// what time the same run is at.
     private var timeText: String { game.timeText }
-
-    private var dayText: String { game.dayText() }
 
     /// Who you know is already on this run — the one piece of social proof on
     /// the card, and the reason `plans/FRIENDS.md` §4 calls it "you can now see

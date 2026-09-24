@@ -143,12 +143,13 @@ struct SeasonsTab: View {
                     .padding(.bottom, Spacing.xxxl)
                 }
             }
+            .hooprStatusBarScrim()
             .background(Color.hooprBackground)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // Every squad the user is on, not just the primary one: screen 9's
-            // history reads off this listener, and a secondary squad's detail
-            // view would otherwise render an empty season rather than its own.
-            // `array-contains-any` serves up to ten squads from one query.
+            // Every squad the user is on, which is one unless they joined a
+            // second before that stopped being allowed: screen 9's history
+            // reads off this listener, and a secondary squad's detail view
+            // would otherwise render an empty season rather than its own.
             .task(id: viewModel.squads.map(\.id)) {
                 seasonGameService.observe(squadIds: viewModel.squads.map(\.id))
             }
@@ -168,6 +169,7 @@ struct SeasonsTab: View {
                     GameDayView(
                         game: game,
                         mySquadId: mySquadId,
+                        squadColorKey: viewModel.squad(id: mySquadId)?.colorKey,
                         seasonGameService: seasonGameService,
                         squadService: squadService,
                         userProfileService: userProfileService,
@@ -228,14 +230,24 @@ struct SeasonsTab: View {
         .padding(.top, ProfileButton.Slot.top)
         .padding(.bottom, Spacing.xxl)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // The squad's own colour, at the band's luminance (UI revamp Phase 4)
+        // — plain until the squad has loaded, and plain with no squad, where
+        // there's no one's colour to show yet.
         .background {
-            Color.hooprHeroBand.ignoresSafeArea(edges: .top)
+            HeroWash(placement: bandWash)
+                .ignoresSafeArea(edges: .top)
+                .animation(.hooprSwap, value: bandWash)
         }
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Color.hooprSeparatorStrong)
                 .frame(height: 1)
         }
+    }
+
+    private var bandWash: HeroWash.Placement {
+        guard viewModel.hasLoaded, let squad = viewModel.primarySquad else { return .plain }
+        return .leading(.hooprSquadWash(squad.colorKey))
     }
 
     private var bandLabel: String {
@@ -295,21 +307,14 @@ struct SeasonsTab: View {
 
         rosterSection(squad)
 
-        // More than one squad is legal — the schema doesn't stop it — so the
-        // others get rows rather than being silently dropped by `primarySquad`.
+        // A person is on one squad at a time now, and there's deliberately no
+        // way to start a second from here. This is for whoever joined a second
+        // squad before that rule existed: without it the extra one would be
+        // unreachable, which means they could never leave it. It can be
+        // deleted once no such person is left.
         if viewModel.squads.count > 1 {
             otherSquads(besides: squad)
         }
-
-        Button {
-            creating = CreateRoute()
-        } label: {
-            Text("Create another squad")
-                .hooprType(.body)
-                .fontWeight(.semibold)
-                .foregroundStyle(Color.hooprSecondaryText)
-        }
-        .buttonStyle(.plain)
     }
 
     /// Rows under a label, not a card: the roster is one list, and a box

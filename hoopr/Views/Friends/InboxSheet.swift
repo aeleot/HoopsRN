@@ -134,6 +134,7 @@ struct InboxSheet: View {
                     SquadInviteRow(
                         row: row,
                         isBlocked: squadViewModel.isBlocked(row.id),
+                        joinBlockedReason: squadViewModel.joinBlockedReason(for: row.invite),
                         onAccept: { Task { await squadViewModel.acceptInvite(row.invite) } },
                         onDecline: { Task { await squadViewModel.declineInvite(row.invite) } }
                     )

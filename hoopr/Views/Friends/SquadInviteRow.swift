@@ -11,6 +11,13 @@ import SwiftUI
 struct SquadInviteRow: View {
     let row: SquadViewModel.IncomingInvite
     let isBlocked: Bool
+
+    /// Why Join isn't on offer — already on a squad, or the list hasn't loaded.
+    /// When set, the button is *absent* rather than dimmed: `hooprPress` adds
+    /// nothing to a disabled state, and a greyed capsule would leave the reason
+    /// to be guessed. Declining stays, so the invite can still be cleared.
+    let joinBlockedReason: String?
+
     let onAccept: () -> Void
     let onDecline: () -> Void
 
@@ -32,9 +39,15 @@ struct SquadInviteRow: View {
                     .hooprType(.subhead)
                     .foregroundStyle(Color.hooprPrimaryText)
 
-                Text(row.squad.map { "\($0.format.displayName) · \($0.rosterText)" } ?? "Invited you to join")
+                // The reason replaces the roster line rather than adding a
+                // third: with no Join to weigh, how full the squad is stops
+                // being the thing worth reading.
+                Text(joinBlockedReason
+                    ?? row.squad.map { "\($0.format.displayName) · \($0.rosterText)" }
+                    ?? "Invited you to join")
                     .hooprType(.caption)
                     .foregroundStyle(Color.hooprSecondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer(minLength: 8)
@@ -42,17 +55,19 @@ struct SquadInviteRow: View {
             // Each drawn at its label's size inside a full 44pt target, so a
             // row stays compact without shrinking what a thumb has to hit.
             HStack(spacing: 4) {
-                Button(action: onAccept) {
-                    Text("Join")
-                        .hooprFont(14, weight: .semibold)
-                        .foregroundStyle(Color.hooprOnBrand)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Capsule().fill(Color.hooprOrange))
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
+                if joinBlockedReason == nil {
+                    Button(action: onAccept) {
+                        Text("Join")
+                            .hooprFont(14, weight: .semibold)
+                            .foregroundStyle(Color.hooprOnBrand)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(Capsule().fill(Color.hooprOrange))
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.hooprPress)
                 }
-                .buttonStyle(.hooprPress)
 
                 Button(action: onDecline) {
                     Text("Decline")

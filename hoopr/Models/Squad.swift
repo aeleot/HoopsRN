@@ -261,6 +261,45 @@ nonisolated extension Squad {
     var rosterText: String {
         "\(memberIds.count) / \(format.maxRoster) players"
     }
+
+    // MARK: One squad per person
+
+    /// Why the signed-in user may not join or create a squad right now, or
+    /// `nil` when they may. **The one-squad-per-person rule**, in one place so
+    /// `SquadService` (which enforces it) and `SquadViewModel` (which stops the
+    /// UI offering what would be refused) can't disagree.
+    ///
+    /// **App-enforced only.** `firestore.rules` can't ask "which squads is this
+    /// uid on" — rules can't query — so a modified client can still join a
+    /// second squad. `MatchRules` skips a pairing of two squads that share a
+    /// player, so an honest client never plays someone against themselves —
+    /// but that is a filter in the client too, not a rule the server checks.
+    ///
+    /// - Parameters:
+    ///   - squads: every squad the user is on, as `SquadService` carries them.
+    ///   - haveLoaded: whether that list has been answered at all. Until then
+    ///     an empty list means "unknown", not "on none", and a join let through
+    ///     on it would be exactly the second squad the rule exists to stop.
+    ///   - joining: the squad being joined, if it's an existing one. Excluded
+    ///     from the check, so accepting a stale invite to a squad you're
+    ///     already on stays the quiet no-op `SquadService.acceptInvite`
+    ///     documents rather than becoming a refusal.
+    ///
+    /// Someone who joined two squads before this rule existed still has both,
+    /// and is refused any third. The check is "any squad that isn't this
+    /// one", so they can't use one of their two as cover for joining another.
+    static func membershipBlock(
+        among squads: [Squad],
+        haveLoaded: Bool,
+        viewedBy userId: String?,
+        joining squadId: String? = nil
+    ) -> SquadError? {
+        guard haveLoaded else { return .squadsNotLoaded }
+
+        guard let existing = squads.first(where: { $0.id != squadId }) else { return nil }
+
+        return .alreadyOnASquad(name: existing.name, isLeader: existing.isLeader(userId))
+    }
 }
 
 /// Domain-level failures for the `squads` and `squadInvites` collections.
@@ -289,6 +328,14 @@ nonisolated enum SquadError: Error, Equatable {
     case squadFull
     /// Already on the roster — a duplicate tap from a stale screen.
     case alreadyMember
+    /// Already on a *different* squad, and a person is on one at a time — see
+    /// `Squad.membershipBlock`. Carries what the sentence needs, because the
+    /// way out differs: a member leaves, a leader can only disband.
+    case alreadyOnASquad(name: String, isLeader: Bool)
+    /// The squads listener hasn't answered yet, so "on no squad" can't be told
+    /// from "don't know". Refused rather than guessed, since a wrong guess is a
+    /// second squad.
+    case squadsNotLoaded
     /// The leader tried to leave their own squad. Disbanding is their exit.
     case leaderCannotLeave
     /// Only the leader may edit or invite. Caught client-side; the rules

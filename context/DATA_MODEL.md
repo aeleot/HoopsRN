@@ -266,12 +266,24 @@ all encoding.
 - **`leaderId` is always in `memberIds`.** The leader can never be removed,
   themselves included — disbanding is their exit, the same shape a `games`
   host's cancel takes.
+- **A person is on one squad at a time — enforced by the app, not the schema.**
+  `Squad.membershipBlock(among:haveLoaded:viewedBy:joining:)` is the one place
+  the rule lives; `SquadService` asks it before `createSquad` and
+  `acceptInvite`, and `SquadViewModel.joinBlockedReason(for:)` asks it so the
+  inbox stops offering a Join that would be refused. Two details worth knowing:
+  it **excludes the squad being joined** (a stale invite to a squad you're
+  already on is still consumed quietly), and it treats a squads list that
+  hasn't loaded as **unknown, not empty**. Nothing in `firestore.rules` backs
+  it — rules can't query — so see `gaps/SEASONS.md` for what that leaves open.
 
 `SquadError` mirrors the others where the meanings match, and adds
 `missingRegion` — returned when no court is near enough to name a region from,
 because a *guessed* region is worse than none: it partitions the matchmaking
 pool into groups that can never see each other, with no error anywhere to
-explain why nobody ever matches.
+explain why nobody ever matches. It also adds the two cases of the one-squad
+rule: `alreadyOnASquad(name:isLeader:)`, which carries what its sentence needs
+because the way out differs (a member leaves, a leader can only disband), and
+`squadsNotLoaded`.
 
 ## `SquadInvite`
 
