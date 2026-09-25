@@ -96,6 +96,8 @@ struct MapTab: View {
     /// and the sheet is laid out above it, so this no longer has to clear the
     /// home indicator on its own.
     private let peekBottomInset: CGFloat = 12
+    private static let sheetCornerRadius: CGFloat = 22
+    private static let chromeInset: CGFloat = 14
     /// Finger travel below which a handle drag counts as a tap instead.
     private let tapSlop: CGFloat = 6
 
@@ -377,7 +379,7 @@ struct MapTab: View {
 
             InboxButton(friendService: friendService, squadService: squadService, action: onOpenInbox)
         }
-        .padding(.leading, 14)
+        .padding(.leading, Self.chromeInset)
         .padding(.trailing, Spacing.pageMargin)
     }
 
@@ -402,7 +404,7 @@ struct MapTab: View {
                     }
                 }
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, Self.chromeInset)
             .padding(.vertical, 6)
         }
         // Full width now that the recenter button has moved down to the thumb
@@ -448,7 +450,7 @@ struct MapTab: View {
             .accessibilityHidden(isHidden)
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
-        .padding(.trailing, 14)
+        .padding(.trailing, Self.chromeInset)
         // No `tabBarInset` here, deliberately — this tab's own frame is
         // already laid out net of the tab bar (see `body`), so the container's
         // bottom edge *is* the tab bar's top edge. `peekBottomInset` alone —
@@ -486,7 +488,7 @@ struct MapTab: View {
             // reserved space begins. Below that the band belongs to the
             // tab's own background (see `body`), which is the same
             // `hooprSurface`, so the two read as one surface.
-            UnevenRoundedRectangle(topLeadingRadius: 22, topTrailingRadius: 22)
+            UnevenRoundedRectangle(topLeadingRadius: Self.sheetCornerRadius, topTrailingRadius: Self.sheetCornerRadius)
                 .fill(Color.hooprSurface)
                 .shadow(color: Color.hooprShadow(opacity: 0.08), radius: 12, x: 0, y: -4)
                 .frame(height: sheetHeight)
@@ -533,7 +535,8 @@ struct MapTab: View {
                 .hooprFont(11, weight: .semibold)
 
             Text(viewModel.listCountLabel)
-                .hooprFont(13, weight: .semibold)
+                .hooprType(.caption)
+                .fontWeight(.semibold)
         }
         .foregroundStyle(Color.hooprPrimaryText)
         .padding(.horizontal, 18)
@@ -650,11 +653,11 @@ struct MapTab: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 CourtName(name: court.displayName)
-                    .hooprFont(16, weight: .semibold)
+                    .hooprType(.subhead)
                     .foregroundStyle(Color.hooprPrimaryText)
 
                 Text("\(court.city) · \(viewModel.distanceText(for: court)) away")
-                    .hooprFont(13)
+                    .hooprType(.caption)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .lineLimit(1)
             }
@@ -672,7 +675,8 @@ struct MapTab: View {
             Spacer()
 
             Text(viewModel.hasSearchQuery ? "No courts match" : "No recent courts")
-                .hooprFont(15, weight: .semibold)
+                .hooprType(.body)
+                .fontWeight(.semibold)
                 .foregroundStyle(Color.hooprPrimaryText)
 
             Text(
@@ -680,7 +684,7 @@ struct MapTab: View {
                     ? "Try a court name, or the town it's in."
                     : "Courts you open will show up here."
             )
-            .hooprFont(13)
+            .hooprType(.caption)
             .foregroundStyle(Color.hooprSecondaryText)
             .multilineTextAlignment(.center)
 
@@ -779,7 +783,7 @@ struct MapTab: View {
     private var rowDivider: some View {
         Divider()
             .overlay(Color.hooprBorder)
-            .padding(.leading, 20)
+            .padding(.leading, Spacing.pageMargin)
     }
 
     /// The sheet's one scrolling container.
@@ -855,17 +859,18 @@ struct MapTab: View {
             if viewModel.selectedTab == .now, viewModel.datasetError == nil {
                 Image(systemName: "basketball.fill")
                     .hooprFont(30, maximumSize: 40)
-                    .foregroundStyle(Color.hooprSecondaryText.opacity(0.45))
+                    .foregroundStyle(Color.hooprSecondaryText)
                     .padding(.bottom, 4)
             }
 
             Text(viewModel.emptyStateTitle)
-                .hooprFont(15, weight: .semibold)
+                .hooprType(.body)
+                .fontWeight(.semibold)
                 .foregroundStyle(Color.hooprPrimaryText)
 
             if let detail = viewModel.emptyStateDetail {
                 Text(detail)
-                    .hooprFont(13)
+                    .hooprType(.caption)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .multilineTextAlignment(.center)
             }
@@ -903,7 +908,8 @@ struct MapTab: View {
                 .frame(width: 36, height: 5)
 
             Text(viewModel.listCountLabel)
-                .hooprFont(13, weight: .medium)
+                .hooprType(.caption)
+                .fontWeight(.medium)
                 .foregroundStyle(Color.hooprSecondaryText)
         }
         .padding(.top, 10)

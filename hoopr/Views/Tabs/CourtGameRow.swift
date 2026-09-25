@@ -34,11 +34,11 @@ struct CourtGameRow: View {
                 // Sheds "Park", then the court number, before it is cut —
                 // the map's rule (`CourtName`), shared with `CourtRow`.
                 CourtName(name: court.displayName)
-                    .hooprFont(16, weight: .semibold)
+                    .hooprType(.subhead)
                     .foregroundStyle(Color.hooprPrimaryText)
 
                 Text(metaText)
-                    .hooprFont(13)
+                    .hooprType(.caption)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .lineLimit(1)
             }
@@ -60,8 +60,7 @@ struct CourtGameRow: View {
             }
             .frame(minHeight: statusLineHeight, alignment: .trailing)
         }
-        .padding(.leading, 20)
-        .padding(.trailing, 16)
+        .padding(.horizontal, Spacing.pageMargin)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())

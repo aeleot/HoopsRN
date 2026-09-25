@@ -51,7 +51,7 @@ struct CourtRow: View {
                 // row three lines of near-equal weight — which is what made a
                 // list of twelve courts need a full screen.
                 Text("\(court.city) · \(nearbyCourt.distanceText) away")
-                    .hooprFont(13)
+                    .hooprType(.caption)
                     .foregroundStyle(Color.hooprSecondaryText)
             }
 
@@ -63,14 +63,14 @@ struct CourtRow: View {
                     .foregroundStyle(isFavorite ? Color.hooprBrandAccent : Color.hooprSecondaryText)
                     // Widen the tap target without widening the icon, so the
                     // star doesn't swallow taps meant for the row.
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
-        .padding(.leading, 20)
-        .padding(.trailing, 8)
-        .padding(.vertical, 12)
+        .padding(.horizontal, Spacing.pageMargin)
+        // The target gains 4pt; the row keeps its existing 64pt default height.
+        .padding(.vertical, Spacing.md - Spacing.hairline)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
     }
@@ -84,7 +84,7 @@ struct CourtRow: View {
             // the name itself sheds "Park" and then its court number before
             // it is cut (`CourtName`) — the badges still go first.
             CourtName(name: court.displayName)
-                .hooprFont(16, weight: .semibold)
+                .hooprType(.subhead)
                 .foregroundStyle(Color.hooprPrimaryText)
 
             CourtBadges(court: court, limit: badgeLimit)
