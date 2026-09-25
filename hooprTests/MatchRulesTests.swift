@@ -484,6 +484,44 @@ final class MatchRulesTests: XCTestCase {
         XCTAssertEqual(MatchRules.relaxation(for: future, now: now), 0)
     }
 
+    // MARK: - Re-scanning as relaxation widens
+
+    /// **The reported bug**: two squads queued together with no court in common
+    /// reject each other at t=0, and ageing fires no snapshot — so unless the
+    /// scan re-arms itself, relaxation never gets the chance to match them.
+    func testAnUnrelaxedRejectionAsksForARescan() throws {
+        let distant = ticket(squadId: "theirs", members: ["b1", "b2", "b3"], courtIds: ["far"])
+        XCTAssertNil(candidate(mine, distant))
+
+        let delay = try XCTUnwrap(
+            MatchRules.rescanDelay(for: mine, pool: [mine, distant], now: now)
+        )
+        XCTAssertEqual(delay, MatchRules.relaxationRescanInterval)
+
+        // And waiting is what fixes it: the same pair, rescanned once my
+        // ticket has aged, matches.
+        let later = now.addingTimeInterval(MatchRules.fullRelaxation)
+        XCTAssertNotNil(candidate(mine, distant, at: later))
+    }
+
+    /// Nobody else queued: the pool listener fires when that changes, so a
+    /// timer would only re-rank my own ticket against itself.
+    func testAPoolOfOnlyMeAsksForNoRescan() {
+        XCTAssertNil(MatchRules.rescanDelay(for: mine, pool: [mine], now: now))
+        XCTAssertNil(MatchRules.rescanDelay(for: mine, pool: [], now: now))
+    }
+
+    /// Fully relaxed, time only makes a pairing harder, so the loop stops
+    /// polling and leaves it to the listener.
+    func testAFullyRelaxedTicketAsksForNoRescan() {
+        let waited = ticket(
+            squadId: "mine",
+            members: ["a1", "a2", "a3"],
+            createdAt: -MatchRules.fullRelaxation
+        )
+        XCTAssertNil(MatchRules.rescanDelay(for: waited, pool: [waited, theirs], now: now))
+    }
+
     // MARK: - Court derivation
 
     /// Preference is the **home** list's order, not distance. Both squads
