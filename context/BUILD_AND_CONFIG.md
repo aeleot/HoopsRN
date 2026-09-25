@@ -316,7 +316,7 @@ measurement style would be one too many.
 | Suite | Cases | Guards |
 |---|---|---|
 | `SeasonGameTests` | 47 | The derived record and form guide, the report derivation and what a report write contains, who may report and when, create-time validation mirroring the rules, and the queue windows. |
-| `MatchRulesTests` | 43 | The pure matchmaker: every hard rule rejecting in isolation, soft-rule ordering, relaxation over time, window arithmetic across midnight and DST, empty pool, self-match. Lost the stale-claim cases when the atomic commit deleted the window they pinned. |
+| `MatchRulesTests` | 46 | The pure matchmaker: every hard rule rejecting in isolation, soft-rule ordering, relaxation over time and the re-scan it needs, window arithmetic across midnight and DST, empty pool, self-match. Lost the stale-claim cases when the atomic commit deleted the window they pinned. |
 | `SquadTests` | 38 | Decoding, name and roster bounds, leadership, the icon/colour allowlists. |
 | `GameTests` | 40 | Decoding, derived status, form validation, roster membership, visibility, presentation, the invite-link string, distance. |
 | `MatchTicketTests` | 22 | Ticket validation, claimability, `isSearching` vs. `isClaimable`, `winPercentage`'s unplayed midpoint. |

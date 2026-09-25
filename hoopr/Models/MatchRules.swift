@@ -157,6 +157,46 @@ nonisolated enum MatchRules {
         return comfortMargin.upperBound + (comfortMargin.lowerBound - comfortMargin.upperBound) * t
     }
 
+    // MARK: - Re-scanning as relaxation widens
+
+    /// How often a scan that found nothing looks again while my criteria are
+    /// still widening.
+    ///
+    /// **Relaxation only helps if somebody re-ranks the pool.** It is derived
+    /// from my ticket's age, and ageing is not a Firestore event — no snapshot
+    /// fires because a minute passed. A scan that came up empty used to be the
+    /// last scan until the pool itself changed, so two squads queued a few
+    /// seconds apart with no court in common (or a window too tight for the
+    /// unrelaxed comfort margin) sat in each other's pool forever, under a card
+    /// that read "Widening the search" and "1 other squad queued nearby".
+    ///
+    /// Fifteen seconds: the radius grows 2.5 miles a minute, so a finer poll
+    /// would re-rank against criteria that have barely moved. The re-scan is
+    /// pure arithmetic over the pool already in memory — no read — so this is
+    /// latency tuning, not cost tuning.
+    static let relaxationRescanInterval: TimeInterval = 15
+
+    /// How long to wait before re-ranking a pool that just produced no
+    /// candidate, or `nil` when waiting cannot change the answer.
+    ///
+    /// Waiting helps only while both of these hold:
+    /// - **someone else is in the pool.** An empty pool changes by a snapshot,
+    ///   and the listener already re-scans on every one.
+    /// - **my criteria can still widen.** Past `fullRelaxation` every relaxed
+    ///   bound is at its limit, and the rules that stay — expiry, lead time, the
+    ///   game fitting before the overlap closes — only get *harder* to meet as
+    ///   time passes. A pool rejected at full relaxation is rejected for good
+    ///   until it changes, and the listener covers that.
+    static func rescanDelay(
+        for mine: MatchTicket,
+        pool: [MatchTicket],
+        now: Date
+    ) -> TimeInterval? {
+        guard pool.contains(where: { $0.squadId != mine.squadId }) else { return nil }
+        guard relaxation(for: mine, now: now) < 1 else { return nil }
+        return relaxationRescanInterval
+    }
+
     // MARK: - The rule set
 
     /// Whether `theirs` is a match for `mine`, and if so where, when, and how

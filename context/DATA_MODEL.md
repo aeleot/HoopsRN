@@ -324,7 +324,10 @@ is no duplicate-entry logic because there is nowhere to put a second row.
   radius, the record-proximity tolerance and the window slack. It never widens
   the hard rules. The searching UI reads it directly rather than a timer that
   happens to agree, so "Widening the search" is true *because* the standards
-  really are.
+  really are. Ageing fires no snapshot, so a scan that finds nothing re-arms
+  itself every `relaxationRescanInterval` (15s) while `MatchRules.rescanDelay`
+  says waiting can still help — someone else is queued and relaxation is below
+  1. Without that, two squads that rejected each other at t=0 never re-ranked.
 - **Record proximity is a gate, not only a score** — 0.35 apart at relaxation 0,
   fully open at 1 — so it changes *when* an uneven match happens, never
   *whether*. This is the hook a skill rating would plug into.

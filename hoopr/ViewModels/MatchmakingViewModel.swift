@@ -235,10 +235,15 @@ final class MatchmakingViewModel: ObservableObject {
         self.squadService = squadService
         self.notificationService = notificationService
 
+        // Seeded now rather than left to the sink below: `receive(on:)` delivers
+        // the dataset a runloop turn later, and `start(squad:)` can run before
+        // that — handing the search an empty court lookup.
+        courtsById = Self.keyed(courtService.courts)
+
         courtService.$courts
             .receive(on: DispatchQueue.main)
             .sink { [weak self] courts in
-                self?.courtsById = Dictionary(uniqueKeysWithValues: courts.map { ($0.id, $0) })
+                self?.courtsById = Self.keyed(courts)
             }
             .store(in: &cancellables)
 
@@ -323,6 +328,10 @@ final class MatchmakingViewModel: ObservableObject {
     deinit {
         tickTask?.cancel()
         settlingTask?.cancel()
+    }
+
+    private static func keyed(_ courts: [Court]) -> [String: Court] {
+        Dictionary(uniqueKeysWithValues: courts.map { ($0.id, $0) })
     }
 
     // MARK: - Lifecycle
