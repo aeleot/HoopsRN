@@ -343,7 +343,7 @@ private struct Badges: View {
                 HooprCountBadge(text: "9+", count: 12)
                 HooprNotificationDot()
             }
-            Caption("Count badge (inbox), notification dot (profile button)")
+            Caption("Count badge (inbox button), notification dot (unused since the inbox took the profile button's slot)")
 
             CourtBadges(court: court)
             Caption("CourtBadges — amenity chips, a caution outlined")

@@ -36,7 +36,7 @@ struct SeasonsTab: View {
     /// comment for why a write sequence lives in a view model.
     @StateObject private var matchmaking: MatchmakingViewModel
 
-    /// Observed because `ProfileButton` reads it for its badge dot.
+    /// Observed because `InboxButton` reads it for its badge.
     @ObservedObject private var friendService: FriendService
 
     /// Stored rather than only threaded into the two view models above:
@@ -48,7 +48,28 @@ struct SeasonsTab: View {
     private let courtService: CourtService
     private let notificationService: NotificationService
 
-    private let onOpenProfile: () -> Void
+    private let onOpenInbox: () -> Void
+
+    /// A match the inbox asked to open, handed down by the shell. Consumed —
+    /// the stack is replaced with its screen — and written back `nil`, the
+    /// same hand-off `MapTab` uses for `courtToSelect`, so the same match can
+    /// be opened twice.
+    @Binding private var matchToOpen: MatchDestination?
+
+    /// The two screens the inbox can open, from outside this tab. Narrower
+    /// than `Route`, which stays private: nothing outside needs to push squad
+    /// detail.
+    enum MatchDestination: Hashable {
+        case gameDay(mySquadId: String, game: SeasonGame)
+        case result(mySquadId: String, game: SeasonGame)
+
+        fileprivate var route: Route {
+            switch self {
+            case .gameDay(let mySquadId, let game): .gameDay(mySquadId: mySquadId, game: game)
+            case .result(let mySquadId, let game): .result(mySquadId: mySquadId, game: game)
+            }
+        }
+    }
 
     /// Wrapped for `sheet(item:)` rather than presented with `isPresented` —
     /// the house convention, and the one that survives a rapid re-tap without
@@ -67,7 +88,7 @@ struct SeasonsTab: View {
     /// rather than just its ID — `SeasonGame` is already `Hashable`, and the
     /// object is already in hand at every call site that pushes it, so there's
     /// nothing to look back up.
-    private enum Route: Hashable {
+    fileprivate enum Route: Hashable {
         case squad(String)
         case gameDay(mySquadId: String, game: SeasonGame)
         case result(mySquadId: String, game: SeasonGame)
@@ -93,15 +114,17 @@ struct SeasonsTab: View {
         userProfileService: UserProfileService,
         courtService: CourtService,
         notificationService: NotificationService,
-        onOpenProfile: @escaping () -> Void
+        matchToOpen: Binding<MatchDestination?>,
+        onOpenInbox: @escaping () -> Void
     ) {
+        _matchToOpen = matchToOpen
         self.friendService = friendService
         self.squadService = squadService
         self.seasonGameService = seasonGameService
         self.userProfileService = userProfileService
         self.courtService = courtService
         self.notificationService = notificationService
-        self.onOpenProfile = onOpenProfile
+        self.onOpenInbox = onOpenInbox
         _viewModel = StateObject(wrappedValue: SquadViewModel(
             squadService: squadService,
             friendService: friendService,
@@ -146,11 +169,18 @@ struct SeasonsTab: View {
             .hooprStatusBarScrim()
             .background(Color.hooprBackground)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // Every squad the user is on — one, now, but the listener takes a
-            // list, and squad detail's history reads off it: a squad missing
-            // from it would render an empty season rather than its own.
-            .task(id: viewModel.squads.map(\.id)) {
-                seasonGameService.observe(squadIds: viewModel.squads.map(\.id))
+            // The `seasonGames` listener used to be pointed from here, which
+            // left it idle until this tab was first opened. It's `MainTabView`'s
+            // now: the inbox lists matches, and a notification tap can open
+            // the inbox before this tab has ever been shown.
+            //
+            // `initial: true` because a match can be the reason this tab is
+            // mounted at all — the inbox selects it and sets the binding in
+            // the same transaction.
+            .onChange(of: matchToOpen, initial: true) { _, destination in
+                guard let destination else { return }
+                path = [destination.route]
+                matchToOpen = nil
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
@@ -209,7 +239,7 @@ struct SeasonsTab: View {
 
     /// The tab's hero — the same band as Home and
     /// Runs: full-bleed, `hooprHeroBand`, closed by a `hooprSeparatorStrong`
-    /// baseline, the profile button in its shared slot.
+    /// baseline, the inbox button in its shared slot.
     private var band: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             HStack(alignment: .top, spacing: Spacing.sm) {
@@ -220,13 +250,13 @@ struct SeasonsTab: View {
 
                 Spacer(minLength: 0)
 
-                ProfileButton(friendService: friendService, squadService: squadService, action: onOpenProfile)
+                InboxButton(friendService: friendService, squadService: squadService, action: onOpenInbox)
             }
 
             bandAnswer
         }
         .padding(.horizontal, Spacing.pageMargin)
-        .padding(.top, ProfileButton.Slot.top)
+        .padding(.top, InboxButton.Slot.top)
         .padding(.bottom, Spacing.xxl)
         .frame(maxWidth: .infinity, alignment: .leading)
         // The squad's own colour, at the band's luminance (UI revamp Phase 4)

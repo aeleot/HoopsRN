@@ -7,7 +7,7 @@ extension View {
     ///
     /// **The problem it answers, seen on the device (2026-09-23).** Home,
     /// Runs and the Seasons screens have no bar: the band *is* the header,
-    /// and it scrolls. Once it had, the band's label and the profile button
+    /// and it scrolls. Once it had, the band's label and the inbox button
     /// sat directly under the status bar's text. iOS 26 draws a scroll edge
     /// effect only behind real bar content — an empty `safeAreaBar` with
     /// `scrollEdgeEffectStyle(.soft)` was tried and drew nothing — so this is

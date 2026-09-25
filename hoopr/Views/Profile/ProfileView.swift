@@ -1,7 +1,10 @@
 import SwiftUI
 
-/// Full-screen profile. Presented in place of the main tab interface rather
-/// than inside it, so it owns the whole screen including its own back button.
+/// The Profile tab — the fifth, since 2026-09-25. It used to be a full-screen
+/// takeover that replaced the tab interface, reached through a person glyph
+/// in every tab's top-right corner and left through its own back button. That
+/// glyph's slot went to the inbox (`InboxButton`), and the profile came into
+/// the tab bar, where it keeps its scroll position and pane like any other tab.
 ///
 /// **Two panes, one screen.** Friends used to be the third tab of
 /// `MainTabView`; it lives here now, behind a selector under the identity
@@ -46,13 +49,13 @@ struct ProfileView: View {
     /// views are stateless and are rebuilt on every switch.
     @StateObject private var friendsViewModel: FriendsViewModel
 
-    /// Own instance, same reasoning as `friendsViewModel` — this screen owns
-    /// what it presents rather than reaching for one the Seasons tab already
-    /// built. Both independently mirror the same `SquadService`, so there's
-    /// nothing for the two to disagree about.
-    @StateObject private var squadViewModel: SquadViewModel
+    /// Held only for `InboxButton` in the top bar, which observes both
+    /// itself. The inbox the button opens is presented by `MainTabView`, not
+    /// here — it's one sheet over whichever tab is showing.
+    private let friendService: FriendService
+    private let squadService: SquadService
 
-    private let onBack: () -> Void
+    private let onOpenInbox: () -> Void
 
     @State private var pane: Pane = .profile
 
@@ -67,13 +70,12 @@ struct ProfileView: View {
 
     // MARK: Friends-pane presentation
     //
-    // Owned here rather than by `FriendsPaneContent` because the toolbar that
-    // opens the inbox and the list that opens a profile are two separate views
-    // in two separate parts of the scroll — there is no single pane view left
-    // to hold this between them.
+    // Owned here rather than by `FriendsPaneContent` because the search field
+    // and the list that opens a profile are two separate views in two separate
+    // parts of the scroll — there is no single pane view left to hold this
+    // between them.
 
     @FocusState private var isSearchFocused: Bool
-    @State private var isInboxPresented = false
     @State private var presentedPlayer: PlayerRoute?
 
     /// Which friend a remove confirmation is about. Held here rather than on
@@ -114,21 +116,17 @@ struct ProfileView: View {
         courtService: CourtService,
         friendService: FriendService,
         squadService: SquadService,
-        onBack: @escaping () -> Void
+        onOpenInbox: @escaping () -> Void
     ) {
-        self.onBack = onBack
+        self.friendService = friendService
+        self.squadService = squadService
+        self.onOpenInbox = onOpenInbox
         _viewModel = StateObject(wrappedValue: ProfileViewModel(
             authService: authService,
             userProfileService: userProfileService,
             courtService: courtService
         ))
         _friendsViewModel = StateObject(wrappedValue: FriendsViewModel(
-            friendService: friendService,
-            userProfileService: userProfileService,
-            courtService: courtService
-        ))
-        _squadViewModel = StateObject(wrappedValue: SquadViewModel(
-            squadService: squadService,
             friendService: friendService,
             userProfileService: userProfileService,
             courtService: courtService
@@ -160,11 +158,6 @@ struct ProfileView: View {
                     },
                     onDone: { isChangingPassword = false }
                 )
-            }
-            .sheet(isPresented: $isInboxPresented) {
-                InboxSheet(viewModel: friendsViewModel, squadViewModel: squadViewModel) {
-                    isInboxPresented = false
-                }
             }
             .sheet(item: $presentedPlayer) { route in
                 PlayerProfileSheet(uid: route.uid, viewModel: friendsViewModel) {
@@ -229,12 +222,11 @@ struct ProfileView: View {
                 handle: handle,
                 initial: initials,
                 progress: barProgress,
-                unansweredCount: friendsViewModel.unansweredCount,
-                badgeText: friendsViewModel.badgeText,
-                onBack: onBack,
+                friendService: friendService,
+                squadService: squadService,
                 onOpenInbox: {
                     isSearchFocused = false
-                    isInboxPresented = true
+                    onOpenInbox()
                 }
             )
         }
@@ -634,6 +626,6 @@ struct ProfileView: View {
         courtService: CourtService(),
         friendService: FriendService(authService: authService),
         squadService: SquadService(authService: authService),
-        onBack: {}
+        onOpenInbox: {}
     )
 }

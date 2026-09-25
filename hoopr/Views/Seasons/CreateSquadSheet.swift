@@ -238,7 +238,7 @@ struct CreateSquadSheet: View {
                                 )
                         )
                         // 44pt tap target around a 34pt swatch, the same widening
-                        // `ProfileButton` applies to its glyph.
+                        // `InboxButton` applies to its glyph.
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())
                 }

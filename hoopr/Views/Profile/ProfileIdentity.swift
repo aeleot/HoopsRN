@@ -139,45 +139,36 @@ struct ProfileIdentityBlock: View {
     }
 }
 
-/// The bar over the top of the profile: a back chevron and the inbox, both
-/// always there, and a glass background with the handle that arrives only once
-/// `ProfileIdentityBlock` has scrolled behind it.
+/// The bar over the top of the profile: the inbox, always there, and a glass
+/// background with the handle that arrives only once `ProfileIdentityBlock`
+/// has scrolled behind it.
 ///
 /// Applied as a `safeAreaInset` rather than a `ZStack` overlay, so the scroll
 /// view treats it as safe area — that's what stops the pinned pane header
 /// underneath it from sliding beneath the status bar.
 ///
-/// **The inbox lives here, not in the Friends pane.** It was a second button
-/// beside that pane's search field, which meant the one place social
-/// notifications collect was only visible on the pane you had to already be on
-/// to see it. Screen chrome is the honest home for it: it's reachable from
-/// either pane, it doesn't scroll, and the badge on it is the profile's
-/// notification indicator rather than one pane's.
+/// **No back button** (2026-09-25). The profile is a tab now, not a screen
+/// that replaced the tabs, so there is nothing behind it to go back to — the
+/// tab bar is the way out, as it is from every other tab.
+///
+/// **The inbox is the shared `InboxButton`, in its shared slot.** It used to
+/// be this bar's own tray, which sat 8pt higher and 14pt further right than
+/// the button every other tab carries, and counted friend requests only. Now
+/// the tray is the same control in the same place on all five tabs, and this
+/// bar pads itself to `InboxButton.Slot` rather than the other way round.
 struct ProfileTopBar: View {
     let handle: String
     let initial: String
     /// 0 while the identity block is still on screen, 1 once it's gone.
     let progress: Double
 
-    /// Unanswered incoming requests. Zero hides the badge entirely.
-    let unansweredCount: Int
-    /// The count as the badge renders it, capped by the caller.
-    let badgeText: String
+    @ObservedObject var friendService: FriendService
+    @ObservedObject var squadService: SquadService
 
-    let onBack: () -> Void
     let onOpenInbox: () -> Void
 
     var body: some View {
-        HStack(spacing: 6) {
-            Button(action: onBack) {
-                Image(systemName: "chevron.left")
-                    .hooprFont(18, weight: .semibold, maximumSize: 23)
-                    .foregroundStyle(Color.hooprPrimaryText)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .accessibilityLabel("Back to home")
-
+        HStack(spacing: Spacing.sm) {
             HStack(spacing: 8) {
                 PlayerAvatar(initial: initial, diameter: PlayerAvatar.Size.inline)
 
@@ -195,10 +186,16 @@ struct ProfileTopBar: View {
 
             Spacer(minLength: 0)
 
-            inboxButton
+            InboxButton(
+                friendService: friendService,
+                squadService: squadService,
+                action: onOpenInbox
+            )
         }
-        .padding(.trailing, 6)
-        .frame(height: 52)
+        .padding(.horizontal, Spacing.pageMargin)
+        // The inbox button's slot — the same point on every tab.
+        .padding(.top, InboxButton.Slot.top)
+        .padding(.bottom, Spacing.xs)
         .frame(maxWidth: .infinity)
         // At rest the bar is the top row of the identity band, so it takes the
         // band's ground — not under the status bar, which stays the page
@@ -211,14 +208,12 @@ struct ProfileTopBar: View {
                 .opacity(1 - progress)
         }
         .background(alignment: .top) {
-            // Same glass the shell header floats on, so arriving at the profile
-            // from the map doesn't change what a bar is made of. Extended past
-            // the top safe area so the status bar sits on glass rather than on
-            // scrolling rows.
+            // Glass once content scrolls under it. Extended past the top safe
+            // area so the status bar sits on glass rather than on scrolling
+            // rows.
             //
-            // `contentShape` for the reason `MainTabView` documents at length:
-            // a clear fill doesn't hit-test, and content is scrolling directly
-            // underneath.
+            // `contentShape` because a clear fill doesn't hit-test, and
+            // content is scrolling directly underneath.
             Rectangle()
                 .fill(.clear)
                 .hooprGlass(interactive: false, in: .rect)
@@ -227,52 +222,17 @@ struct ProfileTopBar: View {
                 .ignoresSafeArea(edges: .top)
         }
     }
-
-    /// A tray, not a bell: this is where social notifications collect, and the
-    /// app has no push infrastructure to make a bell honest.
-    ///
-    /// The badge is `hooprRed` — the one thing on the screen asking to be dealt
-    /// with, in the colour the app reserves for exactly that. Orange is the
-    /// brand and is everywhere here; a badge in it says "waiting" no louder
-    /// than the row icons beside it do.
-    private var inboxButton: some View {
-        Button(action: onOpenInbox) {
-            Image(systemName: "tray.fill")
-                .hooprFont(17, weight: .medium, maximumSize: 22)
-                .foregroundStyle(Color.hooprPrimaryText)
-                // A new request bounces the tray once (UI revamp Phase 3);
-                // answering one doesn't.
-                .hooprBounce(onRiseOf: unansweredCount)
-                .frame(width: 44, height: 44)
-                .overlay(alignment: .topTrailing) {
-                    if unansweredCount > 0 {
-                        HooprCountBadge(text: badgeText, count: unansweredCount)
-                            .offset(x: -2, y: 4)
-                            .transition(.hooprPop)
-                    }
-                }
-                .animation(.hooprSnap, value: unansweredCount > 0)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Inbox")
-        .accessibilityValue(
-            unansweredCount > 0
-                ? "\(unansweredCount) requests waiting"
-                : "Nothing waiting"
-        )
-    }
 }
 
 #Preview {
+    let authService = AuthService()
     VStack(spacing: 0) {
         ProfileTopBar(
             handle: "@Elliot",
             initial: "E",
             progress: 1,
-            unansweredCount: 2,
-            badgeText: "2",
-            onBack: {},
+            friendService: FriendService(authService: authService),
+            squadService: SquadService(authService: authService),
             onOpenInbox: {}
         )
 

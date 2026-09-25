@@ -36,9 +36,10 @@ struct HomeTab: View {
     @ObservedObject private var friendService: FriendService
     @ObservedObject private var squadService: SquadService
 
-    /// Handed up rather than handled here — switching tabs is the shell's job,
-    /// and Home is the one screen that wants to send you somewhere else.
-    let onOpenProfile: () -> Void
+    /// Handed up rather than handled here — switching tabs and presenting the
+    /// inbox are the shell's jobs, and Home is the one screen that wants to
+    /// send you somewhere else.
+    let onOpenInbox: () -> Void
     let onOpenRuns: () -> Void
     let onOpenMap: (Court?) -> Void
 
@@ -49,13 +50,13 @@ struct HomeTab: View {
         userProfileService: UserProfileService,
         friendService: FriendService,
         squadService: SquadService,
-        onOpenProfile: @escaping () -> Void,
+        onOpenInbox: @escaping () -> Void,
         onOpenRuns: @escaping () -> Void,
         onOpenMap: @escaping (Court?) -> Void
     ) {
         self.friendService = friendService
         self.squadService = squadService
-        self.onOpenProfile = onOpenProfile
+        self.onOpenInbox = onOpenInbox
         self.onOpenRuns = onOpenRuns
         self.onOpenMap = onOpenMap
         _viewModel = StateObject(wrappedValue: HomeViewModel(
@@ -104,7 +105,7 @@ struct HomeTab: View {
     ///
     /// **The app's own mark and colour open it** (2026-09-23, at the user's
     /// request — the home page wanted "some sort of design" and "maybe the
-    /// hoopsRN logo"). The top row is the wordmark opposite the profile button,
+    /// hoopsRN logo"). The top row is the wordmark opposite the inbox button,
     /// in the row every tab already spends on that button, so it costs no
     /// height; the day label moves down to sit on the time it qualifies. The
     /// ground is the brand orange at the band's own luminance, rising from
@@ -113,7 +114,7 @@ struct HomeTab: View {
     /// band is the one `ThemeContrastTests` already holds.
     ///
     /// **The whole band opens Runs** (2026-09-24, at the user's request),
-    /// wherever it's pressed — the profile button and "Find a court" excepted,
+    /// wherever it's pressed — the inbox button and "Find a court" excepted,
     /// which are buttons of their own and take the touch first. The arrow at the
     /// last row's trailing edge is what says so: it replaced a "Your runs ›" line
     /// that named the destination but only the words were a target.
@@ -127,10 +128,10 @@ struct HomeTab: View {
 
                 Spacer(minLength: 0)
 
-                ProfileButton(
+                InboxButton(
                     friendService: friendService,
                     squadService: squadService,
-                    action: onOpenProfile
+                    action: onOpenInbox
                 )
             }
 
@@ -146,8 +147,8 @@ struct HomeTab: View {
             }
         }
         .padding(.horizontal, Spacing.pageMargin)
-        // The profile button's slot — the same point on every tab.
-        .padding(.top, ProfileButton.Slot.top)
+        // The inbox button's slot — the same point on every tab.
+        .padding(.top, InboxButton.Slot.top)
         .padding(.bottom, Spacing.xxl)
         .frame(maxWidth: .infinity, alignment: .leading)
         // After the padding, so the margins and the empty space between rows
@@ -567,9 +568,11 @@ struct HomeTab: View {
 
     /// Someone is blocked on you. It was a card below the fold; it is a row
     /// above it now. Still navigation only — answering a request is a write,
-    /// and writes belong on the screen that owns them.
+    /// and writes belong on the screen that owns them, which is the inbox:
+    /// the row opens it directly, the same sheet the tray in the band opens,
+    /// rather than the profile the inbox used to hide inside.
     private var friendRequestRow: some View {
-        Button(action: onOpenProfile) {
+        Button(action: onOpenInbox) {
             HStack(spacing: Spacing.md) {
                 Image(systemName: "person.crop.circle.badge.plus")
                     .hooprType(.headline)
@@ -661,12 +664,12 @@ nonisolated enum HomeHeroMetrics {
 /// The app icon's basketball, enlarged and half off the band's trailing edge —
 /// the ball on its way off the page (the user's design, 2026-09-23). Two
 /// thirds of the band's width across, centred on its right edge, so the
-/// visible half fills the band's right third; the profile button sits over it.
+/// visible half fills the band's right third; the inbox button sits over it.
 ///
 /// **Drawn at a pressed row's lightness** (`hooprBrandWatermark`): a notch off
 /// the band in the orange's hue, so it reads as a shape without taking a
 /// contrast ratio from anything that runs across it — the detail line, a long
-/// court name, the profile button. `ThemeContrastTests` holds each of those on
+/// court name, the inbox button. `ThemeContrastTests` holds each of those on
 /// its colour. The seams are the symbol's own knockouts, so the band shows
 /// through them.
 ///
@@ -687,7 +690,7 @@ struct HomeBandBall: View {
                 .rotationEffect(Self.tilt)
                 .frame(width: diameter, height: diameter)
                 // Centred on the trailing edge, and high enough that the
-                // profile button sits on the ball rather than on its rim —
+                // inbox button sits on the ball rather than on its rim —
                 // measured on the device, where 58% put the rim through it.
                 .position(x: proxy.size.width, y: proxy.size.height * 0.5)
         }

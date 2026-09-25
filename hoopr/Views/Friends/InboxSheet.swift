@@ -2,8 +2,10 @@ import SwiftUI
 
 /// Everything social that's waiting on you, and everything you're waiting on.
 ///
-/// Opened from the profile's top-right corner and badged with the number of
-/// unanswered requests — see `ProfileButton`. Friend requests were the only
+/// Opened from `InboxButton`, the tray in the top-right corner of every tab,
+/// badged with everything waiting on you — and by tapping any notification
+/// the app posts (`NotificationService`). Presented once, by `MainTabView`,
+/// over whichever tab is showing. Friend requests were the only
 /// thing that landed here at first; squad invites are the second kind, and
 /// true to the plan, that cost exactly one more section rather than a
 /// notification-kind abstraction — an `InboxItem` enum for two cases would
@@ -11,15 +13,55 @@ import SwiftUI
 /// render inline on Squad home; there's nowhere left for a second kind of
 /// notification to hide once there's a dedicated inbox for the first.
 ///
+/// **Matches are the third kind** (2026-09-25). Every tapped notification
+/// opens this sheet, and the only notifications the app sends are about a
+/// season match — so a match a notification could be about is listed here,
+/// first, and opens the screen that answers it (`InboxMatchesViewModel`).
+///
 /// Plain titled sections rather than collapsibles. There are at most three of
 /// them, all short, and the whole point of moving requests off the main tab was
 /// to stop making people open a dropdown to find out whether anything was
 /// waiting.
 struct InboxSheet: View {
-    @ObservedObject var viewModel: FriendsViewModel
-    @ObservedObject var squadViewModel: SquadViewModel
+    /// Built per presentation, like `CreateGameSheet`'s — the inbox used to
+    /// borrow the profile's, back when it could only be opened from inside the
+    /// profile. Both mirror the services, so a fresh pair opens on the same
+    /// requests and invites any other screen is showing.
+    @StateObject private var viewModel: FriendsViewModel
+    @StateObject private var squadViewModel: SquadViewModel
+    @StateObject private var matchesViewModel: InboxMatchesViewModel
 
-    let onDismiss: () -> Void
+    private let onOpenMatch: (InboxMatchesViewModel.Row) -> Void
+    private let onDismiss: () -> Void
+
+    init(
+        friendService: FriendService,
+        squadService: SquadService,
+        userProfileService: UserProfileService,
+        courtService: CourtService,
+        seasonGameService: SeasonGameService,
+        onOpenMatch: @escaping (InboxMatchesViewModel.Row) -> Void,
+        onDismiss: @escaping () -> Void
+    ) {
+        self.onOpenMatch = onOpenMatch
+        self.onDismiss = onDismiss
+        _viewModel = StateObject(wrappedValue: FriendsViewModel(
+            friendService: friendService,
+            userProfileService: userProfileService,
+            courtService: courtService
+        ))
+        _squadViewModel = StateObject(wrappedValue: SquadViewModel(
+            squadService: squadService,
+            friendService: friendService,
+            userProfileService: userProfileService,
+            courtService: courtService
+        ))
+        _matchesViewModel = StateObject(wrappedValue: InboxMatchesViewModel(
+            seasonGameService: seasonGameService,
+            squadService: squadService,
+            courtService: courtService
+        ))
+    }
 
     /// This sheet's own profile route — see `PlayerRoute`.
     @State private var presentedPlayer: PlayerRoute?
@@ -28,6 +70,7 @@ struct InboxSheet: View {
         viewModel.incomingRequests.isEmpty
             && viewModel.outgoingRequests.isEmpty
             && squadViewModel.incomingInvites.isEmpty
+            && matchesViewModel.rows.isEmpty
     }
 
     var body: some View {
@@ -38,6 +81,13 @@ struct InboxSheet: View {
                 } else {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 0) {
+                            // First, and omitted when empty like squad
+                            // invites: a notification tap lands here, and the
+                            // match it was about is what that person came for.
+                            if !matchesViewModel.rows.isEmpty {
+                                matchesSection
+                            }
+
                             // Requests first and always shown, even when empty
                             // alongside sent ones: it's the section the badge
                             // counts, so its absence would be ambiguous.
@@ -118,6 +168,24 @@ struct InboxSheet: View {
                     ) {
                         actions(for: row)
                     }
+                }
+            }
+            .padding(.horizontal, Spacing.pageMargin)
+            .padding(.bottom, Spacing.lg)
+        }
+    }
+
+    private var matchesSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader(title: "Matches", count: matchesViewModel.rows.count)
+
+            DividedRows(leadingInset: MatchInboxRow.textInset) {
+                ForEach(matchesViewModel.rows) { row in
+                    MatchInboxRow(
+                        row: row,
+                        detail: matchesViewModel.detail(for: row),
+                        onOpen: { onOpenMatch(row) }
+                    )
                 }
             }
             .padding(.horizontal, Spacing.pageMargin)

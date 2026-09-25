@@ -140,7 +140,7 @@ extension HooprBadge {
 /// `hooprOnRed`, not `hooprOnBrand`: red is the one ground that inverts
 /// between appearances.
 struct HooprCountBadge: View {
-    /// What to draw — the view model's to word (`FriendsViewModel.badgeText`
+    /// What to draw — the caller's to word (`InboxButton.badgeText(for:)`
     /// caps it at "9+"), not this view's.
     let text: String
     /// Drives the digits' roll when the count changes.
@@ -158,7 +158,8 @@ struct HooprCountBadge: View {
     }
 }
 
-/// "Something is waiting" with no number — the profile button's. The same red
+/// "Something is waiting" with no number — the profile button's, until the
+/// inbox took its slot; the component gallery still shows it. The same red
 /// and the same ring as `HooprCountBadge`, at a fixed size.
 struct HooprNotificationDot: View {
     static let diameter: CGFloat = 12

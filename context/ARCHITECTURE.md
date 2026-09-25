@@ -124,9 +124,13 @@ init() {
 ```
 
 Every service that subscribes to `AuthService` is built here, in `init()`, for
-the same reason the first three were. `CourtService`, `LocationService`,
-`RecentCourtsStore` and `NotificationService` don't, so they stay property
-initializers.
+the same reason the first three were. `CourtService`, `LocationService` and
+`RecentCourtsStore` don't, so they stay property initializers.
+`NotificationService` doesn't subscribe either, but is built in `init()` anyway
+(2026-09-25): it is `UNUserNotificationCenter`'s delegate, and a delegate
+assigned after launch finishes never hears about the tap that launched the app
+— a property initializer on a `StateObject` is deferred to the first body
+evaluation, which is too late.
 
 Three things are load-bearing here:
 
@@ -175,6 +179,35 @@ identifiers and their copy are all decided by
 `SeasonGame`. A method that both decided and scheduled would be untestable here,
 which is the whole reason the split exists — a notification that fires at the
 wrong hour is not something a screen can show you.
+
+**Every tapped notification opens the inbox** (2026-09-25, the user's rule).
+`NotificationService` is the center's delegate; `didReceive` on the default
+action (a tap, not a dismissal) sets `inboxRequest` to a fresh `UUID`, and
+`MainTabView` consumes it and presents `InboxSheet`. A held value rather than a
+fire-and-forget event because a launching tap lands before there is a tab
+interface — `@Published` replays it to `MainTabView`'s `onReceive` the moment
+the shell appears. Not keyed on the notification's identifier, so a kind added
+later routes the same way. It implements the **completion-handler** form of
+`didReceive`, not the `async` one: the `async` form crashed on the first tap
+(UIKit asserts the handler is called on the main thread, and Swift called it
+from the cooperative pool). Verified on the simulator with `simctl push`, both
+backgrounded and cold-launched.
+
+**A notification that fires while the app is open is shown** — `willPresent`
+answers `[.banner, .list, .sound]`; before it existed the system dropped them.
+Tapping that banner comes back through `didReceive`, so it opens the inbox too.
+
+**The inbox opens over a sheet that's already up.** A notification tap can land
+while a tab has a sheet presented, where `MainTabView`'s `.sheet` can't present
+(its presenter is busy) and the tap used to be lost. `openInboxForNotification()`
+presents a `UIHostingController<InboxSheet>` on top of the topmost presented
+controller instead, so Done returns to the half-finished form underneath. An
+alert on top is dismissed first (it can't present). A match row tapped in that
+stacked inbox dismisses the whole stack, since going to the match means
+leaving the sheet under it too. Checked on the simulator (2026-09-25) that
+SwiftUI survives that: a profile edit sheet closed by the UIKit
+`root.dismiss` reopened normally afterwards, so its `sheet(item:)` binding
+was reset rather than left stuck.
 
 `hooprApp.swift` imports `FirebaseCore` for the one `configure()` call.
 `hooprTests/UserProfileTests.swift` imports `FirebaseFirestore` deliberately —
@@ -258,12 +291,15 @@ uid is unchanged.
 difference is worth naming. `SeasonGameService.observe(squadIds:)` and
 `MatchmakingService.startSearching(...)` both need to know *which squads are
 mine*, which is `squads`' business — and a service here never learns about
-another's collection. So they are pointed by a view: `SeasonsTab` calls
-`observe(squadIds:)` with every squad the user is on, and `MatchmakingViewModel`
-starts the pool listener for the squad its card is showing.
+another's collection. So they are pointed by a view: `MainTabView` calls
+`observe(squadIds:)` with every squad the user is on, off `squadService.$squads`,
+for the whole signed-in session, and `MatchmakingViewModel` starts the pool
+listener for the squad its card is showing. (`SeasonsTab` pointed `seasonGames`
+until 2026-09-25, which left it idle until that tab was first opened; the inbox
+lists matches, and a notification tap can open it before any tab has been.)
 
 `seasonGames` uses `array-contains-any` rather than `array-contains` precisely
-because the tab passes *all* of them. A person is now on one squad at a time
+because the shell passes *all* of them. A person is now on one squad at a time
 (app-enforced — `gaps/SEASONS.md`), so that is normally a list of one; it stays
 a list because someone who joined a second squad before the rule existed still
 has both, and squad detail's history has to work for the one that isn't the

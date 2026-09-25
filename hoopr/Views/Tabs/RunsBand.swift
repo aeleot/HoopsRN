@@ -147,7 +147,7 @@ struct RunsBandStat: View {
 /// The court, enlarged and half off the band's trailing edge — Runs' emblem,
 /// as the ball is Home's: the left half of a court seen from above, its
 /// three-point arc and key in view. Drawn in `hooprBrandWatermark`, so what
-/// crosses it — the strip's later days, the profile button — reads as it
+/// crosses it — the strip's later days, the inbox button — reads as it
 /// does on a pressed row (`ThemeContrastTests`).
 ///
 /// Decorative: hidden from VoiceOver, and it never takes a touch.

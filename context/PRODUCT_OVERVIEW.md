@@ -79,8 +79,13 @@ four hours after tip-off.
 
 - **Search players** by display name or by exact user ID.
 - **Send, accept, decline and cancel friend requests**, and remove friends.
-- **See waiting requests** from anywhere in the app — a badge on the profile
-  button, and a count in the profile's inbox.
+- **See waiting requests and squad invites** from anywhere in the app — a
+  count on the inbox button in every tab's top-right corner, which opens the
+  inbox where they're answered. Tapping any notification the app sends opens
+  the same inbox — including one that arrives while the app is open, which now
+  shows as a banner — and the inbox lists your upcoming season matches and any
+  result waiting on your report, each one tap from its game day or result
+  screen.
 - **View another player's profile**: their name, home court, and join month.
 
 ### Play a season match

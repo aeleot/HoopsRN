@@ -97,7 +97,7 @@ struct SquadDetailView: View {
     /// The same band squad home has — crest, name, record, dots — so the push
     /// reads as a continuation. Built the way the tab's is: it
     /// starts at the safe area, and its first row holds the back button where
-    /// the tab's holds its label and the profile button.
+    /// the tab's holds its label and the inbox button.
     private func band(_ squad: Squad) -> some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             BandBackButton()
@@ -109,7 +109,7 @@ struct SquadDetailView: View {
             SquadRecordLine(record: record, form: form)
         }
         .padding(.horizontal, Spacing.pageMargin)
-        .padding(.top, ProfileButton.Slot.top)
+        .padding(.top, InboxButton.Slot.top)
         .padding(.bottom, Spacing.xxl)
         .frame(maxWidth: .infinity, alignment: .leading)
         // The squad's own colour, at the band's luminance (UI revamp Phase 4):
@@ -401,7 +401,7 @@ struct SquadDetailView: View {
         VStack(spacing: Spacing.sm) {
             BandBackButton()
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, ProfileButton.Slot.top)
+                .padding(.top, InboxButton.Slot.top)
                 .padding(.bottom, 44)
 
             Text("This squad is gone")

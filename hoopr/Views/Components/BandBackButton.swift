@@ -9,7 +9,7 @@ import SwiftUI
 /// cut off at the top (the user's words, 2026-09-23), and it didn't match the
 /// tab the screen was pushed from, whose band starts at the safe area. So the
 /// pushed screen hides the bar and puts this in the band's first row, in
-/// `ProfileButton.Slot`'s frame and at its height, mirrored to the leading
+/// `InboxButton.Slot`'s frame and at its height, mirrored to the leading
 /// edge. The band then starts where the tab's does.
 ///
 /// Glass in a circle, like the iOS 26 system back button it replaces, so it
@@ -25,7 +25,7 @@ struct BandBackButton: View {
             Image(systemName: "chevron.left")
                 .hooprFont(17, weight: .semibold, maximumSize: 22)
                 .foregroundStyle(Color.hooprPrimaryText)
-                .frame(width: ProfileButton.Slot.size, height: ProfileButton.Slot.size)
+                .frame(width: InboxButton.Slot.size, height: InboxButton.Slot.size)
                 .hooprGlass(in: .circle)
                 .contentShape(Circle())
         }

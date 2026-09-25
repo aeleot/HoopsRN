@@ -25,14 +25,14 @@ import SwiftUI
 struct LocalRunsTab: View {
     @StateObject private var viewModel: LocalRunsViewModel
 
-    /// Observed because `ProfileButton` reads it for its badge dot.
+    /// Observed because `InboxButton` reads it for its badge.
     @ObservedObject private var friendService: FriendService
 
-    /// Same reason as `friendService` — `ProfileButton`'s badge also carries
+    /// Same reason as `friendService` — `InboxButton`'s badge also carries
     /// squad invites now.
     @ObservedObject private var squadService: SquadService
 
-    private let onOpenProfile: () -> Void
+    private let onOpenInbox: () -> Void
 
     /// The empty board's one action. Handed up like Home's — switching tabs is
     /// the shell's job.
@@ -44,12 +44,12 @@ struct LocalRunsTab: View {
         userProfileService: UserProfileService,
         friendService: FriendService,
         squadService: SquadService,
-        onOpenProfile: @escaping () -> Void,
+        onOpenInbox: @escaping () -> Void,
         onOpenMap: @escaping () -> Void
     ) {
         self.friendService = friendService
         self.squadService = squadService
-        self.onOpenProfile = onOpenProfile
+        self.onOpenInbox = onOpenInbox
         self.onOpenMap = onOpenMap
         _viewModel = StateObject(wrappedValue: LocalRunsViewModel(
             gameService: gameService,
@@ -122,14 +122,14 @@ struct LocalRunsTab: View {
     ///   already clears.
     ///
     /// **Compact** (the user's call, 2026-09-23: "make the header smaller"):
-    /// the label and the count share the profile button's row rather than
+    /// the label and the count share the inbox button's row rather than
     /// stacking under it, the count is `title` rather than the 44pt numeral,
     /// and the band closes tighter under the week.
     ///
     /// **Opened up a little** (the user's call, 2026-09-24): the count sat
     /// hard against both the top and the calendar. It now starts 12pt down
     /// from its row's top (was 4) and there is 20pt between that row and the
-    /// week (was 12) — 16pt taller in all. The profile button does not move:
+    /// week (was 12) — 16pt taller in all. The inbox button does not move:
     /// its slot is the same point on every tab, so the room is made by the
     /// text block's own padding rather than by the band's.
     private func heroBand(scrollTo: @escaping (Date) -> Void) -> some View {
@@ -150,14 +150,14 @@ struct LocalRunsTab: View {
 
                 Spacer(minLength: 0)
 
-                ProfileButton(friendService: friendService, squadService: squadService, action: onOpenProfile)
+                InboxButton(friendService: friendService, squadService: squadService, action: onOpenInbox)
             }
 
             bandAnswer(scrollTo: scrollTo)
         }
         .padding(.horizontal, Spacing.pageMargin)
-        // The profile button's slot — the same point on every tab.
-        .padding(.top, ProfileButton.Slot.top)
+        // The inbox button's slot — the same point on every tab.
+        .padding(.top, InboxButton.Slot.top)
         .padding(.bottom, Spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
@@ -370,7 +370,7 @@ struct LocalRunsTab: View {
         userProfileService: UserProfileService(authService: authService),
         friendService: FriendService(authService: authService),
         squadService: SquadService(authService: authService),
-        onOpenProfile: {},
+        onOpenInbox: {},
         onOpenMap: {}
     )
 }

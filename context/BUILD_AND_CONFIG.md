@@ -278,8 +278,8 @@ for a ruleset it never evaluated is worse than no rules suite at all.
 
 There are **two** suites, in two languages, and neither can do the other's job.
 
-- **`hooprTests` — 675 test methods across 44 suites**, from a green
-  `-only-testing:hooprTests` run on 2026-09-24 (counted from the `.xcresult`,
+- **`hooprTests` — 691 test methods across 46 suites**, from a green
+  `-only-testing:hooprTests` run on 2026-09-25 (counted from the `.xcresult`,
   not from the log: interleaved output from parallel clones mangles the odd
   line, and a log grep read this suite as 462 once). All of them carry real
   coverage; there is no scaffold left in `hooprTests/`.

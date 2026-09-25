@@ -607,7 +607,7 @@ friend requests themselves (`../GAPS.md`), deliberately not repeated here. A
 
 ### Where an invite is answered
 
-**In the profile's `InboxSheet`**, alongside friend requests — not on any of
+**In `InboxSheet`**, the inbox every tab opens, alongside friend requests — not on any of
 the Seasons screens, and not on the Seasons tab either,
 which is why it is worth stating. It rendered inline on Squad home at first,
 then moved once the inbox existed: both a friend request and a squad invite

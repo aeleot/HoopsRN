@@ -101,16 +101,16 @@ struct MapTab: View {
 
     private let gameService: GameService
 
-    /// Observed because `ProfileButton` reads it for its badge dot.
+    /// Observed because `InboxButton` reads it for its badge.
     @ObservedObject private var friendService: FriendService
 
-    /// Same reason as `friendService` — `ProfileButton`'s badge also carries
+    /// Same reason as `friendService` — `InboxButton`'s badge also carries
     /// squad invites now.
     @ObservedObject private var squadService: SquadService
 
-    /// Handed up rather than handled here — opening the profile replaces the
-    /// whole interface, which is the shell's call to make, not a tab's.
-    private let onOpenProfile: () -> Void
+    /// Handed up rather than handled here — the inbox is one sheet the shell
+    /// presents over whichever tab is showing, not something each tab owns.
+    private let onOpenInbox: () -> Void
 
     init(
         courtService: CourtService,
@@ -121,12 +121,12 @@ struct MapTab: View {
         friendService: FriendService,
         squadService: SquadService,
         courtToSelect: Binding<Court?>,
-        onOpenProfile: @escaping () -> Void
+        onOpenInbox: @escaping () -> Void
     ) {
         self.gameService = gameService
         self.friendService = friendService
         self.squadService = squadService
-        self.onOpenProfile = onOpenProfile
+        self.onOpenInbox = onOpenInbox
         _courtToSelect = courtToSelect
         _viewModel = StateObject(wrappedValue: MapViewModel(
             courtService: courtService,
@@ -321,8 +321,8 @@ struct MapTab: View {
 
     /// Search and the filter chips, floating over the map on glass.
     ///
-    /// Two rows, not three. The profile button used to occupy a whole row on
-    /// its own; folding it into the search row is what pays for the search
+    /// Two rows, not three. The profile button (now the inbox button) used
+    /// to occupy a whole row on its own; folding it into the search row is what pays for the search
     /// field without costing the map any height. (It doesn't *gain* height
     /// either — the honest total is 4pt shorter than before. What changes is
     /// that the top row stops being decoration and becomes the screen's
@@ -347,9 +347,9 @@ struct MapTab: View {
             Spacer()
         }
         // The map runs under the status bar; its chrome starts below it — at
-        // whatever height centres the search row on the profile button's slot,
+        // whatever height centres the search row on the inbox button's slot,
         // so the button is where every other tab has it.
-        .padding(.top, ProfileButton.Slot.centerY - Self.searchFieldHeight / 2)
+        .padding(.top, InboxButton.Slot.centerY - Self.searchFieldHeight / 2)
         // Keep the chrome clear of the sheet, whatever height it's at — and of
         // the tab bar, which the sheet now sits on top of.
         .padding(.bottom, max(0, sheetHeight - sheetOffset) + tabBarInset)
@@ -375,7 +375,7 @@ struct MapTab: View {
                 onClear: { viewModel.clearSearch() }
             )
 
-            ProfileButton(friendService: friendService, squadService: squadService, action: onOpenProfile)
+            InboxButton(friendService: friendService, squadService: squadService, action: onOpenInbox)
         }
         .padding(.leading, 14)
         .padding(.trailing, Spacing.pageMargin)
@@ -1427,6 +1427,6 @@ struct MapTab: View {
         friendService: FriendService(authService: authService),
         squadService: SquadService(authService: authService),
         courtToSelect: $courtToSelect,
-        onOpenProfile: {}
+        onOpenInbox: {}
     )
 }

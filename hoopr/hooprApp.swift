@@ -33,7 +33,10 @@ struct hooprApp: App {
     @StateObject private var squadService: SquadService
     @StateObject private var matchmakingService: MatchmakingService
     @StateObject private var seasonGameService: SeasonGameService
-    @StateObject private var notificationService = NotificationService()
+    /// Built in `init()` too, though it doesn't depend on `authService`: it
+    /// is `UNUserNotificationCenter`'s delegate, and a delegate assigned after
+    /// launch finishes never hears about the tap that launched the app.
+    @StateObject private var notificationService: NotificationService
 
     /// Applied at the window root so it reaches every screen *and* every sheet
     /// presented from one — a `preferredColorScheme` set further down would
@@ -57,6 +60,12 @@ struct hooprApp: App {
         _squadService = StateObject(wrappedValue: SquadService(authService: authService))
         _matchmakingService = StateObject(wrappedValue: MatchmakingService(authService: authService))
         _seasonGameService = StateObject(wrappedValue: SeasonGameService(authService: authService))
+
+        // Bound to a local first for the same reason as `authService`: handed
+        // straight to `StateObject(wrappedValue:)` it would be deferred to the
+        // first body evaluation, which is after launch has finished.
+        let notificationService = NotificationService()
+        _notificationService = StateObject(wrappedValue: notificationService)
     }
 
     var body: some Scene {

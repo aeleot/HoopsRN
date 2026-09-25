@@ -392,7 +392,7 @@ struct GameDayBand: View {
             }
         }
         .padding(.horizontal, Spacing.pageMargin)
-        .padding(.top, ProfileButton.Slot.top)
+        .padding(.top, InboxButton.Slot.top)
         .padding(.bottom, Spacing.xxl)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {

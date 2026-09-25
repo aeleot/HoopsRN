@@ -691,19 +691,6 @@ final class FriendsViewModel: ObservableObject {
 
     // MARK: - Presentation helpers
 
-    /// Drives the profile's inbox badge. Only *incoming* requests count — a
-    /// request you sent isn't waiting on you.
-    ///
-    /// The count is the whole signal; there was a `hasUnanswered` companion for
-    /// the callers that only wanted a yes/no, and both of those (the Friends
-    /// tab pill, the pane selector's dot) are gone.
-    var unansweredCount: Int { incomingRequests.count }
-
-    /// Kept to two glyphs so it fits the badge at every Dynamic Type size.
-    var badgeText: String {
-        unansweredCount > 9 ? "9+" : "\(unansweredCount)"
-    }
-
     var friendsCountText: String {
         friends.count == 1 ? "1 friend" : "\(friends.count) friends"
     }
@@ -721,7 +708,7 @@ final class FriendsViewModel: ObservableObject {
     }
 
     var inboxEmptyText: String {
-        "Nothing here yet. Friend requests land in your inbox."
+        "Nothing here yet. Friend requests, squad invites and your matches land in your inbox."
     }
 
     func searchEmptyText(for query: String) -> String {

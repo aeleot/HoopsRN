@@ -441,8 +441,9 @@ tab bar the sheet sits on. The trailing
 `Spacer` in that `VStack` is load-bearing: it holds the stack at full height so
 the row stays pinned to the top of a bottom-aligned `ZStack`.
 
-The chrome is **two rows**: a search field with the profile button inline, then
-the filter chips. It was three — the profile button had a row to itself — and
+The chrome is **two rows**: a search field with the inbox button inline (the
+profile button until 2026-09-25, in the same `Slot`), then the filter chips. It
+was three — the profile button had a row to itself — and
 folding it into the search row is what pays for the field. Note the honest
 arithmetic: the new chrome is ~106pt against the old ~110pt, so this buys about
 4pt. It is **not** reclaimed map, and shouldn't be described as such; what

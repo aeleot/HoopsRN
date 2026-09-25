@@ -5,7 +5,7 @@
 `hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Views/Tabs/HomeTab.swift`,
 `hoopr/ViewModels/HomeViewModel.swift`, `hoopr/Views/Friends/`,
 `hoopr/Views/Components/ErrorBanner.swift`,
-`hoopr/Views/Components/ProfileButton.swift`,
+`hoopr/Views/Components/InboxButton.swift`,
 `hoopr/Views/Components/HooprSearchField.swift`,
 `hoopr/Views/Components/CardChrome.swift`,
 `hoopr/Views/Components/GlassChip.swift`,
@@ -24,19 +24,21 @@ font size.
 ## Navigation
 
 The shell is a native `TabView` with a bottom tab bar. `RootView` above it is
-still conditional rendering; `ProfileView` below it still replaces rather than
-stacks.
+still conditional rendering.
 
 ```
 RootView                    switches on RootViewModel.destination
 ├── .launching → LaunchScreen
 ├── .login     → LoginView
 └── .main      → MainTabView
-                 ├── TabView (bottom bar) — Home · Map · Runs · Seasons
-                 └── ProfileView   (replaces the above entirely)
-                     ├── top bar: back · handle-on-scroll · inbox
-                     ├── Profile pane  (identity + field rows)
-                     └── Friends pane  (search + friends list)
+                 ├── TabView (bottom bar) — Home · Map · Runs · Seasons · Profile
+                 │   └── Profile tab → ProfileView
+                 │       ├── top bar: handle-on-scroll · inbox
+                 │       ├── Profile pane  (identity + field rows)
+                 │       └── Friends pane  (search + friends list)
+                 └── .sheet(item:) InboxSheet   ← every tab's InboxButton,
+                                                  Home's request row, any
+                                                  tapped notification
 ```
 
 `.launching` exists so the login screen never flashes at a user whose cached
@@ -44,12 +46,22 @@ session is about to restore — `RootViewModel` holds there until
 `AuthService.hasLoadedInitialState` is true. The three cases crossfade with a
 0.2s `.easeInOut` keyed on `destination`.
 
-**`ProfileView` replaces `MainTabView` rather than rendering inside it** — it
-owns its own header and back button, so presenting it as a sheet or pushing it
-into a stack would give it two. `MainTabView` holds a `showProfile` flag and
-swaps its entire body; `ProfileView` takes an `onBack` closure. That is also
-what makes the profile the one screen with no tab bar and no profile button:
-there is nothing behind it.
+**Profile is the fifth tab** (2026-09-25, at the user's request). It used to
+replace `MainTabView` entirely — a `showProfile` flag swapped the shell's body,
+and `ProfileView` carried its own back button — reached through a person glyph
+in every tab's top-right corner. That corner went to the inbox (`InboxButton`,
+below) and the profile moved into the bar, where it keeps its scroll position
+and pane across switches like any other tab. There is no back button: the tab
+bar is the way out. `ProfileView` takes an `onOpenInbox` closure instead.
+
+**The inbox is one sheet, presented by `MainTabView`** over whichever tab is
+showing (`sheet(item:)` on an `InboxRoute`). Three things open it: the
+`InboxButton` on every tab (Profile included), Home's friend-request row, and
+**any tapped notification** — see `NotificationService` in `ARCHITECTURE.md`,
+including the stacked presentation used when a notification lands while some
+other sheet is up. `InboxSheet` builds its own `FriendsViewModel`,
+`SquadViewModel` and `InboxMatchesViewModel` per presentation; it used to
+borrow the profile's, back when the profile was the only way in.
 
 Edit flows *within* the profile are `.sheet(item:)` bound to
 `ProfileViewModel.editingField`, so adding an editable field means adding an
@@ -66,20 +78,21 @@ is up.
 
 ## `MainTabView`
 
-A native `TabView` with four `Tab` items — **Home** (`house.fill`), **Map**
-(`map.fill`), **Runs** (`calendar`), **Seasons** (`trophy.fill`) — selected
-through a private `Screen` enum. Named `Screen` and not `Tab` because
+A native `TabView` with five `Tab` items — **Home** (`house.fill`), **Map**
+(`map.fill`), **Runs** (`calendar`), **Seasons** (`trophy.fill`), **Profile**
+(`person.crop.circle.fill`) — selected through a private `Screen` enum. Named `Screen` and not `Tab` because
 `SwiftUI.Tab` is the builder it uses.
 
-**Four is the practical ceiling, and the fourth label was decided by
-measurement.** `TabBarLabelTests` renders all four at `.accessibility3` and
-asserts "Seasons" is the widest and still fits its share of a 320pt bar — which
-is what settled "Seasons" over the shorter "Squad". The measurement turned up
-something worth keeping: `UITabBar` **clamps its own content size category**, so
-at accessibility sizes the labels render at ~10pt and the system offers the
-large-content-viewer HUD instead of growing them. That clamp is UIKit's, not
-ours, so the test asserts the outcome rather than the clamp. A fifth tab, or a
-longer label, fails there instead of on somebody's phone.
+**Five tabs, and every label was measured.** `TabBarLabelTests` renders all
+five at `.accessibility3` and asserts "Seasons" is the widest and still fits its
+share of a 320pt bar — 64pt with five tabs, where it had 80pt with four. That
+is what settled "Seasons" over the shorter "Squad", and what cleared Profile to
+join. The measurement turned up something worth keeping: `UITabBar` **clamps
+its own content size category**, so at accessibility sizes the labels render at
+~10pt and the system offers the large-content-viewer HUD instead of growing
+them. That clamp is UIKit's, not ours, so the test asserts the outcome rather
+than the clamp. A sixth tab, or a longer label, fails there instead of on
+somebody's phone.
 
 **This replaced a hand-rolled floating glass header on 2026-08-26**, and the
 reasons are worth keeping because they are the argument against rebuilding one:
@@ -133,18 +146,25 @@ bar at all — and `hooprHoverFill` behind the selected item is the same
 "selected without being loud" role a pressed row already uses. Added
 2026-09-22.
 
-**The profile button appears on all four tabs and nowhere else.** It is a
-shared `ProfileButton` component (`Views/Components/`) with one appearance — the
-map's glass variant is gone — and one position, `ProfileButton.Slot`: the 44pt
-frame 12pt below the safe area with its trailing edge on the page margin, so
-switching tabs never moves it (2026-09-22; before, Seasons and the map each
-placed it a few points off Home). It owns the notification-dot rule — `hooprRed`, not
-brand orange, matching the inbox badge it leads to, and reading `FriendService`
-directly rather than a view model so the dot stays live while the profile is
-closed. An inbox you can only discover by already being inside it isn't a
-notification.
+**The inbox button appears on all five tabs, in one place.** It is a shared
+`InboxButton` component (`Views/Components/`) — a tray, not a bell: the app
+has no push infrastructure to make a bell honest — with one appearance and one
+position, `InboxButton.Slot`: the 44pt frame 12pt below the safe area with its
+trailing edge on the page margin, so switching tabs never moves it. The
+profile's top bar pads to the same slot. It took the profile button's place on
+2026-09-25; the slot and its constants are that button's (2026-09-22; before,
+Seasons and the map each placed it a few points off Home).
 
-Each tab names itself in its band's `label` row, beside `ProfileButton` in its
+It owns the badge rule: a `hooprRed` count (`HooprCountBadge`, capped at "9+")
+of **incoming friend requests plus incoming squad invites** — the two inbox
+sections asking for an answer — read from `FriendService` and `SquadService`
+directly, so it stays live on every tab without any screen's view model being
+alive. The tray bounces once when the count rises. The profile's old tray
+counted friend requests only, and disagreed with the profile button's dot
+whenever a squad invite was the only thing waiting; `InboxButtonTests` pins
+the sum.
+
+Each tab names itself in its band's `label` row, beside `InboxButton` in its
 shared `Slot` — "Tonight", "Runs", "This season". (Home's `"Let's hoop
 <name>."` greeting, which shrank to fit with `minimumScaleFactor`, was removed
 in the UI revamp, assumption A2; **no text in the app shrinks to fit any more**
@@ -166,7 +186,7 @@ reason to open the app, so that is what this screen leads with.
 baseline, and scrolled away with the page rather than pinned:
 
 - **Top row:** the app's mark (`HooprWordmark` — the icon's basketball beside
-  "hoopsRN") opposite the profile button, in the row every tab gives that
+  "hoopsRN") opposite the inbox button, in the row every tab gives that
   button, so the mark costs no height.
 - **With a run booked:** the day label ("Tonight", "Tomorrow", the weekday)
   over the tip-off time as the screen's numeral, the court (`CourtTitle`, which
@@ -177,7 +197,7 @@ baseline, and scrolled away with the page rather than pinned:
   regular **Find a court** button that opens the map. The same arrow closes the
   row.
 - **The whole band opens Runs** (the user's call, 2026-09-24), wherever it is
-  pressed — the profile button and "Find a court" excepted, which keep their own
+  pressed — the inbox button and "Find a court" excepted, which keep their own
   destinations. The arrow is the cue; it replaced a "Your runs ›" line whose
   words were the only target. With a run booked the answer is also one
   VoiceOver element that opens Runs.
@@ -200,7 +220,7 @@ Below the band, in order (the user's, 2026-09-23):
 
 - **Your stats** — `StatsCard`, only once there are stats (see below).
 - **Friend requests** — a row, only when there are incoming ones; it opens the
-  profile.
+  inbox, where they're answered.
 - **Tonight nearby** — the three courts with the most games today, each dotted
   with `CourtHeat.color(forGameCount:)` so a court's colour means the same thing
   here as on the map. Tapping one opens the map with that court selected.
@@ -254,7 +274,7 @@ between rebuilds while showing identical numbers.
 plain, very grey" and its header "does not make sense").
 
 - **The band**, top to bottom: "This week" over the week's run count
-  (`title`), in the profile button's row; then — only when there is one — a
+  (`title`), in the inbox button's row; then — only when there is one — a
   waitlist place or runs after the week, each a glyph and a number
   (`RunsBandStat`); and the week strip last (`RunsWeekStrip`): today and the six
   days after it, a dot per run — **filled** in the accent where you're on it, a
@@ -420,7 +440,7 @@ an `onOpenResult` closure rather than reaching for the path, the same way
 started below it and the bar's strip of page background sat between the status
 bar and the band — "cuts off abruptly towards the top". Hidden, the band starts
 at the safe area exactly where the tab's does, and the back button sits in the
-band's first row in `ProfileButton.Slot`'s frame, mirrored to the leading edge.
+band's first row in `InboxButton.Slot`'s frame, mirrored to the leading edge.
 Verified on the device: the left-edge swipe still pops with the bar hidden, the
 button pops, and mid-push the two bands' crest, name and record line up. The
 screen keeps its `navigationTitle` for VoiceOver and adds an `.escape` action.
@@ -430,15 +450,24 @@ every push in the Seasons stack opens on a band that starts where the tab's does
 **Squad invites are no longer answered here.** They used to render inline on
 squad home — a leader can invite from squad detail, but without somewhere to
 *accept*, a roster could never gain a second member, which is the only thing
-the self-join rule exists for — and moved to the profile's `InboxSheet`
+the self-join rule exists for — and moved to `InboxSheet`
 alongside friend requests once that inbox existed, on the same "everything
 waiting on you belongs in one place" reasoning. See the Friends section's
 `InboxSheet` entry below.
 
-**The `seasonGames` listener is pointed from this tab**, at every squad the user
-is on rather than only the primary one — squad detail's history reads off the same
-listener, so a secondary squad's detail view would otherwise show an empty
-season. See `ARCHITECTURE.md`'s session-scoped listeners.
+**The `seasonGames` listener is pointed by `MainTabView`**, not this tab (since
+2026-09-25, so the inbox's Matches section has data before this tab is ever
+opened), at every squad the user is on rather than only the primary one — squad
+detail's history reads off the same listener, so a secondary squad's detail view
+would otherwise show an empty season. See `ARCHITECTURE.md`'s session-scoped
+listeners.
+
+**The inbox can open a match here.** `SeasonsTab` takes a
+`matchToOpen: Binding<MatchDestination?>` — game day or result, the only two
+screens reachable from outside — and on a value replaces its stack with that
+screen and writes back `nil` (`onChange(initial: true)`, because the inbox
+selects this tab and sets the binding in one transaction, possibly before the
+tab has ever mounted). The `courtToShowOnMap` hand-off, for Seasons.
 
 ### Reporting a result
 
@@ -471,17 +500,17 @@ in `Views/Friends/FriendsPane.swift` as **`FriendsSearchField`** and
 **`FriendsPaneContent`**. `ProfileView` owns the scroll view, the page margin
 and every piece of presentation state.
 
-**The inbox is not here.** It was a second button beside the search field, and
-it moved to the profile's top bar — see `ProfileTopBar` for why. What's left in
-the pane header is one control doing one thing, which is why it's a field now
-rather than a toolbar.
+**The inbox is not here.** It was a second button beside the search field,
+then the profile's own top-bar tray, and since 2026-09-25 it is the shared
+`InboxButton` every tab carries. What's left in the pane header is one control
+doing one thing, which is why it's a field now rather than a toolbar.
 
 **Both halves are stateless** — they render what `FriendsViewModel` holds and
 report intent through closures. That's load-bearing, not tidiness: the toolbar
 pins as a section header while the list scrolls in the section body, so any
-state held *between* them would be stranded. `isInboxPresented`,
-`presentedPlayer`, `pendingRemoval` and the search `@FocusState` are all
-`ProfileView`'s, and so are the sheets they raise.
+state held *between* them would be stranded. `presentedPlayer`,
+`pendingRemoval` and the search `@FocusState` are all `ProfileView`'s, and so
+are the sheets they raise. (The inbox sheet is `MainTabView`'s.)
 
 **This is the one list screen that is *not* built from the `LocalRunsTab`
 parts,** and the departure is deliberate. It was that shape once — two
@@ -530,9 +559,10 @@ column — and the handle is what distinguishes two friends who share a display
 name, since `userName` isn't unique. The home court has a labelled row on the
 profile.
 
-**`InboxSheet`** holds what's waiting: **Requests** (incoming friend requests,
-what the badge counts), **Squad invites** (incoming, Join/Decline inline via
-`SquadInviteRow`), and **Sent** (outgoing friend requests, cancel-only — a
+**`InboxSheet`** holds what's waiting: **Matches** (first, omitted when empty —
+see below), **Requests** (incoming friend requests,
+counted by the badge), **Squad invites** (incoming, Join/Decline inline via
+`SquadInviteRow`, also counted), and **Sent** (outgoing friend requests, cancel-only — a
 squad's own sent invites are revocable from squad detail instead, not here).
 Squad invites used to render inline on Squad home, where a leader could invite
 from squad detail but there was nowhere to *answer* one; they moved here once
@@ -541,6 +571,20 @@ Seasons tab no longer is. **The squad invites section is omitted rather than
 shown empty**, unlike the two friend sections — a squad invite is rare enough
 that a standing "nothing here" placeholder would outweigh the one time it has
 something to say.
+
+**Matches** (2026-09-25) exist because every tapped notification opens the
+inbox, and every notification the app sends is about a season match — before
+this section, a tip-off reminder opened onto friend requests. `MatchInboxRow`s,
+from `InboxMatchesViewModel.rows(games:mySquadIds:uid:now:)` (pure, pinned by
+`InboxMatchesViewModelTests`): a match **waiting on your report** — you lead a
+side, it's reportable, T+90 has passed (the recap notification's delay) and you
+haven't reported — or **disputed**, within a week of tip-off, opens the result
+screen; otherwise a match **still upcoming** (to three hours after tip-off, like
+game day) opens game day. Answers first, then soonest. A row tap closes the
+inbox, selects Seasons and pushes the screen (`SeasonsTab.MatchDestination`).
+**Matches don't count toward the tray's badge** — the badge is still friend
+requests plus squad invites; a report waiting on a leader is announced by the
+recap notification instead.
 
 **Join is absent, not dimmed, when you're already on a squad.** A person is on
 one squad at a time, so `SquadInviteRow` drops the Join button and puts the
@@ -555,9 +599,9 @@ tab behind it. Decline stays. The same rule is why the Seasons tab has no
 Two kinds of notification now, not one, and the design call still holds: a
 second kind cost one more section rather than a shared `InboxItem`
 abstraction, which is still invented structure for two cases rather than
-shared structure. `ProfileButton`'s badge (wired in `MainTabView`) now reads
-`squadService.incomingInvites` alongside `friendService.incomingRequests`, so
-it's live whether or not the Seasons tab has been opened this session.
+shared structure. `InboxButton`'s badge reads `squadService.incomingInvites`
+alongside `friendService.incomingRequests`, so it's live whether or not the
+Seasons tab has been opened this session.
 
 **`PlayerProfileSheet`** shows another player: name, home court, joined. That's
 a *display* decision, not an access control — `users` is readable whole by any
@@ -586,11 +630,11 @@ until they arrive. A name that fails to resolve leaves the row fully actionable,
 retries on the next snapshot, and is healed by `loadProfileIfNeeded(for:)` when
 its profile sheet opens.
 
-Waiting requests are announced in two places, both outside this pane: the
-**profile button in `MainTabView`** carries a red dot, and the **inbox in
-`ProfileTopBar`** carries a red count badge. The pane selector deliberately
-carries neither — it had a dot while the inbox lived inside the pane it selects,
-and keeping it would now point at a place the requests aren't.
+Waiting requests are announced in one place, outside this pane: the
+**`InboxButton`** on every tab carries a red count badge. The pane selector
+deliberately carries none — it had a dot while the inbox lived inside the pane
+it selects, and keeping it would now point at a place the requests aren't. The
+Profile tab carries none either: the inbox isn't in it.
 
 ## Starting a run
 
@@ -676,15 +720,15 @@ The top bar is a **`safeAreaInset`, not a `ZStack` overlay** — that's what mak
 the scroll view treat it as safe area, so the pinned section header stops
 underneath it instead of sliding up under the status bar.
 
-**The inbox lives in that bar**, trailing, opposite the back chevron. It was a
-button beside the Friends pane's search field, which meant the one place social
-notifications collect was only visible on the pane you had to already be on to
-see it. Screen chrome is the honest home for it: reachable from either pane,
-never scrolls, and its badge is the profile's notification indicator rather than
-one pane's. The badge is `hooprRed` — the one thing on the screen asking to be
-dealt with, in the colour the app reserves for exactly that; orange is the brand
-and is everywhere on this screen, so a badge in it would say "waiting" no louder
-than the row icons beside it.
+**The inbox button sits in that bar**, trailing — the shared `InboxButton`,
+padded to `InboxButton.Slot` so it is where every other tab has it. It was
+this bar's own tray, 8pt higher and 14pt further right, badging friend
+requests only; before that, a button beside the Friends pane's search field,
+visible only on the pane you had to already be on. The badge is `hooprRed` —
+the one thing on the screen asking to be dealt with, in the colour the app
+reserves for exactly that; orange is the brand and is everywhere on this
+screen, so a badge in it would say "waiting" no louder than the row icons
+beside it.
 
 **There is no orange header any more.** It was a fixed `0.14` slab of
 `hooprOrange → hooprDarkOrange` under the status bar, and it spent the most
@@ -695,9 +739,10 @@ underneath on the page background, and it scrolls past like anything else.
 Orange survives as the avatar's ring and the row icons — an accent, not a
 ground.
 
-What replaces it is `ProfileTopBar`: a 52pt bar holding a back chevron that is
-always there, plus a glass background and a small avatar + handle that fade in
-only once the identity block is gone. The fade is driven by two measurements —
+What replaces it is `ProfileTopBar`: a bar holding the inbox button, always
+there, plus a glass background and a small avatar + handle that fade in only
+once the identity block is gone. It has no back chevron since Profile became a
+tab (2026-09-25) — there is nothing behind it. The fade is driven by two measurements —
 `onScrollGeometryChange` for the offset, `onGeometryChange` for the block's
 height, since that height moves with the reader's text size — crossing 0→1 over
 the last 32pt of the block's travel (`barProgress`). The glass is the same
@@ -805,7 +850,7 @@ keeps a light-only value from creeping back in.
 | `hooprOrange` | Brand **fill** — primary buttons, selected chips and pills (the selected profile pane, the queue sheet's day selector, the format chip), the tint on active glass, and the 12–14% wash behind a badge. **A fill, never a mark:** as a foreground it is 3.17:1 on white, 2.91:1 on `hooprFill`, and 2.78:1 on its own wash. Lifted in dark mode, where the light-mode orange reads muddy. |
 | `hooprBrandAccent` | Brand **mark** — orange drawn as something *read*: text ("Sign up", a sheet's "Done", the HOSTING badge), glyphs, focus rings and selection strokes, the capacity bar, spinner / slider / date-picker tints, and the tab bar's selected item. `hooprOrange`'s own hue and saturation, deepened in light mode (`#B8400F`) until it clears 4.5:1 on every ground it is drawn on; in dark mode it *is* `hooprOrange`'s dark value, which already does. **Never a fill** — black on it is 3.78:1. `BrandMarkUsageTests` fails if a view draws `hooprOrange` in `foregroundStyle`, `tint` or `stroke`. |
 | `hooprDarkOrange` | The map's marker tint, via `UIColor(Color.hooprDarkOrange)`. |
-| `hooprRed` | Errors, Sign Out, "Remove home court", and the notification indicators — the inbox badge and the profile button's dot. Lightened in dark mode to hold contrast. |
+| `hooprRed` | Errors, Sign Out, "Remove home court", and the notification indicator — the inbox button's badge. Lightened in dark mode to hold contrast. |
 | `hooprOnBrand` | Content *on top of* the orange — button labels, the selected pane's title, the map pin's glyph. **Black**, and fixed: orange is a light colour in both appearances, so white on it measured 2.55:1 / 2.25:1 — under AA, on every primary button. Black clears 8.24:1 / 9.33:1. |
 | `hooprOnRed` | The one label drawn on a solid red fill (the inbox badge's count). The only role here that inverts, because `hooprRed` is deep in light mode and lightened in dark: white passes light and fails dark, black the reverse. |
 | `hooprFormWin` / `hooprFormLoss` | The form guide's played dots — green a win, red a loss (the user's call, 2026-09-22). Each clears the 3:1 graphic floor on the band and on a card, in both appearances; win on the light band (3.15:1) sets how light the green can go. `hooprFormLoss` is a role of its own rather than `hooprRed`: a loss is a result, not an error, and dark mode's error red sits too close to the win green in lightness (1.62:1 against 2.25:1). |
@@ -1050,8 +1095,9 @@ already drifted. A new screen picks from these rather than drawing its own:
   Runs card and the map's card all used to copy. The wash depends on the ground
   (`HooprBadge.Ground`: 12% on a card, 8% on a band), and `ThemeContrastTests`
   reads those same constants. **`HooprCountBadge`** and
-  **`HooprNotificationDot`** are the red marks — the inbox count, the profile
-  button's dot. `CourtBadges` stays its own component: regular-weight,
+  **`HooprNotificationDot`** are the red marks — the inbox count, and a dot
+  with no caller since the profile button it marked became the inbox button
+  (still in the gallery). `CourtBadges` stays its own component: regular-weight,
   mixed-case facts about a court are a different job.
 - **`PlayerAvatar.Size`** — `inline` 28, `roster` 34, `row` 44, `sheet` 56,
   `profile` 72 (the base the profile scales from), named like `SquadCrest.Size`.
@@ -1083,16 +1129,17 @@ out of a release.
   testing over the map. The Friends pane still has the rebuild problem inside
   `ProfileView` — its views are rebuilt on every pane switch — and solves it by
   keeping `FriendsViewModel` and every piece of pane state on the screen.
-- The profile button appears on every tab and never on `ProfileView`. It is
-  `ProfileButton`, not a per-screen copy, because the badge rule belongs in one
-  place.
+- The inbox button appears on every tab, Profile included, in
+  `InboxButton.Slot`. It is `InboxButton`, not a per-screen copy, because the
+  badge rule belongs in one place — and the inbox it opens is one sheet
+  presented by `MainTabView`, not one per tab.
 - A list screen is built from the `LocalRunsTab` parts — collapsible section
   header *(**withdrawn 2026-09-22** for `LocalRunsTab` itself: Phase 2b
   replaced disclosure with rank — one list ordered by tip-off, ownership drawn
   as a rail. The other two clauses stand)*, one shared card, one write in
   flight — **unless the screen's primary job is an action rather than a list**,
   which is the Friends exception: search
-  is a pinned control and the inbox is screen chrome, so only the last of those
+  is a pinned control and the inbox is shell chrome, so only the last of those
   three parts survives there. `ProfileView`'s rows are a fixed set of distinct fields, not a
   list.
 - One write in flight is keyed by whatever the screen's rows are *about* —
@@ -1126,9 +1173,10 @@ out of a release.
 - The Friends pane's two halves stay stateless. Anything they'd hold between
   them would be stranded — the search field pins as a section header while the
   list scrolls in the section body.
-- There is **one** notification indicator per surface, and it's `hooprRed`: the
-  profile button on the shell, the inbox badge on the profile. Don't add a
-  third that points at a screen the requests don't live on.
+- There is **one** notification indicator, and it's `hooprRed`: the inbox
+  button's count, on every tab. Don't add a second that points at a screen the
+  requests don't live on — the profile button's dot was exactly that, a
+  signpost to a screen the inbox was one more tap inside.
 - Every colour pairing the UI draws clears WCAG AA, and `ThemeContrastTests`
   holds the line. Contrast is arithmetic on two resolved colours, not taste —
   if a new pairing appears, assert it there rather than eyeballing it. Measure

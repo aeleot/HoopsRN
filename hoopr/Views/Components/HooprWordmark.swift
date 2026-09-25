@@ -6,7 +6,7 @@ import SwiftUI
 /// Home's band opens on it (2026-09-23, the user's call: the home page needed
 /// "some sort of icon, maybe the hoopsRN logo"). It is the one place in the
 /// app the product names itself outside Login, and it sits where a tab's top
-/// row sits, opposite the profile button, so it costs Home no height.
+/// row sits, opposite the inbox button, so it costs Home no height.
 ///
 /// Read once by VoiceOver as the app's name, not as "basketball, hoopsRN".
 struct HooprWordmark: View {
