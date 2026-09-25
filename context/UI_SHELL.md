@@ -279,7 +279,11 @@ withdrawn for this tab.
 Cards are `GameCard`, so a run reads identically wherever it appears — only the primary action differs (Join / Join waitlist /
 Leave / Cancel run, resolved by `LocalRunsViewModel.action(for:)`). The action
 is resolved **once per row** and handed to both the button and its confirmation
-dialog, so a dialog saying "Cancel run" can't perform a join.
+dialog, so a dialog saying "Cancel run" can't perform a join. A host's two
+buttons — Cancel run, Mark complete — sit in one group at `Spacing.xs`: each
+compact button draws 36pt inside a 44pt target, so the drawn gap is the spacing
+plus 8, and at the card's own `md` it was 20pt and read as two unrelated rows
+(the user, 2026-09-25).
 
 Only one roster write is in flight at a time: the acting card shows a spinner
 and every other card's button goes inert, so a double tap can't race the
@@ -1032,7 +1036,14 @@ already drifted. A new screen picks from these rather than drawing its own:
   Plain, unfilled buttons stay on `.hooprPress`.
 - **`HooprFieldChrome`** (`.hooprFieldChrome(isFocused:)`) — a form's text
   field: `hooprFill`, a 3:1 edge, a 2pt focus ring. Owns
-  `HooprField.cornerRadius`, which the `form` button reads.
+  `HooprField.cornerRadius`, which the `form` button reads. **Every text field
+  passes `prompt: .hooprPrompt(…)`** (`Text.hooprPrompt`, same file): the
+  system's own placeholder colour measured 2.6–2.9:1 in dark and 1.5:1 in
+  light on the Map's and Friends' search fields (live pass, 2026-09-25) — and
+  on Login the placeholder is the only label a field has — so the hint is set
+  in `hooprSecondaryText`, the ratio the field's own glyphs read at. On the
+  map's glass ground that is 4.2:1 in light, the same as the magnifier beside
+  it: glass over a map has no fixed ground to assert.
 - **`HooprBadge`** — the small uppercase capsule, `tinted` (a status to notice)
   or `filled` (a status the row is read for — the map's "3 spots").
   **`RunStatus`** is the one HOSTING › WAITLIST › FULL ladder that Home, the

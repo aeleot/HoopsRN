@@ -102,7 +102,7 @@ struct HooprSearchField: View {
                 .hooprFont(15, weight: .medium, maximumSize: 20)
                 .foregroundStyle(Color.hooprSecondaryText)
 
-            TextField(placeholder, text: $text)
+            TextField(placeholder, text: $text, prompt: .hooprPrompt(placeholder))
                 .hooprFont(16, maximumSize: 22)
                 .foregroundStyle(Color.hooprPrimaryText)
                 .focused(isFocused)

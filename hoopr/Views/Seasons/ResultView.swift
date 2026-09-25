@@ -239,7 +239,7 @@ struct ResultView: View {
                 .foregroundStyle(Color.hooprSecondaryText)
                 .lineLimit(1)
 
-            TextField("—", text: text)
+            TextField("—", text: text, prompt: .hooprPrompt("—"))
                 .hooprType(.headline)
                 .foregroundStyle(Color.hooprPrimaryText)
                 .monospacedDigit()

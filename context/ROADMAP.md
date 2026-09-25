@@ -46,10 +46,10 @@ cannot do without it, and `plans/LAUNCH_READINESS.md` §1 for App Check.
 
 ## 1. Verify the rebuilt UI on a device
 
-The UI revamp (2026-09-21 → 24) rebuilt every screen and is covered by unit
-tests and off-device renders only. The live pass is owed — both appearances,
-`.accessibility3`, Reduce Motion, VoiceOver — and is listed in
-[`gaps/ACCESSIBILITY.md`](gaps/ACCESSIBILITY.md). Alongside it, the two
+The UI revamp (2026-09-21 → 24) rebuilt every screen. The simulator pass ran
+on 2026-09-25 (both appearances, `.accessibility3`, Reduce Motion); what it
+left — VoiceOver, game day and the result screen, Login, haptics, iOS 18 — is
+listed in [`gaps/ACCESSIBILITY.md`](gaps/ACCESSIBILITY.md). Alongside it, the two
 two-account checks nothing else can close: the Seasons report/confirm flow
 ([`gaps/SEASONS.md`](gaps/SEASONS.md)) and a friend's join appearing live on
 the other phone's run card.

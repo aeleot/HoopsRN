@@ -68,20 +68,39 @@ role is asserted on the grounds it's drawn on.
 
 ---
 
-## Never checked live: VoiceOver, Reduce Motion, `.accessibility3`
+## Live pass, 2026-09-25: what was checked, and what still isn't
 
-The UI revamp (2026-09-21 → 24) rebuilt every screen, and **no VoiceOver sweep
-and no Reduce Motion pass of the rebuilt app has been done on a device.** What
-exists is unit coverage (`MotionTests`, `CelebrationTests`, the layout-metric
-suites) and off-device renders of individual components at `.accessibility3`.
-Still to do on the simulator, each changed screen in both appearances:
+The UI revamp (2026-09-21 → 24) rebuilt every screen. On 2026-09-25 the
+simulator pass was run (iPhone 17, iOS 26.5), each screen below in **dark and
+light, at the default size and `.accessibility3`**: Home, Runs, Map with its
+court card, Seasons, squad detail, Profile (both panes), the inbox and the
+Start a Run sheet. It found — and fixed — three defects: the court card's
+action buttons broke mid-word at `.accessibility3`, every text field's
+placeholder read under AA (1.5:1 in light), and the Runs card's two buttons sat
+20pt apart. **Reduce Motion** was checked on the squad push (a plain slide with
+it on; the zoom with it off, frame by frame from a screen recording).
 
-- a VoiceOver sweep — Home's band is one element that opens Runs; the inbox's
-  blocked squad invite reads its reason; the gallery's controls;
-- Reduce Motion on — zoom pushes become plain pushes, the glow holds still, no
-  confetti;
-- `.accessibility3` on Home, Runs, Seasons, the map card, and the result screen;
-- haptics, which only a physical device plays.
+Found and **not fixed**:
+
+- Profile at `.accessibility3`: the identity block scrolls up *through* the
+  pinned glass bar and the status bar, so its handle, court and user ID ghost
+  behind the bar's own title. Glass is translucent by design; a more opaque bar
+  would be a change to the material.
+- The inbox's sent-request row at `.accessibility3` truncates the name
+  ("chaseall…") because the Cancel button doesn't yield; the buttons could sit
+  under the name at those sizes.
+
+Still to do:
+
+- **A VoiceOver sweep.** The simulator tool's accessibility-tree read wasn't
+  available, so nothing about labels, order or traits was checked live — Home's
+  band as one element that opens Runs, the inbox's blocked squad invite
+  reading its reason, the gallery's controls.
+- **Game day, the result screen and Login**, which need a live match or a
+  sign-out. The busy-court glow and the win confetti too: nothing in the test
+  account is busy or won.
+- **Haptics**, which only a physical device plays, and **iOS 18**, the floor —
+  only 26.5 and 27.0 runtimes are installed.
 
 ---
 

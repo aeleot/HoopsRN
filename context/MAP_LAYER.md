@@ -558,6 +558,15 @@ here instead. The card body scrolls and the action row below it is pinned, so
 "Start Run"/"Directions" never end up below the fold behind a long list of
 today's games — or behind a long court name.
 
+**The action row is measured, and stacks at accessibility sizes** (live pass,
+2026-09-25). Phase 6's `HooprButtonStyle` grows with the text size where the
+old buttons were a fixed 48pt with capped labels, so at `.accessibility3`
+"Directions" broke mid-word ("Dire/cti…") beside "Start Run", and the sheet's
+fitted height — which had assumed a 48pt row — left "No runs here today." below
+the fold. From the accessibility sizes up the buttons stack, Start Run first,
+and `cardActionsMeasuredHeight` feeds `cardFittedHeight` in place of the old
+constant (which remains only as the height before first layout).
+
 **The header scrolls with the body, since 2026-09-22 (UI revamp Phase 2b).** It
 used to be a fixed band above the scroll, and that only held while the name was
 capped at two lines — which is what truncated it to "East En…" at

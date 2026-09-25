@@ -75,6 +75,14 @@ struct MapTab: View {
     /// card rests tall enough to show a run whole. See `cardFittedHeight`.
     @State private var cardLeadHeight: CGFloat = 0
 
+    /// The pinned action row's height as last laid out, padding included. The
+    /// row is two `large` buttons side by side — until the text is large enough
+    /// that they can't be, and then stacked — so its height isn't a constant.
+    /// See `cardFittedHeight`.
+    @State private var cardActionsMeasuredHeight: CGFloat = 0
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     /// Whether the map has already moved to the device's first fix. Guards a
     /// one-shot: `initialFix` only publishes once, but a view can be re-created
     /// while the view model survives, and re-applying the trigger would yank
@@ -146,16 +154,20 @@ struct MapTab: View {
     /// with nothing but a name fits the plain medium height and keeps it.
     private var cardFittedHeight: CGFloat? {
         guard cardLeadHeight > 0 else { return nil }
+        let actions = cardActionsMeasuredHeight > 0 ? cardActionsMeasuredHeight : Self.cardActionsHeight
         return Self.cardHandleHeight + Self.cardScrollTopInset + cardLeadHeight
-            + Spacing.md + Self.cardActionsHeight
+            + Spacing.md + actions
     }
 
     /// The court card's fixed chrome, named so the view and the arithmetic
     /// above can't drift: the grab handle (10 + 5 + 14) and the pinned action
-    /// row (10 + 48 + 14). The buttons are a fixed 48pt; their labels cap.
+    /// row (10 + a `large` button + 14). The row's height is *measured*
+    /// (`cardActionsMeasuredHeight`) because the buttons grow with the text size
+    /// and stack at accessibility sizes; this is the one-row height it starts
+    /// from, before the first layout.
     private static let cardHandleHeight: CGFloat = 10 + 5 + 14
     private static let cardScrollTopInset: CGFloat = 2
-    private static let cardActionsHeight: CGFloat = 10 + 48 + 14
+    private static let cardActionsHeight: CGFloat = 10 + HooprButtonStyle.Size.large.tapTarget + 14
 
     private var mediumHeight: CGFloat { geometry.mediumHeight }
 
@@ -997,6 +1009,14 @@ struct MapTab: View {
                 .padding(.horizontal, Spacing.pageMargin)
                 .padding(.top, 10)
                 .padding(.bottom, 14)
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.size.height
+                } action: { height in
+                    guard abs(height - cardActionsMeasuredHeight) > 0.5 else { return }
+                    withAnimation(.hooprSpring) {
+                        cardActionsMeasuredHeight = height
+                    }
+                }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -1249,27 +1269,44 @@ struct MapTab: View {
     /// Getting there is a solved problem every phone already has an app for;
     /// putting a run on the board is the thing only this app does, and the one
     /// the cold-start problem depends on.
+    ///
+    /// **Side by side, until the text is an accessibility size.** Each button
+    /// gets half the card's width, and at `.accessibility3` "Directions" broke
+    /// mid-word ("Dire/cti…") and "Start Run" wrapped (live pass, 2026-09-25).
+    /// From the accessibility sizes up the buttons stack, the primary first,
+    /// and the sheet rises to hold them (`cardFittedHeight`).
+    @ViewBuilder
     private func cardActions(court: Court, hasRuns: Bool) -> some View {
-        HStack(spacing: 10) {
-            Button {
-                openDirections(to: court)
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
-                    Text("Directions")
-                }
+        let directions = Button {
+            openDirections(to: court)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
+                Text("Directions")
             }
-            .buttonStyle(.hooprFilled(.large, role: .secondary))
+        }
+        .buttonStyle(.hooprFilled(.large, role: .secondary))
 
-            Button {
-                startingRunAt = court
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "plus.circle.fill")
-                    Text(hasRuns ? "Add a run" : "Start Run")
-                }
+        let start = Button {
+            startingRunAt = court
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "plus.circle.fill")
+                Text(hasRuns ? "Add a run" : "Start Run")
             }
-            .buttonStyle(.hooprFilled(.large))
+        }
+        .buttonStyle(.hooprFilled(.large))
+
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(spacing: 10) {
+                start
+                directions
+            }
+        } else {
+            HStack(spacing: 10) {
+                directions
+                start
+            }
         }
     }
 

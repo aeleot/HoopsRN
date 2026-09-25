@@ -85,12 +85,20 @@ struct GameCard: View {
                     InviteLinkCard(link: game.inviteLink)
                 }
 
-                if action != .none {
-                    primaryButton
-                }
+                // One group, so the two buttons sit closer to each other than to
+                // the rows above them. Each compact button draws 36pt inside a
+                // 44pt target, so the drawn gap is this spacing plus 8: it was
+                // 20pt at `md` and read as two unrelated rows (the user, 2026-09-25).
+                if action != .none || canComplete {
+                    VStack(spacing: Spacing.xs) {
+                        if action != .none {
+                            primaryButton
+                        }
 
-                if canComplete {
-                    completeButton
+                        if canComplete {
+                            completeButton
+                        }
+                    }
                 }
             }
             .padding(Spacing.cardPadding)

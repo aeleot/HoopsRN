@@ -169,13 +169,13 @@ struct LoginView: View {
 
         Group {
             if isSecure {
-                SecureField(placeholder, text: text)
+                SecureField(placeholder, text: text, prompt: .hooprPrompt(placeholder))
                     .submitLabel(.go)
                     #if os(iOS) || os(visionOS)
                     .textContentType(viewModel.mode == .signUp ? .newPassword : .password)
                     #endif
             } else {
-                TextField(placeholder, text: text)
+                TextField(placeholder, text: text, prompt: .hooprPrompt(placeholder))
                     .autocorrectionDisabled()
                     .submitLabel(.next)
                     #if os(iOS) || os(visionOS)

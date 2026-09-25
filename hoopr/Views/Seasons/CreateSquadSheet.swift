@@ -144,7 +144,7 @@ struct CreateSquadSheet: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             fieldTitle("Name")
 
-            TextField("Rim Reapers", text: $name)
+            TextField("Rim Reapers", text: $name, prompt: .hooprPrompt("Rim Reapers"))
                 .textFieldStyle(.plain)
                 .hooprFont(16, maximumSize: 24)
                 .foregroundStyle(Color.hooprPrimaryText)

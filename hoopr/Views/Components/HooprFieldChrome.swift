@@ -18,6 +18,21 @@ enum HooprField {
     static let minimumHeight: CGFloat = 52
 }
 
+extension Text {
+    /// A field's placeholder, set in `hooprSecondaryText`.
+    ///
+    /// SwiftUI draws a placeholder in the system's own placeholder colour, and
+    /// the live pass (2026-09-25) measured it at 2.6–2.9:1 in dark and 1.5:1 in
+    /// light on the Map's and Friends' search fields — under AA in both. On
+    /// Login it is worse than cosmetic: the placeholder is the only label
+    /// either field has. Every text field passes this as its `prompt:`, so the
+    /// hint reads at the same ratio as the field's own glyphs
+    /// (`ThemeContrastTests`, "secondary text on fill").
+    static func hooprPrompt(_ text: String) -> Text {
+        Text(text).foregroundStyle(Color.hooprSecondaryText)
+    }
+}
+
 extension View {
     func hooprFieldChrome(isFocused: Bool) -> some View {
         self

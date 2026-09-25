@@ -33,7 +33,7 @@ struct EditUserNameSheet: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: Spacing.sm) {
-                TextField("Your name", text: $draft)
+                TextField("Your name", text: $draft, prompt: .hooprPrompt("Your name"))
                     .hooprFont(17, maximumSize: 24)
                     .foregroundStyle(Color.hooprPrimaryText)
                     .focused($isFieldFocused)
