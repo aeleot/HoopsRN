@@ -60,16 +60,20 @@ struct SquadIdentity: View {
 /// bottoms sit on the numeral's baseline, so the row closes the band on one
 /// line. They stay in that corner in either layout.
 ///
-/// Beside the numeral when they fit, beneath it when they don't. The dots are
-/// 112pt (`FormDotMetrics`), which fits beside even a "10–10" at
-/// `.accessibility3`. With *Differentiate Without Color* on they are 142pt,
-/// and a double-digit record at that size moves them beneath the numeral,
-/// still on the right. `FormGuideTests` measures both.
+/// Beside the numeral when they fit, beneath it when they don't. With the
+/// "L5" label the row is 141pt at the default size (`FormDotMetrics`), and fits
+/// beside any record there and beside a single-digit one at every size. A
+/// double-digit record at `.accessibility3` moves it beneath the numeral, still
+/// on the right — the label cost that fit, and stacking is the fallback doing
+/// its job. `FormGuideTests` measures both, and the larger *Differentiate
+/// Without Color* dots.
 ///
 /// Shared by squad home and squad detail, for the reason `SquadIdentity` is.
 struct SquadRecordLine: View {
     let record: SeasonGame.Record
     let form: [SeasonGame.Outcome]
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
@@ -87,8 +91,51 @@ struct SquadRecordLine: View {
         }
     }
 
+    /// The record with its dash set as a separator rather than a third glyph
+    /// at numeral weight.
+    ///
+    /// **A 44pt bold en dash is as heavy as the digits and sits tight against
+    /// them**, so "1–0" read as one lump. The dash here is 60% size, semibold,
+    /// in secondary text, with a thin space either side at numeral size — the
+    /// digits carry the number, the dash only divides it. A smaller dash also
+    /// sits lower (a dash's height is a fraction of its own size), so it is
+    /// lifted by `dashLift` to the digits' middle again.
+    ///
+    /// One `Text`, not an `HStack`, so the numeral keeps a single baseline for
+    /// the dots to sit on and a single content transition. The digits and
+    /// spaces take `hooprType(.numeral)` from outside; only the dash carries a
+    /// font of its own, sized off the same scaled value so it grows with
+    /// Dynamic Type.
+    private var numeralText: Text {
+        let size = HooprFontMetrics.scaledSize(
+            HooprTextRole.numeral.size,
+            at: HooprFontMetrics.contentSizeCategory(for: dynamicTypeSize)
+        )
+        let dash = Text(RecordDash.glyph)
+            .font(.system(size: size * RecordDash.scale, weight: RecordDash.weight))
+            .foregroundStyle(Color.hooprSecondaryText)
+            .baselineOffset(size * RecordDash.lift)
+        let space = RecordDash.space
+        return Text("\(record.wins)\(space)\(dash)\(space)\(record.losses)")
+    }
+
+    /// Measured, not guessed: SF's en dash centres at about 0.29 of its point
+    /// size, so a dash at 0.6× sits 0.4 × 0.29 ≈ 0.115 of the numeral's size
+    /// too low. Checked against rendered glyph bounds at 44pt and at the
+    /// `.accessibility3` size (65.3pt). Internal so `FormGuideTests` can
+    /// measure the numeral as drawn.
+    nonisolated enum RecordDash {
+        static let glyph = "–"
+        static let scale: CGFloat = 0.6
+        static let weight = Font.Weight.semibold
+        static let uiFontWeight = UIFont.Weight.semibold
+        static let lift: CGFloat = 0.115
+        /// Either side of the dash, at numeral size.
+        static let space = "\u{2009}"
+    }
+
     private var numeral: some View {
-        Text(record.displayText)
+        numeralText
             .hooprType(.numeral)
             .foregroundStyle(Color.hooprPrimaryText)
             .hooprNumericTransition(text: record.displayText)

@@ -331,6 +331,13 @@ is no duplicate-entry logic because there is nowhere to put a second row.
 - **Record proximity is a gate, not only a score** — 0.35 apart at relaxation 0,
   fully open at 1 — so it changes *when* an uneven match happens, never
   *whether*. This is the hook a skill rating would plug into.
+- **Records are compared through `MatchRules.recordRating`, not the raw win
+  percentage.** It adds `recordPriorGames` (4) imagined games, half won, so a
+  short record reads as the little evidence it is. Raw, a squad's first loss
+  read as .000 against an unplayed .500 — the widest gap there is — and held
+  the pair apart for ~2.3 minutes of relaxation on the strength of one game.
+  Rated, 0–1 is .400 and matches at once; 5–0 against 0–5 (.778 vs .222) is
+  still held back.
 - **`Status` has exactly two cases**, `open` and `matched`, and the second is
   terminal. There was a third, `claimed`, naming the gap between claiming a
   ticket and writing the match — and a gap is a state two clients can disagree
@@ -346,9 +353,9 @@ is no duplicate-entry logic because there is nowhere to put a second row.
   spent ticket outlives its match by up to a day, and reading one as a live
   search is what showed a squad a spinner after their match had been played.
 - **`wins`/`losses` are denormalized at queue time for ranking only** — display
-  and scoring, never the record of truth. `winPercentage` reads an unplayed
-  squad as `0.5`, not as one that loses everything, which is what stops every
-  new squad being ranked against the worst opponents in the pool.
+  and scoring, never the record of truth. `MatchRules.recordRating` reads an
+  unplayed squad as `0.5`, not as one that loses everything, which is what
+  stops every new squad being ranked against the worst opponents in the pool.
 
 ## `SeasonGame` and `SeasonGameError`
 

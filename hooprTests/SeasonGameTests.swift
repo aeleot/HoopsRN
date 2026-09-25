@@ -151,7 +151,7 @@ final class SeasonGameTests: XCTestCase {
         XCTAssertEqual(record.wins, 0)
         XCTAssertEqual(record.losses, 0)
         XCTAssertTrue(record.isUnplayed)
-        // The midpoint, matching `MatchTicket.winPercentage`. Treating "no
+        // The midpoint, matching `MatchRules.recordRating`. Treating "no
         // record" as "loses everything" would rank every new squad against the
         // worst opponents in the pool.
         XCTAssertEqual(record.winPercentage, 0.5)

@@ -52,46 +52,86 @@ final class FormGuideTests: XCTestCase {
     /// numeral is uncapped (`HooprTextRole.numeral`), so the question is how
     /// wide a record can get at `.accessibility3` before the dots move under it.
     ///
-    /// Default dots beside a double-digit record: fits (336pt of 362pt).
-    func testTheDotsSitBesideADoubleDigitRecordThroughAccessibility3() {
-        assertFitsBeside("10–10", dotDiameter: FormDotMetrics.diameter)
+    /// Default dots, with "L5", beside a single-digit record: fits at every
+    /// size (282pt of 362pt at `.accessibility3`).
+    func testTheDotsSitBesideASingleDigitRecordThroughAccessibility3() {
+        assertFitsBeside((9, 9), dotDiameter: FormDotMetrics.diameter)
+    }
+
+    /// And beside a double-digit record at the default size (297pt of 362pt)
+    /// — but not at `.accessibility3`, where "L5" costs the fit this row used
+    /// to have (367pt of 362pt, measured). The `ViewThatFits` fallback moves
+    /// the row beneath the numeral, pinned so nobody reads that as a bug.
+    func testTheDotsSitBesideADoubleDigitRecordAndStackUnderItAtAccessibility3() {
+        XCTAssertLessThanOrEqual(
+            rowWidth((10, 10), dotDiameter: FormDotMetrics.diameter, at: .large),
+            HomeHeroMetrics.contentWidth
+        )
+        XCTAssertGreaterThan(
+            rowWidth((10, 10), dotDiameter: FormDotMetrics.diameter, at: .accessibilityExtraLarge),
+            HomeHeroMetrics.contentWidth,
+            "a double-digit record now fits beside the dots at .accessibility3; update the comment on SquadRecordLine"
+        )
     }
 
     /// The larger dots *Differentiate Without Color* draws are 142pt. They sit
     /// beside a single-digit record at every size, and at `.accessibility3` a
-    /// "10–10" pushes them beneath the numeral (366pt of 362pt, measured). That
-    /// is the `ViewThatFits` fallback doing its job, pinned so nobody reads the
-    /// stacked layout as a bug.
+    /// "10–10" pushes them beneath the numeral (397pt of 362pt, measured).
     func testMarkedDotsSitBesideASingleDigitRecordAndStackUnderALongOne() {
-        assertFitsBeside("9–9", dotDiameter: FormDotMetrics.markedDiameter)
+        assertFitsBeside((9, 9), dotDiameter: FormDotMetrics.markedDiameter)
         XCTAssertGreaterThan(
-            rowWidth("10–10", dotDiameter: FormDotMetrics.markedDiameter, at: .accessibilityExtraLarge),
+            rowWidth((10, 10), dotDiameter: FormDotMetrics.markedDiameter, at: .accessibilityExtraLarge),
             HomeHeroMetrics.contentWidth,
             "a double-digit record now fits beside the marked dots at .accessibility3; update the comment on SquadRecordLine"
         )
     }
 
-    private func assertFitsBeside(_ record: String, dotDiameter: CGFloat, line: UInt = #line) {
+    private typealias Record = (wins: Int, losses: Int)
+
+    private func assertFitsBeside(_ record: Record, dotDiameter: CGFloat, line: UInt = #line) {
         for category in [UIContentSizeCategory.large, .accessibilityExtraLarge] {
             let width = rowWidth(record, dotDiameter: dotDiameter, at: category)
             XCTAssertLessThanOrEqual(
                 width, HomeHeroMetrics.contentWidth,
-                "\"\(record)\" and \(dotDiameter)pt dots are \(width)pt at \(category.rawValue)",
+                "\(record.wins)–\(record.losses) and \(dotDiameter)pt dots are \(width)pt at \(category.rawValue)",
                 line: line
             )
         }
     }
 
-    private func rowWidth(_ record: String, dotDiameter: CGFloat, at category: UIContentSizeCategory) -> CGFloat {
+    private func rowWidth(_ record: Record, dotDiameter: CGFloat, at category: UIContentSizeCategory) -> CGFloat {
         let dots = CGFloat(FormGuide.length) * dotDiameter
             + CGFloat(FormGuide.length - 1) * FormDotMetrics.spacing
-        return numeralWidth(record, at: category) + Spacing.lg + dots
+        let caption = captionWidth(at: category) + FormDotMetrics.captionSpacing
+        return numeralWidth(record, at: category) + Spacing.lg + caption + dots
     }
 
-    private func numeralWidth(_ text: String, at category: UIContentSizeCategory) -> CGFloat {
+    /// "L5" as `FormGuide` draws it: the label role, capped, with its kerning.
+    private func captionWidth(at category: UIContentSizeCategory) -> CGFloat {
+        let role = HooprTextRole.label
+        let size = HooprFontMetrics.scaledSize(role.size, maximumSize: role.maximumSize, at: category)
+        let text = NSAttributedString(string: FormGuide.caption, attributes: [
+            .font: UIFont.systemFont(ofSize: size, weight: role.uiFontWeight),
+            .kern: role.kerning,
+        ])
+        return ceil(text.size().width)
+    }
+
+    /// The numeral as `SquadRecordLine` draws it: digits and spaces at the
+    /// numeral role, the dash at `RecordDash`'s smaller size and lighter weight.
+    private func numeralWidth(_ record: Record, at category: UIContentSizeCategory) -> CGFloat {
+        typealias Dash = SquadRecordLine.RecordDash
         let role = HooprTextRole.numeral
         let size = HooprFontMetrics.scaledSize(role.size, maximumSize: role.maximumSize, at: category)
-        let font = UIFont.monospacedDigitSystemFont(ofSize: size, weight: role.uiFontWeight)
-        return ceil((text as NSString).size(withAttributes: [.font: font]).width)
+        let digits: [NSAttributedString.Key: Any] = [
+            .font: UIFont.monospacedDigitSystemFont(ofSize: size, weight: role.uiFontWeight),
+        ]
+        let text = NSMutableAttributedString(string: "\(record.wins)\(Dash.space)", attributes: digits)
+        text.append(NSAttributedString(
+            string: Dash.glyph,
+            attributes: [.font: UIFont.systemFont(ofSize: size * Dash.scale, weight: Dash.uiFontWeight)]
+        ))
+        text.append(NSAttributedString(string: "\(Dash.space)\(record.losses)", attributes: digits))
+        return ceil(text.size().width)
     }
 }

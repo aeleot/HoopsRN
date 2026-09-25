@@ -86,6 +86,31 @@ nonisolated enum MatchRules {
     /// *whether* — which is the reading that leaves both sentences true.
     static let recordTolerance: ClosedRange<Double> = 0.35...1.0
 
+    /// Imagined games added to every record before it is compared — half won,
+    /// half lost — so a short record reads as the little evidence it is.
+    ///
+    /// **A raw win percentage treats one game as a verdict.** A squad's first
+    /// loss took it from .500 to .000, the widest gap there is, and held it
+    /// out of the pool for minutes behind every unplayed squad — on the
+    /// strength of one result. With four imagined games 0–1 reads as .400,
+    /// one game off an unplayed squad, and it matches at once. A long record
+    /// barely moves (10–0 reads as .857), so a real mismatch is still held
+    /// back by `recordTolerance`.
+    ///
+    /// Comparison only. The record a squad sees is still its real W–L.
+    static let recordPriorGames = 4
+
+    /// A squad's win percentage for comparison, shrunk toward .500 by
+    /// `recordPriorGames`.
+    ///
+    /// An unplayed squad reads as exactly `0.5`, as `SeasonGame.Record` does,
+    /// rather than zero: treating "no record" as "loses everything" would rank
+    /// every new squad against the worst opponents in the pool.
+    static func recordRating(for ticket: MatchTicket) -> Double {
+        let prior = Double(recordPriorGames)
+        return (Double(ticket.wins) + prior / 2) / (Double(ticket.wins + ticket.losses) + prior)
+    }
+
     /// Slack the window must carry *beyond* the game itself, so two squads
     /// aren't scheduled into the exact minute they both stop being free.
     ///
@@ -253,8 +278,9 @@ nonisolated enum MatchRules {
         let required = duration + comfortMargin(at: relaxation)
         guard overlap.duration >= required else { return nil }
 
-        // Record proximity — see `recordTolerance` for why this is a gate.
-        let recordGap = abs(mine.winPercentage - theirs.winPercentage)
+        // Record proximity — see `recordTolerance` for why this is a gate, and
+        // `recordPriorGames` for why it isn't the raw win percentage.
+        let recordGap = abs(recordRating(for: mine) - recordRating(for: theirs))
         guard recordGap <= recordTolerance(at: relaxation) else { return nil }
 
         guard let court = court(

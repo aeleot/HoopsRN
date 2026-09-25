@@ -822,7 +822,9 @@ relaxation paragraph names "the record-proximity tolerance" as something
 relaxation widens, and a tolerance nothing enforces is not a tolerance.
 
 **It is implemented as a gate**, deliberately generous: win percentages may be
-0.35 apart at relaxation 0, and fully open at relaxation 1. So it changes *when*
+0.35 apart at relaxation 0, and fully open at relaxation 1. The percentages are
+`MatchRules.recordRating` — each record plus four imagined games, half won — so
+one result can't open the widest gap there is. So it changes *when*
 an uneven match happens, never *whether* — the reading that leaves both sentences
 true. It is also weighted into the score, at 0.35, so among legal matches the
 closer record still ranks higher.
@@ -1076,7 +1078,7 @@ subject is two different people agreeing or disagreeing.
 `seasonGames where squadIds array-contains {squadId} and status == 'confirmed'`,
 counted client-side by `result`. See `squads` above for why it is not a stored
 field. An unplayed squad reads as 0.5 rather than as a squad that loses
-everything — `SeasonGame.record(for:in:)` and `MatchTicket.winPercentage` agree
+everything — `SeasonGame.record(for:in:)` and `MatchRules.recordRating` agree
 on that.
 
 Disputed and cancelled matches are **structurally excluded** because they never

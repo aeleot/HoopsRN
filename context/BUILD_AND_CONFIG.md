@@ -316,10 +316,10 @@ measurement style would be one too many.
 | Suite | Cases | Guards |
 |---|---|---|
 | `SeasonGameTests` | 47 | The derived record and form guide, the report derivation and what a report write contains, who may report and when, create-time validation mirroring the rules, and the queue windows. |
-| `MatchRulesTests` | 46 | The pure matchmaker: every hard rule rejecting in isolation, soft-rule ordering, relaxation over time and the re-scan it needs, window arithmetic across midnight and DST, empty pool, self-match. Lost the stale-claim cases when the atomic commit deleted the window they pinned. |
+| `MatchRulesTests` | 50 | The pure matchmaker: every hard rule rejecting in isolation, `recordRating`'s prior (one loss doesn't gate, a long lopsided record still does), soft-rule ordering, relaxation over time and the re-scan it needs, window arithmetic across midnight and DST, empty pool, self-match. Lost the stale-claim cases when the atomic commit deleted the window they pinned. |
 | `SquadTests` | 38 | Decoding, name and roster bounds, leadership, the icon/colour allowlists. |
 | `GameTests` | 40 | Decoding, derived status, form validation, roster membership, visibility, presentation, the invite-link string, distance. |
-| `MatchTicketTests` | 22 | Ticket validation, claimability, `isSearching` vs. `isClaimable`, `winPercentage`'s unplayed midpoint. |
+| `MatchTicketTests` | 22 | Ticket validation, claimability, `isSearching` vs. `isClaimable`, record decoding and `isUnplayed`. |
 | `FirestoreRulesParityTests` | 21 | Every bound mirrored between Swift and `firestore.rules`, parsed out of the rules file as text — including the `open` -> `matched` transition and the two burst-rate floors. |
 | `LocalRunsViewModelTests` | 38 | Which button a run offers; whether the host may mark a run complete (host-only, not before tip-off, not twice, and a roster of one is still a run); and the friends-on-a-run join: resolving an edge from either side of the stored pair, never counting yourself, both rosters, sorted and deduped, and the badge's own singular/plural copy. |
 | `MapViewModelTests` | 21 | `gameCountsByCourt` — the per-court/per-day join behind the map's heat colours and pin counts — plus `rankActive`, the **Now** segment's ordering: soonest run first, distance/name tiebreaks, `isVisible(at:)` filtering, and that every `ActiveCourt` has at least one game. |
@@ -355,7 +355,7 @@ measurement style would be one too many.
 | `TypeRoleTests` | 8 | The `HooprTextRole` ladder, including measured scaled sizes at the largest text sizes. |
 | `CourtNameTests` | 7 | The map's name-shortening rule: a trailing "Park" goes first, then the court number, and a "Park" inside a name is never dropped. |
 | `CreateGameDayPickerTests` | 7 | The create sheet's day chips: which days they offer, and that picking one keeps the time and lands somewhere `Game.validate` accepts. |
-| `FormGuideTests` | 7 | The form guide's five dots: padding, VoiceOver's reading, and whether the row still sits beside the record. |
+| `FormGuideTests` | 8 | The form guide's five dots and "L5": padding, VoiceOver's reading, and whether the row still sits beside the record. |
 | `HomeHeroMetricsTests` | 7 | Home's hero measured against the real dataset — the court names that need more than two lines at `.accessibility3`. |
 | `CreateGameCopyTests` | 6 | What the create sheet says about invite-only runs: never a promise the unopenable invite link can't keep. |
 | `SeasonsRecordSpeechTests` | 3 | The Seasons band's record read aloud as a sentence, singular at one. |

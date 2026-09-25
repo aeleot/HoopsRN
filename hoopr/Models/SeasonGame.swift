@@ -230,7 +230,7 @@ nonisolated extension SeasonGame {
         var isUnplayed: Bool { played == 0 }
 
         /// `0.5` for a squad that hasn't played, matching
-        /// `MatchTicket.winPercentage` — treating "no record" as "loses
+        /// `MatchRules.recordRating` — treating "no record" as "loses
         /// everything" would rank every new squad against the worst opponents
         /// in the pool.
         var winPercentage: Double {

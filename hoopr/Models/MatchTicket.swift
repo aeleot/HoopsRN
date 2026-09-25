@@ -181,18 +181,6 @@ nonisolated extension MatchTicket {
     /// disagree about how far ahead the app plans.
     static var maximumWindowLead: TimeInterval { Game.schedulingWindow }
 
-    /// The share of games won, or `0.5` for a squad that hasn't played.
-    ///
-    /// An unplayed squad sits at the midpoint rather than at zero: treating "no
-    /// record" as "loses everything" would rank every new squad against the
-    /// worst opponents in the pool, which is the opposite of what a fresh
-    /// squad needs.
-    var winPercentage: Double {
-        let played = wins + losses
-        guard played > 0 else { return 0.5 }
-        return Double(wins) / Double(played)
-    }
-
     var isUnplayed: Bool { wins + losses == 0 }
 
     func isExpired(at now: Date) -> Bool {

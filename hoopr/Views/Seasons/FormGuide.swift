@@ -16,6 +16,14 @@ import SwiftUI
 /// - VoiceOver reads the order;
 /// - with iOS's *Differentiate Without Color* setting on, each played dot
 ///   grows to carry a ✓ or ✕.
+///
+/// **"L5" sits to the left of the dots** (the user's call, 2026-09-25), the
+/// scoreboard shorthand for "last five", so the row says what it is rather
+/// than leaving five dots to be decoded. It is part of this view, not the
+/// record line, so the two can never be laid out apart — when the row drops
+/// beneath the numeral, the label goes with it. VoiceOver doesn't read it:
+/// "L 5" is noise next to the spoken sentence, which already begins
+/// "Recent form".
 struct FormGuide: View {
     let form: [SeasonGame.Outcome]
 
@@ -24,10 +32,21 @@ struct FormGuide: View {
     /// How many results the guide shows, and so how many dots it always draws.
     nonisolated static let length = 5
 
+    /// The label to the left of the dots. Spelled uppercase already, and set
+    /// through `hooprType(.label)`, which is what `FormGuideTests` measures.
+    nonisolated static let caption = "L\(length)"
+
     var body: some View {
-        HStack(spacing: FormDotMetrics.spacing) {
-            ForEach(Array(Self.slots(for: form).enumerated()), id: \.offset) { _, outcome in
-                FormDot(outcome: outcome, isMarked: differentiateWithoutColor)
+        HStack(spacing: FormDotMetrics.captionSpacing) {
+            Text(Self.caption)
+                .hooprType(.label)
+                .foregroundStyle(Color.hooprSecondaryText)
+                .fixedSize()
+
+            HStack(spacing: FormDotMetrics.spacing) {
+                ForEach(Array(Self.slots(for: form).enumerated()), id: \.offset) { _, outcome in
+                    FormDot(outcome: outcome, isMarked: differentiateWithoutColor)
+                }
             }
         }
         // Five dots announced one by one read as five unrelated shapes.
@@ -67,6 +86,9 @@ enum FormDotMetrics {
     static let markedDiameter: CGFloat = 22
     static let glyphSize: CGFloat = 11
     static let spacing = Spacing.sm
+    /// Between "L5" and the first dot — wider than between dots, so the label
+    /// doesn't read as a sixth one.
+    static let captionSpacing = Spacing.md
 }
 
 /// One slot in the form guide: a win, a loss, or `nil` for not yet played.

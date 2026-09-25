@@ -914,9 +914,22 @@ glyph rendered taller than the circle; a dot carries no glyph to overflow.
 user's call, 2026-09-22): the record numeral holds the left edge with no caption,
 the dots hold the right, and their bottoms sit on the numeral's baseline. A
 `ViewThatFits` moves them beneath the numeral, still right-aligned, only when
-they don't fit beside it. They do fit beside even a "10–10" at `.accessibility3`.
-The larger *Differentiate Without Color* dots stack at that size (366pt of
-362pt, measured in `FormGuideTests`). Squad detail draws the same line — the
+they don't fit beside it. **"L5" sits to the left of the dots** (the user's
+call, 2026-09-25), inside `FormGuide` so the label and dots never separate, and
+hidden from VoiceOver, whose sentence already begins "Recent form". It cost one
+fit: a double-digit record at `.accessibility3` now stacks the row beneath the
+numeral (367pt of 362pt); single-digit records fit at every size, and any
+record fits at the default size. The larger *Differentiate Without Color* dots
+stack there too (397pt). All measured in `FormGuideTests` against the row as
+drawn.
+
+**The record's dash is a separator, not a third numeral** (2026-09-25). A
+44pt bold en dash was as heavy as the digits and sat tight against them, so
+"1–0" read as one lump. `SquadRecordLine.RecordDash` sets it at 60% size,
+semibold, in secondary text, with a thin space either side at numeral size,
+lifted 0.115× the numeral's size back to the digits' middle (a smaller dash
+sits lower). It is one `Text` by interpolation, so the dots still have one
+baseline and the numeral one content transition. Squad detail draws the same line — the
 crest row and the record line are shared components (`SquadIdentity`,
 `SquadRecordLine` in `SquadBand.swift`), so the push opens on the band that was
 tapped.

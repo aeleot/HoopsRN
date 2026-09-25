@@ -297,7 +297,7 @@ final class MatchRulesTests: XCTestCase {
         let dominant = ticket(squadId: "theirs", members: ["b1", "b2", "b3"], wins: 19, losses: 1)
 
         XCTAssertGreaterThan(
-            abs(mine.winPercentage - dominant.winPercentage),
+            abs(MatchRules.recordRating(for: mine) - MatchRules.recordRating(for: dominant)),
             MatchRules.recordTolerance(at: 0)
         )
         XCTAssertNil(candidate(mine, dominant))
@@ -413,6 +413,50 @@ final class MatchRulesTests: XCTestCase {
         )
 
         XCTAssertNil(candidate(waited, unreachable))
+    }
+
+    // MARK: - Record rating
+
+    /// An unplayed squad sits at the midpoint, not at zero. Treating "no
+    /// record" as "loses everything" would rank every new squad against the
+    /// worst opponents in the pool — the opposite of what a fresh squad needs.
+    func testAnUnplayedSquadRatesAtTheMidpoint() {
+        let fresh = ticket(squadId: "fresh", members: ["b1"], wins: 0, losses: 0)
+        XCTAssertEqual(MatchRules.recordRating(for: fresh), 0.5)
+    }
+
+    /// The prior pulls a record toward .500 by `recordPriorGames` imagined
+    /// games, half won: 3–1 plus 2–2 is 5 of 8.
+    func testARecordIsShrunkTowardTheMidpoint() {
+        let good = ticket(squadId: "good", members: ["b1"], wins: 3, losses: 1)
+        XCTAssertEqual(MatchRules.recordRating(for: good), 5.0 / 8.0, accuracy: 0.0001)
+    }
+
+    /// **The reported bug**: a squad's first loss read as .000 against an
+    /// unplayed squad's .500 — the widest gap there is — and held them apart
+    /// for minutes while relaxation caught up. One game is one game.
+    func testOneLossDoesNotHoldASquadOutOfTheUnrelaxedPool() throws {
+        let fresh = ticket(squadId: "mine", members: ["a1", "a2", "a3"], wins: 0, losses: 0)
+        let oneLoss = ticket(squadId: "theirs", members: ["b1", "b2", "b3"], wins: 0, losses: 1)
+
+        XCTAssertLessThanOrEqual(
+            abs(MatchRules.recordRating(for: fresh) - MatchRules.recordRating(for: oneLoss)),
+            MatchRules.recordTolerance(at: 0)
+        )
+        XCTAssertNotNil(candidate(fresh, oneLoss))
+
+        // And the first win against the first loss, the next thing to happen.
+        let oneWin = ticket(squadId: "mine", members: ["a1", "a2", "a3"], wins: 1, losses: 0)
+        XCTAssertNotNil(candidate(oneWin, oneLoss))
+    }
+
+    /// The prior softens short records, not long ones: an unbeaten squad and a
+    /// winless one five games in are still held apart until relaxation opens.
+    func testALongLopsidedRecordIsStillHeldBack() {
+        let unbeaten = ticket(squadId: "mine", members: ["a1", "a2", "a3"], wins: 5, losses: 0)
+        let winless = ticket(squadId: "theirs", members: ["b1", "b2", "b3"], wins: 0, losses: 5)
+
+        XCTAssertNil(candidate(unbeaten, winless))
     }
 
     func testARecordGapTooWideAtZeroMatchesAtFullRelaxation() throws {
@@ -626,9 +670,13 @@ final class MatchRulesTests: XCTestCase {
     /// hours for a one-hour game (0.15 × 1) — so they contribute a flat 0.45
     /// and the contest is record (0.35) against waiting (0.20):
     ///
-    /// - `even`:    gap 0.0, fresh  → 0.45 + 0.35 × 1.00 + 0.20 × 0.00 = 0.800
-    /// - `patient`: gap 0.3, waited → 0.45 + 0.35 × 0.70 + 0.20 × 1.00 = 0.895
-    /// - `close`:   gap 0.1, fresh  → 0.45 + 0.35 × 0.90 + 0.20 × 0.00 = 0.765
+    /// Gaps are between `recordRating`s, so every record carries
+    /// `recordPriorGames`' two imagined wins and two losses: `mine` at 5–5 is
+    /// 7/14, `patient` at 8–2 is 10/14, `close` at 6–4 is 8/14.
+    ///
+    /// - `even`:    gap 0/14, fresh  → 0.45 + 0.35 × 1.0000 + 0.20 × 0.00 = 0.8000
+    /// - `patient`: gap 3/14, waited → 0.45 + 0.35 × 0.7857 + 0.20 × 1.00 = 0.9250
+    /// - `close`:   gap 1/14, fresh  → 0.45 + 0.35 × 0.9286 + 0.20 × 0.00 = 0.7750
     ///
     /// So a squad that has waited the full relaxation beats a perfectly matched
     /// record — deliberately. A pool that always served the best pairing would
@@ -650,9 +698,9 @@ final class MatchRulesTests: XCTestCase {
         )
 
         XCTAssertEqual(ranked.map(\.ticket.squadId), ["patient", "even", "close"])
-        XCTAssertEqual(ranked[0].score, 0.895, accuracy: 0.0001)
+        XCTAssertEqual(ranked[0].score, 0.925, accuracy: 0.0001)
         XCTAssertEqual(ranked[1].score, 0.800, accuracy: 0.0001)
-        XCTAssertEqual(ranked[2].score, 0.765, accuracy: 0.0001)
+        XCTAssertEqual(ranked[2].score, 0.775, accuracy: 0.0001)
     }
 
     /// Ties break on squad ID, not on pool order. A Firestore snapshot's order
