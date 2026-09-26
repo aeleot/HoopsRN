@@ -58,8 +58,7 @@ nonisolated enum SheetState: Equatable {
 /// lets `MapTabDetentTests` pin behaviour that used to be reachable only
 /// through a live drag.
 nonisolated struct SheetGeometry: Equatable {
-    /// The tab's own height *minus* the tab bar. Every detent is a fraction of
-    /// it. See `MapTab.tabBarInset` for why the subtraction is load-bearing.
+    /// The tab's proposed height, already net of the tab bar and keyboard.
     let containerHeight: CGFloat
 
     /// A court card's own resting height at `.medium`: tall enough for its
@@ -78,6 +77,9 @@ nonisolated struct SheetGeometry: Equatable {
     /// height) and never above `expandedHeight`.
     var fittedMediumHeight: CGFloat? = nil
 
+    /// The measured band plus its gap; the expanded sheet stays below it.
+    var topInset: CGFloat = 0
+
     /// Finger travel past which a drag settles to the next detent.
     static let detentThreshold: CGFloat = 60
 
@@ -86,8 +88,10 @@ nonisolated struct SheetGeometry: Equatable {
     static let rubberBandLimit: CGFloat = 40
 
     /// A third of the container: the list's resting height.
-    var mediumHeight: CGFloat { containerHeight / 3 }
-    var expandedHeight: CGFloat { containerHeight * 0.78 }
+    var mediumHeight: CGFloat { min(max(0, containerHeight / 3), expandedHeight) }
+    var expandedHeight: CGFloat {
+        max(0, min(containerHeight * 0.78, containerHeight - max(0, topInset)))
+    }
 
     /// Where the sheet actually rests at `.medium` — `mediumHeight`, or a court
     /// card's fitted height when it has one. Everything below measures from
@@ -119,6 +123,18 @@ nonisolated struct SheetGeometry: Equatable {
             ? drag
             : max(0, drag - (baseHeight(for: detent) - restingMediumHeight))
         return rubberBanded(base + travel)
+    }
+
+    /// Progress through the downward slide, clamped past the rubber-band limits.
+    func collapseProgress(offset: CGFloat) -> CGFloat {
+        guard restingMediumHeight > 0 else { return 0 }
+        return min(max(offset / restingMediumHeight, 0), 1)
+    }
+
+    /// Clear the words and controls before the surface approaches the tab bar.
+    /// The separate peek pill still waits until 60% of the travel to appear.
+    static func contentOpacity(collapseProgress progress: CGFloat) -> Double {
+        Double(min(max(1 - progress / 0.4, 0), 1))
     }
 
     /// Keeps the sheet inside its travel range while still following the

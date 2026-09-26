@@ -717,6 +717,21 @@ final class ThemeContrastTests: XCTestCase {
 
     // MARK: - Heat
 
+    func testMapFilterChipsAndSolidSearchOnTheBand() {
+        assertContrast(.hooprOnBrand, on: .hooprOrange, atLeast: aaText, "active filter label")
+        assertContrast(.hooprPrimaryText, on: .hooprHeroBand, atLeast: aaText, "inactive filter label")
+        assertContrast(.hooprSeparatorStrong, on: .hooprHeroBand, atLeast: aaLarge, "inactive filter edge")
+        assertContrast(.hooprSeparatorStrong, on: .hooprFill, atLeast: aaLarge, "solid search edge")
+    }
+
+    func testMapWatermarkLeavesTheCountAndEyebrowReadable() {
+        assertContrast(.hooprPrimaryText, on: .hooprBrandWatermark, atLeast: aaText, "count over pin watermark")
+        assertContrast(.hooprSecondaryText, on: .hooprBrandWatermark, atLeast: aaText, "eyebrow over pin watermark")
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            XCTAssertGreaterThan(ratio(.hooprBrandWatermark, on: .hooprHeroBand, style), 1.05)
+        }
+    }
+
     /// **Every tier of the heat ramp carries its label — the assertion that
     /// found a real failure.**
     ///

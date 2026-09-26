@@ -331,24 +331,14 @@ struct MapView: UIViewRepresentable {
     var onMarkerTap: ((Court) -> Void)?
     var onMarkerDeselect: (() -> Void)?
 
-    /// `setRegion` puts its target at the exact centre of the map view's
-    /// bounds — but the map itself runs edge to edge under the floating
-    /// header and behind the bottom sheet, so a target centred in the full
-    /// screen actually lands below the centre of what's *visible* between
-    /// them. Shifting the region's centre south moves the target north on
-    /// screen without it — the same trick as
-    /// `setVisibleMapRect(_:edgePadding:)`, minus the Mercator-space padding
-    /// math, since the header and sheet heights aren't known here.
-    ///
-    /// The fraction is sized against `MapTab`'s own geometry: a ~0.14
-    /// screen-height header and a sheet resting at its `.medium` detent
-    /// (~⅓ of the screen) put the visible gap's centre at roughly 40% down
-    /// the screen rather than 50%. 0.12 of the span covers that gap with a
-    /// little headroom, without crowding the target under the header.
-    private static func biasedNorth(_ region: MKCoordinateRegion) -> MKCoordinateRegion {
+    /// The sheet covers the bottom of the map's own rectangle. Moving the
+    /// region south by half that coverage centres the target in the visible gap.
+    var northBias: Double = MapFraming.fallbackNorthBias
+
+    private func biasedNorth(_ region: MKCoordinateRegion) -> MKCoordinateRegion {
         MKCoordinateRegion(
             center: CLLocationCoordinate2D(
-                latitude: region.center.latitude - region.span.latitudeDelta * 0.12,
+                latitude: region.center.latitude - region.span.latitudeDelta * northBias,
                 longitude: region.center.longitude
             ),
             span: region.span
@@ -393,7 +383,7 @@ struct MapView: UIViewRepresentable {
         configuration.pointOfInterestFilter = .excludingAll
         mapView.preferredConfiguration = configuration
 
-        mapView.setRegion(Self.biasedNorth(initialRegion), animated: false)
+        mapView.setRegion(biasedNorth(initialRegion), animated: false)
         mapView.register(
             CourtMarkerView.self,
             forAnnotationViewWithReuseIdentifier: CourtMarkerView.courtReuseID
@@ -440,7 +430,7 @@ struct MapView: UIViewRepresentable {
                 center: trigger.center,
                 span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
             )
-            mapView.setRegion(Self.biasedNorth(region), animated: true)
+            mapView.setRegion(biasedNorth(region), animated: true)
         }
     }
 

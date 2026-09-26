@@ -84,6 +84,9 @@ final class MapViewModel: ObservableObject {
     /// renders `activeCourts` instead.
     @Published private(set) var listedCourts: [NearbyCourt] = []
 
+    /// Radius and filter count, independent of the sheet's selected segment.
+    @Published private(set) var nearbyCount = 0
+
     /// The rows in the sheet for the `.now` segment.
     @Published private(set) var activeCourts: [ActiveCourt] = []
 
@@ -486,6 +489,10 @@ final class MapViewModel: ObservableObject {
             among: ranked
         )
 
+        let radiusMeters = Distance.meters(miles: radiusMiles)
+        let nearby = ranked.filter { $0.distanceMeters <= radiusMeters }
+        nearbyCount = nearby.count
+
         switch selectedTab {
         case .now:
             // The `.now` segment renders `activeCourts`; keeping this empty
@@ -493,8 +500,7 @@ final class MapViewModel: ObservableObject {
             listedCourts = []
 
         case .nearby:
-            let radiusMeters = Distance.meters(miles: radiusMiles)
-            listedCourts = ranked.filter { $0.distanceMeters <= radiusMeters }
+            listedCourts = nearby
 
         case .saved:
             listedCourts = ranked.filter { favoriteCourtIds.contains($0.court.id) }

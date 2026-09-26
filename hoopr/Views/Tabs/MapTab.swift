@@ -11,6 +11,7 @@ import MapKit
 private nonisolated struct SheetMetrics: Equatable {
     var height: CGFloat
     var bottomInset: CGFloat
+    var frame: CGRect
 }
 
 struct MapTab: View {
@@ -31,21 +32,10 @@ struct MapTab: View {
     /// that starts at the top.
     @State private var listScrollOffset: CGFloat = 0
 
-    /// The height the sheet is allowed to use — the tab's own height *minus*
-    /// the tab bar. The detents are fractions of it. Seeded with a typical
-    /// phone height so the first frame renders a sensibly sized sheet before
-    /// geometry lands; this also avoids `UIScreen.main`, deprecated in iOS 26.
-    @State private var containerHeight: CGFloat = 852
-
-    /// The unsafe band `onGeometryChange` reports at the bottom of this tab's
-    /// own frame — which is already laid out net of the tab bar, the same as
-    /// every other tab's content. At rest this is a few points of residual
-    /// margin; once the keyboard is up it's the keyboard's height. It feeds
-    /// `containerHeight` and the chrome that has to clear the keyboard
-    /// (`mapOverlay`, `recenterButton`) — it is not what positions the sheet
-    /// or the collapsed pill against the tab bar, since the frame's own
-    /// bottom edge already is that position.
-    @State private var tabBarInset: CGFloat = 0
+    /// The tab's proposal already excludes the tab bar and any keyboard.
+    @State private var containerHeight: CGFloat = 729
+    @State private var bandHeight: CGFloat = 0
+    @State private var mapHeight: CGFloat = 0
 
     /// A court handed in from Home's hot list. Consumed on arrival and written
     /// back to `nil`, so selecting the same court twice works.
@@ -96,6 +86,8 @@ struct MapTab: View {
     /// and the sheet is laid out above it, so this no longer has to clear the
     /// home indicator on its own.
     private let peekBottomInset: CGFloat = 12
+    private static let sheetCornerRadius: CGFloat = 22
+    private static let chromeInset: CGFloat = 14
     /// Finger travel below which a handle drag counts as a tap instead.
     private let tapSlop: CGFloat = 6
 
@@ -144,7 +136,8 @@ struct MapTab: View {
     private var geometry: SheetGeometry {
         SheetGeometry(
             containerHeight: containerHeight,
-            fittedMediumHeight: sheetState.selectedCourt == nil ? nil : cardFittedHeight
+            fittedMediumHeight: sheetState.selectedCourt == nil ? nil : cardFittedHeight,
+            topInset: bandHeight + Spacing.md
         )
     }
 
@@ -192,27 +185,26 @@ struct MapTab: View {
                 },
                 onMarkerDeselect: {
                     dismissDetail()
-                }
+                },
+                northBias: MapFraming.northBias(
+                    sheetHeight: max(0, sheetHeight - sheetOffset), mapHeight: mapHeight
+                )
             )
-            // The map runs under the status bar and the floating chrome — but
-            // *not* under the tab bar. Stopping it at the container's bottom
-            // edge is what leaves the bar sitting on this tab's own surface
-            // (below) instead of on moving map, which is how Home and Runs get
-            // a solid bar and why theirs never flickers: nothing about it is
-            // computed from a gesture.
-            //
-            // `.keyboard` stays ignored on every edge. The map is not laid out
-            // around the keyboard — only the chrome is — and a map that
-            // resized itself each time the search field took focus would lurch
-            // under the user's thumb.
-            .ignoresSafeArea(.container, edges: [.top, .horizontal])
-            .ignoresSafeArea(.keyboard)
+            .clipped()
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { mapHeight = $0 }
+            .padding(.top, bandHeight)
+            .ignoresSafeArea(.container, edges: .horizontal)
 
-            mapOverlay
+            mapBand
+                .frame(maxHeight: .infinity, alignment: .top)
 
             recenterButton
 
             sheet
+                // A stationary viewport: the sheet can slide, but its rows
+                // can never draw past the tab's bottom edge into the bar.
+                .frame(maxHeight: .infinity, alignment: .bottom)
+                .clipped()
 
             collapsedPeek
         }
@@ -224,12 +216,18 @@ struct MapTab: View {
         // resting on it; in light mode the two are the same white.
         .background(Color.hooprSurface.ignoresSafeArea())
         .onGeometryChange(for: SheetMetrics.self) { proxy in
-            SheetMetrics(height: proxy.size.height, bottomInset: proxy.safeAreaInsets.bottom)
+            SheetMetrics(height: proxy.size.height, bottomInset: proxy.safeAreaInsets.bottom,
+                         frame: proxy.frame(in: .global))
         } action: { metrics in
-            tabBarInset = metrics.bottomInset
-
-            let usable = metrics.height - metrics.bottomInset
+            let usable = metrics.height
             if usable > 0 { containerHeight = usable }
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-MapLayoutDiagnostics") {
+                let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows)
+                let bar = windows.compactMap { Self.tabBar(in: $0) }.first
+                print("[MapLayout] frame=\(metrics.frame) tabBarInset=\(metrics.bottomInset) containerHeight=\(usable) barFrame=\(String(describing: bar.map { $0.convert($0.bounds, to: nil) }))")
+            }
+            #endif
         }
         // A court arriving from Home's hot list. Cleared immediately so the
         // same court can be sent again, and routed through the same
@@ -331,83 +329,21 @@ struct MapTab: View {
     /// The trailing `Spacer` is load-bearing: it holds the stack at full
     /// height so the rows stay pinned to the top of a `ZStack` that aligns its
     /// children to the bottom.
-    private var mapOverlay: some View {
-        VStack(alignment: .trailing, spacing: 10) {
-            searchRow
-
-            // Dropped while typing. This is a layout requirement, not a
-            // preference: the keyboard takes the bottom safe area, which
-            // shrinks `containerHeight` and pushes the sheet up until the
-            // overlay has roughly 95pt to work with. Two rows need ~106pt and
-            // would be clipped; one fits with room to spare.
-            if !isSearchFocused {
-                filterChips
-            }
-
-            Spacer()
-        }
-        // The map runs under the status bar; its chrome starts below it — at
-        // whatever height centres the search row on the inbox button's slot,
-        // so the button is where every other tab has it.
-        .padding(.top, InboxButton.Slot.centerY - Self.searchFieldHeight / 2)
-        // Keep the chrome clear of the sheet, whatever height it's at — and of
-        // the tab bar, which the sheet now sits on top of.
-        .padding(.bottom, max(0, sheetHeight - sheetOffset) + tabBarInset)
-        .animation(.hooprSpring, value: isSearchFocused)
-    }
-
-    /// Named because the chrome's top inset is computed from it.
-    private static let searchFieldHeight: CGFloat = 46
-
-    /// The field keeps the map chrome's 14pt inset on the leading side; the
-    /// trailing side takes the page margin every tab has, so the profile
-    /// button lands where it does on Home, Runs and Seasons.
-    private var searchRow: some View {
-        HStack(spacing: 10) {
-            HooprSearchField(
-                text: $viewModel.searchQuery,
-                placeholder: "Search courts or a city",
-                isFocused: $isSearchFocused,
-                ground: .glass,
-                height: Self.searchFieldHeight,
-                // Court and city names are proper nouns.
-                capitalization: .words,
-                onClear: { viewModel.clearSearch() }
-            )
-
+    private var mapBand: some View {
+        MapBand(
+            nearbyCount: viewModel.nearbyCount,
+            query: $viewModel.searchQuery,
+            isSearchFocused: $isSearchFocused,
+            activeFilters: viewModel.activeFilters,
+            onToggle: { filter in
+                withAnimation(.hooprSnap) { viewModel.toggle(filter) }
+            },
+            onClear: { viewModel.clearSearch() }
+        ) {
             InboxButton(friendService: friendService, squadService: squadService, action: onOpenInbox)
         }
-        .padding(.leading, 14)
-        .padding(.trailing, Spacing.pageMargin)
-    }
-
-    /// One `HooprGlassGroup`, so the chips are rendered as one row of glass
-    /// rather than three pieces sampling the map separately (UI revamp
-    /// Phase 4). Inside the scroll view, because the group has to contain the
-    /// shapes it groups.
-    private var filterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HooprGlassGroup {
-                HStack(spacing: 8) {
-                    ForEach(CourtFilter.allCases) { filter in
-                        GlassChip(
-                            symbolName: filter.symbolName,
-                            label: filter.label,
-                            isActive: viewModel.isActive(filter)
-                        ) {
-                            withAnimation(.hooprSnap) {
-                                viewModel.toggle(filter)
-                            }
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
-        }
-        // Full width now that the recenter button has moved down to the thumb
-        // zone, so a long row of chips scrolls under the screen edge rather
-        // than stopping short of a control.
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bandHeight = $0 }
+        .animation(.hooprSpring, value: isSearchFocused)
     }
 
     /// The only map control left, and it now floats bottom-right rather than
@@ -448,7 +384,7 @@ struct MapTab: View {
             .accessibilityHidden(isHidden)
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
-        .padding(.trailing, 14)
+        .padding(.trailing, Self.chromeInset)
         // No `tabBarInset` here, deliberately — this tab's own frame is
         // already laid out net of the tab bar (see `body`), so the container's
         // bottom edge *is* the tab bar's top edge. `peekBottomInset` alone —
@@ -486,7 +422,7 @@ struct MapTab: View {
             // reserved space begins. Below that the band belongs to the
             // tab's own background (see `body`), which is the same
             // `hooprSurface`, so the two read as one surface.
-            UnevenRoundedRectangle(topLeadingRadius: 22, topTrailingRadius: 22)
+            UnevenRoundedRectangle(topLeadingRadius: Self.sheetCornerRadius, topTrailingRadius: Self.sheetCornerRadius)
                 .fill(Color.hooprSurface)
                 .shadow(color: Color.hooprShadow(opacity: 0.08), radius: 12, x: 0, y: -4)
                 .frame(height: sheetHeight)
@@ -506,12 +442,22 @@ struct MapTab: View {
                         .transition(.opacity)
                 }
             }
-            // The container's own bottom edge already sits flush with the
-            // tab bar — the ZStack is laid out net of the bar's reserved
-            // space, the same way it is for every other tab — so the content
-            // needs no extra padding to reach it. `tabBarInset` is for the
-            // keyboard, not this.
+            // A frame alone does not clip a ScrollView's drawing. Measured
+            // on iPhone 17: this frame ends at y=791 (the bar's top), but rows
+            // remained visible at y=864. Clip both the pane and its moving
+            // parent viewport; the tab's ground continues under the bar.
             .frame(height: sheetHeight, alignment: .top)
+            .clipped()
+            .opacity(sheetContentOpacity)
+            .allowsHitTesting(sheetContentOpacity > 0.5)
+            .accessibilityHidden(sheetContentOpacity <= 0.5)
+            #if DEBUG
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+                if ProcessInfo.processInfo.arguments.contains("-MapLayoutDiagnostics") {
+                    print("[MapSheet] contentFrame=\(frame)")
+                }
+            }
+            #endif
         }
         .frame(maxWidth: .infinity)
         .offset(y: sheetOffset)
@@ -533,7 +479,8 @@ struct MapTab: View {
                 .hooprFont(11, weight: .semibold)
 
             Text(viewModel.listCountLabel)
-                .hooprFont(13, weight: .semibold)
+                .hooprType(.caption)
+                .fontWeight(.semibold)
         }
         .foregroundStyle(Color.hooprPrimaryText)
         .padding(.horizontal, 18)
@@ -553,8 +500,12 @@ struct MapTab: View {
     /// competes with the sheet it replaces.
     private var peekOpacity: Double {
         guard sheetState.selectedCourt == nil, mediumHeight > 0 else { return 0 }
-        let progress = min(max(sheetOffset / mediumHeight, 0), 1)
+        let progress = geometry.collapseProgress(offset: sheetOffset)
         return Double(min(max((progress - 0.6) / 0.4, 0), 1))
+    }
+
+    private var sheetContentOpacity: Double {
+        SheetGeometry.contentOpacity(collapseProgress: geometry.collapseProgress(offset: sheetOffset))
     }
 
     private var courtList: some View {
@@ -650,11 +601,11 @@ struct MapTab: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 CourtName(name: court.displayName)
-                    .hooprFont(16, weight: .semibold)
+                    .hooprType(.subhead)
                     .foregroundStyle(Color.hooprPrimaryText)
 
                 Text("\(court.city) · \(viewModel.distanceText(for: court)) away")
-                    .hooprFont(13)
+                    .hooprType(.caption)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .lineLimit(1)
             }
@@ -672,7 +623,8 @@ struct MapTab: View {
             Spacer()
 
             Text(viewModel.hasSearchQuery ? "No courts match" : "No recent courts")
-                .hooprFont(15, weight: .semibold)
+                .hooprType(.body)
+                .fontWeight(.semibold)
                 .foregroundStyle(Color.hooprPrimaryText)
 
             Text(
@@ -680,7 +632,7 @@ struct MapTab: View {
                     ? "Try a court name, or the town it's in."
                     : "Courts you open will show up here."
             )
-            .hooprFont(13)
+            .hooprType(.caption)
             .foregroundStyle(Color.hooprSecondaryText)
             .multilineTextAlignment(.center)
 
@@ -779,7 +731,7 @@ struct MapTab: View {
     private var rowDivider: some View {
         Divider()
             .overlay(Color.hooprBorder)
-            .padding(.leading, 20)
+            .padding(.leading, Spacing.pageMargin)
     }
 
     /// The sheet's one scrolling container.
@@ -855,17 +807,18 @@ struct MapTab: View {
             if viewModel.selectedTab == .now, viewModel.datasetError == nil {
                 Image(systemName: "basketball.fill")
                     .hooprFont(30, maximumSize: 40)
-                    .foregroundStyle(Color.hooprSecondaryText.opacity(0.45))
+                    .foregroundStyle(Color.hooprSecondaryText)
                     .padding(.bottom, 4)
             }
 
             Text(viewModel.emptyStateTitle)
-                .hooprFont(15, weight: .semibold)
+                .hooprType(.body)
+                .fontWeight(.semibold)
                 .foregroundStyle(Color.hooprPrimaryText)
 
             if let detail = viewModel.emptyStateDetail {
                 Text(detail)
-                    .hooprFont(13)
+                    .hooprType(.caption)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .multilineTextAlignment(.center)
             }
@@ -903,7 +856,8 @@ struct MapTab: View {
                 .frame(width: 36, height: 5)
 
             Text(viewModel.listCountLabel)
-                .hooprFont(13, weight: .medium)
+                .hooprType(.caption)
+                .fontWeight(.medium)
                 .foregroundStyle(Color.hooprSecondaryText)
         }
         .padding(.top, 10)
@@ -1412,6 +1366,13 @@ struct MapTab: View {
     private func recenterMap() {
         recenterTrigger = RecenterTrigger(center: viewModel.recenterTarget())
     }
+
+    #if DEBUG
+    private static func tabBar(in view: UIView) -> UITabBar? {
+        if let bar = view as? UITabBar { return bar }
+        return view.subviews.lazy.compactMap { tabBar(in: $0) }.first
+    }
+    #endif
 }
 
 #Preview {
