@@ -82,6 +82,37 @@ final class MapTabDetentTests: XCTestCase {
 
     // MARK: - Rubber banding
 
+    func testCollapseProgressClampsAtBothEndsOfTravel() {
+        XCTAssertEqual(geometry.collapseProgress(offset: -40), 0)
+        XCTAssertEqual(geometry.collapseProgress(offset: 0), 0)
+        XCTAssertEqual(geometry.collapseProgress(offset: geometry.restingMediumHeight / 2), 0.5)
+        XCTAssertEqual(geometry.collapseProgress(offset: geometry.restingMediumHeight), 1)
+        XCTAssertEqual(geometry.collapseProgress(offset: geometry.restingMediumHeight + 40), 1)
+    }
+
+    func testCollapseProgressUsesTheFittedCardHeight() {
+        let fitted = SheetGeometry(containerHeight: 769, fittedMediumHeight: 400)
+        XCTAssertEqual(fitted.collapseProgress(offset: 200), 0.5)
+        XCTAssertEqual(fitted.collapseProgress(offset: 400), 1)
+        XCTAssertEqual(SheetGeometry(containerHeight: 0).collapseProgress(offset: 10), 0)
+    }
+
+    func testContentFadesDuringOnlyTheFirstFortyPercent() {
+        XCTAssertEqual(SheetGeometry.contentOpacity(collapseProgress: -0.2), 1)
+        XCTAssertEqual(SheetGeometry.contentOpacity(collapseProgress: 0), 1)
+        XCTAssertEqual(SheetGeometry.contentOpacity(collapseProgress: 0.2), 0.5)
+        for progress: CGFloat in [0.4, 0.6, 1, 1.2] {
+            XCTAssertEqual(SheetGeometry.contentOpacity(collapseProgress: progress), 0)
+        }
+    }
+
+    func testReversingCollapseRetracesTheSameOpacity() {
+        let progress: [CGFloat] = [0, 0.1, 0.2, 0.3, 0.4, 0.6, 1]
+        let down = progress.map { SheetGeometry.contentOpacity(collapseProgress: $0) }
+        let up = progress.reversed().map { SheetGeometry.contentOpacity(collapseProgress: $0) }
+        XCTAssertEqual(down, up.reversed())
+    }
+
     /// However hard it's flung, the overshoot eases toward the limit and stops.
     ///
     /// The bound is asserted inclusively on purpose: `resistance` approaches its

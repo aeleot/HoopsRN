@@ -11,6 +11,7 @@ import MapKit
 private nonisolated struct SheetMetrics: Equatable {
     var height: CGFloat
     var bottomInset: CGFloat
+    var frame: CGRect
 }
 
 struct MapTab: View {
@@ -37,14 +38,10 @@ struct MapTab: View {
     /// geometry lands; this also avoids `UIScreen.main`, deprecated in iOS 26.
     @State private var containerHeight: CGFloat = 852
 
-    /// The unsafe band `onGeometryChange` reports at the bottom of this tab's
-    /// own frame — which is already laid out net of the tab bar, the same as
-    /// every other tab's content. At rest this is a few points of residual
-    /// margin; once the keyboard is up it's the keyboard's height. It feeds
-    /// `containerHeight` and the chrome that has to clear the keyboard
-    /// (`mapOverlay`, `recenterButton`) — it is not what positions the sheet
-    /// or the collapsed pill against the tab bar, since the frame's own
-    /// bottom edge already is that position.
+    /// The reported bottom safe area, used to budget the detents and keyboard.
+    /// On iPhone 17 this reports 83pt even though the tab's frame already ends
+    /// at the bar's top (y=791). It must not also be a positioning inset: the
+    /// sheet is bottom-aligned to that frame, and its viewport clips overflow.
     @State private var tabBarInset: CGFloat = 0
 
     /// A court handed in from Home's hot list. Consumed on arrival and written
@@ -215,6 +212,10 @@ struct MapTab: View {
             recenterButton
 
             sheet
+                // A stationary viewport: the sheet can slide, but its rows
+                // can never draw past the tab's bottom edge into the bar.
+                .frame(maxHeight: .infinity, alignment: .bottom)
+                .clipped()
 
             collapsedPeek
         }
@@ -226,12 +227,20 @@ struct MapTab: View {
         // resting on it; in light mode the two are the same white.
         .background(Color.hooprSurface.ignoresSafeArea())
         .onGeometryChange(for: SheetMetrics.self) { proxy in
-            SheetMetrics(height: proxy.size.height, bottomInset: proxy.safeAreaInsets.bottom)
+            SheetMetrics(height: proxy.size.height, bottomInset: proxy.safeAreaInsets.bottom,
+                         frame: proxy.frame(in: .global))
         } action: { metrics in
             tabBarInset = metrics.bottomInset
 
             let usable = metrics.height - metrics.bottomInset
             if usable > 0 { containerHeight = usable }
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-MapLayoutDiagnostics") {
+                let windows = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows)
+                let bar = windows.compactMap { Self.tabBar(in: $0) }.first
+                print("[MapLayout] frame=\(metrics.frame) tabBarInset=\(metrics.bottomInset) containerHeight=\(usable) barFrame=\(String(describing: bar.map { $0.convert($0.bounds, to: nil) }))")
+            }
+            #endif
         }
         // A court arriving from Home's hot list. Cleared immediately so the
         // same court can be sent again, and routed through the same
@@ -508,12 +517,22 @@ struct MapTab: View {
                         .transition(.opacity)
                 }
             }
-            // The container's own bottom edge already sits flush with the
-            // tab bar — the ZStack is laid out net of the bar's reserved
-            // space, the same way it is for every other tab — so the content
-            // needs no extra padding to reach it. `tabBarInset` is for the
-            // keyboard, not this.
+            // A frame alone does not clip a ScrollView's drawing. Measured
+            // on iPhone 17: this frame ends at y=791 (the bar's top), but rows
+            // remained visible at y=864. Clip both the pane and its moving
+            // parent viewport; the tab's ground continues under the bar.
             .frame(height: sheetHeight, alignment: .top)
+            .clipped()
+            .opacity(sheetContentOpacity)
+            .allowsHitTesting(sheetContentOpacity > 0.5)
+            .accessibilityHidden(sheetContentOpacity <= 0.5)
+            #if DEBUG
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+                if ProcessInfo.processInfo.arguments.contains("-MapLayoutDiagnostics") {
+                    print("[MapSheet] contentFrame=\(frame)")
+                }
+            }
+            #endif
         }
         .frame(maxWidth: .infinity)
         .offset(y: sheetOffset)
@@ -556,8 +575,12 @@ struct MapTab: View {
     /// competes with the sheet it replaces.
     private var peekOpacity: Double {
         guard sheetState.selectedCourt == nil, mediumHeight > 0 else { return 0 }
-        let progress = min(max(sheetOffset / mediumHeight, 0), 1)
+        let progress = geometry.collapseProgress(offset: sheetOffset)
         return Double(min(max((progress - 0.6) / 0.4, 0), 1))
+    }
+
+    private var sheetContentOpacity: Double {
+        SheetGeometry.contentOpacity(collapseProgress: geometry.collapseProgress(offset: sheetOffset))
     }
 
     private var courtList: some View {
@@ -1418,6 +1441,13 @@ struct MapTab: View {
     private func recenterMap() {
         recenterTrigger = RecenterTrigger(center: viewModel.recenterTarget())
     }
+
+    #if DEBUG
+    private static func tabBar(in view: UIView) -> UITabBar? {
+        if let bar = view as? UITabBar { return bar }
+        return view.subviews.lazy.compactMap { tabBar(in: $0) }.first
+    }
+    #endif
 }
 
 #Preview {

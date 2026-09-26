@@ -382,13 +382,24 @@ one the user can reach and its last rows render underneath the tab bar.
 module's default main-actor isolation, its `Equatable` conformance is
 actor-isolated and won't compile.
 
-**The sheet's content stops above the tab bar; its surface does not.** The
-content frame stays `sheetHeight` and is lifted by `.padding(.bottom,
-tabBarInset)`, while the background is drawn `sheetHeight + tabBarInset` tall
-and top-anchored. The tab bar floats with transparent margins around it, so a
-sheet that ended where its content does would show a band of map between the
-two.
+**The sheet's content is explicitly clipped above the tab bar.** Measured on
+an iPhone 17 (iOS 26.5): the settled tab frame is `(0, 62, 402, 729)`, the
+reported bottom safe inset is 83pt, and the detent budget is 646pt. The tab
+and sheet content end at y=791, exactly the bar's top. The defect was drawing
+overflow, not a missing positioning inset: a SwiftUI frame alone allowed the
+scroll content to remain visible through the glass and at y=864. Each pane
+now clips at `sheetHeight`, and a stationary viewport clips the sliding
+sheet at the tab's bottom edge. The tab's `hooprSurface` background continues
+under the bar. No second 83pt positioning inset is added.
 
+`SheetGeometry.collapseProgress(offset:)` measures the slide using the resting
+medium height, including a fitted card. The contents fade during progress
+0–0.4 and stop taking new touches at half opacity. The surface fades opposite
+the peek pill during progress 0.6–1, so the final part of the slide carries no
+rows or segment control. These curves retrace on expansion.
+
+In debug builds, launch with `-MapLayoutDiagnostics` and `NSUnbufferedIO=YES`
+to log the tab, bar and sheet frames.
 Between medium and expanded the sheet **grows and shrinks** — `sheetHeight`
 tracks the finger, so the top edge moves and the bottom stays put. Only heading
 to or from `.collapsed` does it **offset** instead, leaving the screen entirely;

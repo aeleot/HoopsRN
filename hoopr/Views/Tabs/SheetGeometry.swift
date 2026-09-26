@@ -121,6 +121,18 @@ nonisolated struct SheetGeometry: Equatable {
         return rubberBanded(base + travel)
     }
 
+    /// Progress through the downward slide, clamped past the rubber-band limits.
+    func collapseProgress(offset: CGFloat) -> CGFloat {
+        guard restingMediumHeight > 0 else { return 0 }
+        return min(max(offset / restingMediumHeight, 0), 1)
+    }
+
+    /// Clear the words and controls before the surface approaches the tab bar.
+    /// The separate peek pill still waits until 60% of the travel to appear.
+    static func contentOpacity(collapseProgress progress: CGFloat) -> Double {
+        Double(min(max(1 - progress / 0.4, 0), 1))
+    }
+
     /// Keeps the sheet inside its travel range while still following the
     /// finger, so it can be neither flung off-screen nor dragged above its full
     /// height.
