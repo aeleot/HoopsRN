@@ -21,6 +21,26 @@ final class MapTabDetentTests: XCTestCase {
 
     // MARK: - Heights
 
+    func testExpandedStopsBelowTheMeasuredBandAndGap() {
+        let band = SheetGeometry(containerHeight: 729, topInset: 232)
+        XCTAssertEqual(band.expandedHeight, 497)
+        XCTAssertEqual(band.mediumHeight, 243)
+    }
+
+    func testSmallBandKeepsTheOriginalExpandedFraction() {
+        XCTAssertEqual(SheetGeometry(containerHeight: 729, topInset: 80).expandedHeight, 729 * 0.78)
+    }
+
+    func testLargeBandAndKeyboardKeepTheDetentsOrdered() {
+        for inset: CGFloat in [250, 400, 500] {
+            let sheet = SheetGeometry(containerHeight: 400, fittedMediumHeight: 500, topInset: inset)
+            XCTAssertGreaterThanOrEqual(sheet.expandedHeight, 0)
+            XCTAssertLessThanOrEqual(sheet.mediumHeight, sheet.expandedHeight)
+            XCTAssertLessThanOrEqual(sheet.restingMediumHeight, sheet.expandedHeight)
+            XCTAssertLessThanOrEqual(sheet.sheetHeight(detent: .expanded, drag: -500), max(0, 400 - inset))
+        }
+    }
+
     func testMediumIsAThirdAndExpandedIsMostOfTheContainer() {
         XCTAssertEqual(geometry.mediumHeight, 769 / 3, accuracy: 0.001)
         XCTAssertEqual(geometry.expandedHeight, 769 * 0.78, accuracy: 0.001)

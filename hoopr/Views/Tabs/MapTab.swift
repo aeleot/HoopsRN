@@ -32,17 +32,10 @@ struct MapTab: View {
     /// that starts at the top.
     @State private var listScrollOffset: CGFloat = 0
 
-    /// The height the sheet is allowed to use — the tab's own height *minus*
-    /// the tab bar. The detents are fractions of it. Seeded with a typical
-    /// phone height so the first frame renders a sensibly sized sheet before
-    /// geometry lands; this also avoids `UIScreen.main`, deprecated in iOS 26.
-    @State private var containerHeight: CGFloat = 852
-
-    /// The reported bottom safe area, used to budget the detents and keyboard.
-    /// On iPhone 17 this reports 83pt even though the tab's frame already ends
-    /// at the bar's top (y=791). It must not also be a positioning inset: the
-    /// sheet is bottom-aligned to that frame, and its viewport clips overflow.
-    @State private var tabBarInset: CGFloat = 0
+    /// The tab's proposal already excludes the tab bar and any keyboard.
+    @State private var containerHeight: CGFloat = 729
+    @State private var bandHeight: CGFloat = 0
+    @State private var mapHeight: CGFloat = 0
 
     /// A court handed in from Home's hot list. Consumed on arrival and written
     /// back to `nil`, so selecting the same court twice works.
@@ -143,7 +136,8 @@ struct MapTab: View {
     private var geometry: SheetGeometry {
         SheetGeometry(
             containerHeight: containerHeight,
-            fittedMediumHeight: sheetState.selectedCourt == nil ? nil : cardFittedHeight
+            fittedMediumHeight: sheetState.selectedCourt == nil ? nil : cardFittedHeight,
+            topInset: bandHeight + Spacing.md
         )
     }
 
@@ -191,23 +185,18 @@ struct MapTab: View {
                 },
                 onMarkerDeselect: {
                     dismissDetail()
-                }
+                },
+                northBias: MapFraming.northBias(
+                    sheetHeight: max(0, sheetHeight - sheetOffset), mapHeight: mapHeight
+                )
             )
-            // The map runs under the status bar and the floating chrome — but
-            // *not* under the tab bar. Stopping it at the container's bottom
-            // edge is what leaves the bar sitting on this tab's own surface
-            // (below) instead of on moving map, which is how Home and Runs get
-            // a solid bar and why theirs never flickers: nothing about it is
-            // computed from a gesture.
-            //
-            // `.keyboard` stays ignored on every edge. The map is not laid out
-            // around the keyboard — only the chrome is — and a map that
-            // resized itself each time the search field took focus would lurch
-            // under the user's thumb.
-            .ignoresSafeArea(.container, edges: [.top, .horizontal])
-            .ignoresSafeArea(.keyboard)
+            .clipped()
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { mapHeight = $0 }
+            .padding(.top, bandHeight)
+            .ignoresSafeArea(.container, edges: .horizontal)
 
-            mapOverlay
+            mapBand
+                .frame(maxHeight: .infinity, alignment: .top)
 
             recenterButton
 
@@ -230,9 +219,7 @@ struct MapTab: View {
             SheetMetrics(height: proxy.size.height, bottomInset: proxy.safeAreaInsets.bottom,
                          frame: proxy.frame(in: .global))
         } action: { metrics in
-            tabBarInset = metrics.bottomInset
-
-            let usable = metrics.height - metrics.bottomInset
+            let usable = metrics.height
             if usable > 0 { containerHeight = usable }
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("-MapLayoutDiagnostics") {
@@ -342,83 +329,21 @@ struct MapTab: View {
     /// The trailing `Spacer` is load-bearing: it holds the stack at full
     /// height so the rows stay pinned to the top of a `ZStack` that aligns its
     /// children to the bottom.
-    private var mapOverlay: some View {
-        VStack(alignment: .trailing, spacing: 10) {
-            searchRow
-
-            // Dropped while typing. This is a layout requirement, not a
-            // preference: the keyboard takes the bottom safe area, which
-            // shrinks `containerHeight` and pushes the sheet up until the
-            // overlay has roughly 95pt to work with. Two rows need ~106pt and
-            // would be clipped; one fits with room to spare.
-            if !isSearchFocused {
-                filterChips
-            }
-
-            Spacer()
-        }
-        // The map runs under the status bar; its chrome starts below it — at
-        // whatever height centres the search row on the inbox button's slot,
-        // so the button is where every other tab has it.
-        .padding(.top, InboxButton.Slot.centerY - Self.searchFieldHeight / 2)
-        // Keep the chrome clear of the sheet, whatever height it's at — and of
-        // the tab bar, which the sheet now sits on top of.
-        .padding(.bottom, max(0, sheetHeight - sheetOffset) + tabBarInset)
-        .animation(.hooprSpring, value: isSearchFocused)
-    }
-
-    /// Named because the chrome's top inset is computed from it.
-    private static let searchFieldHeight: CGFloat = 46
-
-    /// The field keeps the map chrome's 14pt inset on the leading side; the
-    /// trailing side takes the page margin every tab has, so the profile
-    /// button lands where it does on Home, Runs and Seasons.
-    private var searchRow: some View {
-        HStack(spacing: 10) {
-            HooprSearchField(
-                text: $viewModel.searchQuery,
-                placeholder: "Search courts or a city",
-                isFocused: $isSearchFocused,
-                ground: .glass,
-                height: Self.searchFieldHeight,
-                // Court and city names are proper nouns.
-                capitalization: .words,
-                onClear: { viewModel.clearSearch() }
-            )
-
+    private var mapBand: some View {
+        MapBand(
+            nearbyCount: viewModel.nearbyCount,
+            query: $viewModel.searchQuery,
+            isSearchFocused: $isSearchFocused,
+            activeFilters: viewModel.activeFilters,
+            onToggle: { filter in
+                withAnimation(.hooprSnap) { viewModel.toggle(filter) }
+            },
+            onClear: { viewModel.clearSearch() }
+        ) {
             InboxButton(friendService: friendService, squadService: squadService, action: onOpenInbox)
         }
-        .padding(.leading, Self.chromeInset)
-        .padding(.trailing, Spacing.pageMargin)
-    }
-
-    /// One `HooprGlassGroup`, so the chips are rendered as one row of glass
-    /// rather than three pieces sampling the map separately (UI revamp
-    /// Phase 4). Inside the scroll view, because the group has to contain the
-    /// shapes it groups.
-    private var filterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HooprGlassGroup {
-                HStack(spacing: 8) {
-                    ForEach(CourtFilter.allCases) { filter in
-                        GlassChip(
-                            symbolName: filter.symbolName,
-                            label: filter.label,
-                            isActive: viewModel.isActive(filter)
-                        ) {
-                            withAnimation(.hooprSnap) {
-                                viewModel.toggle(filter)
-                            }
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, Self.chromeInset)
-            .padding(.vertical, 6)
-        }
-        // Full width now that the recenter button has moved down to the thumb
-        // zone, so a long row of chips scrolls under the screen edge rather
-        // than stopping short of a control.
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bandHeight = $0 }
+        .animation(.hooprSpring, value: isSearchFocused)
     }
 
     /// The only map control left, and it now floats bottom-right rather than
