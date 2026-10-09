@@ -951,30 +951,27 @@ struct MapTab: View {
             // exactly as it did, and it only moves if you scroll the runs.
             sheetScroll {
                 VStack(alignment: .leading, spacing: 10) {
-                    // The lead — what the card must show whole at `.medium` —
-                    // measured, so the sheet can rest tall enough for it.
-                    VStack(alignment: .leading, spacing: 10) {
+                    // The header and the runs are rows on the sheet, a hairline
+                    // between each (`DividedRows`) — not a bordered box per run
+                    // inside a sheet that is already a surface (design
+                    // critique, 2026-10-09).
+                    DividedRows {
                         cardHeader(court: court)
-                            .padding(.bottom, 4)
+                            .padding(.bottom, Spacing.md)
 
-                        if let first = games.first {
-                            runRow(first)
-                        } else {
+                        if games.isEmpty {
                             noRunsToday
+                                .padding(.vertical, Spacing.md)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .modifier(CardLeadEdge(isLead: true, height: $cardLeadHeight))
                         }
-                    }
-                    .onGeometryChange(for: CGFloat.self) { proxy in
-                        proxy.size.height
-                    } action: { height in
-                        guard abs(height - cardLeadHeight) > 0.5 else { return }
-                        withAnimation(.hooprSpring) {
-                            cardLeadHeight = height
-                        }
-                    }
 
-                    ForEach(games.dropFirst()) { game in
-                        runRow(game)
+                        ForEach(games) { game in
+                            runRow(game)
+                                .modifier(CardLeadEdge(isLead: game.id == games.first?.id, height: $cardLeadHeight))
+                        }
                     }
+                    .coordinateSpace(.named(CardLeadEdge.space))
 
                     CourtBadges(court: court)
                         .padding(.top, 2)
@@ -1125,6 +1122,13 @@ struct MapTab: View {
     /// Two layouts: the action beside the facts, or — when the time, badge and
     /// button can't share a line — the action below at full width, so nothing
     /// has to wrap mid-word to make room for a button.
+    ///
+    /// **A row on the sheet, not a card inside it** (design critique,
+    /// 2026-10-09). It was a bordered box (`cardChrome`) holding a tinted
+    /// "Cancel run" pill, nested inside a sheet that is already a surface: a
+    /// card in a card. Now it is flush with the header's text, separated by
+    /// `DividedRows`' hairline, and a destructive action is quiet red text
+    /// (`runAction`).
     private func runRow(_ game: Game) -> some View {
         let action = viewModel.action(for: game)
         let isPending = viewModel.pendingGameId == game.id
@@ -1148,10 +1152,8 @@ struct MapTab: View {
                 runAction(action, on: game, isPending: isPending, isBlocked: isBlocked, fullWidth: true)
             }
         }
-        .padding(.horizontal, 14)
         .padding(.vertical, Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .cardChrome(cornerRadius: 12)
     }
 
     private func runFacts(_ game: Game) -> some View {
@@ -1203,6 +1205,14 @@ struct MapTab: View {
         }
     }
 
+    /// The run's one action, with the title `LocalRunsViewModel.Action` gives
+    /// it — so VoiceOver reads exactly what the Runs tab's card does.
+    ///
+    /// **Join is a filled button; Leave and Cancel run are quiet red text.**
+    /// Taking something away is the action this row should *not* push, and a
+    /// tinted pill gave it a button's weight beside the facts (design critique,
+    /// 2026-10-09). Text, not a fill — but still a 44pt target, and still
+    /// behind the cancel confirmation.
     @ViewBuilder
     private func runAction(
         _ action: LocalRunsViewModel.Action,
@@ -1212,7 +1222,7 @@ struct MapTab: View {
         fullWidth: Bool
     ) -> some View {
         if action != .none {
-            Button {
+            let button = Button {
                 if action == .cancel {
                     runPendingCancel = game
                 } else {
@@ -1221,6 +1231,22 @@ struct MapTab: View {
             } label: {
                 if isPending {
                     ProgressView()
+                        .tint(action.isDestructive ? Color.hooprRed : nil)
+                        .frame(
+                            minWidth: action.isDestructive ? HooprButtonStyle.minimumTapTarget : nil,
+                            minHeight: action.isDestructive ? HooprButtonStyle.minimumTapTarget : nil
+                        )
+                } else if action.isDestructive {
+                    Text(action.title)
+                        .hooprType(.body)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.hooprRed)
+                        .lineLimit(1)
+                        .frame(
+                            minWidth: HooprButtonStyle.minimumTapTarget,
+                            minHeight: HooprButtonStyle.minimumTapTarget
+                        )
+                        .contentShape(Rectangle())
                 } else {
                     // One line: `ViewThatFits` in `runRow` moves the button
                     // below the facts rather than let its label wrap.
@@ -1228,11 +1254,14 @@ struct MapTab: View {
                         .lineLimit(1)
                 }
             }
-            .buttonStyle(.hooprFilled(
-                .compact,
-                role: action.isDestructive ? .destructive : .primary,
-                fillsWidth: fullWidth
-            ))
+
+            Group {
+                if action.isDestructive {
+                    button.buttonStyle(.hooprPress)
+                } else {
+                    button.buttonStyle(.hooprFilled(.compact, fillsWidth: fullWidth))
+                }
+            }
             .disabled(isPending || isBlocked)
             .opacity(isBlocked ? 0.5 : 1)
         }
@@ -1408,6 +1437,33 @@ struct MapTab: View {
         return view.subviews.lazy.compactMap { tabBar(in: $0) }.first
     }
     #endif
+}
+
+/// Reports where the court card's lead ends — the header and the first run,
+/// or "No runs here today" — so the sheet can rest tall enough to show it
+/// whole (`MapTab.cardFittedHeight`, `SheetGeometry.fittedMediumHeight`).
+///
+/// The lead's bottom edge in the rows' own coordinate space, rather than one
+/// view's height: the header and the runs are siblings in one `DividedRows`,
+/// so the hairline between them is counted where it is drawn. The space moves
+/// with the scroll, so scrolling the runs doesn't change the answer.
+private struct CardLeadEdge: ViewModifier {
+    static let space = "courtCardRows"
+
+    let isLead: Bool
+    @Binding var height: CGFloat
+
+    func body(content: Content) -> some View {
+        let space = Self.space
+        content.onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.frame(in: .named(space)).maxY
+        } action: { maxY in
+            guard isLead, abs(maxY - height) > 0.5 else { return }
+            withAnimation(.hooprSpring) {
+                height = maxY
+            }
+        }
+    }
 }
 
 #Preview {

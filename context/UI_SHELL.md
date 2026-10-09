@@ -1368,7 +1368,9 @@ already drifted. A new screen picks from these rather than drawing its own:
   passes content only; type, colour, padding, height, shape, target and press
   are the style's. It draws no disabled state, because the app has two:
   *pending* keeps full colour with a spinner, *blocked* is dimmed by the caller.
-  Plain, unfilled buttons stay on `.hooprPress`.
+  Plain, unfilled buttons stay on `.hooprPress` — the map card's Leave and
+  Cancel run among them since 2026-10-09: quiet `hooprRed` text in a 44pt
+  target rather than a destructive pill, inside a row that is no longer a card.
 - **`HooprFieldChrome`** (`.hooprFieldChrome(isFocused:)`) — a form's text
   field: `hooprFill`, a 3:1 edge, a 2pt focus ring. Owns
   `HooprField.cornerRadius`, which the `form` button reads. **Every text field
@@ -1393,9 +1395,10 @@ already drifted. A new screen picks from these rather than drawing its own:
   `profile` 72 (the base the profile scales from), named like `SquadCrest.Size`.
 - **`CardChrome`** needed no folding: the two drifted copies the Phase 0 audit
   found (`profileRowChrome`, `FriendRow`'s inline card) went with their Phase 2b
-  redesigns. Its call sites: `GameCard`, the map's run rows,
-  `MatchmakingCard`'s matched state, Home's "Tonight nearby" preview, and the
-  bezel of Home's stats scoreboard. `CardChrome.cornerRadius` is what the
+  redesigns. Its call sites: `GameCard`, `MatchmakingCard`'s matched state,
+  Home's "Tonight nearby" preview, and the bezel of Home's stats scoreboard.
+  (The map's run rows were one until 2026-10-09; they are `DividedRows` on the
+  sheet now — see `MAP_LAYER.md`.) `CardChrome.cornerRadius` is what the
   last two clip their own content to.
 - **Section labels** are `.hooprType(.label)` everywhere now; the last two hand
   spellings (the map's search header, the match card's "Next match") went.

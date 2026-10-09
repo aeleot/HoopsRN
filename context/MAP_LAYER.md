@@ -644,9 +644,20 @@ font size. At `.accessibility3` "East End Park" reads "East End".
 **Each run row reads like a run on the Runs board** — time first as the row's
 rank, spots left as a number, the same HOSTING / WAITLIST / FULL badge
 (`RunStatus`'s one priority ladder, drawn by `HooprBadge`) and the same
-waitlist-doesn't-promote note, with a compact `HooprButtonStyle` action —
-the row's action button now has the 44pt tap target it lacked. It stays a
-compact row rather than a `GameCard` because every run here is at *this* court.
+waitlist-doesn't-promote note. It stays a compact row rather than a `GameCard`
+because every run here is at *this* court.
+
+**A row on the sheet, not a card inside it** (design critique, 2026-10-09). The
+row was a bordered box (`cardChrome`) holding a tinted "Cancel run" pill,
+inside a sheet that is already a surface. Now the header and the runs are
+`DividedRows` — a `hooprBorder` hairline between each, the first one under the
+header — and a run's text sits flush with the court's name. **Join and Join
+waitlist stay compact filled buttons; Leave and Cancel run are quiet red text**
+(`hooprRed`, `body` semibold, on `.hooprPress`) in a 44pt target, on the same
+line as the facts until `ViewThatFits` has to drop the action below them. The
+title is still `LocalRunsViewModel.Action.title` and Cancel still asks first.
+The row lives in `MapTab.runRow(_:)`; `CourtGameRow` is the **Now** list's row
+and was not touched.
 
 **There is no address row, deliberately.** In this dataset `address` is the city
 and state — "Durham, NC" — which the metadata line above it already says. It's
@@ -781,9 +792,10 @@ nearby-list row — already open this card, so one button serves both. See
   puts the target under the sheet.
 - The court card's `.medium` is **fitted, not a fraction** — don't hard-code a
   height budget for the card again; the ~155pt the card's comments once assumed
-  went stale the moment the container shrank. If you add something to the card
-  that must be seen without scrolling, put it inside the measured lead in
-  `courtCard`.
+  went stale the moment the container shrank. The lead is measured as the first
+  run's (or "No runs here today"'s) bottom edge in the rows' own coordinate
+  space (`CardLeadEdge`), so anything above it in the card's `DividedRows` is
+  inside the lead; something that must be seen without scrolling goes there.
 - The band's layout is **derived from `SheetState`**
   (`MapBandLayout.layout(for:isSearching:)`) — never a second piece of state
   that a new path into `.detail` could forget to set.
