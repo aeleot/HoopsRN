@@ -208,12 +208,13 @@ final class HomeViewModelTests: XCTestCase {
     private func queuedRun(
         _ id: String,
         at scheduledTime: Date,
-        status: Game.Status = .open
+        status: Game.Status = .open,
+        courtId: String = "court-a"
     ) -> Game {
         Game(
             id: id,
             hostId: "host",
-            courtId: "court-a",
+            courtId: courtId,
             scheduledTime: scheduledTime,
             isPublic: false,
             maxPlayers: 10,
@@ -253,6 +254,95 @@ final class HomeViewModelTests: XCTestCase {
         let now = Date()
         let underway = queuedRun("underway", at: now.addingTimeInterval(-30 * 60))
         XCTAssertEqual(HomeViewModel.nextRun(from: [underway], at: now)?.id, "underway")
+    }
+
+    // MARK: - "Tonight nearby" without the hero's court
+
+    /// Noon today, so "later today" and "tomorrow" never straddle a midnight
+    /// the test happened to run across.
+    private var noon: Date {
+        Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: Date())!
+    }
+
+    private func hot(_ id: String, _ count: Int) -> HomeViewModel.HotCourt {
+        HomeViewModel.HotCourt(court: court(id, name: id.capitalized), gameCount: count)
+    }
+
+    /// The hero's run: tonight at Long Meadow, unless told otherwise.
+    private func booked(at courtId: String = "long-meadow", hoursFromNoon: Double = 5.75) -> Game {
+        queuedRun("booked", at: noon.addingTimeInterval(hoursFromNoon * 60 * 60), courtId: courtId)
+    }
+
+    /// **The critique's repeat.** The hero says Long Meadow tonight; its only
+    /// run today is that one, so the list doesn't say it again — and the
+    /// spare ranked court takes its row.
+    func testTheBookedCourtIsDroppedWhenItsOnlyRunTodayIsTheBookedOne() {
+        let ranked = [hot("alpha", 3), hot("long-meadow", 1), hot("bravo", 1), hot("charlie", 1)]
+
+        let nearby = HomeViewModel.excludingBookedCourt(from: ranked, bookedRun: booked(), limit: 3, now: noon)
+
+        XCTAssertEqual(nearby.map(\.court.id), ["alpha", "bravo", "charlie"])
+    }
+
+    /// Other runs at the booked court today are news the hero doesn't carry.
+    func testTheBookedCourtStaysWhenItHasOtherRunsToday() {
+        let ranked = [hot("long-meadow", 2), hot("alpha", 1)]
+
+        let nearby = HomeViewModel.excludingBookedCourt(from: ranked, bookedRun: booked(), limit: 3, now: noon)
+
+        XCTAssertEqual(nearby.map(\.court.id), ["long-meadow", "alpha"])
+    }
+
+    /// "Tonight nearby" is about today. A hero reading "Tomorrow" repeats
+    /// nothing in it, so nothing is dropped — and only `limit` rows show.
+    func testNothingIsDroppedWhenTheBookedRunIsNotToday() {
+        let ranked = [hot("long-meadow", 1), hot("alpha", 1), hot("bravo", 1), hot("charlie", 1)]
+        let tomorrow = booked(hoursFromNoon: 24)
+
+        let nearby = HomeViewModel.excludingBookedCourt(from: ranked, bookedRun: tomorrow, limit: 3, now: noon)
+
+        XCTAssertEqual(nearby.map(\.court.id), ["long-meadow", "alpha", "bravo"])
+    }
+
+    /// No hero, nothing to repeat.
+    func testNothingIsDroppedWithoutABookedRun() {
+        let ranked = [hot("long-meadow", 1), hot("alpha", 1)]
+
+        let nearby = HomeViewModel.excludingBookedCourt(from: ranked, bookedRun: nil, limit: 3, now: noon)
+
+        XCTAssertEqual(nearby.map(\.court.id), ["long-meadow", "alpha"])
+    }
+
+    /// **The booked court was the whole list: it stays.** Dropping it would
+    /// empty the list, and an empty list switches the section to its map
+    /// preview — "Nothing on nearby yet" — beside a hero saying you're playing
+    /// tonight. The live account on 2026-10-09 is exactly this case.
+    func testTheListIsKeptWhenTheBookedCourtIsAllOfIt() {
+        let ranked = [hot("long-meadow", 1)]
+
+        let nearby = HomeViewModel.excludingBookedCourt(from: ranked, bookedRun: booked(), limit: 3, now: noon)
+
+        XCTAssertEqual(nearby.map(\.court.id), ["long-meadow"])
+        XCTAssertEqual(
+            HomeViewModel.nearbySection(hasLoaded: true, hasHotCourts: !nearby.isEmpty, hasError: false, isRecovering: false),
+            .list
+        )
+    }
+
+    /// Only the booked court can go: another court down to one run today is
+    /// still a place to play.
+    func testOnlyTheBookedCourtIsEverDropped() {
+        let ranked = [hot("alpha", 1), hot("long-meadow", 1), hot("bravo", 1)]
+
+        let nearby = HomeViewModel.excludingBookedCourt(from: ranked, bookedRun: booked(), limit: 3, now: noon)
+
+        XCTAssertEqual(nearby.map(\.court.id), ["alpha", "bravo"])
+    }
+
+    func testAZeroLimitShowsNothing() {
+        XCTAssertTrue(
+            HomeViewModel.excludingBookedCourt(from: [hot("alpha", 1)], bookedRun: nil, limit: 0, now: noon).isEmpty
+        )
     }
 
     // MARK: - Ranking

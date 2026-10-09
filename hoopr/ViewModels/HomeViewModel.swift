@@ -75,6 +75,8 @@ final class HomeViewModel: ObservableObject {
     /// this needs, and a second struct with the same three fields would drift.
     @Published private(set) var nextRun: LocalRunsViewModel.Listing?
 
+    /// "Tonight nearby": today's busiest courts, less the one the hero is
+    /// already about (`excludingBookedCourt`).
     @Published private(set) var hotCourts: [HotCourt] = []
 
     /// The courts closest to you, nearest first — the dots on the map preview
@@ -449,6 +451,48 @@ final class HomeViewModel: ObservableObject {
             .map { $0 }
     }
 
+    /// "Tonight nearby" without the court the hero is already about.
+    ///
+    /// **The design critique's repeat (2026-10-09).** Home's hero said
+    /// "Tonight 5:45 PM, Long Meadow Park #1", and the list under it led with
+    /// Long Meadow Park #1, "1 today" — the same run, told twice. When the
+    /// booked run is today, the court whose *only* run today is that one is
+    /// dropped. A court with other runs today stays: those are news.
+    ///
+    /// - **Its count is what says "only".** `gameCount` is today's visible runs
+    ///   at the court (`MapViewModel.gamesByCourt`), read from the same
+    ///   `queuedGames` the hero is chosen from, with the same `isVisible(at:)`
+    ///   rule — so a booked run that is today is always one of them, and a
+    ///   count of 1 is the booked run alone.
+    /// - **Not today, nothing dropped.** "Tonight nearby" is about today; a
+    ///   hero reading "Tomorrow" repeats nothing in it.
+    /// - **Never empty because of this.** If the booked court was the whole
+    ///   list, the list stays as it was: an empty list switches the section to
+    ///   its map preview, "Nothing on nearby yet", which would say the opposite
+    ///   of what is true.
+    ///
+    /// `ranked` comes from `rankHotCourts` with room for one more than `limit`,
+    /// so a dropped court is backfilled by the next busiest rather than leaving
+    /// the list a row short. `nonisolated static` and pure, like the ranking.
+    nonisolated static func excludingBookedCourt(
+        from ranked: [HotCourt],
+        bookedRun: Game?,
+        limit: Int,
+        now: Date = Date()
+    ) -> [HotCourt] {
+        guard limit > 0 else { return [] }
+        guard let bookedRun,
+              Calendar.current.isDate(bookedRun.scheduledTime, inSameDayAs: now)
+        else {
+            return Array(ranked.prefix(limit))
+        }
+
+        let others = ranked.filter { hot in
+            !(hot.court.id == bookedRun.courtId && hot.gameCount == 1)
+        }
+        return Array((others.isEmpty ? ranked : others).prefix(limit))
+    }
+
     /// The `limit` courts closest to `origin`, nearest first.
     ///
     /// The same shape and the same tie-break as `rankHotCourts`: ties break on
@@ -620,9 +664,17 @@ final class HomeViewModel: ObservableObject {
             published: published ?? gameService.publicGames
         )
 
-        hotCourts = Self.rankHotCourts(
+        // One spare, for the booked court to be dropped from without leaving
+        // the list a row short. Reads `nextRun`, so every caller rebuilds that
+        // first.
+        let ranked = Self.rankHotCourts(
             counts: counts,
             courts: courtService.courts,
+            limit: Self.hotCourtLimit + 1
+        )
+        hotCourts = Self.excludingBookedCourt(
+            from: ranked,
+            bookedRun: nextRun?.game,
             limit: Self.hotCourtLimit
         )
     }

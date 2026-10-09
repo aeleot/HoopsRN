@@ -249,6 +249,15 @@ Below the band, in order (the user's, 2026-09-23):
   with `CourtHeat.color(forGameCount:)` so a court's colour means the same thing
   here as on the map. Tapping one opens the map with that court selected.
   **With nothing on anywhere, a map preview** (below) instead.
+- **It doesn't repeat the band** (design critique, 2026-10-09). With a run
+  booked *today*, the court whose only run today is that one is left out — the
+  band already says it — and the next busiest court takes its row
+  (`HomeViewModel.excludingBookedCourt`). A booked court with other runs today
+  stays, and a booked run on another day drops nothing. **If the booked court
+  was the whole list, the list stays as it was**: emptied, the section would
+  switch to the preview, "Nothing on nearby yet", beside a band saying you're
+  playing tonight. The live account on 2026-10-09 was exactly that case, so it
+  still shows its one row.
 
 **The empty "Tonight nearby" is a live map, not a sentence** (2026-10-05).
 `TonightNearbyPreview` (`Views/Tabs/`) replaced "Nothing scheduled anywhere
@@ -468,7 +477,12 @@ Read them as a personal activity summary, not as a competitive claim.
 `HomeViewModel.rankHotCourts` is `nonisolated static` and pure, pinned by
 `HomeViewModelTests`. Its tie-break on `displayName` is load-bearing: a
 `[String: Int]` has no stable iteration order, so without it the list reshuffles
-between rebuilds while showing identical numbers.
+between rebuilds while showing identical numbers. It ranks one court more than
+the list shows, and `excludingBookedCourt` — pure, beside it, and pinned in
+the same suite — takes the list down to three. "Only run today" is read off the
+court's count: it comes from the same `queuedGames` and the same
+`isVisible(at:)` rule as the band's run, so a booked run that is today is
+always one of the runs counted.
 
 ## `LocalRunsTab`
 
