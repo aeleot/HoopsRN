@@ -21,12 +21,18 @@ import assert from 'node:assert/strict';
 
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import {
+  collection,
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 
 import {
@@ -91,6 +97,72 @@ test('a private run is readable only by the people on it', async () => {
   // (`context/gaps/FRIENDS.md`).
   const stranger = testEnv.authenticatedContext('stranger').firestore();
   await assertFails(getDoc(doc(stranger, 'games', 'game-private')));
+});
+
+// The Home calendar's month read (`GameService.runs(in:)`): `playerIds
+// array-contains uid`, `scheduledTime >= monthStart`, `< nextMonthStart`,
+// ordered, limited. A *query* is held to a stricter standard than a document
+// read — the rules engine has to prove, from the query's constraints alone,
+// that every document it could return is one the read rule admits. So this is
+// a different question from the test above, and it needs its own answer: the
+// `array-contains` on the caller's own uid is the only thing standing between
+// this query and a private run it isn't on.
+function monthQuery(db, uid, from, to) {
+  return getDocs(
+    query(
+      collection(db, 'games'),
+      where('playerIds', 'array-contains', uid),
+      where('scheduledTime', '>=', from),
+      where('scheduledTime', '<', to),
+      orderBy('scheduledTime'),
+      limit(200)
+    )
+  );
+}
+
+// The seeded runs tip off an hour from now. A window around now holds them
+// wherever in a month the suite happens to run; one that opens after them
+// holds nothing, which is how the range is shown to be doing work.
+const MONTH_FROM = () => secondsFromNow(-60 * 60 * 24);
+const MONTH_TO = () => secondsFromNow(60 * 60 * 24 * 30);
+
+test('a member can read their month, private runs included', async () => {
+  const host = testEnv.authenticatedContext('host').firestore();
+  const snapshot = await assertSucceeds(monthQuery(host, 'host', MONTH_FROM(), MONTH_TO()));
+
+  // The public run and the private one both list the host, so both come back.
+  assert.deepEqual(snapshot.docs.map((d) => d.id).sort(), ['game-private', 'game-public']);
+
+  // A window that opens after the runs tip off returns none of them.
+  const later = await assertSucceeds(
+    monthQuery(host, 'host', secondsFromNow(60 * 60 * 3), MONTH_TO())
+  );
+  assert.equal(later.size, 0);
+});
+
+test('a stranger cannot read someone else’s month, and their own comes back empty', async () => {
+  const stranger = testEnv.authenticatedContext('stranger').firestore();
+
+  // The same query shape, aimed at the host's uid: the engine cannot prove
+  // that every match is public or theirs, and the private run says it isn't.
+  await assertFails(monthQuery(stranger, 'host', MONTH_FROM(), MONTH_TO()));
+
+  // Aimed at themselves it is admitted — and finds nothing, not the private run.
+  const own = await assertSucceeds(monthQuery(stranger, 'stranger', MONTH_FROM(), MONTH_TO()));
+  assert.equal(own.size, 0);
+});
+
+test('a waitlisted account’s month is empty: the query is on the roster, not the queue', async () => {
+  // The read rule admits `queuedPlayerIds`, so this query is allowed — it just
+  // doesn't match the run `waiting` is queued for. Waitlisted runs get no dot.
+  const waiting = testEnv.authenticatedContext('waiting').firestore();
+  const snapshot = await assertSucceeds(monthQuery(waiting, 'waiting', MONTH_FROM(), MONTH_TO()));
+  assert.equal(snapshot.size, 0);
+});
+
+test('a month read is refused when signed out', async () => {
+  const signedOut = testEnv.unauthenticatedContext().firestore();
+  await assertFails(monthQuery(signedOut, 'host', MONTH_FROM(), MONTH_TO()));
 });
 
 // MARK: - Create

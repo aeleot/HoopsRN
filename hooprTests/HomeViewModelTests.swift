@@ -1,5 +1,7 @@
-import XCTest
+import CoreLocation
+import MapKit
 import UIKit
+import XCTest
 @testable import hoopr
 
 /// Pins `HomeViewModel.rankHotCourts`, the one piece of derived logic on the
@@ -18,12 +20,18 @@ final class HomeViewModelTests: XCTestCase {
 
     // MARK: - Fixtures
 
-    private func court(_ id: String, name: String, city: String = "Durham") -> Court {
+    private func court(
+        _ id: String,
+        name: String,
+        city: String = "Durham",
+        latitude: Double = 35.99,
+        longitude: Double = -78.90
+    ) -> Court {
         Court(
             id: id,
             name: name,
-            latitude: 35.99,
-            longitude: -78.90,
+            latitude: latitude,
+            longitude: longitude,
             address: "1 Test Way",
             city: city,
             hoops: 2,
@@ -36,72 +44,163 @@ final class HomeViewModelTests: XCTestCase {
         )
     }
 
-    // MARK: - The stats card
+    // MARK: - The stats scoreboard
 
-    /// "1 wk", not "1 wks" — which is what the card said before 2026-09-22.
-    func testTheStreakIsSingularAtOneWeek() {
-        XCTAssertEqual(StatsCard.streakText(weeks: 1), "1 wk")
-        XCTAssertEqual(StatsCard.streakText(weeks: 3), "3 wks")
-        XCTAssertEqual(StatsCard.streakText(weeks: 0), "0 wks")
-    }
-
-    /// VoiceOver reads "wk" as letters, so the spoken form spells it out.
-    func testTheSpokenStreakSpellsOutWeeks() {
-        XCTAssertEqual(StatsCard.spokenStreak(weeks: 1), "1 week streak")
-        XCTAssertEqual(StatsCard.spokenStreak(weeks: 4), "4 week streak")
-    }
-
-    /// The three stats, in the order and with the icons the card has always
-    /// had — the redesign briefly cut them to a sentence, and the user noticed
-    /// the icons were gone.
-    @MainActor
-    func testTheCardCarriesItsThreeStatsWithTheirIcons() {
-        let card = StatsCard(completedCount: 2, participationStreak: 1, lastCompletedText: "Yesterday")
-
-        XCTAssertEqual(card.stats.map(\.label), ["Runs", "Streak", "Last Run"])
-        XCTAssertEqual(card.stats.map(\.value), ["2", "1 wk", "Yesterday"])
-        XCTAssertEqual(card.stats.map(\.symbol), ["basketball.fill", "flame.fill", "clock.fill"])
-        XCTAssertEqual(card.stats.map(\.spoken), ["2 runs", "1 week streak", "last run yesterday"])
-    }
-
-    // MARK: - The card cannot break mid-word
-
-    /// **The row is used wherever it fits, which is up to `.xxxLarge`.** The
-    /// old card gave each stat an equal third — 93pt at the default size, when
-    /// "Yesterday" needs 92, and 116 one step up — which is how it came to
-    /// break "Last / Run" mid-word. The columns now hug their content, so the
-    /// question is only whether the *sum* fits.
-    func testTheStatsRowFitsThroughTheLargestNonAccessibilitySize() {
-        for category in [UIContentSizeCategory.large, .extraLarge, .extraExtraLarge, .extraExtraExtraLarge] {
-            XCTAssertLessThanOrEqual(
-                StatsCardMetrics.rowWidth(at: category), StatsCardMetrics.innerWidth,
-                "the row should still fit at \(category.rawValue)"
-            )
-        }
-    }
-
-    /// And from the first accessibility size it can't, so `ViewThatFits`
-    /// stacks it. If this ever stops being true the stack is unreachable, and
-    /// the only thing left guarding the words is luck.
-    func testTheStatsCardStacksAtAccessibilitySizes() {
-        XCTAssertGreaterThan(
-            StatsCardMetrics.rowWidth(at: .accessibilityMedium), StatsCardMetrics.innerWidth
+    private func squad(named name: String = "Hornets") -> Squad {
+        Squad(
+            id: "squad-1",
+            name: name,
+            nameLower: name.lowercased(),
+            leaderId: "leader",
+            memberIds: ["leader"],
+            format: .threeVThree,
+            iconKey: "basketball.fill",
+            colorKey: "orange",
+            region: "durham",
+            createdAt: nil,
+            updatedAt: nil
         )
     }
 
-    /// In the stack each value has the card's whole width, and even the widest
-    /// one at the largest text size fits it on one line — so there is no size
-    /// at which a stat has to break inside a word.
-    func testEveryStatFitsOnOneLineInTheStackAtEverySize() {
-        for category in [UIContentSizeCategory.accessibilityExtraLarge, .accessibilityExtraExtraExtraLarge] {
-            for column in StatsCardMetrics.worstCase {
+    private func scoreboard(
+        completed: Int = 12,
+        thisWeek: Int = 2,
+        streak: Int = 3,
+        last: String = "Yesterday",
+        squad: Squad? = nil,
+        wins: Int = 4,
+        losses: Int = 1
+    ) -> [HomeViewModel.ScoreboardStat] {
+        HomeViewModel.scoreboardStats(
+            completedCount: completed,
+            runsThisWeek: thisWeek,
+            streak: streak,
+            lastCompletedText: last,
+            squadStanding: squad.map {
+                HomeViewModel.SquadStanding(squad: $0, record: SeasonGame.Record(wins: wins, losses: losses))
+            }
+        )
+    }
+
+    /// The panels take turns in this order — this week first, because it is
+    /// the one that changes — and each says what it is, its number and its unit.
+    func testTheScoreboardsRunPanelsInOrder() {
+        let stats = scoreboard()
+
+        XCTAssertEqual(stats.map(\.kind), [.thisWeek, .streak, .total, .lastRun])
+        XCTAssertEqual(stats.map(\.label), ["This week", "Streak", "Total", "Last run"])
+        XCTAssertEqual(stats.map(\.value), ["2", "3", "12", "Yesterday"])
+        XCTAssertEqual(stats.map(\.unit), ["runs", "wks", "runs", nil])
+    }
+
+    /// A squad's record slots in second, with the squad's name as its label.
+    func testASquadsRecordComesSecond() {
+        let stats = scoreboard(squad: squad())
+
+        XCTAssertEqual(stats.map(\.kind), [.thisWeek, .squad, .streak, .total, .lastRun])
+        let record = stats[1]
+        XCTAssertEqual(record.label, "Hornets")
+        XCTAssertEqual(record.value, "4–1")
+        XCTAssertNil(record.unit)
+        XCTAssertEqual(record.standing?.record, SeasonGame.Record(wins: 4, losses: 1))
+    }
+
+    /// No runs yet: the run panels would be zeros and a dash, so they're left
+    /// out and a squad shows alone. Neither: nothing, and Home hides the board.
+    func testWithNoRunsOnlyASquadShowsAndWithNeitherNothingDoes() {
+        XCTAssertEqual(scoreboard(completed: 0, thisWeek: 0, squad: squad()).map(\.kind), [.squad])
+        XCTAssertTrue(scoreboard(completed: 0, thisWeek: 0).isEmpty)
+    }
+
+    /// "1 run", "1 wk" — the old card once said "1 wks".
+    func testUnitsAreSingularAtOne() {
+        let stats = scoreboard(completed: 1, thisWeek: 1, streak: 1)
+
+        XCTAssertEqual(stats.map(\.unit), ["run", "wk", "run", nil])
+    }
+
+    /// VoiceOver reads the board as sentences, never as abbreviations.
+    func testEveryPanelSpeaksAsASentence() {
+        let stats = scoreboard(squad: squad())
+
+        XCTAssertEqual(stats.map(\.spoken), [
+            "2 runs this week",
+            "Hornets, 4 wins, 1 loss this season",
+            "3 week streak",
+            "12 runs in all",
+            "last run yesterday",
+        ])
+        XCTAssertEqual(scoreboard(completed: 1, thisWeek: 1, streak: 1).map(\.spoken).prefix(3), [
+            "1 run this week", "1 week streak", "1 run in all",
+        ])
+    }
+
+    /// **Two tiers, the user's call (2026-10-05).** The confirmed record takes
+    /// the numeral the band uses for it; the self-reported counts stop a step
+    /// below, never at the record's size.
+    @MainActor
+    func testTheRecordTakesTheNumeralAndTheRunCountsATierBelow() {
+        XCTAssertEqual(StatsScoreboard.role(for: .squad), .numeral)
+        for kind in [HomeViewModel.ScoreboardStat.Kind.thisWeek, .streak, .total, .lastRun] {
+            XCTAssertEqual(StatsScoreboard.role(for: kind), .title, "\(kind)")
+        }
+    }
+
+    /// The stats card's icons stay on the board's labels; the squad shows its
+    /// crest instead.
+    @MainActor
+    func testEveryRunPanelKeepsItsIcon() {
+        XCTAssertEqual(StatsScoreboard.symbol(for: .streak), "flame.fill")
+        XCTAssertEqual(StatsScoreboard.symbol(for: .total), "basketball.fill")
+        XCTAssertEqual(StatsScoreboard.symbol(for: .lastRun), "clock.fill")
+        XCTAssertNotNil(StatsScoreboard.symbol(for: .thisWeek))
+        XCTAssertNil(StatsScoreboard.symbol(for: .squad))
+    }
+
+    // MARK: - The scoreboard cannot break a value
+
+    /// Every size, smallest to largest.
+    private let everySize: [UIContentSizeCategory] = [
+        .extraSmall, .small, .medium, .large, .extraLarge, .extraExtraLarge, .extraExtraExtraLarge,
+        .accessibilityMedium, .accessibilityLarge, .accessibilityExtraLarge,
+        .accessibilityExtraExtraLarge, .accessibilityExtraExtraExtraLarge,
+    ]
+
+    /// **Every value fits one line of the screen**, so a number never breaks
+    /// and "Yesterday" never becomes "Yester / day". The panel is a single line
+    /// by design; this is what keeps that honest.
+    ///
+    /// At Home's full width at every size, the largest accessibility size
+    /// included — it is what the board gets once the calendar tile goes under
+    /// it. Beside the tile at every size the tile is beside it, which has to
+    /// include the default one.
+    @MainActor
+    func testEveryScoreboardValueFitsOnOneLineAtEverySize() {
+        let besideTile = HomeHeroMetrics.contentWidth - Spacing.md - RunCalendarTileMetrics.width
+
+        func assertFits(cardWidth: CGFloat, _ category: UIContentSizeCategory) {
+            let inner = StatsScoreboardMetrics.innerWidth(cardWidth: cardWidth)
+            for line in StatsScoreboardMetrics.worstCase {
+                let width = StatsScoreboardMetrics.lineWidth(
+                    value: line.value,
+                    unit: line.unit,
+                    role: StatsScoreboard.role(for: line.kind),
+                    at: category
+                )
                 XCTAssertLessThanOrEqual(
-                    StatsCardMetrics.width(of: column.value, role: .headline, at: category),
-                    StatsCardMetrics.innerWidth,
-                    "\"\(column.value)\" would have to break at \(category.rawValue)"
+                    width, inner,
+                    "\"\(line.value)\" would break at \(category.rawValue): \(width)pt in \(inner)pt"
                 )
             }
         }
+
+        for category in everySize {
+            assertFits(cardWidth: HomeHeroMetrics.contentWidth, category)
+            if HomeStatsLayout.isSideBySide(at: category) {
+                assertFits(cardWidth: besideTile, category)
+            }
+        }
+        XCTAssertTrue(HomeStatsLayout.isSideBySide(at: .large), "the default size has the tile beside the board")
     }
 
     // MARK: - Choosing the next run
@@ -280,6 +379,163 @@ final class HomeViewModelTests: XCTestCase {
     /// deliberate edit here rather than a silent layout shift.
     func testHotCourtLimitIsThree() {
         XCTAssertEqual(HomeViewModel.hotCourtLimit, 3)
+    }
+
+    // MARK: - Nearest courts (the empty state's map preview)
+
+    /// Downtown Durham, the fallback origin (`LocationService.defaultLocation`).
+    /// A degree of latitude is ~111km, so 0.01 is about 1.1km — far enough
+    /// apart that the order is unambiguous.
+    private let origin = CLLocationCoordinate2D(latitude: 35.9940, longitude: -78.8986)
+
+    private func court(_ id: String, name: String, northOfOriginBy degrees: Double) -> Court {
+        court(id, name: name, latitude: origin.latitude + degrees, longitude: origin.longitude)
+    }
+
+    func testNearestCourtsAreOrderedByDistance() {
+        let courts = [
+            court("far", name: "Alpha", northOfOriginBy: 0.03),
+            court("near", name: "Bravo", northOfOriginBy: 0.01),
+            court("middle", name: "Charlie", northOfOriginBy: -0.02),
+        ]
+
+        let nearest = HomeViewModel.nearestCourts(to: origin, in: courts, limit: 3)
+
+        XCTAssertEqual(nearest.map(\.id), ["near", "middle", "far"])
+    }
+
+    /// Two courts at one distance — two hoops at the same park — must not swap
+    /// places between rebuilds, or the preview's dots would move under nothing.
+    func testNearestCourtsBreakTiesOnDisplayName() {
+        let courts = [
+            court("z", name: "Zulu", northOfOriginBy: 0.01),
+            court("a", name: "Alpha", northOfOriginBy: 0.01),
+            court("m", name: "Mike", northOfOriginBy: 0.01),
+        ]
+
+        XCTAssertEqual(
+            HomeViewModel.nearestCourts(to: origin, in: courts, limit: 3).map(\.id),
+            ["a", "m", "z"]
+        )
+        XCTAssertEqual(
+            HomeViewModel.nearestCourts(to: origin, in: courts.reversed(), limit: 3).map(\.id),
+            ["a", "m", "z"]
+        )
+    }
+
+    /// The tie-break is the name the user would see, as `rankHotCourts`' is.
+    func testNearestCourtsTieBreakUsesDisplayNameNotStoredName() {
+        let courts = [
+            court("second", name: "Basketball Court Zulu", northOfOriginBy: 0.01),
+            court("first", name: "Basketball Court Alpha", northOfOriginBy: 0.01),
+        ]
+
+        let nearest = HomeViewModel.nearestCourts(to: origin, in: courts, limit: 2)
+
+        XCTAssertEqual(nearest.map(\.displayName), courts.map(\.displayName).sorted())
+    }
+
+    func testNearestCourtsHonourTheLimit() {
+        let courts = (1...10).map { court("c\($0)", name: "Court \($0)", northOfOriginBy: Double($0) * 0.01) }
+
+        let nearest = HomeViewModel.nearestCourts(to: origin, in: courts, limit: 5)
+
+        XCTAssertEqual(nearest.map(\.id), ["c1", "c2", "c3", "c4", "c5"])
+    }
+
+    func testNearestCourtsWithANonPositiveLimitYieldNothing() {
+        let courts = [court("a", name: "Alpha", northOfOriginBy: 0.01)]
+
+        XCTAssertTrue(HomeViewModel.nearestCourts(to: origin, in: courts, limit: 0).isEmpty)
+        XCTAssertTrue(HomeViewModel.nearestCourts(to: origin, in: courts, limit: -1).isEmpty)
+    }
+
+    func testNearestCourtsOfAnEmptyDatasetAreNothing() {
+        XCTAssertTrue(HomeViewModel.nearestCourts(to: origin, in: [], limit: 5).isEmpty)
+    }
+
+    /// Pinned like `hotCourtLimit`, so a change is a deliberate edit here.
+    @MainActor
+    func testPreviewCourtLimitIsFive() {
+        XCTAssertEqual(HomeViewModel.previewCourtLimit, 5)
+    }
+
+    // MARK: - Which "Tonight nearby" shows
+
+    func testTheMapPreviewShowsOnlyWhenLoadedEmptyAndHealthy() {
+        XCTAssertEqual(
+            HomeViewModel.nearbySection(hasLoaded: true, hasHotCourts: false, hasError: false, isRecovering: false),
+            .preview
+        )
+        XCTAssertEqual(
+            HomeViewModel.nearbySection(hasLoaded: true, hasHotCourts: true, hasError: false, isRecovering: false),
+            .list
+        )
+        XCTAssertEqual(
+            HomeViewModel.nearbySection(hasLoaded: false, hasHotCourts: false, hasError: false, isRecovering: false),
+            .loading
+        )
+    }
+
+    /// With the listener down an empty list means "couldn't look", so the
+    /// empty state — which says "nothing's on" — must not show.
+    func testAFailedOrRecoveringListenerIsNeverTheEmptyState() {
+        for hasLoaded in [false, true] {
+            XCTAssertEqual(
+                HomeViewModel.nearbySection(hasLoaded: hasLoaded, hasHotCourts: false, hasError: true, isRecovering: false),
+                .unavailable
+            )
+            XCTAssertEqual(
+                HomeViewModel.nearbySection(hasLoaded: hasLoaded, hasHotCourts: false, hasError: false, isRecovering: true),
+                .unavailable
+            )
+        }
+    }
+
+    /// A list already on screen stays through a failure: stale, not wrong.
+    func testAListAlreadyShownSurvivesAFailure() {
+        XCTAssertEqual(
+            HomeViewModel.nearbySection(hasLoaded: true, hasHotCourts: true, hasError: true, isRecovering: false),
+            .list
+        )
+        XCTAssertEqual(
+            HomeViewModel.nearbySection(hasLoaded: true, hasHotCourts: true, hasError: false, isRecovering: true),
+            .list
+        )
+    }
+
+    // MARK: - The preview's framing
+
+    /// One court next door still frames a neighbourhood, not a street.
+    func testThePreviewNeverFramesTighterThanTheMinimumSpan() {
+        let region = NearbyPreviewFraming.region(
+            around: origin,
+            framing: [court("next door", name: "Alpha", northOfOriginBy: 0.0005)]
+        )
+        let floor = NearbyPreviewFraming.minimumSpanMeters
+
+        XCTAssertGreaterThanOrEqual(region.span.latitudeDelta * 111_000, floor * 0.99)
+        XCTAssertEqual(region.center.latitude, origin.latitude, accuracy: 1e-9)
+        XCTAssertEqual(region.center.longitude, origin.longitude, accuracy: 1e-9)
+    }
+
+    /// The frame reaches past the farthest court on each axis.
+    func testThePreviewFramesTheFarthestCourt() {
+        let far = court("far", name: "Alpha", latitude: origin.latitude - 0.03, longitude: origin.longitude + 0.05)
+        let region = NearbyPreviewFraming.region(around: origin, framing: [far])
+
+        XCTAssertGreaterThan(region.span.latitudeDelta / 2, 0.03)
+        XCTAssertGreaterThan(region.span.longitudeDelta / 2, 0.05)
+    }
+
+    /// Outside the dataset's cities the nearest court can be a state away; the
+    /// frame stops at the maximum rather than zooming out to the coastline.
+    func testThePreviewNeverFramesWiderThanTheMaximumSpan() {
+        XCTAssertEqual(
+            NearbyPreviewFraming.span(holding: 500_000),
+            NearbyPreviewFraming.maximumSpanMeters
+        )
+        XCTAssertEqual(NearbyPreviewFraming.span(holding: 0), NearbyPreviewFraming.minimumSpanMeters)
     }
 
     // MARK: - lastCompletedText

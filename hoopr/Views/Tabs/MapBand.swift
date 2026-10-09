@@ -69,17 +69,7 @@ struct MapBand<Inbox: View>: View {
         .background {
             ZStack {
                 HeroWash(placement: .leading(.hooprBrandWash))
-                GeometryReader { proxy in
-                    Image(systemName: "mappin.circle.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .foregroundStyle(Color.hooprBrandWatermark)
-                        .rotationEffect(.degrees(-12))
-                        .frame(width: proxy.size.width * 0.55)
-                        .position(x: proxy.size.width * 0.94, y: proxy.size.height * 0.36)
-                }
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
+                MapBandRadar()
             }
             .clipped()
             .ignoresSafeArea(edges: .top)

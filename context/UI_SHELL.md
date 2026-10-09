@@ -3,17 +3,21 @@
 **Scope:** `hoopr/Views/RootView.swift`, `hoopr/Views/MainTabView.swift`,
 `hoopr/Views/LoginView.swift`, `hoopr/Views/Profile/`, `hoopr/Views/Games/`,
 `hoopr/Views/Tabs/LocalRunsTab.swift`, `hoopr/Views/Tabs/HomeTab.swift`,
-`hoopr/ViewModels/HomeViewModel.swift`, `hoopr/Views/Friends/`,
+`hoopr/Views/Tabs/TonightNearbyPreview.swift`,
+`hoopr/Views/Tabs/RunCalendarTile.swift`,
+`hoopr/Views/Tabs/RunCalendarPopup.swift`,
+`hoopr/ViewModels/HomeViewModel.swift`,
+`hoopr/ViewModels/RunCalendarViewModel.swift`, `hoopr/Views/Friends/`,
 `hoopr/Views/Components/ErrorBanner.swift`,
 `hoopr/Views/Components/InboxButton.swift`,
 `hoopr/Views/Components/HooprSearchField.swift`,
 `hoopr/Views/Components/CardChrome.swift`,
 `hoopr/Views/Components/GlassChip.swift`,
-`hoopr/Views/Components/StatsCard.swift`, `hoopr/Views/Seasons/`,
+`hoopr/Views/Components/StatsScoreboard.swift`, `hoopr/Views/Seasons/`,
 `hoopr/Support/Theme.swift`,
 `hoopr/Support/Typography.swift`, `hoopr/Support/AppearancePreference.swift`,
 `hoopr/Support/Glass.swift`, `hoopr/Support/Spacing.swift`
-**Verified:** 2026-09-24 @ f30e4b2
+**Verified:** 2026-10-08 @ 976d2cf
 
 Navigation structure and the visual conventions every screen follows. Read this
 before adding a screen, changing how one is presented, or picking a colour or a
@@ -193,14 +197,18 @@ baseline, and scrolled away with the page rather than pinned:
   wraps and never truncates), then a detail line — your standing as a
   `RunStatus` badge on the band's 8% wash, spots left, distance — with an arrow
   at its trailing end.
-- **With nothing booked:** "No run tonight", one line on what to do, and a
-  regular **Find a court** button that opens the map. The same arrow closes the
-  row.
+- **With nothing booked:** "No run tonight" and one line on what to do, with
+  the same arrow at that line's end. **No button** since 2026-10-05 (the
+  user's call): "Find a court" opened the map with nothing selected, which the
+  "Tonight nearby" map preview below now does, and a filled button in the band
+  competed with the answer. The band is shorter for it than its loading
+  placeholder, which keeps the booked answer's proportions, so with nothing
+  booked it shrinks once when the listener answers.
 - **The whole band opens Runs** (the user's call, 2026-09-24), wherever it is
-  pressed — the inbox button and "Find a court" excepted, which keep their own
-  destinations. The arrow is the cue; it replaced a "Your runs ›" line whose
-  words were the only target. With a run booked the answer is also one
-  VoiceOver element that opens Runs.
+  pressed — the inbox button excepted, which keeps its own destination. The
+  arrow is the cue; it replaced a "Your runs ›" line whose words were the only
+  target. In both states the answer is also one VoiceOver element that opens
+  Runs.
 - **Ground:** the brand orange at the band's own luminance rising from the
   leading edge (`HeroWash`, `hooprBrandWash`), and the app icon's basketball two
   thirds of the band wide, half off the trailing edge and tilted
@@ -218,12 +226,57 @@ for the badge, so a run reads the same on both screens.
 
 Below the band, in order (the user's, 2026-09-23):
 
-- **Your stats** — `StatsCard`, only once there are stats (see below).
+- **Your stats** — `StatsScoreboard`, with the run calendar's tile to its
+  right (see below). Shown once there is a scoreboard to show, or — with no
+  stats and no squad — the tile alone, if the calendar has something on it;
+  with neither, hidden.
 - **Friend requests** — a row, only when there are incoming ones; it opens the
   inbox, where they're answered.
 - **Tonight nearby** — the three courts with the most games today, each dotted
   with `CourtHeat.color(forGameCount:)` so a court's colour means the same thing
   here as on the map. Tapping one opens the map with that court selected.
+  **With nothing on anywhere, a map preview** (below) instead.
+
+**The empty "Tonight nearby" is a live map, not a sentence** (2026-10-05).
+`TonightNearbyPreview` (`Views/Tabs/`) replaced "Nothing scheduled anywhere
+today. Be the first.", which left everything under the band an empty page. It
+is one card and one button — the whole card opens the map with nothing
+selected, which the band's "Find a court" button did until this replaced it —
+and one VoiceOver element ("Nothing on
+nearby yet", hint "Opens the map.").
+
+- **The map** is a SwiftUI `Map` of the nearest
+  `HomeViewModel.previewCourtLimit` (5) courts — `nearestCourts(to:in:limit:)`,
+  pure, sorted by `Distance.between` with `rankHotCourts`' `displayName`
+  tie-break — centred on the same origin every distance reads (the Durham
+  fallback with no fix; Home never prompts). **Not `hotCourts`**, which ranks
+  the whole dataset by busyness, not nearness. `NearbyPreviewFraming` holds
+  the frame between 1.5km and 30km: outside the dataset's cities the nearest
+  court can be a state away, and a frame of the coastline says nothing about
+  "nearby". The main map's muted, flat, POI-free basemap; no interaction, no
+  hit testing. Its bottom safe area is the scrim's height, so MapKit centres
+  the courts in the part you can see and keeps the logo and legal link above
+  the scrim rather than behind it — visible, though not tappable here; they
+  are on the Map tab the card opens.
+- **The dots are `CourtHeat`'s no-runs tier** — the colour the same courts have
+  on the map you land on — with a "you are here" puck in the text colours (not
+  the system's blue dot, which would claim a fix the fallback doesn't have).
+  The three Long Meadow Park courts share a spot, so Durham's five draw as
+  three dots.
+- **Ghost rows** under a scrim of the card's own surface: the hot-court row's
+  shape in skeleton bars (`hooprHoverFill`), with faded heat-ramp dots. **No
+  real names and no numbers** — a real court beside a made-up count would read
+  as a real run. The copy below sits on the plain surface, so primary and
+  secondary text are pairings already asserted; nothing is drawn on map tiles.
+- **It moves, ambiently** — see Motion below: the map wanders on
+  `Motion.Drift` and the dots ping on `Motion.Glow`'s clock in their own
+  colour, not `CourtGlowHalo`'s, which means "busy".
+- **Which state shows is `HomeViewModel.nearbySection`**: loading, the list,
+  the preview — or, with the games listener failed or recovering and no list
+  already on screen, "Couldn't check what's on." An empty list then means
+  "couldn't look", and the preview would say "nothing's on". A change of state
+  cross-fades (`Motion.animation(.swap, …)`), so games arriving replace the
+  preview in place.
 
 **It reads nothing new.** Every value comes off listeners the app already keeps
 open: `GameService`'s two arrays, `CourtService.courts`, the profile snapshot,
@@ -234,10 +287,147 @@ restating it. No extra Firestore read, no rules change. **A busy court's dot
 glows** (`CourtGlowHalo`, Phase 5), from the same threshold and on the same
 curve as its map pin — see `MAP_LAYER.md` § `CourtHeat`.
 
-**The stats card** (`Views/Components/StatsCard.swift`) is three text columns — Runs, Streak, Last Run, each hugging its content rather than taking an equal third (an equal third broke "Last / Run" mid-word), with a `ViewThatFits` that stacks them one per row from `.accessibility1` up — fed from the profile's
-`completedGameCount`, `participationStreak` and `lastCompletedAt`. It is
-**gated on `HomeViewModel.hasStats`** (`completedGameCount > 0`), so a
-brand-new account sees no card at all rather than a row of zeros.
+**The stats are a scoreboard** (`Views/Components/StatsScoreboard.swift`,
+2026-10-05, the user's design — it replaced a three-column card). A near-black
+screen with a faint grid of unlit LEDs, set into a card's bezel, showing one
+panel at a time: **This week** (completed runs this ISO week), your **squad's
+record** (with its crest), the **Streak**, the **Total** and the **Last run**.
+Each panel is a label in LED orange beside the stat's icon — the old card's
+icons, kept — over its number.
+
+- **Two tiers of number, the user's call.** The squad record is a query over
+  results two leaders confirmed, so it takes the `numeral` tier, as on the
+  band, with the band's separator dash (`SquadRecordLine.recordText`). The run
+  counts are self-reported, so they stop a step below at `title` — scoreboard
+  size, never as authoritative as the record. Units ("runs", "wks") are
+  `headline` in the screen's dim grey.
+- **The panels take turns** every `Motion.Scoreboard.dwell` (4s), the next one
+  pushed in across the screen. **A pause control** sits in the screen's corner
+  (WCAG 2.2.2). **Under Reduce Motion or VoiceOver it doesn't rotate**: every
+  panel is listed on the screen at once, and VoiceOver reads the whole board
+  as one sentence either way. **No timer for nobody**: none while scrolled
+  away (`onScrollVisibilityChange`), backgrounded, or with one panel; between
+  slides it is a sleeping task, not a frame clock. The screen holds its
+  tallest panel's height, so the page doesn't jump when the record follows a
+  run count.
+- **The screen follows the appearance** (`hooprScoreboard*`): near-black in
+  dark mode, a pale panel a step below its white bezel in light, with the
+  page's own text roles on it. (It was fixed near-black in both until
+  2026-10-06 — "a lit display doesn't invert" — and in light mode read as dark
+  mode left behind.) Every pairing is asserted on the screen and on the LED
+  dots, in both appearances.
+- **What's shown:** the run panels need a completed run (otherwise four zeros
+  and a dash); a squad's record shows alone without them; neither hides the
+  scoreboard. The squad panel waits for the `seasonGames` listener, so "0–0"
+  never flashes at a squad with a record. **This week uses the streak's
+  calendar** (ISO weeks, UTC, `Game.completedThisWeek`), so the two panels can't
+  disagree about which week a Sunday-night run fell in.
+- **Every value fits one line at every text size**, `.accessibility5`
+  included — `StatsScoreboardMetrics` measures the widest of each, so a number
+  never breaks and "Yesterday" never becomes "Yester / day" — at Home's full
+  width at every size, and beside the calendar tile at every size the tile is
+  beside it.
+- **A bug the device caught:** the rotation task runs on the view as it was
+  when it started, so it kept counting four panels after a squad's record
+  arrived as a fifth, and skipped "Last run". Its key now includes the panels.
+
+It reads nothing new: the run numbers come off the profile snapshot and
+`GameService.completedGames`, the record off the `seasonGames` listener
+`MainTabView` keeps pointed at your squads (handed to Home for this).
+
+**The run calendar** (`RunCalendarTile`, `RunCalendarPopup`,
+`RunCalendarViewModel`, 2026-10-06 — the user's design, after a half-width
+board beside a compact month took too much height). **A tile to the
+scoreboard's right, as tall as it**, drawing this month in miniature: a
+calendar glyph and the month over a square for every day, lit as the popup
+lights it, today outlined. (It first showed today's date over the month, like a
+calendar icon; beside the scoreboard's numbers a big "5" read as one more stat.)
+Tapping it opens **the month popup**: the full month, paged by month, with
+the selected day named in its footer. All of it on **the scoreboard's screen**
+— `ScoreboardHousing` and `ScoreboardScreen` are shared, not copied. A game
+day's colour is `hooprScoreboardSquad`: the crest colour on the dark screen,
+and in light mode the crest's hue at `hooprSeparatorStrong`'s lightness, because
+crest colours such as gold (240,194,48) fall well below 3:1 on a pale ground
+(`ThemeContrastTests`).
+
+- **One box over a dimmed Home** (the user's calls, 2026-10-06: not a
+  slide-up sheet, then not a card holding a second card and a list). The
+  popup *is* the scoreboard's screen in its bezel, inside the page margins —
+  so exactly Home's content width, the width its grid is measured at — over
+  `hooprBackdrop`. In it: the month's name between its arrows, and the X; the
+  grid; the legend; any status line; and a footer naming the selected day,
+  under a hairline. Nothing else — a day's runs and games are told to
+  VoiceOver by its cell, not listed. As tall as its month, scrolling under the
+  header only at the largest text sizes (`ViewThatFits`), so the X never
+  scrolls away. It closes on the X, a tap on the backdrop, or VoiceOver's
+  escape gesture; it is modal to VoiceOver, which lands on the X when it
+  opens. It settles in from 94% on `Motion.present` — a fade under Reduce
+  Motion — and the backdrop fades. It covers Home, not the tab bar: it is
+  Home's overlay, so `MainTabView` is unchanged.
+- **Beside the board only while everything fits.** `HomeStatsLayout.isSideBySide`
+  is a pure function of the text size and Home's width: every scoreboard value
+  on one line of what the 132pt tile (`RunCalendarTileMetrics.width`, about the
+  board's height at the default size) leaves it, and the tile's own date.
+  `ViewThatFits` can't decide it — the board takes all the width it's offered.
+  Past the cut the tile goes under the board, at its own size; with no stats
+  it shows alone. Side by side, both are stretched to the taller one's height.
+- **Every day has a zone**, a rounded square around its number (the user's
+  design): **a dot per run you are on, up to three**; **three or more runs set
+  the zone on fire** — the LED orange fading to `hooprScoreboardEmber`
+  (`FireZone`); **a season game fills it with your squad's colour**, which
+  outranks fire (the rarer, bigger thing; the dots still count the runs). On a
+  lit zone the number and dots are cut out of it — the screen's own colour on
+  fire, `hooprOnCrest` on a game day — and on an unlit one the screen's text. A
+  legend under the grid names the three; VoiceOver doesn't need it. **Today is
+  bold with a 2pt underline**; the selected day is ringed in white *outside*
+  its zone, where it reads against the screen whatever the zone's colour. The
+  tile's squares follow the same rule (`DayMark.zone`), with a run day lit
+  orange.
+- **Which runs:** every run you are **on** (`playerIds`), past and future —
+  **not waitlisted ones**. The live `queuedGames` listener is windowed to the
+  future, so earlier days and every past month come from
+  `GameService.runs(in:)` (`database/DATABASE_SCHEMA.md` → `games` → Indexes),
+  one month at a time, cached for the session by month start; the current month
+  is refetched each time the popup opens. Every month is merged with the live
+  listener, union by `id`, live copy wins — and a fetched run the listener
+  should hold but doesn't (you left it, or it was cancelled) is dropped instead
+  of keeping its dot. **Season games** come off `SeasonGameService.games`, no
+  new read; every status but `cancelled` is marked.
+- **Days bucket on `Calendar.current`, by `scheduledTime`**: a run at 11:30 PM
+  local is on that local day. Deliberately not the streak's UTC ISO week, which
+  has to agree across devices.
+- **The selected day** is today on opening, in another month the first day
+  with something on it (otherwise the 1st), and any day tapped; the footer
+  names it.
+- **The month's name heads the grid** (the user's call), right above the
+  weekday initials, between the arrows that page it — 44pt targets, dark when
+  there's no month that way (`RunCalendarViewModel.bounds`: back to the month
+  you joined, or twelve months without a `createdAt`; forward to next month, or
+  a later scheduled squad game). A mostly-sideways swipe pages too.
+  Paging is the user's only; the month cross-fades on `Motion.animation(.swap,
+  …)`, and nothing else moves.
+- **The grid fits at every text size**: a column is 47.7pt — the grid reaches
+  8pt past the screen's text inset (`RunCalendarMetrics.gridBleed`) — so every
+  day is a 44pt target, and a zone is 41.7pt across. **The day numbers stop
+  at 30pt** (`dayNumberMaximumSize`), which only `.accessibility4` and `5`
+  reach: a bold two-digit number past it is wider than its zone. The dots grow
+  with the text until three of them fill a zone (`maximumDotDiameter`). So
+  there is no list-shaped fallback for the accessibility sizes.
+- **Loading is not emptiness.** While the live listener, the month's fetch, or
+  the squad's games haven't answered, the grid draws bare with "Loading…" and
+  the tile tells VoiceOver "October: loading". A failed fetch says so above the
+  footer with a Retry — `FailureText.rulesNotDeployed(loading: "this month")` for
+  a denied read, "Couldn't load October. Check your connection." otherwise —
+  and still draws what the live listener holds; it never becomes a banner, and
+  `GameService.errorMessage` is not touched. With the squad's games failed or
+  recovering there are **no squad zones** and the popup says "Couldn't load
+  your squad's games." — never a month drawn as if the squad had none; with no
+  squad, no squad zones and no squad copy.
+- **VoiceOver:** the tile is one button, "October: runs on 3 days, squad games
+  on 1 day" (singular at one; the squad clause left out when the squad's games
+  aren't known), hint "Opens the month". Each day in the popup reads "Friday,
+  October 9, 1 run, squad game against Hornets" with the selected trait; the
+  zones' colours, the dots and the legend are hidden.
 
 **The pipeline behind it is now complete end to end** (2026-09-18).
 `GameService`'s third listener publishes `completedGames` (`status ==
@@ -370,9 +560,10 @@ The fourth tab: squads, matchmaking, and the record that comes out of them. One
 and the **record** as the screen's numeral with the last five results as dots
 beside it (`SquadRecordLine`, `FormGuide`) — the one number in the app nobody
 can type, a query over results two leaders confirmed. The band's ground is the
-**squad's own colour at the band's luminance** (`HeroWash`,
-`hooprSquadWash`), so no contrast ratio on it moves: dark mode reads as the
-squad's colour, light mode as a faint cast, with the crest carrying it. Under
+**squad's own colour** (`HeroWash`, `hooprSquadWash`) — at the band's
+luminance in dark mode, so no ratio on it moves, and a step under it in light,
+where that buys the colour room to read (2026-10-08): dark mode reads as the
+squad's colour, light mode as a pastel of it, with the crest carrying it. Under
 the band: `MatchmakingCard`, then the roster as rows under a label. With no
 squad, the band is the hero empty state — crest, "Play a season", one line,
 **Create a squad**.
@@ -551,7 +742,8 @@ full-width button under every name and made twelve friends read as twelve
 forms; the card chrome it kept until the revamp was an inline, unnamed copy of
 the card recipe. The trailing control is passed in
 as a `@ViewBuilder`, so one row serves the friends list, the search results and
-both inbox sections without a mode flag.
+the friends pane's lists without a mode flag. (The inbox draws its own cards —
+see `InboxSheet` below.)
 
 The subtitle is **always the handle**, never the home court. A subtitle that's a
 court on one row and a handle on the next means two different things in one
@@ -559,35 +751,43 @@ column — and the handle is what distinguishes two friends who share a display
 name, since `userName` isn't unique. The home court has a labelled row on the
 profile.
 
-**`InboxSheet`** holds what's waiting: **Matches** (first, omitted when empty —
-see below), **Requests** (incoming friend requests,
-counted by the badge), **Squad invites** (incoming, Join/Decline inline via
-`SquadInviteRow`, also counted), and **Sent** (outgoing friend requests, cancel-only — a
-squad's own sent invites are revocable from squad detail instead, not here).
+**`InboxSheet`** is one feed of cards (`InboxCard`), no section headers
+(2026-09-28, at the user's request — the four titled sections, two shown even
+when empty, made a single request read as a form). Each card names its own
+kind in an eyebrow line over a 44pt leading visual, a title and a detail line.
+In order: **matches** (see below), **friend requests** (Accept/Decline inline,
+counted by the badge), **squad invites** (Join/Decline inline, also counted),
+and **new friends** — someone accepted a request *you* sent, within a week
+(`FriendsViewModel.recentlyAccepted`, pure, pinned in `FriendsViewModelTests`).
+A new-friend card asks nothing, so it's the only one with an × — dismissals are
+on-device (`InboxDismissalsStore`, like `CelebratedWinsStore`) and don't count
+toward the badge. **There is no Sent list**: an outgoing request is waiting on
+someone else, not news, and is still cancellable from that player's profile.
 Squad invites used to render inline on Squad home, where a leader could invite
 from squad detail but there was nowhere to *answer* one; they moved here once
-there was a dedicated inbox for "something's waiting on you," which the
-Seasons tab no longer is. **The squad invites section is omitted rather than
-shown empty**, unlike the two friend sections — a squad invite is rare enough
-that a standing "nothing here" placeholder would outweigh the one time it has
-something to say.
+there was a dedicated inbox for "something's waiting on you."
+
+The inbox's buttons are the shared `hooprFilled(.compact)` capsule (primary /
+destructive), not `FriendActionButton` — every card's actions look the same
+whether they answer a friend or a squad. The friend buttons carry
+`FriendActionButton`'s pending/blocked behaviour by hand.
 
 **Matches** (2026-09-25) exist because every tapped notification opens the
 inbox, and every notification the app sends is about a season match — before
-this section, a tip-off reminder opened onto friend requests. `MatchInboxRow`s,
+this section, a tip-off reminder opened onto friend requests. Match cards come
 from `InboxMatchesViewModel.rows(games:mySquadIds:uid:now:)` (pure, pinned by
 `InboxMatchesViewModelTests`): a match **waiting on your report** — you lead a
 side, it's reportable, T+90 has passed (the recap notification's delay) and you
 haven't reported — or **disputed**, within a week of tip-off, opens the result
 screen; otherwise a match **still upcoming** (to three hours after tip-off, like
-game day) opens game day. Answers first, then soonest. A row tap closes the
+game day) opens game day. Answers first, then soonest. A card tap closes the
 inbox, selects Seasons and pushes the screen (`SeasonsTab.MatchDestination`).
 **Matches don't count toward the tray's badge** — the badge is still friend
 requests plus squad invites; a report waiting on a leader is announced by the
 recap notification instead.
 
 **Join is absent, not dimmed, when you're already on a squad.** A person is on
-one squad at a time, so `SquadInviteRow` drops the Join button and puts the
+one squad at a time, so the squad-invite card drops the Join button and puts the
 reason where the roster line was ("You're on Rim Reapers. Leave it to join or
 start another squad."; a leader is told to disband instead). Absent rather than
 disabled because `hooprPress` adds nothing to a disabled state, and a greyed
@@ -596,12 +796,10 @@ error banner, so a refusal reported after the tap would land on the Seasons
 tab behind it. Decline stays. The same rule is why the Seasons tab has no
 "Create another squad" button. See `gaps/SEASONS.md` for what's app-only about it.
 
-Two kinds of notification now, not one, and the design call still holds: a
-second kind cost one more section rather than a shared `InboxItem`
-abstraction, which is still invented structure for two cases rather than
-shared structure. `InboxButton`'s badge reads `squadService.incomingInvites`
-alongside `friendService.incomingRequests`, so it's live whether or not the
-Seasons tab has been opened this session.
+Four kinds of card and still no `InboxItem` enum: they share a card, not a
+model, and each keeps its own view model. `InboxButton`'s badge reads
+`squadService.incomingInvites` alongside `friendService.incomingRequests`, so
+it's live whether or not the Seasons tab has been opened this session.
 
 **`PlayerProfileSheet`** shows another player: name, home court, joined. That's
 a *display* decision, not an access control — `users` is readable whole by any
@@ -853,13 +1051,13 @@ keeps a light-only value from creeping back in.
 | `hooprRed` | Errors, Sign Out, "Remove home court", and the notification indicator — the inbox button's badge. Lightened in dark mode to hold contrast. |
 | `hooprOnBrand` | Content *on top of* the orange — button labels, the selected pane's title, the map pin's glyph. **Black**, and fixed: orange is a light colour in both appearances, so white on it measured 2.55:1 / 2.25:1 — under AA, on every primary button. Black clears 8.24:1 / 9.33:1. |
 | `hooprOnRed` | The one label drawn on a solid red fill (the inbox badge's count). The only role here that inverts, because `hooprRed` is deep in light mode and lightened in dark: white passes light and fails dark, black the reverse. |
-| `hooprFormWin` / `hooprFormLoss` | The form guide's played dots — green a win, red a loss (the user's call, 2026-09-22). Each clears the 3:1 graphic floor on the band and on a card, in both appearances; win on the light band (3.15:1) sets how light the green can go. `hooprFormLoss` is a role of its own rather than `hooprRed`: a loss is a result, not an error, and dark mode's error red sits too close to the win green in lightness (1.62:1 against 2.25:1). |
-| `hooprFormUnplayed` | A form slot not yet played. **About 2:1, deliberately below the played dots** — a placeholder, not a third kind of result. |
+| `hooprFormWin` / `hooprFormLoss` | The form guide's played dots — green a win, red a loss (the user's call, 2026-09-22). Each clears the 3:1 graphic floor on the band and on a card, in both appearances; win on the light band (3.15:1), and on the light squad washes (3.05:1), sets how light the green can go. `hooprFormLoss` is a role of its own rather than `hooprRed`: a loss is a result, not an error, and dark mode's error red sits too close to the win green in lightness (1.62:1 against 2.25:1). |
+| `hooprFormUnplayed` | A form slot not yet played. **About 2:1, deliberately below the played dots** — a placeholder, not a third kind of result. Light `#ABABAF` (from `#AEAEB2`, 2026-10-08) to keep 2:1 on the light squad washes. |
 | `hooprOnFormResult` | The ✓ / ✕ drawn on a played dot when *Differentiate Without Color* is on. White in light mode, black in dark (the dark dots are light colours), like `hooprOnRed`. |
 | `hooprBackground` | The page behind everything. |
 | `hooprSurface` | Cards and sheets. Equal to the background in light mode (separation there comes from border + shadow); lifted in dark mode, where a shadow on black conveys nothing. |
 | `hooprFill` | Field and button fills, unselected chips, the empty half of a capacity bar. |
-| `hooprSquadWash(_:)` / `hooprBrandWash` | A crest colour, or the brand orange, **at the hero band's own luminance** — scaled toward black in dark mode, mixed toward white in light, in linear light. The ground of the squad bands, game day's band and Login's (`HeroWash`). Contrast depends only on luminance, so every ratio on the band holds unchanged: a plain *tint* strong enough to read as the squad's colour was measured out of the band in Phase 2b, and this is the answer that passes. Dark reads as the squad's colour (a maroon, a navy); **light is necessarily faint**, because near white sRGB has almost no room for colour at that luminance. `ThemeContrastTests` asserts the luminance match, a visible cast in dark, and every band pairing on every wash and on the mixes the mesh draws between wash and band. |
+| `hooprSquadWash(_:)` / `hooprBrandWash` | A crest colour, or the brand orange, as a hero band's ground (`HeroWash`: the squad bands, game day's, and Home, Runs, Map and Login's). **Dark mode: at the band's own luminance**, scaled toward black in linear light — contrast depends only on luminance, so every ratio on the band holds unchanged; it reads as the squad's colour (a maroon, a navy). **Light mode: a step under the band, at `#F1F1F1`'s luminance, pushed to 0.020 OKLCH chroma** (`Color.vivid`, 2026-10-08). At the band's own luminance near-white sRGB has room for only ~0.014 chroma, and the old white-mix took 0.011 — a grey with a cast, which the user found flat. The step is as far as the floors allow (win dot 3.05:1, HOSTING pill 4.54:1; the unplayed dot went a notch darker to keep 2:1). Chroma is **capped, not maximised**: teal and green could reach 0.075 near white, four times blue, so every squad gets the same strength. `ThemeContrastTests` asserts the luminance in each appearance, a visible cast in dark, the same chroma in light, and every band pairing on every wash and on the mixes the mesh draws between wash and band. |
 | `hooprGroupedBackground` | The ground of an inset-grouped form — `CreateGameSheet` — whose `FormPanel`s are `hooprSurface`, so the page steps *down* around them: `hooprFill`'s value in light, the page's black in dark. Resolves to those proven values on purpose, so every pairing drawn on it is already asserted; `ThemeContrastTests` pins that and that a panel steps off it in both appearances. |
 | `hooprBorder` | Rules, dividers, unfocused borders, the sheet's drag handle. Deliberately faint (1.2:1 on white) — a hairline that tidies a card's edge, not a boundary. |
 | `hooprElevatedSurface` | A surface raised one level above a card — a card inside a sheet, a popover. **Dark carries the lift in the fill** (`#242426`, one visible step above a card and one below a field); **light cannot** — nothing is lighter than white — so it *is* white there and the lift comes from `hooprShadow`. Defined and asserted in Phase 1, not yet drawn anywhere. Whether light mode's page ground moves off pure white is a design decision the role does not make. |
@@ -867,6 +1065,7 @@ keeps a light-only value from creeping back in.
 | `hooprHoverFill` | A row or control being touched or hovered, drawn over a card. Light `#ECECEC` matches the pill the iOS 26 tab bar draws behind its selected item (`#EDEDED`, sampled). Dark is deliberately no lighter than `#2E2E30` — primary text, secondary text and the accent must keep clearing 4.5:1 on it, and the accent is the ceiling. Drawn as the tab bar's selection pill and as the loading skeletons' fill (Home, Runs, Seasons). |
 | `hooprSeparatorStrong` | A line that has to be *seen* — a component boundary at the 3:1 WCAG 1.4.11 asks of one, on every ground in both appearances. Where `hooprBorder` is faint on purpose. Drawn as every hero band's baseline, the Login fields' unfocused outline, `WinnerButton`'s edge, game day's not-yet-arrived circle and the create sheet's unselected radio — each where a boundary has to be seen, not merely tidied. |
 | `hooprHeat(tier:)` / `hooprOnHeat(tier:)` | The "how busy is this court today" ramp — five fixed fills, each paired with the label that reads on it. **One table**, so a fill and its label can't be retuned apart: black through tier 2, white from tier 3, where black stops clearing 4.5:1 (it was 4.01 and 3.43 on the two deepest, on the map pin's count). Fixed, not appearance-aware, on purpose — a data scale read against the map's own basemap. Views call `CourtHeat`, which owns the count-to-tier rule. |
+| `hooprScoreboard{Screen,Text,Label,Dim,Dot,Ember}`, `hooprScoreboardSquad(_:)` | Home's stats scoreboard: its screen, its numbers, its LED-orange labels, its dim units and pause glyph, and the unlit LEDs of its dot grid — and the run calendar drawn on the same screen, whose unlit zones are the dot colour, whose days on fire run from the LED orange to the ember red with the screen's colour as ink, and whose game days are `hooprScoreboardSquad`. **Follows the appearance** (since 2026-10-06; it was fixed near-black): near-black in dark mode with the values it always had, and a pale `#F3F3F4` panel in light, where text, label and dim are the page's own primary text, brand accent and secondary text. Numbers 17.57 / 18.94:1 (dark / light), labels 6.70 / 5.01, units 7.52 / 5.18 on the screen, and 14.85 / 17.64, 5.66 / 4.67, 6.36 / 4.82 over the dots. A game day is the crest colour on the dark screen and the crest's hue at `hooprSeparatorStrong`'s lightness on the light one (3.05:1 or better on the dots, black ink 5.75:1); the crest disc beside the squad's name is asserted only on the dark screen. `ThemeContrastTests` asserts all of it. |
 | `hooprPrimaryText` | Titles, values, primary labels. |
 | `hooprSecondaryText` | Labels, captions, unselected tab text. |
 | `hooprShadow(opacity:)` | Card and sheet shadows. Takes the *light-mode* opacity and deepens it in dark mode. |
@@ -944,9 +1143,13 @@ omit it wherever the layout can reflow.
 
 **Appearance follows the device by default, and can be pinned.**
 `AppearancePreference` (System / Light / Dark) is stored in `UserDefaults` — a
-device preference, not an account one — read by `hooprApp` and applied with
-`.preferredColorScheme` at the window root so it reaches sheets too. It's edited
-from the Appearance row on the profile screen, which is why that row sits
+device preference, not an account one — read by `hooprApp` and applied to the
+window itself (`windowAppearance`, which sets the window's
+`overrideUserInterfaceStyle` and cross-fades it), so it reaches every screen and
+every sheet, including one already up. **Not `.preferredColorScheme`**: that
+pinned a sheet to the scheme it was presented in, so the Appearance sheet stayed
+in the old palette while the app behind it changed (fixed 2026-10-06). It's
+edited from the Appearance row on the profile screen, which is why that row sits
 outside `ProfileViewModel.EditableField`: nothing about it touches Firestore.
 
 ### Motion
@@ -978,8 +1181,25 @@ time.
 today" — so it runs for as long as it's on screen. It is bounded: only courts
 at `CourtHeat.glowsFrom` runs (3) or more, behind the dot so it never moves
 layout, still under Reduce Motion, and never the only carrier of how busy a
-court is (the count and the heat colour say the same thing). The confetti on a
-confirmed win *is* keyed to a change — the confirmation arriving — and fires
+court is (the count and the heat colour say the same thing).
+
+**A second: the empty-state map's drift** (`Motion.Drift`, 2026-10-05). Home's
+"Tonight nearby" preview wanders a few points around an ellipse every 24s,
+and its dots ping on the glow's clock. It is an offset of a map drawn
+`overscan` larger than its clip, not a camera move — a transform per frame, no
+new tiles mid-scroll, and the map view itself is `Equatable` so a tick
+re-evaluates only the offset. Bounded like the glow: one decorative map, no
+layout moved, a still frame under Reduce Motion (`MotionTests` pins the rest
+frame, the seamless loop, and that the drift never uncovers an edge).
+
+**And a third, a change on a clock: the stats scoreboard** (`Motion.Scoreboard`,
+2026-10-05). Each slide is an ordinary animated change, so the board draws in
+its final state first; what's new is that a timer makes the change. Bounded
+hardest of the three, because it moves text: a visible pause control, no
+rotation under Reduce Motion or VoiceOver, and no timer while it's scrolled
+away or backgrounded. `MotionTests` pins the rules (`isStatic`, `advances`).
+
+The confetti on a confirmed win *is* keyed to a change — the confirmation arriving — and fires
 once per device (`CelebratedWinsStore`).
 
 What it's used for:
@@ -1116,8 +1336,10 @@ already drifted. A new screen picks from these rather than drawing its own:
   `profile` 72 (the base the profile scales from), named like `SquadCrest.Size`.
 - **`CardChrome`** needed no folding: the two drifted copies the Phase 0 audit
   found (`profileRowChrome`, `FriendRow`'s inline card) went with their Phase 2b
-  redesigns, and four call sites remain — `GameCard`, the map's run rows,
-  `StatsCard`, `MatchmakingCard`'s matched state — each a card the redesign kept.
+  redesigns. Its call sites: `GameCard`, the map's run rows,
+  `MatchmakingCard`'s matched state, Home's "Tonight nearby" preview, and the
+  bezel of Home's stats scoreboard. `CardChrome.cornerRadius` is what the
+  last two clip their own content to.
 - **Section labels** are `.hooprType(.label)` everywhere now; the last two hand
   spellings (the map's search header, the match card's "Next match") went.
 

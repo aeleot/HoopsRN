@@ -16,7 +16,7 @@ import SwiftUI
 /// Deliberately state-free, like `GameCard`: it renders what it's handed and
 /// reports taps. The trailing control is supplied by the caller rather than
 /// derived from a mode flag, so one row serves the friends list, the search
-/// results and both inbox sections without knowing which it's in.
+/// results and the Friends pane without knowing which it's in.
 struct FriendRow<Trailing: View>: View {
     let row: FriendsViewModel.Row
 

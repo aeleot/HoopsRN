@@ -107,13 +107,24 @@ struct SquadRecordLine: View {
     /// font of its own, sized off the same scaled value so it grows with
     /// Dynamic Type.
     private var numeralText: Text {
+        Self.recordText(record, dynamicTypeSize: dynamicTypeSize, dashColor: .hooprSecondaryText)
+    }
+
+    /// The record with its separator dash, for any surface that sets a record
+    /// as a numeral — the band here, Home's scoreboard on its own dark screen,
+    /// which is why the dash's colour is the caller's.
+    static func recordText(
+        _ record: SeasonGame.Record,
+        dynamicTypeSize: DynamicTypeSize,
+        dashColor: Color
+    ) -> Text {
         let size = HooprFontMetrics.scaledSize(
             HooprTextRole.numeral.size,
             at: HooprFontMetrics.contentSizeCategory(for: dynamicTypeSize)
         )
         let dash = Text(RecordDash.glyph)
             .font(.system(size: size * RecordDash.scale, weight: RecordDash.weight))
-            .foregroundStyle(Color.hooprSecondaryText)
+            .foregroundStyle(dashColor)
             .baselineOffset(size * RecordDash.lift)
         let space = RecordDash.space
         return Text("\(record.wins)\(space)\(dash)\(space)\(record.losses)")

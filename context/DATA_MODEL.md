@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr/Models/`, `hoopr/Support/Distance.swift`,
 `hoopr/Support/InviteLink.swift`
-**Verified:** 2026-09-24 @ f30e4b2
+**Verified:** 2026-10-08 @ 976d2cf
 
 `Support/CourtSearch.swift` moved to `MAP_LAYER.md`'s scope — it was listed in
 both entries, which `INDEX.md` says scopes must never do. It's a search
@@ -42,7 +42,8 @@ and no placeholder badge is shown.
 `isLit` and `hoops` until 2026-08-27, and that sparsity made the filters
 destructive rather than merely weak: `isLit` is `null` for 193 of 214 courts and
 an absent tag is excluded, so one tap hid 95% of the map. The chips are now
-activity predicates — "Games today", "Open spots", and "Open to all" (`access`,
+activity predicates — "Games today", "Starting soon" (a run under way or
+tipping off within the hour), "Open spots", and "Open to all" (`access`,
 the one attribute field the dataset populates well at 172/214). They take a
 `CourtActivity`, because whether anyone is playing is a join between bundled
 geography and Firestore that `Court` cannot answer alone.

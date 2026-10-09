@@ -95,7 +95,19 @@ Still to do:
 - **A VoiceOver sweep.** The simulator tool's accessibility-tree read wasn't
   available, so nothing about labels, order or traits was checked live — Home's
   band as one element that opens Runs, the inbox's blocked squad invite
-  reading its reason, the gallery's controls.
+  reading its reason, the gallery's controls. Added 2026-10-05: **Home's stats
+  scoreboard under VoiceOver** — it should stop rotating, list every panel and
+  read as one sentence (`Motion.Scoreboard.isStatic`); the rule is unit-tested
+  and the Reduce Motion layout it shares was checked on the simulator, but
+  nothing has run it with VoiceOver on. Also the "Tonight nearby" preview's
+  single element ("Nothing on nearby yet", hint "Opens the map.").
+  Added 2026-10-06: **Home's run calendar under VoiceOver** — the tile as one
+  button reading "October: runs on 3 days, squad games on 1 day" (or "…:
+  loading"), hint "Opens the month", and in the popup each day cell's sentence
+  with the selected trait, marks hidden. The strings are unit-tested; how they
+  read on a device, the popup's modality and escape gesture, its swipe-to-page
+  alongside VoiceOver's own swipes, and the Reduce Motion fades have not been
+  checked.
 - **Game day, the result screen and Login**, which need a live match or a
   sign-out. The busy-court glow and the win confetti too: nothing in the test
   account is busy or won.

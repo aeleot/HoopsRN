@@ -170,6 +170,7 @@ struct MainTabView: View {
                     userProfileService: userProfileService,
                     friendService: friendService,
                     squadService: squadService,
+                    seasonGameService: seasonGameService,
                     onOpenInbox: openInbox,
                     onOpenRuns: { selectedScreen = .runs },
                     onOpenMap: { court in

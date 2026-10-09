@@ -117,8 +117,8 @@ struct LocalRunsTab: View {
     ///   week closes the band, with a waitlist place or runs after the week
     ///   over it when there are any (the user's layout, 2026-09-23).
     /// - **The juice** — the brand orange rising from the leading edge, as on
-    ///   Home, and the court half off the trailing edge (`RunsBandCourt`), as
-    ///   Home has its ball. Both at luminances every pairing on the band
+    ///   Home, and a field of twinkling stars across the band
+    ///   (`RunsBandStars`). Both at luminances every pairing on the band
     ///   already clears.
     ///
     /// **Compact** (the user's call, 2026-09-23: "make the header smaller"):
@@ -163,7 +163,7 @@ struct LocalRunsTab: View {
         .background {
             ZStack {
                 HeroWash(placement: .leading(.hooprBrandWash))
-                RunsBandCourt()
+                RunsBandStars()
             }
             .clipped()
             .ignoresSafeArea(edges: .top)

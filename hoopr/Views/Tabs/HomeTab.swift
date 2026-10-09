@@ -22,19 +22,29 @@ import SwiftUI
 ///   hairline — which is also what survives Dynamic Type: at `.accessibility3`
 ///   the hero-to-caption size ratio falls from 3.4× to 2.3× (`Typography.swift`),
 ///   so a hierarchy carried only by point size is a third gone. Position is not.
-/// - **The stats are a card below the answer, at row weight.** They are
+/// - **The stats are a scoreboard below the answer.** The run counts are
 ///   self-reported counters the owner's client writes and they under-count by
 ///   construction, so they never take the hero's numeral tier — that is kept for
 ///   the answer and for a squad's record, which is a query over results two
-///   leaders confirmed. (The redesign first cut them to one grey sentence; that
-///   read as broken, and `StatsCard` records why it went back.)
+///   leaders confirmed and is the one number on the scoreboard set that large
+///   (`StatsScoreboard`).
 /// - **Loading is not emptiness.** `hasLoaded` distinguishes "you have nothing
 ///   on" from "we haven't looked yet". Without it the empty state's call to
 ///   action flashed at people who were, in fact, signed up for something.
 struct HomeTab: View {
     @StateObject private var viewModel: HomeViewModel
+    @StateObject private var calendar: RunCalendarViewModel
     @ObservedObject private var friendService: FriendService
     @ObservedObject private var squadService: SquadService
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// Home's content width as laid out, for `HomeStatsLayout`. The 402pt
+    /// phone's until the first layout says otherwise.
+    @State private var contentWidth = HomeHeroMetrics.contentWidth
+
+    /// The month popup, presented on the month it opens at.
+    @State private var calendarMonth: CalendarMonth?
 
     /// Handed up rather than handled here — switching tabs and presenting the
     /// inbox are the shell's jobs, and Home is the one screen that wants to
@@ -50,6 +60,7 @@ struct HomeTab: View {
         userProfileService: UserProfileService,
         friendService: FriendService,
         squadService: SquadService,
+        seasonGameService: SeasonGameService,
         onOpenInbox: @escaping () -> Void,
         onOpenRuns: @escaping () -> Void,
         onOpenMap: @escaping (Court?) -> Void
@@ -64,7 +75,15 @@ struct HomeTab: View {
             courtService: courtService,
             gameService: gameService,
             userProfileService: userProfileService,
-            friendService: friendService
+            friendService: friendService,
+            squadService: squadService,
+            seasonGameService: seasonGameService
+        ))
+        _calendar = StateObject(wrappedValue: RunCalendarViewModel(
+            gameService: gameService,
+            seasonGameService: seasonGameService,
+            squadService: squadService,
+            userProfileService: userProfileService
         ))
     }
 
@@ -78,7 +97,7 @@ struct HomeTab: View {
                         ErrorBanner(message: message)
                     }
 
-                    if viewModel.hasStats {
+                    if showsStats {
                         yourStats
                     }
 
@@ -96,6 +115,7 @@ struct HomeTab: View {
         .hooprStatusBarScrim()
         .background(Color.hooprBackground)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay { calendarPopup }
     }
 
     // MARK: - The band
@@ -114,8 +134,8 @@ struct HomeTab: View {
     /// band is the one `ThemeContrastTests` already holds.
     ///
     /// **The whole band opens Runs** (2026-09-24, at the user's request),
-    /// wherever it's pressed — the inbox button and "Find a court" excepted,
-    /// which are buttons of their own and take the touch first. The arrow at the
+    /// wherever it's pressed — the inbox button excepted, which is a button of
+    /// its own and takes the touch first. The arrow at the
     /// last row's trailing edge is what says so: it replaced a "Your runs ›" line
     /// that named the destination but only the words were a target.
     ///
@@ -376,14 +396,18 @@ struct HomeTab: View {
     /// the 40pt display tier over a full-width button, and a statement that
     /// size, in the band where a tip-off time normally sits, read as a
     /// headline about nothing. Now it has the booked state's own shape: the
-    /// icon-and-title line the court name uses, at the same `title` size; one
-    /// line saying what the button leads to; and the button on the band's
-    /// left edge, in the row the detail line takes when there is a run — with
-    /// the same arrow at its far end. It is still the largest thing on the
-    /// screen, which is what the answer should be.
+    /// icon-and-title line the court name uses, at the same `title` size, and
+    /// one line saying what to do, with the band's arrow at its far end. It is
+    /// still the largest thing on the screen, which is what the answer should
+    /// be.
     ///
-    /// **"Find a court" keeps its own destination** (the map). Pressing
-    /// anywhere else on the band opens Runs, as it does with a run booked.
+    /// **No "Find a court" button since 2026-10-05** (the user's call). It
+    /// opened the map with nothing selected, and "Tonight nearby" now draws a
+    /// live map that does exactly that, a scroll's width below — two ways to
+    /// the same place, one of them a filled button competing with the answer.
+    /// So the whole band opens Runs, as it does with a run booked, and with
+    /// nothing to press inside it the answer is one VoiceOver element that
+    /// says so, as `bookedAnswer` is.
     private var openAnswer: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
@@ -398,25 +422,18 @@ struct HomeTab: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Text("Join one nearby or start your own.")
-                .hooprType(.body)
-                .foregroundStyle(Color.hooprSecondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-
             rowWithArrow {
-                Button {
-                    onOpenMap(nil)
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "map.fill")
-                        Text("Find a court")
-                    }
-                }
-                .buttonStyle(.hooprFilled(.regular))
+                Text("Join one nearby or start your own.")
+                    .hooprType(.body)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.top, Spacing.sm)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Double tap to open your runs")
+        .accessibilityAction { onOpenRuns() }
     }
 
     /// The listener hasn't answered yet. Two blocks at the hero's own
@@ -455,6 +472,14 @@ struct HomeTab: View {
     /// Where the action is. Rows on the page rather than rows in a card: the
     /// list is already one group, and a box around it grouped nothing a
     /// heading didn't.
+    ///
+    /// **With nothing on anywhere, a map of the courts around you** —
+    /// `TonightNearbyPreview`, which opens the map with nothing selected — the
+    /// band's "Find a court" button did that until the preview replaced it.
+    /// Which of the four states shows is
+    /// `HomeViewModel.nearbySection`; a failed listener is never the empty
+    /// state. A change of state cross-fades rather than cuts — games arriving
+    /// while the preview is up replace it in place.
     @ViewBuilder
     private var hotCourts: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
@@ -462,28 +487,40 @@ struct HomeTab: View {
                 .hooprType(.label)
                 .foregroundStyle(Color.hooprSecondaryText)
 
-            if !viewModel.hasLoaded {
-                Text("Checking what's on…")
-                    .hooprType(.body)
-                    .foregroundStyle(Color.hooprSecondaryText)
-            } else if viewModel.hotCourts.isEmpty {
-                Text("Nothing scheduled anywhere today. Be the first.")
-                    .hooprType(.body)
-                    .foregroundStyle(Color.hooprSecondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(viewModel.hotCourts.enumerated()), id: \.element.id) { index, hot in
-                        if index > 0 {
-                            Divider()
-                                .overlay(Color.hooprBorder)
-                        }
+            Group {
+                switch viewModel.nearbySection {
+                case .loading:
+                    Text("Checking what's on…")
+                        .hooprType(.body)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                case .unavailable:
+                    Text("Couldn't check what's on.")
+                        .hooprType(.body)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                case .preview:
+                    TonightNearbyPreview(
+                        courts: viewModel.nearestCourts,
+                        origin: viewModel.previewOrigin
+                    ) {
+                        onOpenMap(nil)
+                    }
+                case .list:
+                    VStack(spacing: 0) {
+                        ForEach(Array(viewModel.hotCourts.enumerated()), id: \.element.id) { index, hot in
+                            if index > 0 {
+                                Divider()
+                                    .overlay(Color.hooprBorder)
+                            }
 
-                        hotCourtRow(hot)
+                            hotCourtRow(hot)
+                        }
                     }
                 }
             }
+            .transition(.opacity)
         }
+        .animation(Motion.animation(.swap, reduceMotion: reduceMotion), value: viewModel.nearbySection)
     }
 
     private func hotCourtRow(_ hot: HomeViewModel.HotCourt) -> some View {
@@ -545,24 +582,101 @@ struct HomeTab: View {
         .accessibilityLabel("\(hot.court.displayName), \(hot.court.city), \(gameCountText(hot.gameCount)) today")
     }
 
-    /// The participation card, under the same kind of label as the hot list.
+    /// Whether there is a stats row at all: a scoreboard to show, or — for
+    /// someone with no stats yet and no squad — a calendar with something on it.
+    /// With neither, the row is hidden, rather than drawn as an empty month.
+    private var showsStats: Bool {
+        !viewModel.scoreboardStats.isEmpty || calendar.tile.hasMarks
+    }
+
+    /// The stats scoreboard and the run calendar's tile, under the same kind of
+    /// label as the hot list.
     ///
-    /// Directly under the band, above what's on tonight (swapped with it
-    /// 2026-09-23, at the user's request — it was last, on the reasoning that it
-    /// looks back rather than forward). Still a card and still at row weight,
-    /// not the sentence the redesign first cut it to. See `StatsCard` for why,
-    /// and for why it can't break mid-word any more.
+    /// Directly under the band, above what's on tonight (the user's order,
+    /// 2026-09-23). A scoreboard since 2026-10-05 — see `StatsScoreboard` for
+    /// why the record and the run counts are set at different sizes, and for
+    /// how its rotation is bounded. **The tile sits to its right, as tall as
+    /// it** (the user's design, 2026-10-06), and opens the month in a popup.
+    ///
+    /// **Side by side only while everything fits.** That is a function of the
+    /// text size and the width (`HomeStatsLayout`), decided up front: the
+    /// scoreboard takes all the width it is offered, so `ViewThatFits` would
+    /// pick side by side every time and clip. Past it, the tile goes under the
+    /// scoreboard.
     private var yourStats: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text("Your stats")
                 .hooprType(.label)
                 .foregroundStyle(Color.hooprSecondaryText)
 
-            StatsCard(
-                completedCount: viewModel.completedGameCount,
-                participationStreak: viewModel.participationStreak,
-                lastCompletedText: viewModel.lastCompletedText
-            )
+            statsPanels
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
+    }
+
+    @ViewBuilder
+    private var statsPanels: some View {
+        let stats = viewModel.scoreboardStats
+
+        if stats.isEmpty {
+            calendarTile()
+                .fixedSize()
+        } else if HomeStatsLayout.isSideBySide(
+            at: HooprFontMetrics.contentSizeCategory(for: dynamicTypeSize),
+            contentWidth: contentWidth
+        ) {
+            HStack(alignment: .top, spacing: Spacing.md) {
+                StatsScoreboard(stats: stats, fillsHeight: true)
+                calendarTile(fillsHeight: true)
+                    .frame(width: RunCalendarTileMetrics.width)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                StatsScoreboard(stats: stats)
+                calendarTile()
+                    .fixedSize()
+            }
+        }
+    }
+
+    private func calendarTile(fillsHeight: Bool = false) -> some View {
+        RunCalendarTile(tile: calendar.tile, fillsHeight: fillsHeight) {
+            withAnimation(Motion.animation(.snap, reduceMotion: reduceMotion)) {
+                calendarMonth = calendar.open()
+            }
+        }
+    }
+
+    /// The month, as one box over a dimmed Home (the user's call: smaller than
+    /// a slide-up sheet, with an X). The backdrop closes it too.
+    ///
+    /// Two insertions, not one, so each takes its own transition: the backdrop
+    /// fades, the card settles in on `Motion.present`.
+    private var calendarPopup: some View {
+        ZStack {
+            if calendarMonth != nil {
+                Color.hooprBackdrop
+                    .ignoresSafeArea()
+                    .onTapGesture(perform: closeCalendar)
+                    .accessibilityHidden(true)
+                    .transition(.opacity)
+            }
+
+            if calendarMonth != nil {
+                RunCalendarPopup(
+                    page: calendar.page,
+                    onPage: calendar.showMonth(offset:),
+                    onRetry: calendar.retry,
+                    onClose: closeCalendar
+                )
+                .transition(Motion.present(reduceMotion: reduceMotion))
+            }
+        }
+    }
+
+    private func closeCalendar() {
+        withAnimation(Motion.animation(.snap, reduceMotion: reduceMotion)) {
+            calendarMonth = nil
         }
     }
 
@@ -658,6 +772,25 @@ nonisolated enum HomeHeroMetrics {
             context: nil
         )
         return max(1, Int((box.height / font.lineHeight).rounded()))
+    }
+}
+
+/// Whether Home's stats row has room for the calendar tile beside the
+/// scoreboard — a pure function of the text size and the width, so it can be
+/// tested and never depends on what a layout pass happened to measure.
+///
+/// True only while every value the scoreboard can show fits one line of what
+/// the tile leaves it. The tile itself always fits: its squares are fixed, and
+/// the label over them is capped.
+nonisolated enum HomeStatsLayout {
+    static func isSideBySide(
+        at category: UIContentSizeCategory,
+        contentWidth: CGFloat = HomeHeroMetrics.contentWidth
+    ) -> Bool {
+        StatsScoreboardMetrics.everyValueFits(
+            cardWidth: contentWidth - Spacing.md - RunCalendarTileMetrics.width,
+            at: category
+        )
     }
 }
 

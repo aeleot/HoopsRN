@@ -210,9 +210,10 @@ extension Color {
     ///
     /// **Each played dot clears 3:1**, the floor WCAG 1.4.11 sets for a
     /// graphic you need to read, on every ground the guide is drawn on: the
-    /// hero band and a card. Win is 3.15:1 on the light band, which sets how
-    /// light this green can go. Its dark value is the same hue lifted, as
-    /// `hooprOrange`'s is.
+    /// hero band and a card. Win is 3.15:1 on the light band and 3.05:1 on its
+    /// light squad washes, which sets how light this green can go — and how
+    /// far below the band those washes can sit. Its dark value is the same hue
+    /// lifted, as `hooprOrange`'s is.
     ///
     /// **The colours can't carry win and loss alone, and that was measured.**
     /// For a red-green colour-blind reader, two fills differ only in how light
@@ -244,9 +245,10 @@ extension Color {
     /// numeral beside it already says how many games were played, and a grey
     /// as heavy as the win and loss dots would read as a third kind of
     /// result. `ThemeContrastTests` holds it visible, and below both played
-    /// dots.
+    /// dots. Light is `#ABABAF`, a notch under the `#AEAEB2` it was, so it keeps
+    /// 2:1 on the light squad washes (2.03:1) now they sit below the band.
     static let hooprFormUnplayed = Color.hoopr(
-        light: UIColor(red: 174 / 255, green: 174 / 255, blue: 178 / 255, alpha: 1),
+        light: UIColor(red: 171 / 255, green: 171 / 255, blue: 175 / 255, alpha: 1),
         dark: UIColor(red: 84 / 255, green: 84 / 255, blue: 86 / 255, alpha: 1)
     )
 
@@ -458,6 +460,14 @@ extension Color {
         )
     }
 
+    /// The page under a popup — the run calendar's month — dimmed so the card
+    /// on it is the one thing to look at. A white page needs less black to read
+    /// as dimmed than a near-black one does to read as anything at all.
+    static let hooprBackdrop = hoopr(
+        light: UIColor(white: 0, alpha: 0.35),
+        dark: UIColor(white: 0, alpha: 0.6)
+    )
+
     // MARK: - Text
 
     /// The text you read first — titles, values, primary labels.
@@ -480,8 +490,9 @@ extension Color {
     /// trait collection asks for it.
     // MARK: - Washes
 
-    /// A squad's colour **at the hero band's own luminance** — the colour a
-    /// squad's band is washed with (UI revamp Phase 4, `HeroWash`).
+    /// A squad's colour **at the hero band's own luminance** in dark mode, and
+    /// a step below it in light — the colour a squad's band is washed with (UI
+    /// revamp Phase 4, `HeroWash`).
     ///
     /// **Why the band could be neutral no longer, and still passes.** The
     /// brief's M3 wanted the crest colour as the ground of every screen about
@@ -495,18 +506,29 @@ extension Color {
     /// `hooprHeroBand` — and every pairing `ThemeContrastTests` holds on the
     /// band holds on it unchanged.
     ///
-    /// **Light mode is necessarily faint.** Near white, sRGB has almost no room
-    /// for colour at the band's luminance (the widest a red, blue or purple
-    /// can go there is about 0.015 OKLCH chroma), so the light wash is a
-    /// pastel cast and the crest still carries the colour. That is the gamut,
-    /// not a choice; darkening the band to make room would cost the win dot
-    /// its 3:1.
+    /// **Light mode sits a step below the band, to make room for colour**
+    /// (2026-10-08). Near white, sRGB has almost no room for colour at the
+    /// band's own luminance — about 0.014 OKLCH chroma for a red, blue or
+    /// purple — and the white-mix this used took 0.011 of it, which read as a
+    /// grey band with a cast (the user: "flat … no pop"). So in light the wash
+    /// sits at `#F1F1F1`'s luminance, under the band's `#F5F5F5`, and is pushed
+    /// to 0.020 chroma, nearly twice as colourful. That step is as far as it
+    /// goes: the win dot is 3.05:1 on it and the HOSTING pill 4.54:1, both
+    /// against their floors, and the unplayed dot was darkened a notch to keep
+    /// its 2:1. `ThemeContrastTests` asserts every band pairing on every wash.
+    ///
+    /// **Every wash is the same strength, not as strong as its hue allows.**
+    /// Teal and green are luminous hues and could reach 0.075 near white, four
+    /// times what blue can: a teal squad's band would be loud mint while a blue
+    /// one stayed pale. Capping chroma (`lightWashChroma`) makes the squads
+    /// equals, and the cap is what the brand orange itself can carry there.
     static func hooprSquadWash(_ colorKey: String) -> Color {
-        wash(of: hooprSquad(colorKey))
+        bandWash(of: hooprSquad(colorKey))
     }
 
-    /// The brand orange at the band's luminance — Login's hero (`HeroWash`).
-    static let hooprBrandWash = wash(of: hooprOrange)
+    /// The brand orange as a band's wash — Home, Runs, Map and Login's hero
+    /// (`HeroWash`).
+    static let hooprBrandWash = bandWash(of: hooprOrange)
 
     /// The brand orange at **`hooprHoverFill`'s** luminance — the colour of the
     /// big half-ball on Home's band (`HomeBandBall`, 2026-09-23).
@@ -519,7 +541,83 @@ extension Color {
     /// baseline) — asserted again on this colour itself.
     static let hooprBrandWatermark = wash(of: hooprOrange, at: hooprHoverFill)
 
-    private static func wash(of color: Color, at groundColor: Color = hooprHeroBand) -> Color {
+    // MARK: - Scoreboard
+
+    /// The screen Home's stats are shown on — a scoreboard, set into a card's
+    /// bezel (`StatsScoreboard`, 2026-10-05) — and the run calendar drawn on
+    /// the same screen.
+    ///
+    /// **It follows the appearance** (2026-10-06). It was first fixed
+    /// near-black in both — a lit display doesn't invert with the room — but in
+    /// light mode that was two black panels on a white page, which read as
+    /// dark mode left behind, and the user asked for them light. Dark mode is
+    /// the screen it always was. Light mode is a pale panel a step below its
+    /// white bezel (1.11:1, enough to read as set into it), and the roles drawn
+    /// on it become the page's own light-mode text roles.
+    ///
+    /// Every pairing on it is asserted in `ThemeContrastTests`, in both
+    /// appearances: the numbers 17.57:1 dark / 18.94:1 light, the labels 6.70 /
+    /// 5.01, the dim units 7.52 / 5.18 — and over the dot texture, where they
+    /// dip to 14.85 / 17.64, 5.66 / 4.67 and 6.36 / 4.82. The light screen
+    /// can't be any darker than this without the labels dropping under 4.5:1
+    /// on the dots.
+    static let hooprScoreboardScreen = Color.hoopr(light: rgb(243, 243, 244), dark: rgb(11, 11, 12))
+
+    /// The numbers — and anything else read first on the screen. The page's
+    /// primary text: its dark value is the near-white the screen always had.
+    static let hooprScoreboardText = hooprPrimaryText
+
+    /// The LED colour: labels, their symbols, the current page's mark. The
+    /// brand accent — the brand orange itself in dark mode, where it already
+    /// reads on the near-black screen, and deepened to `#B8400F` in light,
+    /// exactly as it is on the page.
+    static let hooprScoreboardLabel = hooprBrandAccent
+
+    /// Units ("runs", "wks"), the other pages' marks and the pause control —
+    /// the screen's secondary text, and the page's.
+    static let hooprScoreboardDim = hooprSecondaryText
+
+    /// The unlit LEDs: a faint dot grid behind everything, one step off the
+    /// screen — lighter than it in dark mode, darker in light. Decorative — but
+    /// text crosses it, so text is asserted on it.
+    static let hooprScoreboardDot = Color.hoopr(light: rgb(235, 235, 237), dark: rgb(30, 30, 33))
+
+    /// The hot end of a day on fire — three or more runs, on Home's run
+    /// calendar — under the LED orange at the top of the same gradient: redder
+    /// than the orange, as a fire's base is. A day on fire is lit, so its number
+    /// and dots are the screen's own colour cut out of it — near-black on the
+    /// light dark-mode fire (5.0:1, and 6.7:1 on the orange end), the pale
+    /// screen on the deep light-mode fire (6.52 and 5.01). A mark that stands
+    /// off the screen as well.
+    static let hooprScoreboardEmber = Color.hoopr(light: rgb(168, 34, 22), dark: rgb(232, 70, 46))
+
+    /// A season game's day on the run calendar — the tile's square, the
+    /// popup's zone and the legend's swatch.
+    ///
+    /// **The crest colour in dark mode, and the crest's hue at
+    /// `hooprSeparatorStrong`'s lightness in light.** The crest fills are light
+    /// by construction (`hooprOnCrest`), so on the near-black screen every one
+    /// stands off it, and on the pale one most can't: gold is 1.52:1 there. A
+    /// game day is a mark you have to find, so it keeps the 3:1 a graphic needs
+    /// by taking the lightness of the app's line-that-must-be-seen (3.27 on the
+    /// screen, 3.05 on the dots, for all eight) while keeping its hue — the
+    /// same move `hooprSquadWash` makes, toward a darker target. The black
+    /// number on it still reads (5.75:1).
+    ///
+    /// The crest itself, beside the squad's name on the scoreboard, stays the
+    /// crest: on the pale screen it is what it is on every light page — a pale
+    /// disc with its hairline, carried by its glyph and the name beside it.
+    static func hooprScoreboardSquad(_ colorKey: String) -> Color {
+        let crest = UIColor(hooprSquad(colorKey))
+        let line = UIColor(hooprSeparatorStrong)
+        return Color(UIColor { traits in
+            let fill = crest.resolvedColor(with: traits)
+            guard traits.userInterfaceStyle != .dark else { return fill }
+            return luminanceMatched(fill, to: line.resolvedColor(with: traits))
+        })
+    }
+
+    private static func wash(of color: Color, at groundColor: Color) -> Color {
         let tint = UIColor(color)
         let ground = UIColor(groundColor)
         return Color(UIColor { traits in
@@ -528,6 +626,78 @@ extension Color {
                 to: ground.resolvedColor(with: traits)
             )
         })
+    }
+
+    /// The luminance a light-mode band wash sits at: `#F1F1F1`'s, one step
+    /// under the band. See `hooprSquadWash` for why, and why no lower.
+    static let lightWashGround = UIColor(white: 241 / 255, alpha: 1)
+
+    /// The OKLCH chroma every light-mode band wash is given — the most the
+    /// brand orange can carry at `lightWashGround`'s luminance.
+    static let lightWashChroma: CGFloat = 0.02
+
+    /// `luminanceMatched` to the band in dark mode; in light, `vivid` at
+    /// `lightWashGround` and `lightWashChroma`.
+    private static func bandWash(of color: Color) -> Color {
+        let tint = UIColor(color)
+        let band = UIColor(hooprHeroBand)
+        return Color(UIColor { traits in
+            let resolved = tint.resolvedColor(with: traits)
+            guard traits.userInterfaceStyle != .dark else {
+                return luminanceMatched(resolved, to: band.resolvedColor(with: traits))
+            }
+            return vivid(resolved, at: lightWashGround, chroma: lightWashChroma)
+        })
+    }
+
+    /// `tint`'s hue at `ground`'s relative luminance, as colourful as `chroma`
+    /// (OKLCH) asks or sRGB allows, whichever is less.
+    ///
+    /// It moves along the line `luminanceMatched` does — the colours a tint
+    /// and grey make together, which keeps the hue — but *away* from grey as
+    /// far as it can rather than mixing toward white: `luminanceMatched` stops
+    /// where white's share pins the luminance, with every channel short of
+    /// clipping, and colour is left unspent. Near white the step from that to
+    /// the gamut is about a quarter more chroma; the cap is what keeps the
+    /// luminous hues from running much further than the rest.
+    nonisolated static func vivid(_ tint: UIColor, at ground: UIColor, chroma: CGFloat) -> UIColor {
+        let t = linearRGB(tint)
+        let tintLuminance = relativeLuminance(t)
+        let groundLuminance = relativeLuminance(linearRGB(ground))
+        let point = { (reach: CGFloat) in t.map { groundLuminance + reach * ($0 - tintLuminance) } }
+
+        // The furthest from grey before a channel clips at 1, or at 0.
+        var reach: CGFloat = 0
+        if let top = t.max(), top > tintLuminance {
+            reach = (1 - groundLuminance) / (top - tintLuminance)
+        }
+        if let bottom = t.min(), bottom < tintLuminance {
+            reach = min(reach, groundLuminance / (tintLuminance - bottom))
+        }
+        // Near white, chroma is all but linear in reach, so one rescale lands
+        // on the cap to within a few percent.
+        let reachable = oklchChroma(point(reach))
+        if reachable > chroma {
+            reach *= chroma / reachable
+        }
+
+        let matched = point(reach)
+        return UIColor(
+            red: encoded(matched[0]),
+            green: encoded(matched[1]),
+            blue: encoded(matched[2]),
+            alpha: 1
+        )
+    }
+
+    /// OKLCH chroma of a linear-light sRGB colour (Björn Ottosson's OKLab).
+    nonisolated static func oklchChroma(_ linear: [CGFloat]) -> CGFloat {
+        let l = pow(0.4122214708 * linear[0] + 0.5363325363 * linear[1] + 0.0514459929 * linear[2], 1.0 / 3)
+        let m = pow(0.2119034982 * linear[0] + 0.6806995451 * linear[1] + 0.1073969566 * linear[2], 1.0 / 3)
+        let s = pow(0.0883024619 * linear[0] + 0.2817188376 * linear[1] + 0.6299787005 * linear[2], 1.0 / 3)
+        let a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s
+        let b = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+        return hypot(a, b)
     }
 
     /// `tint`'s chromaticity at `ground`'s relative luminance, computed in

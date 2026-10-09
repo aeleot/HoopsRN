@@ -11,11 +11,13 @@ import SwiftUI
 /// them. On game day, *which of my squads is playing*. On Login, *what is this
 /// app*, before a word of it is read.
 ///
-/// **Every colour in the mesh has the band's luminance** (see
+/// **Every colour in the mesh has the band's luminance in dark mode** (see
 /// `Color.hooprSquadWash`), so the text, marks and baseline drawn over it keep
-/// the ratios `ThemeContrastTests` asserts on the band. The test asserts them
-/// again on each wash and on the mixes the mesh passes through, because two
-/// equal-luminance colours mixed in sRGB land very slightly darker. The mesh
+/// the ratios `ThemeContrastTests` asserts on the band. In light mode the wash
+/// sits a step under the band to make room for colour, and every ratio drawn
+/// on it still clears its floor. The test asserts them on each wash and on
+/// the mixes the mesh passes through, because two colours mixed in sRGB can
+/// land darker than either's luminance suggests. The mesh
 /// interpolates linearly (`smoothsColors: false`) so that nothing it draws
 /// lies outside those mixes.
 ///

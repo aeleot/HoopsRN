@@ -24,12 +24,9 @@ struct FilterChip: View {
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.xs)
             .frame(minHeight: Self.drawnHeight)
-            .background(isActive ? Color.hooprOrange : Color.hooprHeroBand, in: Capsule())
-            .overlay {
-                if !isActive {
-                    Capsule().strokeBorder(Color.hooprSeparatorStrong, lineWidth: 1)
-                }
-            }
+            .background(isActive ? Color.hooprOrange : Color.hooprElevatedSurface, in: Capsule())
+            .shadow(color: .black.opacity(isActive ? 0.18 : 0.14), radius: 4, x: 0, y: 2)
+            .shadow(color: .black.opacity(0.06), radius: 1, x: 0, y: 0.5)
             .frame(minWidth: Self.tapTarget, minHeight: Self.tapTarget)
             .contentShape(Rectangle())
         }

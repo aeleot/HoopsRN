@@ -487,18 +487,40 @@ final class ThemeContrastTests: XCTestCase {
         Squad.colorKeys.map { ($0, Color.hooprSquadWash($0)) } + [("brand", Color.hooprBrandWash)]
     }
 
-    /// **The premise the washes rest on.** Each has the band's own relative
-    /// luminance, in both appearances — which is what lets a band carry a
-    /// squad's colour without moving a single ratio drawn on it.
-    func testEveryWashHasTheBandsLuminance() {
+    /// **The premise the washes rest on.** In dark mode each has the band's own
+    /// relative luminance — which is what lets a band carry a squad's colour
+    /// without moving a single ratio drawn on it. In light mode each sits at
+    /// `lightWashGround`'s, one step *under* the band, to make room for colour
+    /// (2026-10-08) — so the light ratios do move, and the pairing test below
+    /// is what holds them.
+    func testEveryWashSitsAtItsAppearancesLuminance() {
+        let band = luminance(UIColor(Color.hooprHeroBand), .dark)
+        let lightTarget = luminance(Color.lightWashGround, .light)
+        XCTAssertLessThan(lightTarget, luminance(UIColor(Color.hooprHeroBand), .light))
         for (name, wash) in washes {
-            for style in [UIUserInterfaceStyle.light, .dark] {
-                let band = luminance(UIColor(Color.hooprHeroBand), style)
-                XCTAssertEqual(
-                    luminance(UIColor(wash), style), band, accuracy: band * 0.005,
-                    "\(name) wash, style \(style.rawValue)"
-                )
-            }
+            XCTAssertEqual(luminance(UIColor(wash), .dark), band, accuracy: band * 0.005, "\(name) wash, dark")
+            XCTAssertEqual(
+                luminance(UIColor(wash), .light), lightTarget, accuracy: lightTarget * 0.005,
+                "\(name) wash, light"
+            )
+        }
+    }
+
+    /// **Every light wash is visibly its colour, and equally so.** At the
+    /// band's own luminance the light washes were about 0.011 OKLCH chroma —
+    /// a grey with a cast. Each is now `lightWashChroma` to within a tenth,
+    /// teal and green included: they could reach four times that near white,
+    /// and a squad's band shouldn't be louder because of the colour it picked.
+    func testEveryLightWashCarriesTheSameColour() {
+        let light = UITraitCollection(userInterfaceStyle: .light)
+        for (name, wash) in washes {
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            UIColor(wash).resolvedColor(with: light).getRed(&r, green: &g, blue: &b, alpha: &a)
+            let linear: [CGFloat] = [r, g, b].map { $0 <= 0.04045 ? $0 / 12.92 : pow(($0 + 0.055) / 1.055, 2.4) }
+            XCTAssertEqual(
+                Color.oklchChroma(linear), Color.lightWashChroma, accuracy: Color.lightWashChroma * 0.1,
+                "\(name) light wash"
+            )
         }
     }
 
@@ -607,6 +629,111 @@ final class ThemeContrastTests: XCTestCase {
         }
     }
 
+    // MARK: - Home's stats scoreboard (2026-10-05)
+
+    /// **The screen follows the appearance** (2026-10-06). It was fixed
+    /// near-black in both, and in light mode Home showed two black panels on a
+    /// white page. Dark in dark mode, pale in light — and the text on it the
+    /// other way round, which is the pairings below.
+    func testTheScoreboardFollowsTheAppearance() {
+        XCTAssertLessThan(luminance(UIColor(Color.hooprScoreboardScreen), .dark), 0.01)
+        XCTAssertGreaterThan(luminance(UIColor(Color.hooprScoreboardScreen), .light), 0.85)
+        XCTAssertGreaterThan(luminance(UIColor(Color.hooprScoreboardText), .dark), 0.85)
+        XCTAssertLessThan(luminance(UIColor(Color.hooprScoreboardText), .light), 0.01)
+    }
+
+    /// Everything the screen prints, on the screen and on the unlit LEDs it
+    /// crosses: the numbers, the labels (12pt, so the text floor), the units
+    /// (text too). The current page's mark and the pause glyph are graphics,
+    /// which these clear with room to spare.
+    func testEverythingOnTheScoreboardReadsOnItsScreen() {
+        for ground in [(Color.hooprScoreboardScreen, "screen"), (.hooprScoreboardDot, "unlit LEDs")] {
+            assertContrast(.hooprScoreboardText, on: ground.0, atLeast: aaText, "a number on the \(ground.1)")
+            assertContrast(.hooprScoreboardLabel, on: ground.0, atLeast: aaText, "a label on the \(ground.1)")
+            assertContrast(.hooprScoreboardDim, on: ground.0, atLeast: aaText, "a unit or the pause glyph on the \(ground.1)")
+        }
+    }
+
+    /// The unlit LEDs are a texture, not a boundary: visible, and well under
+    /// the 3:1 that would make them compete with what's lit — on either screen.
+    func testTheUnlitLEDsAreFaint() {
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            let step = ratio(.hooprScoreboardDot, on: .hooprScoreboardScreen, style)
+            XCTAssertGreaterThan(step, 1.05, "style \(style.rawValue)")
+            XCTAssertLessThan(step, 1.5, "style \(style.rawValue)")
+        }
+    }
+
+    /// A squad's crest sits on the screen beside its name. On the dark screen
+    /// every crest fill stands off it as a graphic must. **On the pale one it
+    /// can't, and isn't asserted to:** the fills are light by construction, so
+    /// a crest there is what it is on every light page — a pale disc with its
+    /// hairline, carried by its black glyph and the name beside it. The screen
+    /// stands off its bezel in both appearances, which is what makes it read as
+    /// a screen.
+    func testCrestsAndTheBezelStandOffTheScreen() {
+        for key in Squad.colorKeys {
+            XCTAssertGreaterThanOrEqual(
+                ratio(.hooprSquad(key), on: .hooprScoreboardScreen, .dark), aaLarge,
+                "the \(key) crest on the dark screen"
+            )
+        }
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            XCTAssertGreaterThan(
+                ratio(.hooprScoreboardScreen, on: .hooprSurface, style), 1.1,
+                "the screen against its bezel, style \(style.rawValue)"
+            )
+        }
+    }
+
+    // MARK: - Home's run calendar (2026-10-05)
+
+    /// **The calendar is drawn on the scoreboard's screen** — the tile beside
+    /// the board and the month popup's grid — so what it prints on an unlit
+    /// zone is what the scoreboard prints, named here so it can't quietly stop
+    /// being asserted if the scoreboard's tests are ever reshaped: day numbers
+    /// (`hooprScoreboardText`, 13pt, so the text floor), weekday initials and
+    /// the legend (`hooprScoreboardDim`), the month's name and the run dots
+    /// (`hooprScoreboardLabel`), on the screen and on an unlit zone
+    /// (`hooprScoreboardDot`), on the dark screen and the pale one.
+    func testTheCalendarsTextReadsOnTheScoreboardScreen() {
+        for ground in [(Color.hooprScoreboardScreen, "screen"), (.hooprScoreboardDot, "an unlit zone")] {
+            assertContrast(.hooprScoreboardText, on: ground.0, atLeast: aaText, "a day number on \(ground.1)")
+            assertContrast(.hooprScoreboardDim, on: ground.0, atLeast: aaText, "a weekday initial on \(ground.1)")
+            assertContrast(.hooprScoreboardLabel, on: ground.0, atLeast: aaText, "the month's name on \(ground.1)")
+        }
+    }
+
+    /// **A lit zone's number is cut out of it.** A day on fire is the LED
+    /// orange fading to `hooprScoreboardEmber`, and its number and dots are the
+    /// screen's own colour — near-black on the dark screen's light fire, pale on
+    /// the pale screen's deep one — text, so 4.5:1, at both ends of the
+    /// gradient. A game day is `hooprScoreboardSquad`, and its number and dots
+    /// are `hooprOnCrest`, as the crest's glyph is.
+    func testALitZonesNumberReadsOnIt() {
+        for (fill, name) in [(Color.hooprScoreboardLabel, "orange"), (.hooprScoreboardEmber, "ember")] {
+            assertContrast(.hooprScoreboardScreen, on: fill, atLeast: aaText, "a fire day's number on its \(name) end")
+        }
+        for key in Squad.colorKeys {
+            assertContrast(.hooprOnCrest, on: .hooprScoreboardSquad(key), atLeast: aaText, "a game day's number on \(key)")
+        }
+    }
+
+    /// **The marks are graphics, so 3:1** against the screen around them: the
+    /// run dot, a lit square on the tile, both ends of the fire, every squad's
+    /// game-day colour (any of the eight can fill a game day), and the selected
+    /// day's ring.
+    func testTheCalendarsMarksStandOffTheScreen() {
+        for ground in [(Color.hooprScoreboardScreen, "screen"), (.hooprScoreboardDot, "unlit LEDs")] {
+            assertContrast(.hooprScoreboardLabel, on: ground.0, atLeast: aaLarge, "a run dot on the \(ground.1)")
+            assertContrast(.hooprScoreboardEmber, on: ground.0, atLeast: aaLarge, "a fire day on the \(ground.1)")
+            assertContrast(.hooprScoreboardText, on: ground.0, atLeast: aaLarge, "the selected day's ring on the \(ground.1)")
+            for key in Squad.colorKeys {
+                assertContrast(.hooprScoreboardSquad(key), on: ground.0, atLeast: aaLarge, "a \(key) game day on the \(ground.1)")
+            }
+        }
+    }
+
     // MARK: - Grouped forms
 
     /// The grouped ground resolves to proven values — `hooprFill` in light,
@@ -649,7 +776,9 @@ final class ThemeContrastTests: XCTestCase {
     /// A played dot is a graphic you have to read to know the result, so each
     /// one clears WCAG 1.4.11's 3:1 on both grounds the guide is drawn on:
     /// Seasons' band and `SquadDetailView`'s card. The win green on the light
-    /// band (3.15:1) is the binding case. It sets how light that green can go.
+    /// band (3.15:1) is the binding case here; on the light squad washes it is
+    /// 3.05:1, held by `testEveryBandPairingHoldsAcrossEveryWash`. It sets how
+    /// light that green can go.
     func testEveryPlayedFormDotClearsTheGraphicFloorOnItsGrounds() {
         for ground in [Color.hooprHeroBand, .hooprSurface] {
             assertContrast(.hooprFormWin, on: ground, atLeast: aaLarge, "win dot")

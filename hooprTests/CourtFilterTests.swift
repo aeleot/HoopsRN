@@ -30,15 +30,21 @@ final class CourtFilterTests: XCTestCase {
         )
     }
 
-    private func game(id: String = "g", players: Int, maxPlayers: Int = 10) -> Game {
+    private func game(
+        id: String = "g",
+        players: Int,
+        maxPlayers: Int = 10,
+        scheduledTime: Date? = nil,
+        status: Game.Status? = nil
+    ) -> Game {
         Game(
             id: id,
             hostId: "host-uid",
             courtId: "court-a",
-            scheduledTime: now,
+            scheduledTime: scheduledTime ?? now,
             isPublic: true,
             maxPlayers: maxPlayers,
-            status: Game.status(playerCount: players, maxPlayers: maxPlayers),
+            status: status ?? Game.status(playerCount: players, maxPlayers: maxPlayers),
             playerIds: (0..<players).map { "player-\($0)" },
             queuedPlayerIds: [],
             createdAt: now,
@@ -55,7 +61,7 @@ final class CourtFilterTests: XCTestCase {
         for filter in CourtFilter.allCases {
             let matched = filter.matches(court(), activity: .quiet)
             switch filter {
-            case .gamesToday, .openSpots:
+            case .gamesToday, .startingSoon, .openSpots:
                 XCTAssertFalse(matched, "\(filter) should not match a quiet court")
             case .openToAll:
                 XCTAssertTrue(matched, "\(filter) reads the court, not its activity")
@@ -112,6 +118,37 @@ final class CourtFilterTests: XCTestCase {
         let room = CourtActivity(games: [game(players: 4)])
         XCTAssertTrue(CourtFilter.openSpots.matches(court(), activity: room))
         XCTAssertTrue(CourtFilter.gamesToday.matches(court(), activity: room))
+    }
+
+    // MARK: - startingSoon
+
+    func testStartingSoonMatchesARunWithinTheHour() {
+        let soon = CourtActivity(
+            games: [game(players: 4, scheduledTime: now.addingTimeInterval(45 * 60))],
+            now: now
+        )
+        XCTAssertTrue(CourtFilter.startingSoon.matches(court(), activity: soon))
+    }
+
+    func testStartingSoonIgnoresALaterRun() {
+        let later = CourtActivity(
+            games: [game(players: 4, scheduledTime: now.addingTimeInterval(3 * 60 * 60))],
+            now: now
+        )
+        XCTAssertTrue(CourtFilter.gamesToday.matches(court(), activity: later))
+        XCTAssertFalse(CourtFilter.startingSoon.matches(court(), activity: later))
+    }
+
+    /// A run whose tip-off has passed counts only once it's actually under way.
+    func testStartingSoonMatchesARunInProgress() {
+        let past = now.addingTimeInterval(-30 * 60)
+        let live = CourtActivity(
+            games: [game(players: 10, scheduledTime: past, status: .inProgress)],
+            now: now
+        )
+        let stale = CourtActivity(games: [game(players: 4, scheduledTime: past)], now: now)
+        XCTAssertTrue(CourtFilter.startingSoon.matches(court(), activity: live))
+        XCTAssertFalse(CourtFilter.startingSoon.matches(court(), activity: stale))
     }
 
     // MARK: - openToAll

@@ -38,9 +38,10 @@ struct hooprApp: App {
     /// launch finishes never hears about the tap that launched the app.
     @StateObject private var notificationService: NotificationService
 
-    /// Applied at the window root so it reaches every screen *and* every sheet
-    /// presented from one — a `preferredColorScheme` set further down would
-    /// leave modals resolving against the device appearance instead.
+    /// Applied to the window itself (`windowAppearance`), so it reaches every
+    /// screen *and* every sheet presented from one — including a sheet that is
+    /// already up when it changes, which `preferredColorScheme` left in the old
+    /// palette.
     @AppStorage(AppearancePreference.storageKey)
     private var appearance: AppearancePreference = .system
 
@@ -83,7 +84,7 @@ struct hooprApp: App {
                 notificationService: notificationService,
                 recentCourtsStore: recentCourtsStore
             )
-            .preferredColorScheme(appearance.colorScheme)
+            .windowAppearance(appearance)
         }
     }
 }

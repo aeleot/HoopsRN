@@ -143,30 +143,3 @@ struct RunsBandStat: View {
         .accessibilityLabel(spoken)
     }
 }
-
-/// The court, enlarged and half off the band's trailing edge — Runs' emblem,
-/// as the ball is Home's: the left half of a court seen from above, its
-/// three-point arc and key in view. Drawn in `hooprBrandWatermark`, so what
-/// crosses it — the strip's later days, the inbox button — reads as it
-/// does on a pressed row (`ThemeContrastTests`).
-///
-/// Decorative: hidden from VoiceOver, and it never takes a touch.
-struct RunsBandCourt: View {
-    private static let tilt: Angle = .degrees(-12)
-
-    var body: some View {
-        GeometryReader { proxy in
-            let width = proxy.size.width * 2 / 3
-
-            Image.court
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(Color.hooprBrandWatermark)
-                .rotationEffect(Self.tilt)
-                .frame(width: width)
-                .position(x: proxy.size.width, y: proxy.size.height * 0.5)
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-}

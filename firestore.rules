@@ -146,10 +146,13 @@ service cloud.firestore {
           (incoming().playerIds.size() >= incoming().maxPlayers ? 'full' : 'open');
       }
 
-      // Readable if it's discoverable, or if you're on it. The two client
+      // Readable if it's discoverable, or if you're on it. The client's
       // queries are constrained to exactly these shapes — `isPublic == true`,
       // and `playerIds array-contains uid` — so each returns only documents
-      // this rule already admits.
+      // this rule already admits. The second shape has two uses: the live
+      // "your runs" listener, and `GameService.runs(in:)`, the one-shot month
+      // read behind Home's run calendar (the same clause, plus a month-long
+      // `scheduledTime` range).
       allow read: if isSignedIn()
         && (resource.data.isPublic == true
             || request.auth.uid in resource.data.playerIds

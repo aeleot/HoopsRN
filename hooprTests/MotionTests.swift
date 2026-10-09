@@ -47,6 +47,87 @@ final class MotionTests: XCTestCase {
         XCTAssertLessThanOrEqual(Motion.Duration.reduced, 0.2)
     }
 
+    // MARK: - The empty-state map's drift
+
+    /// Under Reduce Motion the map rests on its centred frame — no wander.
+    func testUnderReduceMotionTheMapHoldsStill() {
+        for step in 0..<12 {
+            let date = Date(timeIntervalSinceReferenceDate: Double(step) * 3.7)
+            XCTAssertEqual(Motion.Drift.offset(at: date, reduceMotion: true), .zero)
+        }
+    }
+
+    /// The loop closes: a period later the map is exactly where it was, so
+    /// there is no seam to jump at.
+    func testTheDriftLoopsWithoutASeam() {
+        let date = Date(timeIntervalSinceReferenceDate: 1_234.5)
+        let later = date.addingTimeInterval(Motion.Drift.period * 3)
+        let now = Motion.Drift.offset(at: date, reduceMotion: false)
+        let then = Motion.Drift.offset(at: later, reduceMotion: false)
+
+        XCTAssertEqual(now.width, then.width, accuracy: 0.001)
+        XCTAssertEqual(now.height, then.height, accuracy: 0.001)
+    }
+
+    /// The map is drawn `overscan` past its frame on every side, and the drift
+    /// must never slide farther than that — or an edge of the map shows.
+    func testTheDriftNeverUncoversTheMapsEdge() {
+        var widest: CGFloat = 0
+        for step in 0..<240 {
+            let date = Date(timeIntervalSinceReferenceDate: Motion.Drift.period * Double(step) / 240)
+            let offset = Motion.Drift.offset(at: date, reduceMotion: false)
+            XCTAssertLessThan(abs(offset.width), Motion.Drift.overscan)
+            XCTAssertLessThan(abs(offset.height), Motion.Drift.overscan)
+            widest = max(widest, abs(offset.width))
+        }
+        XCTAssertGreaterThan(widest, Motion.Drift.amplitude * 0.95, "the drift should actually move")
+    }
+
+    /// Slow enough to be ambient, like the glow's — not something to watch.
+    func testTheDriftIsSlow() {
+        XCTAssertGreaterThanOrEqual(Motion.Drift.period, 20)
+        XCTAssertLessThanOrEqual(Motion.Drift.period, 30)
+    }
+
+    // MARK: - The stats scoreboard
+
+    /// Under Reduce Motion or VoiceOver the board doesn't rotate at all — every
+    /// panel is shown at once instead.
+    func testTheScoreboardHoldsStillUnderReduceMotionOrVoiceOver() {
+        XCTAssertTrue(Motion.Scoreboard.isStatic(reduceMotion: true, voiceOver: false))
+        XCTAssertTrue(Motion.Scoreboard.isStatic(reduceMotion: false, voiceOver: true))
+        XCTAssertFalse(Motion.Scoreboard.isStatic(reduceMotion: false, voiceOver: false))
+    }
+
+    /// The next panel is due only when there's one to go to, the board isn't
+    /// paused (WCAG 2.2.2's control), it's on screen and the app is in front —
+    /// so the timer never runs for nobody.
+    func testTheScoreboardAdvancesOnlyWhenSomeoneCanSeeItChange() {
+        func advances(
+            panels: Int = 3, paused: Bool = false, onScreen: Bool = true,
+            active: Bool = true, reduceMotion: Bool = false, voiceOver: Bool = false
+        ) -> Bool {
+            Motion.Scoreboard.advances(
+                panelCount: panels, isPaused: paused, isOnScreen: onScreen,
+                isActive: active, reduceMotion: reduceMotion, voiceOver: voiceOver
+            )
+        }
+
+        XCTAssertTrue(advances())
+        XCTAssertFalse(advances(panels: 1), "nothing to rotate to")
+        XCTAssertFalse(advances(paused: true), "paused")
+        XCTAssertFalse(advances(onScreen: false), "scrolled away")
+        XCTAssertFalse(advances(active: false), "app in the background")
+        XCTAssertFalse(advances(reduceMotion: true), "Reduce Motion")
+        XCTAssertFalse(advances(voiceOver: true), "VoiceOver")
+    }
+
+    /// Long enough to read a label and a number, short enough to come round.
+    func testAScoreboardPanelHoldsLongEnoughToRead() {
+        XCTAssertGreaterThanOrEqual(Motion.Scoreboard.dwell, 3)
+        XCTAssertLessThanOrEqual(Motion.Scoreboard.dwell, 6)
+    }
+
     // MARK: - The inbox bounce
 
     /// A new request bounces the tray; answering one doesn't, and nothing does

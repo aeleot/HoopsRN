@@ -34,6 +34,23 @@ import UIKit
 /// holds still. It never carries information alone: the count and the heat
 /// colour say the same thing.
 ///
+/// **And a second, which isn't either: the empty-state map's drift** (`Drift`,
+/// Home's "Tonight nearby" preview). The map behind "Nothing on nearby yet"
+/// wanders a few points on a slow loop and its dots ping on `Glow`'s clock, so
+/// an empty answer still reads as a live place. Bounded the same three ways:
+/// only on that one decorative map, it moves no layout (the map is drawn
+/// oversize and slid inside its clip), and under Reduce Motion it is a still
+/// frame.
+///
+/// **And a third, which is a change on a clock: the stats scoreboard**
+/// (`Scoreboard`, Home). Its panels take turns, one sliding across as the next
+/// arrives every `Scoreboard.dwell` seconds. Each slide is an ordinary
+/// animated change, so the screen still draws in its final state first; what
+/// is new is that a timer makes the change. Bounded harder than the others,
+/// because it moves text: a visible pause control (WCAG 2.2.2), nothing at all
+/// under Reduce Motion or VoiceOver (every panel shown at once instead), and
+/// no timer while it is scrolled away or the app is in the background.
+///
 /// The static `Animation` and `AnyTransition` members read
 /// `UIAccessibility.isReduceMotionEnabled`, the setting SwiftUI's
 /// `accessibilityReduceMotion` mirrors, so an action closure — which has no
@@ -55,6 +72,10 @@ enum Motion {
         /// How long an exit takes to leave — quicker than an entrance, so what's
         /// going gets out of the way of what's coming.
         static let exit: TimeInterval = 0.16
+        /// The whole window cross-fading from one palette to the other when the
+        /// appearance preference changes (`WindowAppearance`). Already a fade,
+        /// so Reduce Motion leaves it as it is.
+        static let appearance: TimeInterval = 0.3
     }
 
     /// How far an entrance travels before it settles, in points.
@@ -103,6 +124,19 @@ enum Motion {
             ? .opacity.animation(.easeInOut(duration: Duration.reduced))
             : .scale(scale: 0.5).combined(with: .opacity).animation(animation(.snap, reduceMotion: false))
     }
+
+    /// A card presented over the page — the run calendar's month: it settles
+    /// from a little smaller as it fades in, and fades as it goes. Under Reduce
+    /// Motion, a fade.
+    static func present(reduceMotion: Bool) -> AnyTransition {
+        reduceMotion
+            ? .opacity.animation(.easeInOut(duration: Duration.reduced))
+            : .scale(scale: presentedScale).combined(with: .opacity).animation(animation(.snap, reduceMotion: false))
+    }
+
+    /// How much smaller a presented card starts: enough to read as arriving,
+    /// little enough that it doesn't read as a badge popping.
+    static let presentedScale: CGFloat = 0.94
 
     /// Whether a pressed button shrinks, or only dims.
     static func pressScales(reduceMotion: Bool) -> Bool {
@@ -177,6 +211,80 @@ enum Motion {
                 scale: 1 + (peakScale - 1) * CGFloat(eased),
                 opacity: peakOpacity * (1 - eased)
             )
+        }
+    }
+
+    /// The empty-state map's slow wander (`TonightNearbyPreview`): an ellipse
+    /// traced once every `period`, so the loop has no seam to jump at.
+    ///
+    /// **An offset, not a camera move.** The map is drawn `overscan` larger
+    /// than its frame on every side and slid inside the clip, which costs a
+    /// transform per frame instead of a MapKit camera change — and never asks
+    /// for new tiles mid-scroll. `amplitude` stays under `overscan`, so no
+    /// edge of the map is ever uncovered.
+    ///
+    /// Phased off the reference date, like `Glow`, so the frame doesn't jump
+    /// back to the start each time the preview scrolls in.
+    enum Drift {
+        /// Slow enough that the movement is felt rather than watched.
+        static let period: TimeInterval = 24
+        /// How far the map wanders across, in points. Down is
+        /// `verticalRatio` of that, because the frame is wide and short.
+        static let amplitude: CGFloat = 10
+        static let verticalRatio: CGFloat = 0.6
+        /// How much larger than its frame the map is drawn, per side.
+        static let overscan: CGFloat = 14
+
+        /// Where the map sits at `date`. Still under Reduce Motion — the frame
+        /// it rests on is the centred one.
+        static func offset(at date: Date, reduceMotion: Bool) -> CGSize {
+            if reduceMotion { return .zero }
+            var progress = date.timeIntervalSinceReferenceDate
+                .truncatingRemainder(dividingBy: period) / period
+            if progress < 0 { progress += 1 }
+            let angle = progress * 2 * .pi
+            return CGSize(
+                width: amplitude * CGFloat(cos(angle)),
+                height: amplitude * verticalRatio * CGFloat(sin(angle))
+            )
+        }
+    }
+    /// Home's stats scoreboard (`StatsScoreboard`): how long a panel holds,
+    /// and how the next one arrives.
+    enum Scoreboard {
+        /// Long enough to read a label and a number twice; short enough that
+        /// five panels come round in under half a minute.
+        static let dwell: TimeInterval = 4
+
+        /// Whether the panels take turns at all, or are shown all at once.
+        ///
+        /// All at once under Reduce Motion, and under VoiceOver — which reads
+        /// the screen as one sentence, so a picture changing under it would
+        /// say something the sentence doesn't.
+        static func isStatic(reduceMotion: Bool, voiceOver: Bool) -> Bool {
+            reduceMotion || voiceOver
+        }
+
+        /// Whether the next panel is due to come in. Only with something to
+        /// rotate to, not paused, on screen, with the app in front — the timer
+        /// is the only cost this has, so it never runs for nobody.
+        static func advances(
+            panelCount: Int,
+            isPaused: Bool,
+            isOnScreen: Bool,
+            isActive: Bool,
+            reduceMotion: Bool,
+            voiceOver: Bool
+        ) -> Bool {
+            panelCount > 1 && !isPaused && isOnScreen && isActive
+                && !isStatic(reduceMotion: reduceMotion, voiceOver: voiceOver)
+        }
+
+        /// The next panel slides in across the screen as this one slides out,
+        /// like a board changing over. A cross-fade under Reduce Motion —
+        /// which doesn't rotate, so this is only a guard.
+        static func slide(reduceMotion: Bool) -> AnyTransition {
+            reduceMotion ? .opacity : .push(from: .trailing)
         }
     }
 }

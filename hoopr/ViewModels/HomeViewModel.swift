@@ -34,6 +34,40 @@ final class HomeViewModel: ObservableObject {
         var id: String { court.id }
     }
 
+    /// A squad with its record — what the scoreboard's squad panel shows.
+    nonisolated struct SquadStanding: Equatable {
+        let squad: Squad
+        let record: SeasonGame.Record
+    }
+
+    /// One panel of Home's stats scoreboard (`StatsScoreboard`).
+    ///
+    /// Words and numbers only: which symbol and which type size a panel takes
+    /// is the view's, by `kind`.
+    nonisolated struct ScoreboardStat: Identifiable, Equatable {
+        enum Kind: Hashable {
+            case thisWeek
+            case squad
+            case streak
+            case total
+            case lastRun
+        }
+
+        let kind: Kind
+        let label: String
+        let value: String
+        /// Set beside the value, smaller — "runs", "wks". `nil` where the
+        /// value says it all ("Sep 24", a record).
+        let unit: String?
+        /// What VoiceOver says. "3 wks" is read as letters; "3 week streak" isn't.
+        let spoken: String
+        /// The squad and its record, for the crest and the record's dash.
+        /// Only on the squad panel.
+        let standing: SquadStanding?
+
+        var id: Kind { kind }
+    }
+
     /// The soonest run you're on, with its court resolved.
     ///
     /// Reuses `LocalRunsViewModel.Listing` rather than declaring a parallel
@@ -42,6 +76,20 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var nextRun: LocalRunsViewModel.Listing?
 
     @Published private(set) var hotCourts: [HotCourt] = []
+
+    /// The courts closest to you, nearest first — the dots on the map preview
+    /// "Tonight nearby" draws when nothing is on anywhere today.
+    ///
+    /// **Not `hotCourts` with the counts dropped.** `rankHotCourts` ranks the
+    /// whole dataset by how busy a court is, not how near, so a preview built
+    /// from it would frame courts across the Triangle. This is the nearest
+    /// `previewCourtLimit` to the same origin every other distance reads.
+    @Published private(set) var nearestCourts: [Court] = []
+
+    /// Where `nearestCourts` was measured from — the centre of the preview.
+    /// Published beside it, from the same rebuild, so the dots and the "you
+    /// are here" marker can never come from two different fixes.
+    @Published private(set) var previewOrigin: CLLocationCoordinate2D = LocationService.homeLocation
 
     /// Friend requests waiting on you. Only incoming ones count — a request
     /// you sent isn't yours to answer.
@@ -65,9 +113,20 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var participationStreak = 0
     @Published private(set) var lastCompletedText = "—"
 
-    /// Hides the stats card entirely for a brand-new account rather than
+    /// Completed runs in the current ISO week — the scoreboard's "This week".
+    /// Off the same `completedGames` snapshot the stats are recalculated from,
+    /// on the streak's calendar (`Game.completedThisWeek`).
+    @Published private(set) var runsThisWeek = 0
+
+    /// Your squad and its record, once the season's results have loaded — the
+    /// scoreboard's one confirmed number. `nil` with no squad, and until the
+    /// listener answers, so a "0–0" never flashes at a squad that has a record.
+    @Published private(set) var squadStanding: SquadStanding?
+
+    /// The scoreboard's panels, in the order they take turns. Empty for a
+    /// brand-new account with no squad, which hides the scoreboard rather than
     /// showing it with all-zero values.
-    var hasStats: Bool { completedGameCount > 0 }
+    @Published private(set) var scoreboardStats: [ScoreboardStat] = []
 
     /// Whether the games listener has delivered its first snapshot.
     ///
@@ -135,11 +194,40 @@ final class HomeViewModel: ObservableObject {
     /// the other cards; the ranking below is written to take any limit.
     static let hotCourtLimit = 3
 
+    /// How many courts the empty state's map preview frames. Enough to read
+    /// as "courts around you" rather than a single pin, few enough that the
+    /// frame stays a neighbourhood at the 1.5km floor.
+    static let previewCourtLimit = 5
+
+    /// What the "Tonight nearby" section shows.
+    nonisolated enum NearbySection: Equatable {
+        /// The listener hasn't answered yet.
+        case loading
+        /// The listener failed or is re-attaching, and there is nothing to
+        /// show from before it did. An empty list here means "couldn't look",
+        /// not "nothing's on", so it must not draw the empty state.
+        case unavailable
+        /// Nothing scheduled anywhere today — the map preview.
+        case preview
+        /// The busiest courts today.
+        case list
+    }
+
+    var nearbySection: NearbySection {
+        Self.nearbySection(
+            hasLoaded: hasLoaded,
+            hasHotCourts: !hotCourts.isEmpty,
+            hasError: errorMessage != nil,
+            isRecovering: isRecovering
+        )
+    }
+
     // MARK: - Dependencies
 
     private let courtService: CourtService
     private let gameService: GameService
     private let userProfileService: UserProfileService
+    private let seasonGameService: SeasonGameService
     private var cancellables = Set<AnyCancellable>()
 
     /// Where distances are measured from, read from the same seam as every
@@ -158,11 +246,14 @@ final class HomeViewModel: ObservableObject {
         courtService: CourtService,
         gameService: GameService,
         userProfileService: UserProfileService,
-        friendService: FriendService
+        friendService: FriendService,
+        squadService: SquadService,
+        seasonGameService: SeasonGameService
     ) {
         self.courtService = courtService
         self.gameService = gameService
         self.userProfileService = userProfileService
+        self.seasonGameService = seasonGameService
 
         authService.$currentUser
             .map(\.?.id)
@@ -202,6 +293,26 @@ final class HomeViewModel: ObservableObject {
                 self?.completedGameCount = stats.count
                 self?.participationStreak = stats.streak
                 self?.lastCompletedText = Self.lastCompletedText(for: stats.lastCompletedAt)
+                self?.rebuildScoreboard()
+            }
+            .store(in: &cancellables)
+
+        // The squad panel. One squad per person (app-enforced), so the first.
+        // Read off the `seasonGames` listener the shell keeps pointed at your
+        // squads for the whole session — no read of Home's own.
+        squadService.$squads
+            .map(\.first)
+            .combineLatest(seasonGameService.$games, seasonGameService.$hasLoadedGames)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] squad, games, hasLoaded in
+                guard let self else { return }
+                let standing = hasLoaded
+                    ? squad.map { SquadStanding(squad: $0, record: SeasonGame.record(for: $0.id, in: games)) }
+                    : nil
+                if standing != self.squadStanding {
+                    self.squadStanding = standing
+                    self.rebuildScoreboard()
+                }
             }
             .store(in: &cancellables)
 
@@ -220,6 +331,7 @@ final class HomeViewModel: ObservableObject {
             .sink { [weak self] _ in
                 self?.rebuildNextRun()
                 self?.rebuildHotCourts()
+                self?.rebuildNearestCourts()
             }
             .store(in: &cancellables)
 
@@ -231,6 +343,7 @@ final class HomeViewModel: ObservableObject {
             .sink { [weak self] queued, published in
                 self?.rebuildNextRun(queued: queued)
                 self?.rebuildHotCourts(queued: queued, published: published)
+                self?.rebuildNearestCourts()
             }
             .store(in: &cancellables)
 
@@ -263,7 +376,13 @@ final class HomeViewModel: ObservableObject {
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] completedGames in
-                guard let self, let uid = self.gameService.currentUserId, !completedGames.isEmpty else {
+                guard let self else { return }
+                let thisWeek = Game.completedThisWeek(in: completedGames)
+                if thisWeek != self.runsThisWeek {
+                    self.runsThisWeek = thisWeek
+                    self.rebuildScoreboard()
+                }
+                guard let uid = self.gameService.currentUserId, !completedGames.isEmpty else {
                     return
                 }
                 Task {
@@ -330,6 +449,138 @@ final class HomeViewModel: ObservableObject {
             .map { $0 }
     }
 
+    /// The `limit` courts closest to `origin`, nearest first.
+    ///
+    /// The same shape and the same tie-break as `rankHotCourts`: ties break on
+    /// `displayName`, so two courts at one distance — two hoops at the same
+    /// park — can't swap places between rebuilds and move the preview's dots.
+    /// Distances are `Distance.between`, the conversion every other distance
+    /// in the app uses.
+    nonisolated static func nearestCourts(
+        to origin: CLLocationCoordinate2D,
+        in courts: [Court],
+        limit: Int
+    ) -> [Court] {
+        guard limit > 0 else { return [] }
+
+        let measured = courts.map { court -> (court: Court, meters: CLLocationDistance) in
+            (court, Distance.between(origin, court.coordinate))
+        }
+        let ordered = measured.sorted { lhs, rhs -> Bool in
+            guard lhs.meters == rhs.meters else { return lhs.meters < rhs.meters }
+            return lhs.court.displayName < rhs.court.displayName
+        }
+        return ordered.prefix(limit).map(\.court)
+    }
+
+    /// Which state "Tonight nearby" is in. `nonisolated static` and pure, like
+    /// the ranking above, so the rule is tested without a service.
+    ///
+    /// **A failure outranks emptiness.** With the listener down, an empty
+    /// list is an absence of an answer, and the preview — "Nothing on nearby
+    /// yet" — would state one. A list already on screen stays: it is stale,
+    /// not wrong, and the banner above says so.
+    nonisolated static func nearbySection(
+        hasLoaded: Bool,
+        hasHotCourts: Bool,
+        hasError: Bool,
+        isRecovering: Bool
+    ) -> NearbySection {
+        if hasError || isRecovering {
+            return hasHotCourts ? .list : .unavailable
+        }
+        guard hasLoaded else { return .loading }
+        return hasHotCourts ? .list : .preview
+    }
+
+    // MARK: - The scoreboard
+
+    /// The scoreboard's panels, in the order they take turns: this week, your
+    /// squad, the streak, the total, the last run.
+    ///
+    /// **The run panels need a run.** With nothing completed, all four would be
+    /// zeros and a dash, so they are left out — the rule the stats card had —
+    /// and a squad's record is shown alone. With neither, nothing: Home hides
+    /// the scoreboard. `nonisolated static` and pure, like the rankings.
+    nonisolated static func scoreboardStats(
+        completedCount: Int,
+        runsThisWeek: Int,
+        streak: Int,
+        lastCompletedText: String,
+        squadStanding: SquadStanding?
+    ) -> [ScoreboardStat] {
+        var stats: [ScoreboardStat] = []
+        let hasRuns = completedCount > 0
+
+        if hasRuns {
+            stats.append(ScoreboardStat(
+                kind: .thisWeek,
+                label: "This week",
+                value: "\(runsThisWeek)",
+                unit: runsThisWeek == 1 ? "run" : "runs",
+                spoken: runsThisWeek == 1 ? "1 run this week" : "\(runsThisWeek) runs this week",
+                standing: nil
+            ))
+        }
+
+        if let squadStanding {
+            let record = squadStanding.record
+            stats.append(ScoreboardStat(
+                kind: .squad,
+                label: squadStanding.squad.name,
+                value: record.displayText,
+                unit: nil,
+                spoken: "\(squadStanding.squad.name), "
+                    + SquadRecordLine.spokenRecord(wins: record.wins, losses: record.losses),
+                standing: squadStanding
+            ))
+        }
+
+        if hasRuns {
+            stats.append(contentsOf: [
+                ScoreboardStat(
+                    kind: .streak,
+                    label: "Streak",
+                    value: "\(streak)",
+                    unit: streak == 1 ? "wk" : "wks",
+                    spoken: streak == 1 ? "1 week streak" : "\(streak) week streak",
+                    standing: nil
+                ),
+                ScoreboardStat(
+                    kind: .total,
+                    label: "Total",
+                    value: "\(completedCount)",
+                    unit: completedCount == 1 ? "run" : "runs",
+                    spoken: completedCount == 1 ? "1 run in all" : "\(completedCount) runs in all",
+                    standing: nil
+                ),
+                ScoreboardStat(
+                    kind: .lastRun,
+                    label: "Last run",
+                    value: lastCompletedText,
+                    unit: nil,
+                    spoken: "last run \(lastCompletedText.lowercased())",
+                    standing: nil
+                ),
+            ])
+        }
+
+        return stats
+    }
+
+    private func rebuildScoreboard() {
+        let stats = Self.scoreboardStats(
+            completedCount: completedGameCount,
+            runsThisWeek: runsThisWeek,
+            streak: participationStreak,
+            lastCompletedText: lastCompletedText,
+            squadStanding: squadStanding
+        )
+        if stats != scoreboardStats {
+            scoreboardStats = stats
+        }
+    }
+
     // MARK: - Formatting
 
     /// The stats card's "Last" column. `nonisolated static` and pure, same
@@ -374,6 +625,25 @@ final class HomeViewModel: ObservableObject {
             courts: courtService.courts,
             limit: Self.hotCourtLimit
         )
+    }
+
+    /// Rebuilt beside `hotCourts`, and published only when it changes: every
+    /// game snapshot lands here, and an unchanged preview mustn't hand the
+    /// map behind it a new value to redraw.
+    private func rebuildNearestCourts() {
+        let origin = searchOrigin
+        let nearest = Self.nearestCourts(
+            to: origin,
+            in: courtService.courts,
+            limit: Self.previewCourtLimit
+        )
+
+        if nearest != nearestCourts {
+            nearestCourts = nearest
+        }
+        if origin.latitude != previewOrigin.latitude || origin.longitude != previewOrigin.longitude {
+            previewOrigin = origin
+        }
     }
 
     /// `queuedGames` arrives sorted soonest-first and is already windowed to

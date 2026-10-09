@@ -3,7 +3,7 @@ import Foundation
 /// The chips shown above the map. Each one narrows both the pins and the list.
 ///
 /// **These are activity predicates now, not amenity ones.** The tab's job is
-/// "find a game right now", so two of the three read today's runs at a court
+/// "find a game right now", so all but one read today's runs at a court
 /// rather than a field in `courts.json`. That's why `matches` takes a
 /// `CourtActivity`: bundled geography can't answer whether anyone is playing.
 ///
@@ -21,6 +21,8 @@ import Foundation
 nonisolated enum CourtFilter: String, CaseIterable, Identifiable, Sendable {
     /// At least one run scheduled here today.
     case gamesToday
+    /// A run here is under way or tips off within the hour.
+    case startingSoon
     /// At least one run here with room left.
     case openSpots
     /// `Court.access == .public`. The only pure-geography case left, and the
@@ -32,6 +34,7 @@ nonisolated enum CourtFilter: String, CaseIterable, Identifiable, Sendable {
     var label: String {
         switch self {
         case .gamesToday: "Games today"
+        case .startingSoon: "Starting soon"
         case .openSpots:  "Open spots"
         // **Not** "Public". `Game.visibilityText` already renders "Public" and
         // "Invite only" for a run's *visibility*, and those cards sit two rows
@@ -44,6 +47,7 @@ nonisolated enum CourtFilter: String, CaseIterable, Identifiable, Sendable {
     var symbolName: String {
         switch self {
         case .gamesToday: "flame.fill"
+        case .startingSoon: "clock.fill"
         case .openSpots:  "person.badge.plus"
         case .openToAll:  "figure.walk"
         }
@@ -58,11 +62,13 @@ nonisolated enum CourtFilter: String, CaseIterable, Identifiable, Sendable {
     ///
     /// Note `openSpots` implies `gamesToday`: a court with no runs has no open
     /// spots, so selecting both is the same as selecting `openSpots` alone.
+    /// `startingSoon` implies `gamesToday` the same way.
     /// That's correct rather than a special case — "open spots" means "a run I
     /// can join", not "an empty court".
     func matches(_ court: Court, activity: CourtActivity) -> Bool {
         switch self {
         case .gamesToday: return activity.hasGameToday
+        case .startingSoon: return activity.hasGameStartingSoon
         case .openSpots:  return activity.hasOpenSpot
         case .openToAll:  return court.access == .public
         }

@@ -1,7 +1,7 @@
 # hoopsRN — Database Schema
 
 **Scope:** `firestore.rules`, `firestore.indexes.json`, `firebase.json`, `.firebaserc`, `firestore-tests/`
-**Verified:** 2026-09-24 @ f30e4b2
+**Verified:** 2026-10-08 @ 976d2cf
 
 What's stored server-side and what a client may write. Seven collections are
 live:
@@ -266,8 +266,9 @@ immutable, so there is no "edit a run" path to secure.
 ### Access
 
 - **Read:** any signed-in user, for a run that is `isPublic` **or** one they're
-  already on. The two client queries are constrained to exactly those shapes, so
-  each returns only documents the rule already admits.
+  already on. The client's queries are constrained to exactly those shapes, so
+  each returns only documents the rule already admits — the two listeners, and
+  the one-shot month read below, which is the `playerIds` shape again.
 - **Create:** the host only, as the sole player, with both timestamps pinned to
   `request.time` and the schedule inside its window.
 - **Update:** any signed-in user, restricted to
@@ -280,13 +281,26 @@ immutable, so there is no "edit a run" path to secure.
 ### Indexes
 
 Two composite indexes, the first entries `firestore.indexes.json` has ever
-held. Each backs one listener, and each is an equality-or-array-contains plus a
-range on `scheduledTime`:
+held. Each backs a query that is an equality-or-array-contains plus a range on
+`scheduledTime`:
 
 | Query | Index |
 |---|---|
-| `playerIds array-contains uid`, `scheduledTime > cutoff`, ordered | `(playerIds CONTAINS, scheduledTime ASC)` |
+| `playerIds array-contains uid`, `scheduledTime > cutoff`, ordered (the live listener) | `(playerIds CONTAINS, scheduledTime ASC)` |
+| `playerIds array-contains uid`, `scheduledTime >= monthStart`, `< nextMonthStart`, ordered, `limit(200)` (the month read) | `(playerIds CONTAINS, scheduledTime ASC)` — **the same one** |
 | `isPublic == true`, `scheduledTime > cutoff`, ordered | `(isPublic ASC, scheduledTime ASC)` |
+
+**The month read** is `GameService.runs(in:)`, behind Home's run calendar: a
+one-shot `getDocuments` (no listener, no `ListenerSupervisor`) for the runs the
+caller is **on** — `playerIds`, so a waitlisted run is not in it — in one
+calendar month, past or future, whatever its `status`. A bounded range on the
+same field, over the same equality, is served by the index the live listener
+already needs, so it added no index and no rules change; only the comment above
+the read rule changed, to name it. Forward months can only ever hold runs in
+this month and the next, because the create rule books at most 30 days ahead,
+and a cancelled run is deleted, so neither is a case the query handles.
+`firestore-tests/games.test.mjs` evaluates it: a member's month on a private
+run succeeds, a stranger's is denied, signed out is denied.
 
 **Radius is not in either query.** Courts live in the bundled dataset, not in
 Firestore, so there are no coordinates server-side to filter on — the distance

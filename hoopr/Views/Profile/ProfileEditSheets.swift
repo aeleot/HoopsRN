@@ -474,8 +474,9 @@ struct AppearanceSheet: View {
             VStack(spacing: 0) {
                 ForEach(AppearancePreference.allCases) { option in
                     Button {
-                        // Animated because the whole app recolours behind the
-                        // sheet — an instant swap reads as a glitch.
+                        // The recolour itself is a cross-fade of the whole
+                        // window, this sheet included (`WindowAppearance`);
+                        // this animates the check moving.
                         withAnimation(.hooprSwap) {
                             preference = option
                         }

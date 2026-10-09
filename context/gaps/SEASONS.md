@@ -154,6 +154,14 @@ Limits that are working as built, and will surprise somebody anyway.
   defect: mutual confirmation is the ceiling without a server. It is the standard a rec-league scoresheet
   meets, not cryptographic integrity.
 
+- **The season-games listener holds your squad's first 200 matches, oldest
+  first** (`SeasonGameService`, `Limit.games`, `scheduledTime` ascending). Past
+  200 the *newest* drop off — the upcoming ones, which are the ones that matter —
+  and with them their zones on Home's run calendar, their rows in its month
+  popup, and the calendar's forward bound. Noted 2026-10-06 when the calendar
+  started reading the listener; not fixed. Nobody is near 200, and the fix (a
+  window, or ordering descending) changes what the record and form read too.
+
 ---
 
 ## Costs accepted on purpose

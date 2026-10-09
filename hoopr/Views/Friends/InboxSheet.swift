@@ -1,27 +1,31 @@
 import SwiftUI
 
-/// Everything social that's waiting on you, and everything you're waiting on.
+/// Everything that's happened to you and everything waiting on you, as one
+/// feed of cards.
 ///
 /// Opened from `InboxButton`, the tray in the top-right corner of every tab,
 /// badged with everything waiting on you — and by tapping any notification
 /// the app posts (`NotificationService`). Presented once, by `MainTabView`,
-/// over whichever tab is showing. Friend requests were the only
-/// thing that landed here at first; squad invites are the second kind, and
-/// true to the plan, that cost exactly one more section rather than a
-/// notification-kind abstraction — an `InboxItem` enum for two cases would
-/// still be invented structure, not shared structure. Squad invites used to
-/// render inline on Squad home; there's nowhere left for a second kind of
-/// notification to hide once there's a dedicated inbox for the first.
+/// over whichever tab is showing.
 ///
-/// **Matches are the third kind** (2026-09-25). Every tapped notification
-/// opens this sheet, and the only notifications the app sends are about a
-/// season match — so a match a notification could be about is listed here,
-/// first, and opens the screen that answers it (`InboxMatchesViewModel`).
+/// **Four kinds of card** (`InboxCard`), in this order:
+/// - **Matches** (2026-09-25) — the season matches the queue made, or that
+///   are waiting on your report. Every tapped notification opens this sheet,
+///   and the only notifications the app sends are about a match, so these
+///   come first and each opens the screen that answers it
+///   (`InboxMatchesViewModel`).
+/// - **Friend requests**, answered inline.
+/// - **Squad invites**, answered inline. They used to render on Squad home,
+///   where there was nowhere to answer one.
+/// - **New friends** (2026-09-28) — someone accepted a request you sent. The
+///   only card that asks nothing, so the only one you can dismiss.
 ///
-/// Plain titled sections rather than collapsibles. There are at most three of
-/// them, all short, and the whole point of moving requests off the main tab was
-/// to stop making people open a dropdown to find out whether anything was
-/// waiting.
+/// **No section headers, and no Sent list** (2026-09-28, at the user's
+/// request). It used to be four titled sections, two of them shown even when
+/// empty, which made a single request read as a form. Requests you've sent
+/// aren't news — they're waiting on someone else — and can still be cancelled
+/// from that player's profile. Still no `InboxItem` enum: the four kinds share
+/// a card, not a model, and each keeps its own view model.
 struct InboxSheet: View {
     /// Built per presentation, like `CreateGameSheet`'s — the inbox used to
     /// borrow the profile's, back when it could only be opened from inside the
@@ -67,10 +71,19 @@ struct InboxSheet: View {
     @State private var presentedPlayer: PlayerRoute?
 
     private var isEmpty: Bool {
-        viewModel.incomingRequests.isEmpty
-            && viewModel.outgoingRequests.isEmpty
+        matchesViewModel.rows.isEmpty
+            && viewModel.incomingRequests.isEmpty
             && squadViewModel.incomingInvites.isEmpty
-            && matchesViewModel.rows.isEmpty
+            && viewModel.recentlyAccepted.isEmpty
+    }
+
+    /// Every card's identity, in order — what the feed animates on, so an
+    /// answered request slides out rather than blinking away.
+    private var cardIds: [String] {
+        matchesViewModel.rows.map { "match:\($0.id)" }
+            + viewModel.incomingRequests.map { "request:\($0.id)" }
+            + squadViewModel.incomingInvites.map { "invite:\($0.id)" }
+            + viewModel.recentlyAccepted.map { "accepted:\($0.id)" }
     }
 
     var body: some View {
@@ -80,41 +93,29 @@ struct InboxSheet: View {
                     emptyState
                 } else {
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 0) {
-                            // First, and omitted when empty like squad
-                            // invites: a notification tap lands here, and the
-                            // match it was about is what that person came for.
-                            if !matchesViewModel.rows.isEmpty {
-                                matchesSection
+                        // One feed, no headers: each card names its own kind.
+                        // Matches first — a notification tap lands here, and
+                        // the match it was about is what that person came for
+                        // (answers before upcoming, `InboxMatchesViewModel`).
+                        // Then what's asking for a yes or no, then news.
+                        LazyVStack(spacing: Spacing.interRow) {
+                            ForEach(matchesViewModel.rows) { row in
+                                matchCard(row)
                             }
-
-                            // Requests first and always shown, even when empty
-                            // alongside sent ones: it's the section the badge
-                            // counts, so its absence would be ambiguous.
-                            section(
-                                title: "Requests",
-                                rows: viewModel.incomingRequests,
-                                emptyText: viewModel.requestsEmptyText,
-                                subtitle: "Wants to add you"
-                            )
-
-                            // Unlike the two friend sections, this one is
-                            // omitted rather than shown empty — a squad invite
-                            // is rarer than a friend request, and a "nothing
-                            // here" placeholder for it on every visit would
-                            // outweigh the one time it has something to say.
-                            if !squadViewModel.incomingInvites.isEmpty {
-                                squadInvitesSection
+                            ForEach(viewModel.incomingRequests) { row in
+                                requestCard(row)
                             }
-
-                            section(
-                                title: "Sent",
-                                rows: viewModel.outgoingRequests,
-                                emptyText: viewModel.sentEmptyText,
-                                subtitle: "Request sent"
-                            )
+                            ForEach(squadViewModel.incomingInvites) { row in
+                                squadInviteCard(row)
+                            }
+                            ForEach(viewModel.recentlyAccepted) { row in
+                                acceptedCard(row)
+                            }
                         }
-                        .padding(.bottom, 24)
+                        .padding(.horizontal, Spacing.pageMargin)
+                        .padding(.top, Spacing.lg)
+                        .padding(.bottom, Spacing.xxl)
+                        .animation(.hooprSnap, value: cardIds)
                     }
                 }
             }
@@ -138,118 +139,147 @@ struct InboxSheet: View {
         }
     }
 
-    // MARK: - Sections
+    // MARK: - Cards
 
-    @ViewBuilder
-    private func section(
-        title: String,
-        rows: [FriendsViewModel.Row],
-        emptyText: String,
-        /// One line for the whole section — every row in it is in the same
-        /// state, which is what the section *is*.
-        subtitle: String
-    ) -> some View {
-        sectionHeader(title: title, count: rows.count)
-
-        if rows.isEmpty {
-            Text(emptyText)
-                .hooprType(.body)
-                .foregroundStyle(Color.hooprSecondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, Spacing.pageMargin)
-                .padding(.bottom, Spacing.lg)
-        } else {
-            DividedRows(leadingInset: FriendRow<EmptyView>.textInset) {
-                ForEach(rows) { row in
-                    FriendRow(
-                        row: row,
-                        subtitle: subtitle,
-                        onOpen: { presentedPlayer = PlayerRoute(uid: row.uid) }
-                    ) {
-                        actions(for: row)
-                    }
-                }
-            }
-            .padding(.horizontal, Spacing.pageMargin)
-            .padding(.bottom, Spacing.lg)
+    /// A season match — made by the queue, or waiting on your report. The
+    /// whole card opens it: game day to come, the result screen after.
+    private func matchCard(_ row: InboxMatchesViewModel.Row) -> some View {
+        let style = MatchStyle(row.kind)
+        return InboxCard(
+            eyebrow: style.eyebrow,
+            symbol: style.symbol,
+            tint: style.tint,
+            title: "\(row.game.format.displayName) vs \(row.opponentName)",
+            detail: matchesViewModel.detail(for: row),
+            detailTint: row.kind == .upcoming ? .hooprSecondaryText : .hooprBrandAccent,
+            onOpen: { onOpenMatch(row) },
+            openHint: row.kind == .upcoming ? "Opens game day" : "Opens the result"
+        ) {
+            InboxGlyph(symbol: "basketball.fill", tint: style.tint)
+        } actions: {
+            EmptyView()
         }
     }
 
-    private var matchesSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            sectionHeader(title: "Matches", count: matchesViewModel.rows.count)
-
-            DividedRows(leadingInset: MatchInboxRow.textInset) {
-                ForEach(matchesViewModel.rows) { row in
-                    MatchInboxRow(
-                        row: row,
-                        detail: matchesViewModel.detail(for: row),
-                        onOpen: { onOpenMatch(row) }
-                    )
-                }
-            }
-            .padding(.horizontal, Spacing.pageMargin)
-            .padding(.bottom, Spacing.lg)
-        }
-    }
-
-    private var squadInvitesSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            sectionHeader(title: "Squad invites", count: squadViewModel.incomingInvites.count)
-
-            DividedRows(leadingInset: SquadCrest.Size.card + 12) {
-                ForEach(squadViewModel.incomingInvites) { row in
-                    SquadInviteRow(
-                        row: row,
-                        isBlocked: squadViewModel.isBlocked(row.id),
-                        joinBlockedReason: squadViewModel.joinBlockedReason(for: row.invite),
-                        onAccept: { Task { await squadViewModel.acceptInvite(row.invite) } },
-                        onDecline: { Task { await squadViewModel.declineInvite(row.invite) } }
-                    )
-                }
-            }
-            .padding(.horizontal, Spacing.pageMargin)
-            .padding(.bottom, Spacing.lg)
-        }
-    }
-
-    /// A `label` with its count at the trailing edge, as the Friends pane and
-    /// Seasons' roster head their lists. The count used to sit in a filled
-    /// capsule beside an 18pt bold title.
-    private func sectionHeader(title: String, count: Int) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title)
-                .hooprType(.label)
-                .foregroundStyle(Color.hooprSecondaryText)
-
-            Spacer()
-
-            Text("\(count)")
-                .hooprType(.caption)
-                .monospacedDigit()
-                .foregroundStyle(Color.hooprSecondaryText)
-                .hooprNumericTransition(count)
-        }
-        .padding(.horizontal, Spacing.pageMargin)
-        .padding(.top, Spacing.xxl)
-        .padding(.bottom, Spacing.xs)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isHeader)
-    }
-
-    /// Every action the relationship offers, inline — this is the screen whose
-    /// whole job is answering, so nothing here hides behind a profile.
-    private func actions(for row: FriendsViewModel.Row) -> some View {
-        HStack(spacing: 8) {
+    private func requestCard(_ row: FriendsViewModel.Row) -> some View {
+        InboxCard(
+            eyebrow: "Friend request",
+            symbol: "person.badge.plus",
+            title: row.isResolved ? row.displayName : "Someone",
+            detail: "Wants to add you as a friend",
+            onOpen: { presentedPlayer = PlayerRoute(uid: row.uid) },
+            openHint: "Opens their profile"
+        ) {
+            PlayerAvatar(initial: row.initial, diameter: PlayerAvatar.Size.row)
+        } actions: {
+            // Every action the relationship offers, inline — this is the
+            // screen whose whole job is answering.
             ForEach(viewModel.actions(for: row.relationship), id: \.self) { action in
-                FriendActionButton(
-                    action: action,
-                    isPending: viewModel.pendingUid == row.uid,
-                    isDisabled: viewModel.isBlocked(row.uid),
-                    playerName: row.nameForProse
-                ) {
-                    Task { await viewModel.perform(action, on: row.uid) }
+                friendActionButton(action, for: row)
+            }
+        }
+    }
+
+    private func squadInviteCard(_ row: SquadViewModel.IncomingInvite) -> some View {
+        let joinBlockedReason = squadViewModel.joinBlockedReason(for: row.invite)
+        return InboxCard(
+            eyebrow: "Squad invite",
+            symbol: "shield.lefthalf.filled",
+            title: row.squadName,
+            // The reason replaces the roster line: with no Join to weigh, how
+            // full the squad is stops being the thing worth reading.
+            detail: joinBlockedReason
+                ?? row.squad.map { "\($0.format.displayName) · \($0.rosterText)" }
+                ?? "Invited you to join"
+        ) {
+            if let squad = row.squad {
+                SquadCrest(squad: squad, size: InboxCard<EmptyView, EmptyView>.leadingColumn)
+            } else {
+                SquadCrest(
+                    iconKey: Squad.defaultIconKey,
+                    colorKey: Squad.defaultColorKey,
+                    size: InboxCard<EmptyView, EmptyView>.leadingColumn
+                )
+                .redacted(reason: .placeholder)
+            }
+        } actions: {
+            // Join is *absent* rather than dimmed when it's blocked, so the
+            // reason above isn't left to be guessed; Decline stays, so the
+            // invite can still be cleared.
+            Group {
+                if joinBlockedReason == nil {
+                    Button("Join") { Task { await squadViewModel.acceptInvite(row.invite) } }
+                        .buttonStyle(.hooprFilled(.compact))
                 }
+                Button("Decline") { Task { await squadViewModel.declineInvite(row.invite) } }
+                    .buttonStyle(.hooprFilled(.compact, role: .destructive))
+            }
+            .disabled(squadViewModel.isBlocked(row.id))
+        }
+    }
+
+    /// Someone said yes to a request you sent. Asks nothing, so it's the one
+    /// card with an ×; it also ages out on its own
+    /// (`FriendsViewModel.acceptanceWindow`).
+    private func acceptedCard(_ row: FriendsViewModel.Row) -> some View {
+        InboxCard(
+            eyebrow: "New friend",
+            symbol: "person.2.fill",
+            title: row.isResolved ? row.displayName : "Someone",
+            detail: "Accepted your friend request",
+            onOpen: { presentedPlayer = PlayerRoute(uid: row.uid) },
+            openHint: "Opens their profile",
+            onDismiss: { viewModel.dismissAcceptance(from: row.uid) }
+        ) {
+            PlayerAvatar(initial: row.initial, diameter: PlayerAvatar.Size.row)
+        } actions: {
+            EmptyView()
+        }
+    }
+
+    /// The app's compact button, carrying `FriendActionButton`'s pending and
+    /// blocked states: the acting card spins, every other card's controls dim.
+    private func friendActionButton(
+        _ action: FriendsViewModel.Action,
+        for row: FriendsViewModel.Row
+    ) -> some View {
+        let isPending = viewModel.pendingUid == row.uid
+        let isBlocked = viewModel.isBlocked(row.uid)
+        return Button {
+            Task { await viewModel.perform(action, on: row.uid) }
+        } label: {
+            if isPending {
+                ProgressView()
+            } else {
+                Text(action.title)
+            }
+        }
+        .buttonStyle(.hooprFilled(.compact, role: action.isDestructive ? .destructive : .primary))
+        .disabled(isPending || isBlocked)
+        .opacity(isBlocked && !isPending ? 0.5 : 1)
+        .accessibilityLabel("\(action.longTitle), \(row.nameForProse)")
+    }
+
+    /// How each kind of match card announces itself.
+    private struct MatchStyle {
+        let eyebrow: String
+        let symbol: String
+        let tint: Color
+
+        init(_ kind: InboxMatchesViewModel.Row.Kind) {
+            switch kind {
+            case .upcoming:
+                eyebrow = "Upcoming match"
+                symbol = "calendar"
+                tint = .hooprBrandAccent
+            case .report:
+                eyebrow = "Report result"
+                symbol = "square.and.pencil"
+                tint = .hooprBrandAccent
+            case .disputed:
+                eyebrow = "Result disputed"
+                symbol = "exclamationmark.triangle.fill"
+                tint = .hooprRed
             }
         }
     }

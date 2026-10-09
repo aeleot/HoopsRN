@@ -150,6 +150,11 @@ final class FriendsViewModel: ObservableObject {
     @Published private(set) var incomingRequests: [Row] = []
     @Published private(set) var outgoingRequests: [Row] = []
 
+    /// People who said yes to a request *you* sent, lately — the inbox's
+    /// "accepted your request" cards. Newest first. A subset of `friends`, so
+    /// their names resolve with everyone else's.
+    @Published private(set) var recentlyAccepted: [Row] = []
+
     @Published private(set) var errorMessage: String?
 
     /// A listener died and `FriendService` is re-attaching it. Distinguishes a
@@ -177,6 +182,7 @@ final class FriendsViewModel: ObservableObject {
 
     private let friendService: FriendService
     private let userProfileService: UserProfileService
+    private let inboxDismissals: InboxDismissalsStore
     private var cancellables = Set<AnyCancellable>()
 
     private var incoming: [Friendship] = []
@@ -216,10 +222,12 @@ final class FriendsViewModel: ObservableObject {
     init(
         friendService: FriendService,
         userProfileService: UserProfileService,
-        courtService: CourtService
+        courtService: CourtService,
+        inboxDismissals: InboxDismissalsStore = InboxDismissalsStore()
     ) {
         self.friendService = friendService
         self.userProfileService = userProfileService
+        self.inboxDismissals = inboxDismissals
 
         // `sink` with a weak capture rather than `assign(to:on: self)`, which
         // would retain self through self's own cancellable set.
@@ -309,6 +317,7 @@ final class FriendsViewModel: ObservableObject {
             incomingRequests = []
             outgoingRequests = []
             friends = []
+            recentlyAccepted = []
             return
         }
 
@@ -332,6 +341,50 @@ final class FriendsViewModel: ObservableObject {
         incomingRequests = incoming.map { row(for: $0.otherUid(than: uid)) }
         outgoingRequests = outgoing.map { row(for: $0.otherUid(than: uid)) }
         friends = accepted.map { row(for: $0.otherUid(than: uid)) }
+        recentlyAccepted = Self.recentlyAccepted(
+            accepted,
+            by: uid,
+            dismissed: inboxDismissals.keys,
+            now: Date()
+        ).map { row(for: $0.otherUid(than: uid)) }
+    }
+
+    // MARK: - Accepted requests
+
+    /// How long an "accepted your request" card stays in the inbox. **An inbox
+    /// choice**, the same week `InboxMatchesViewModel.reportWindow` gives an
+    /// unreported match — long enough to be seen by someone who opens the app
+    /// weekly, short enough that the inbox doesn't become a friends list.
+    nonisolated static let acceptanceWindow: TimeInterval = 7 * 24 * 60 * 60
+
+    /// The accepted edges worth a card: ones `uid` asked for (so the *other*
+    /// person did the accepting), accepted within `acceptanceWindow`, and not
+    /// dismissed on this device. Newest first.
+    ///
+    /// `updatedAt` is the acceptance — it's stamped on the one legal
+    /// transition, pending → accepted. `nil` is a write not yet acknowledged,
+    /// so it counts as now, as `FriendService.sortDate` treats it.
+    nonisolated static func recentlyAccepted(
+        _ accepted: [Friendship],
+        by uid: String,
+        dismissed: Set<String>,
+        now: Date
+    ) -> [Friendship] {
+        accepted
+            .filter { edge in
+                edge.status == .accepted
+                    && edge.requestedBy == uid
+                    && !dismissed.contains(edge.id)
+                    && now.timeIntervalSince(edge.updatedAt ?? now) < acceptanceWindow
+            }
+            .sorted { ($0.updatedAt ?? now) > ($1.updatedAt ?? now) }
+    }
+
+    /// Clears `uid`'s "accepted your request" card for good on this device.
+    func dismissAcceptance(from uid: String) {
+        guard let ownUid = friendService.currentUserId else { return }
+        inboxDismissals.record(Friendship.id(for: ownUid, uid))
+        recentlyAccepted.removeAll { $0.uid == uid }
     }
 
     /// One person's row, built from the live caches. Also the profile sheet's
@@ -699,16 +752,8 @@ final class FriendsViewModel: ObservableObject {
         "No friends yet. Search above by name or user ID to find people you play with."
     }
 
-    var requestsEmptyText: String {
-        "No requests waiting on you."
-    }
-
-    var sentEmptyText: String {
-        "You haven't asked anyone yet."
-    }
-
     var inboxEmptyText: String {
-        "Nothing here yet. Friend requests, squad invites and your matches land in your inbox."
+        "You're all caught up. Friend requests, squad invites and your matches land here."
     }
 
     func searchEmptyText(for query: String) -> String {

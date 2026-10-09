@@ -419,7 +419,13 @@ private struct Cards: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .cardChrome()
 
-            StatsCard(completedCount: 12, participationStreak: 3, lastCompletedText: "2 days ago")
+            StatsScoreboard(stats: HomeViewModel.scoreboardStats(
+                completedCount: 12,
+                runsThisWeek: 2,
+                streak: 3,
+                lastCompletedText: "2 days ago",
+                squadStanding: nil
+            ))
 
             ErrorBanner(message: "Couldn't load your runs. Check your connection.", onRetry: {}, onDismiss: {})
 
@@ -432,7 +438,7 @@ private struct Cards: View {
                         .padding(.vertical, Spacing.md)
                 }
             }
-            Caption("cardChrome, StatsCard, ErrorBanner, DividedRows")
+            Caption("cardChrome, StatsScoreboard, ErrorBanner, DividedRows")
         }
     }
 }

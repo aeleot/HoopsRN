@@ -1,5 +1,11 @@
 import SwiftUI
 
+/// The card's shape, named so a card that clips its own content — a map, an
+/// image — can clip to exactly the corners the chrome draws.
+nonisolated enum CardChrome {
+    static let cornerRadius: CGFloat = 16
+}
+
 extension View {
     /// The app's card recipe — surface, hairline, soft lift.
     ///
@@ -20,7 +26,7 @@ extension View {
     /// `isShown` fades the chrome rather than adding or removing it, so a view
     /// that only sometimes earns a card (`MatchmakingCard`, which is one only
     /// when there's a match) keeps its identity and can animate the change.
-    func cardChrome(cornerRadius: CGFloat = 16, isShown: Bool = true) -> some View {
+    func cardChrome(cornerRadius: CGFloat = CardChrome.cornerRadius, isShown: Bool = true) -> some View {
         background(
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(Color.hooprSurface)

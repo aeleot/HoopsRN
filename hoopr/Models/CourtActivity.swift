@@ -19,6 +19,25 @@ nonisolated struct CourtActivity: Equatable, Sendable {
     /// nothing here can reveal a private run they aren't part of.
     let games: [Game]
 
+    /// A run here is under way, or tips off within `soonWindow`.
+    ///
+    /// Resolved once, at construction, against the clock the caller passes —
+    /// stored as a `Bool` rather than keeping `now` around, so two activities
+    /// over the same games still compare equal and `.quiet` stays `.quiet`.
+    let hasGameStartingSoon: Bool
+
+    /// How far ahead "starting soon" looks. An hour is enough to get to a
+    /// court in town, which is the question the chip answers.
+    static let soonWindow: TimeInterval = 60 * 60
+
+    init(games: [Game], now: Date = Date()) {
+        self.games = games
+        self.hasGameStartingSoon = games.contains { game in
+            game.status == .inProgress
+                || (game.scheduledTime >= now && game.scheduledTime.timeIntervalSince(now) <= Self.soonWindow)
+        }
+    }
+
     /// A court with nothing on. The default every filter is evaluated against
     /// when a court has no entry in the join.
     static let quiet = CourtActivity(games: [])

@@ -366,6 +366,53 @@ final class GameTests: XCTestCase {
         )
     }
 
+    // MARK: - Completed this week (Home's scoreboard)
+
+    /// Every completion in the current ISO week counts — unlike the streak,
+    /// which collapses a week to one — and nothing from last week does.
+    func testThisWeekCountsEveryCompletionInTheCurrentWeekOnly() throws {
+        let now = Date(timeIntervalSince1970: 1_780_000_000)
+        let games = try [
+            completedGame(at: now),
+            completedGame(at: now.addingTimeInterval(-60)),
+            completedGame(at: weeksAgo(1, from: now)),
+        ]
+
+        XCTAssertEqual(Game.completedThisWeek(in: games, now: now), 2)
+    }
+
+    /// **The streak's week, not the device's.** Sunday 23:00 UTC and Monday
+    /// 01:00 UTC are two ISO weeks, though a US calendar puts them in one —
+    /// and the scoreboard shows "This week" beside the streak, so the two must
+    /// cut weeks in the same place.
+    func testThisWeekSplitsAtMondayInUTCLikeTheStreak() throws {
+        var components = DateComponents()
+        components.calendar = streakCalendar()
+        components.timeZone = TimeZone(identifier: "UTC")
+        components.year = 2026
+        components.month = 10
+        components.day = 4   // a Sunday
+        components.hour = 23
+        let sunday = try XCTUnwrap(components.date)
+        let monday = sunday.addingTimeInterval(2 * 60 * 60)
+
+        let games = try [completedGame(at: sunday)]
+
+        XCTAssertEqual(Game.completedThisWeek(in: games, now: sunday), 1)
+        XCTAssertEqual(Game.completedThisWeek(in: games, now: monday), 0)
+        XCTAssertEqual(
+            Game.calculateStreak(from: games, now: monday), 0,
+            "the streak cuts the week in the same place"
+        )
+    }
+
+    func testThisWeekIgnoresGamesWithoutACompletionTimestamp() throws {
+        let now = Date(timeIntervalSince1970: 1_780_000_000)
+        let game = try decoder.decode(Game.self, from: storedDocument())
+
+        XCTAssertEqual(Game.completedThisWeek(in: [game], now: now), 0)
+    }
+
     // MARK: - Presentation
 
     func testScheduledTextIsRelativeForTodayAndTomorrow() throws {

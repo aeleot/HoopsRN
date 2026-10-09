@@ -282,7 +282,8 @@ There are **two** suites, in two languages, and neither can do the other's job.
   `-only-testing:hooprTests` run on 2026-09-25 (counted from the `.xcresult`,
   not from the log: interleaved output from parallel clones mangles the odd
   line, and a log grep read this suite as 462 once). All of them carry real
-  coverage; there is no scaffold left in `hooprTests/`.
+  coverage (`RunCalendarViewModelTests` was added after that count, so it is a
+  few suites short — recount from the next `.xcresult`); there is no scaffold left in `hooprTests/`.
 - **`firestore-tests/` — 141 tests across nine files**, from a green
   `npm run test:rules` run on 2026-09-20 against the Firestore emulator. This is
   the only place `firestore.rules` is *evaluated* rather than read; see "A

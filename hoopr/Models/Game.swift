@@ -262,6 +262,22 @@ nonisolated extension Game {
         }
         return streak
     }
+
+    /// How many of `games` were completed in the ISO week containing `now` —
+    /// Home's "This week".
+    ///
+    /// **The streak's week, not the device's.** `Calendar.current` in the US
+    /// starts the week on Sunday; the streak buckets Monday-first in UTC. Two
+    /// panels on one scoreboard counting different weeks would show "0 runs this
+    /// week" beside a streak that just counted one. Same calendar, same answer.
+    nonisolated static func completedThisWeek(in games: [Game], now: Date = Date()) -> Int {
+        let calendar = streakCalendar
+        let thisWeek = streakWeek(for: now, calendar: calendar)
+        return games
+            .compactMap(\.completedAt)
+            .filter { streakWeek(for: $0, calendar: calendar) == thisWeek }
+            .count
+    }
 }
 
 // MARK: - Presentation helpers

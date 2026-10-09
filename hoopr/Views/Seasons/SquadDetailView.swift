@@ -112,7 +112,7 @@ struct SquadDetailView: View {
         .padding(.top, InboxButton.Slot.top)
         .padding(.bottom, Spacing.xxl)
         .frame(maxWidth: .infinity, alignment: .leading)
-        // The squad's own colour, at the band's luminance (UI revamp Phase 4):
+        // The squad's own colour as the band's wash (UI revamp Phase 4):
         // which squad this is, before the name is read.
         .background {
             HeroWash(placement: .leading(.hooprSquadWash(squad.colorKey)))

@@ -90,6 +90,11 @@ final class GameService: ObservableObject {
         static let queued = 50
         static let published = 100
         static let completed = 500
+        /// One calendar month of the user's own runs. Well past what anyone
+        /// plays in a month, so it bounds a pathological account rather than
+        /// trimming a real one — and, unlike the other three, it is a
+        /// `getDocuments` limit, not a listener's.
+        static let month = 200
     }
 
     /// How far the query window may drift before returning to the foreground
@@ -378,6 +383,54 @@ final class GameService: ObservableObject {
                 )
                 return nil
             }
+        }
+    }
+
+    // MARK: - One-shot reads
+
+    /// Every run the signed-in user is **on** that tips off inside `month`,
+    /// soonest first — past and future alike, whatever its `status`.
+    ///
+    /// Backs Home's run calendar, which pages one month at a time. The live
+    /// `queuedGames` listener can't: it is windowed to the future, so a past
+    /// month is simply not in it. This is a read, not a subscription — no
+    /// listener, no `ListenerSupervisor` — because a month that's already
+    /// happened never changes, and the current month is merged with
+    /// `queuedGames` by the caller instead.
+    ///
+    /// `playerIds array-contains uid` is the roster only: a run you're
+    /// **waitlisted** for is not a run you're on, and gets no mark. The query is
+    /// the same shape as the `queued` listener's (`playerIds` contains, a
+    /// `scheduledTime` range, ordered), so it reuses that listener's composite
+    /// index and the read rule's `playerIds` clause admits it — see
+    /// `firestore-tests/games.test.mjs`.
+    ///
+    /// `month` is half-open: a run at exactly `month.end` belongs to the next
+    /// one. Doesn't touch `errorMessage` — that banner belongs to the live
+    /// listeners, and a failed calendar page is the sheet's to report, inline,
+    /// from the error thrown here.
+    ///
+    /// - Throws: `GameError`, never a Firestore type.
+    func runs(in month: DateInterval) async throws -> [Game] {
+        guard let uid = observedUID else { throw GameError.notSignedIn }
+
+        do {
+            let snapshot = try await database
+                .collection(Collection.games)
+                .whereField(Field.playerIds, arrayContains: uid)
+                .whereField(Field.scheduledTime, isGreaterThanOrEqualTo: Timestamp(date: month.start))
+                .whereField(Field.scheduledTime, isLessThan: Timestamp(date: month.end))
+                .order(by: Field.scheduledTime)
+                .limit(to: Limit.month)
+                .getDocuments()
+
+            return Self.decoded(snapshot)
+        } catch {
+            let gameError = Self.mapped(error)
+            logger.error(
+                "Couldn't read runs for a month: \(String(describing: gameError), privacy: .public)"
+            )
+            throw gameError
         }
     }
 
