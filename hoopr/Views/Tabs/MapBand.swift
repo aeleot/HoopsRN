@@ -2,7 +2,12 @@ import SwiftUI
 
 /// The map's fixed header. Its measured height reserves a separate map rectangle.
 /// The inbox is supplied by the tab, so the band can also render in the gallery.
+///
+/// **Compact while a court is open** (`MapBandLayout`): the label row alone,
+/// with the inbox in its slot, so the map between the band and the card gets
+/// the room the search field and chips were taking.
 struct MapBand<Inbox: View>: View {
+    var layout: MapBandLayout = .full
     let nearbyCount: Int
     @Binding var query: String
     var isSearchFocused: FocusState<Bool>.Binding
@@ -36,31 +41,36 @@ struct MapBand<Inbox: View>: View {
                 inbox()
             }
             .padding(.horizontal, Spacing.pageMargin)
-            .padding(.bottom, Spacing.sm)
+            .padding(.bottom, layout.showsSearch ? Spacing.sm : 0)
 
-            HooprSearchField(
-                text: $query,
-                placeholder: "Search courts or a city",
-                isFocused: isSearchFocused,
-                ground: .fill,
-                fillOutline: .hooprSeparatorStrong,
-                capitalization: .words,
-                onClear: onClear
-            )
-            .padding(.horizontal, Spacing.pageMargin)
+            if layout.showsSearch {
+                VStack(alignment: .leading, spacing: 0) {
+                    HooprSearchField(
+                        text: $query,
+                        placeholder: "Search courts or a city",
+                        isFocused: isSearchFocused,
+                        ground: .fill,
+                        fillOutline: .hooprSeparatorStrong,
+                        capitalization: .words,
+                        onClear: onClear
+                    )
+                    .padding(.horizontal, Spacing.pageMargin)
 
-            if !isSearchFocused.wrappedValue {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Spacing.sm) {
-                        ForEach(CourtFilter.allCases) { filter in
-                            FilterChip(symbolName: filter.symbolName, label: filter.label,
-                                       isActive: activeFilters.contains(filter)) {
-                                onToggle(filter)
+                    if !isSearchFocused.wrappedValue {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: Spacing.sm) {
+                                ForEach(CourtFilter.allCases) { filter in
+                                    FilterChip(symbolName: filter.symbolName, label: filter.label,
+                                               isActive: activeFilters.contains(filter)) {
+                                        onToggle(filter)
+                                    }
+                                }
                             }
+                            .padding(.horizontal, Spacing.pageMargin)
                         }
                     }
-                    .padding(.horizontal, Spacing.pageMargin)
                 }
+                .transition(.opacity)
             }
         }
         .padding(.top, InboxButton.Slot.top)

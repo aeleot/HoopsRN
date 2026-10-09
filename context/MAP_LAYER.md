@@ -325,8 +325,12 @@ enum SheetState: Equatable {
 struct SheetGeometry: Equatable {
     let containerHeight: CGFloat
     // mediumHeight, expandedHeight, sheetHeight(detent:drag:),
-    // sheetOffset(detent:drag:), rubberBanded(_:), nextDetent(from:projecting:)
+    // sheetOffset(detent:drag:), rubberBanded(_:), nextDetent(from:projecting:),
+    // visibleHeight(detent:drag:), visibleMapHeight(bandHeight:detent:drag:),
+    // bottomClearance, cardActionsBottomInset
 }
+
+enum MapBandLayout: Equatable { case full, compact }   // derived from SheetState
 ```
 
 **Both types and the detent arithmetic moved out of `MapTab` into
@@ -398,6 +402,20 @@ medium height, including a fitted card. The contents fade during progress
 the peek pill during progress 0.6–1, so the final part of the slide carries no
 rows or segment control. These curves retrace on expansion.
 
+**No pane's last row sits closer than `Spacing.md` to the tab bar**
+(`SheetGeometry.bottomClearance`, 2026-10-09). The lists keep exactly that
+under the foot of their scroll; the court card keeps
+`SheetGeometry.cardActionsBottomInset` (14pt) under its pinned buttons.
+`MapTabDetentTests` holds both. Measured on the live app, the card's buttons
+end at y=777 and the bar's glass starts at y=791 in both appearances — **the
+design critique's "about 8pt" was the light-mode bar's shadow**, which starts
+~7pt above the glass. The gap was not changed, only named and pinned.
+
+`SheetGeometry.visibleHeight(detent:drag:)` — the sheet less its slide — is
+what the map's north bias and the recenter button measure from, and
+`visibleMapHeight(bandHeight:detent:drag:)` is the map left between the band
+and the sheet.
+
 In debug builds, launch with `-MapLayoutDiagnostics` and `NSUnbufferedIO=YES`
 to log the tab, bar and sheet frames.
 Between medium and expanded the sheet **grows and shrinks** — `sheetHeight`
@@ -421,7 +439,7 @@ the bottom of the screen.
 
 Other constants: `tapSlop` 6pt — a handle drag shorter than this is a tap, which
 toggles between medium and collapsed; `detentThreshold` 60pt; `peekBottomInset`
-28. Overshoot is rubber-banded through `resistance(_:)`, an exponential ease
+12, under the peek pill and the recenter button. Overshoot is rubber-banded through `resistance(_:)`, an exponential ease
 toward a 40pt limit, applied only past the collapsed extreme. Every settle
 animates on the same `.spring(response: 0.35, dampingFraction: 0.85)`.
 
@@ -488,6 +506,26 @@ rather than each rolling their own: this search field, `QueueSheet`'s court
 picker (`MatchmakingViewModel.searchCourts(matching:)`), and the profile's
 home-court picker — which is why it lives in `Support/` rather than as a
 private helper on `MapViewModel`.
+
+**The band compacts while a court is open** (`MapBandLayout`, design critique
+2026-10-09). With a card up, the full band — "Near you" and the count, the
+search field, the chips — took 170pt of an iPhone 17's 729pt tab and a hosted
+run's card ~275pt, leaving the map 283pt. In `.detail` the band is its label
+row alone (72pt), the inbox kept in its `InboxButton.Slot`; the search field
+and chips step aside and come back as the card closes. `bandHeight` pads the
+map's top edge, so the map grows into the room: 382pt, measured on the device
+— at `.accessibility3`, where the full band and the card left almost none, a
+strip of map stays. **The map follows the band asymmetrically**: shrinking, it
+takes the room at once (the band is drawn over it); growing, `bandHeight`
+changes on the band's own spring, because set at once the map dropped a frame
+before the band grew and the tab's ground showed between them (~97pt for two
+frames, recorded on the device). **Search outranks the card**, as it does
+in the sheet: while the field has the keyboard or a query the band stays full.
+The layout is derived from `SheetState` by
+`MapBandLayout.layout(for:isSearching:)`, never stored, so no path into or out
+of `.detail` — a pin, a list row, Home's hot list, the close button, a pin
+deselect — can leave the two disagreeing. While a court is open the filters
+can't be changed; closing the card is one tap.
 
 `courtToSelect` is a `Court?` binding the shell writes when a Home hot-court row
 is tapped. `MapTab` consumes it in `.onChange`, clears it so the same court can
@@ -746,6 +784,9 @@ nearby-list row — already open this card, so one button serves both. See
   went stale the moment the container shrank. If you add something to the card
   that must be seen without scrolling, put it inside the measured lead in
   `courtCard`.
+- The band's layout is **derived from `SheetState`**
+  (`MapBandLayout.layout(for:isSearching:)`) — never a second piece of state
+  that a new path into `.detail` could forget to set.
 - A `.detail` state never renders `.collapsed` — that is the bug `displayDetent`
   exists for. It otherwise keeps the detent it will restore to, so tapping a
   court from a full-height list doesn't shrink the sheet under the reader's

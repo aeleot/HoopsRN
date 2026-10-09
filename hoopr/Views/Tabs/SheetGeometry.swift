@@ -50,6 +50,33 @@ nonisolated enum SheetState: Equatable {
     }
 }
 
+/// How much of the map's band shows.
+///
+/// **Compact while a court is open** (design critique, 2026-10-09). With a
+/// card up, the full band — label row, search field, filter chips — took 170pt
+/// of an iPhone 17's 729pt tab and a hosted run's card ~275pt, leaving the map
+/// 283pt: the smallest thing on a screen called Map. Compact keeps the label
+/// row and the inbox in its slot (72pt), and the search field and chips step
+/// aside until the card closes — 382pt of map, measured on the device.
+/// Leaving `.detail` brings them back.
+///
+/// **Search outranks the card here exactly as it does in the sheet.** While the
+/// field has the keyboard or a query, the sheet shows results rather than the
+/// card, and the field has to stay where the user is typing.
+nonisolated enum MapBandLayout: Equatable {
+    /// Label row, search field and filter chips.
+    case full
+    /// The label row alone.
+    case compact
+
+    static func layout(for state: SheetState, isSearching: Bool) -> MapBandLayout {
+        state.selectedCourt != nil && !isSearching ? .compact : .full
+    }
+
+    /// The search field and the chip row under it.
+    var showsSearch: Bool { self == .full }
+}
+
 /// The sheet's detent arithmetic, extracted from the view.
 ///
 /// `MapTab` owns the gestures, the animation and the state; this owns only
@@ -87,6 +114,24 @@ nonisolated struct SheetGeometry: Equatable {
     /// rather than tracking the finger 1:1.
     static let rubberBandLimit: CGFloat = 40
 
+    /// The least room between the sheet's last row and the tab bar, whose
+    /// glass starts exactly at this container's bottom edge (y=791 on an iPhone
+    /// 17, measured from the live app on 2026-10-09). Every pane keeps at least
+    /// this below its last row: the lists as the foot of their scroll, the
+    /// court card under its pinned buttons.
+    ///
+    /// **In light mode the bar's shadow starts ~7pt above its glass**, which is
+    /// why the critique read the card's buttons as ~8pt from the bar. They were
+    /// 14pt from it in both appearances.
+    ///
+    /// Main-actor, like the `Spacing` scale it reads: only views ask for it.
+    @MainActor static let bottomClearance: CGFloat = Spacing.md
+
+    /// The court card's gap under its pinned action row. More than
+    /// `bottomClearance` — the buttons are the largest controls on the sheet
+    /// and the nearest to the bar — and never less (`MapTabDetentTests`).
+    static let cardActionsBottomInset: CGFloat = 14
+
     /// A third of the container: the list's resting height.
     var mediumHeight: CGFloat { min(max(0, containerHeight / 3), expandedHeight) }
     var expandedHeight: CGFloat {
@@ -123,6 +168,18 @@ nonisolated struct SheetGeometry: Equatable {
             ? drag
             : max(0, drag - (baseHeight(for: detent) - restingMediumHeight))
         return rubberBanded(base + travel)
+    }
+
+    /// How much of the sheet is on screen: its height, less however far it has
+    /// slid down. What the map's framing and the recenter button measure from.
+    func visibleHeight(detent: SheetDetent, drag: CGFloat) -> CGFloat {
+        max(0, sheetHeight(detent: detent, drag: drag) - sheetOffset(detent: detent, drag: drag))
+    }
+
+    /// The map left between a band `bandHeight` tall and the sheet's top edge
+    /// — the number `MapBandLayout.compact` exists to raise.
+    func visibleMapHeight(bandHeight: CGFloat, detent: SheetDetent, drag: CGFloat) -> CGFloat {
+        max(0, containerHeight - max(0, bandHeight) - visibleHeight(detent: detent, drag: drag))
     }
 
     /// Progress through the downward slide, clamped past the rubber-band limits.

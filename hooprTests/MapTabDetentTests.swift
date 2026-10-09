@@ -286,6 +286,103 @@ final class MapTabDetentTests: XCTestCase {
         )
     }
 
+    // MARK: - The band while a court is open (design critique, 2026-10-09)
+
+    /// With a court open the band is its label row alone, at every detent the
+    /// card can return to.
+    func testAnOpenCourtCompactsTheBand() {
+        for detent in SheetDetent.allCases {
+            let state = SheetState.detail(court: Self.court, returningTo: detent)
+            XCTAssertEqual(MapBandLayout.layout(for: state, isSearching: false), .compact, "\(detent)")
+        }
+        XCTAssertFalse(MapBandLayout.compact.showsSearch)
+    }
+
+    /// Closing the card brings the search field and chips back, whichever
+    /// detent the sheet returns to.
+    func testLeavingTheDetailRestoresTheFullBand() {
+        for detent in SheetDetent.allCases {
+            let open = SheetState.detail(court: Self.court, returningTo: detent)
+            let closed = SheetState.rest(open.detent)
+
+            XCTAssertEqual(MapBandLayout.layout(for: open, isSearching: false), .compact)
+            XCTAssertEqual(MapBandLayout.layout(for: closed, isSearching: false), .full, "\(detent)")
+        }
+        XCTAssertTrue(MapBandLayout.full.showsSearch)
+    }
+
+    /// Search outranks the card, as it does in the sheet: while the field has
+    /// the keyboard or a query, the field stays where the user is typing.
+    func testSearchKeepsTheFullBandWithACourtOpen() {
+        let open = SheetState.detail(court: Self.court, returningTo: .medium)
+        XCTAssertEqual(MapBandLayout.layout(for: open, isSearching: true), .full)
+        XCTAssertEqual(MapBandLayout.layout(for: .rest(.medium), isSearching: true), .full)
+    }
+
+    /// iPhone 17, measured from the live app on 2026-10-09: a 729pt tab, a
+    /// full band of 170pt, a compact one of 72pt, and a hosted run's card
+    /// resting at ~275pt under either — 283pt of map before, 382pt after. The
+    /// card rests exactly where it did, so **every point the band gives up is
+    /// map.**
+    private let tabHeight: CGFloat = 729
+    private let fullBand: CGFloat = 170
+    private let compactBand: CGFloat = 72
+    private let hostedRunCard: CGFloat = 275
+
+    private func withBand(_ band: CGFloat) -> SheetGeometry {
+        SheetGeometry(containerHeight: tabHeight, fittedMediumHeight: hostedRunCard, topInset: band + 12)
+    }
+
+    func testACompactBandHandsItsHeightToTheMap() {
+        XCTAssertEqual(withBand(fullBand).visibleMapHeight(bandHeight: fullBand, detent: .medium, drag: 0), 284)
+        XCTAssertEqual(withBand(compactBand).visibleMapHeight(bandHeight: compactBand, detent: .medium, drag: 0), 382)
+        XCTAssertEqual(
+            withBand(compactBand).sheetHeight(detent: .medium, drag: 0),
+            withBand(fullBand).sheetHeight(detent: .medium, drag: 0),
+            "the card rests at the same height under either band"
+        )
+        XCTAssertEqual(
+            withBand(compactBand).visibleMapHeight(bandHeight: compactBand, detent: .medium, drag: 0)
+                - withBand(fullBand).visibleMapHeight(bandHeight: fullBand, detent: .medium, drag: 0),
+            fullBand - compactBand
+        )
+    }
+
+    /// The full band held an expanded card 12pt under itself, below the 0.78
+    /// cap; with the compact band the cap is what stops it.
+    func testACompactBandLetsAnExpandedCardRiseToItsCap() {
+        XCTAssertEqual(withBand(fullBand).expandedHeight, tabHeight - fullBand - 12)
+        XCTAssertEqual(withBand(compactBand).expandedHeight, tabHeight * 0.78, accuracy: 0.001)
+    }
+
+    /// The visible map never goes negative, however tall the band or the sheet.
+    func testTheVisibleMapIsNeverNegative() {
+        XCTAssertEqual(withBand(fullBand).visibleMapHeight(bandHeight: 900, detent: .expanded, drag: 0), 0)
+        XCTAssertEqual(geometry.visibleMapHeight(bandHeight: -10, detent: .collapsed, drag: 0), geometry.containerHeight)
+    }
+
+    /// What's on screen is the sheet less its slide: all of it at rest, none
+    /// of it collapsed — the number the map's framing and the recenter
+    /// button read.
+    func testTheVisibleSheetIsItsHeightLessItsSlide() {
+        XCTAssertEqual(geometry.visibleHeight(detent: .medium, drag: 0), geometry.mediumHeight)
+        XCTAssertEqual(geometry.visibleHeight(detent: .expanded, drag: 0), geometry.expandedHeight)
+        XCTAssertEqual(geometry.visibleHeight(detent: .collapsed, drag: 0), 0)
+        XCTAssertEqual(geometry.visibleHeight(detent: .medium, drag: 50), geometry.mediumHeight - 50)
+    }
+
+    // MARK: - Clearance above the tab bar
+
+    /// **No pane's last row sits closer than `Spacing.md` to the tab bar.** The
+    /// lists keep exactly that under their last row; the court card keeps more
+    /// under its buttons. The bar's glass starts at this container's bottom
+    /// edge, so these insets are the whole gap.
+    @MainActor
+    func testNoPaneSitsCloserThanSpacingMdToTheTabBar() {
+        XCTAssertEqual(SheetGeometry.bottomClearance, Spacing.md)
+        XCTAssertGreaterThanOrEqual(SheetGeometry.cardActionsBottomInset, SheetGeometry.bottomClearance)
+    }
+
     private static let court = Court(
         id: "court-001",
         name: "Long Meadow Park Basketball Court",

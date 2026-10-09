@@ -79,12 +79,13 @@ struct MapTab: View {
     /// the map back after the user had panned away.
     @State private var hasAppliedInitialFix = false
 
-    /// Gap kept below the sheet's own content, and under the collapsed pill, so
-    /// neither sits beneath the home indicator.
+    /// Gap kept under the collapsed pill and the recenter button.
     ///
     /// Smaller than it was: the tab bar now occupies the bottom of the screen
     /// and the sheet is laid out above it, so this no longer has to clear the
-    /// home indicator on its own.
+    /// home indicator on its own. The sheet's own rows keep
+    /// `SheetGeometry.bottomClearance` instead — the same 12pt, but a rule
+    /// about the tab bar rather than about this pill.
     private let peekBottomInset: CGFloat = 12
     private static let sheetCornerRadius: CGFloat = 22
     private static let chromeInset: CGFloat = 14
@@ -154,13 +155,14 @@ struct MapTab: View {
 
     /// The court card's fixed chrome, named so the view and the arithmetic
     /// above can't drift: the grab handle (10 + 5 + 14) and the pinned action
-    /// row (10 + a `large` button + 14). The row's height is *measured*
+    /// row (10 + a `large` button + `SheetGeometry.cardActionsBottomInset`). The row's height is *measured*
     /// (`cardActionsMeasuredHeight`) because the buttons grow with the text size
     /// and stack at accessibility sizes; this is the one-row height it starts
     /// from, before the first layout.
     private static let cardHandleHeight: CGFloat = 10 + 5 + 14
     private static let cardScrollTopInset: CGFloat = 2
-    private static let cardActionsHeight: CGFloat = 10 + HooprButtonStyle.Size.large.tapTarget + 14
+    private static let cardActionsHeight: CGFloat =
+        10 + HooprButtonStyle.Size.large.tapTarget + SheetGeometry.cardActionsBottomInset
 
     private var mediumHeight: CGFloat { geometry.mediumHeight }
 
@@ -170,6 +172,20 @@ struct MapTab: View {
 
     private var sheetOffset: CGFloat {
         geometry.sheetOffset(detent: sheetState.displayDetent, drag: sheetDrag)
+    }
+
+    /// The part of the sheet on screen — what the map frames around and the
+    /// recenter button rides on.
+    private var visibleSheetHeight: CGFloat {
+        geometry.visibleHeight(detent: sheetState.displayDetent, drag: sheetDrag)
+    }
+
+    /// The label row alone while a court is open. See `MapBandLayout`.
+    private var bandLayout: MapBandLayout {
+        MapBandLayout.layout(
+            for: sheetState,
+            isSearching: isSearchFocused || viewModel.hasSearchQuery
+        )
     }
 
     var body: some View {
@@ -187,7 +203,7 @@ struct MapTab: View {
                     dismissDetail()
                 },
                 northBias: MapFraming.northBias(
-                    sheetHeight: max(0, sheetHeight - sheetOffset), mapHeight: mapHeight
+                    sheetHeight: visibleSheetHeight, mapHeight: mapHeight
                 )
             )
             .clipped()
@@ -329,8 +345,14 @@ struct MapTab: View {
     /// The trailing `Spacer` is load-bearing: it holds the stack at full
     /// height so the rows stay pinned to the top of a `ZStack` that aligns its
     /// children to the bottom.
+    ///
+    /// **With a court open it is the label row alone** (`MapBandLayout`) — the
+    /// search field and chips step aside, and the map below grows into their
+    /// room, because `bandHeight` is what pads the map's top edge. They come
+    /// back as the card closes.
     private var mapBand: some View {
         MapBand(
+            layout: bandLayout,
             nearbyCount: viewModel.nearbyCount,
             query: $viewModel.searchQuery,
             isSearchFocused: $isSearchFocused,
@@ -342,8 +364,21 @@ struct MapTab: View {
         ) {
             InboxButton(friendService: friendService, squadService: squadService, action: onOpenInbox)
         }
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bandHeight = $0 }
+        // The map's top edge follows the band. Shrinking, it takes the room at
+        // once — the band is drawn over it while it closes. Growing, it gives
+        // the room back on the band's own spring: set at once, the map dropped
+        // to the full band's edge a frame before the band grew to meet it, and
+        // the tab's ground showed between them — ~97pt for two frames as a
+        // court's card closed (recorded on the device, 2026-10-09).
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+            if bandHeight > 0, height > bandHeight {
+                withAnimation(.hooprSpring) { bandHeight = height }
+            } else {
+                bandHeight = height
+            }
+        }
         .animation(.hooprSpring, value: isSearchFocused)
+        .animation(.hooprSpring, value: bandLayout)
     }
 
     /// The only map control left, and it now floats bottom-right rather than
@@ -394,7 +429,7 @@ struct MapTab: View {
         // right there next to the peek pill, and it grows exactly as fast as
         // the sheet rises, so the gap above the sheet's own top edge never
         // opens past that same `peekBottomInset`.
-        .padding(.bottom, max(0, sheetHeight - sheetOffset) + peekBottomInset)
+        .padding(.bottom, visibleSheetHeight + peekBottomInset)
         .opacity(isHidden ? 0 : 1)
         .allowsHitTesting(!isHidden)
         .animation(.hooprSnap, value: isHidden)
@@ -747,7 +782,7 @@ struct MapTab: View {
             LazyVStack(spacing: 0) {
                 content()
             }
-            .padding(.bottom, peekBottomInset)
+            .padding(.bottom, SheetGeometry.bottomClearance)
         }
         .scrollDisabled(sheetDrag != 0)
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
@@ -962,7 +997,7 @@ struct MapTab: View {
             cardActions(court: court, hasRuns: !games.isEmpty)
                 .padding(.horizontal, Spacing.pageMargin)
                 .padding(.top, 10)
-                .padding(.bottom, 14)
+                .padding(.bottom, SheetGeometry.cardActionsBottomInset)
                 .onGeometryChange(for: CGFloat.self) { proxy in
                     proxy.size.height
                 } action: { height in
