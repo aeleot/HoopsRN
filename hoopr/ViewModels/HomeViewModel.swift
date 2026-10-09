@@ -115,7 +115,8 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var participationStreak = 0
     @Published private(set) var lastCompletedText = "—"
 
-    /// Completed runs in the current ISO week — the scoreboard's "This week".
+    /// Completed runs in the current ISO week — the scoreboard's "Done this
+    /// week".
     /// Off the same `completedGames` snapshot the stats are recalculated from,
     /// on the streak's calendar (`Game.completedThisWeek`).
     @Published private(set) var runsThisWeek = 0
@@ -556,13 +557,19 @@ final class HomeViewModel: ObservableObject {
         var stats: [ScoreboardStat] = []
         let hasRuns = completedCount > 0
 
+        // **"Done this week", not "This week"** (design critique, 2026-10-09).
+        // The count is completed runs only, so beside a hero reading "Hosting
+        // tonight" a bare "This week · 0 runs" read as a contradiction. The
+        // label says what is counted; the count is unchanged. "Finished this
+        // week" was the first choice and is 140pt at the default size, where
+        // the panel beside the calendar tile has 119pt for it.
         if hasRuns {
             stats.append(ScoreboardStat(
                 kind: .thisWeek,
-                label: "This week",
+                label: "Done this week",
                 value: "\(runsThisWeek)",
                 unit: runsThisWeek == 1 ? "run" : "runs",
-                spoken: runsThisWeek == 1 ? "1 run this week" : "\(runsThisWeek) runs this week",
+                spoken: runsThisWeek == 1 ? "1 run done this week" : "\(runsThisWeek) runs done this week",
                 standing: nil
             ))
         }

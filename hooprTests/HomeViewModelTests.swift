@@ -88,7 +88,7 @@ final class HomeViewModelTests: XCTestCase {
         let stats = scoreboard()
 
         XCTAssertEqual(stats.map(\.kind), [.thisWeek, .streak, .total, .lastRun])
-        XCTAssertEqual(stats.map(\.label), ["This week", "Streak", "Total", "Last run"])
+        XCTAssertEqual(stats.map(\.label), ["Done this week", "Streak", "Total", "Last run"])
         XCTAssertEqual(stats.map(\.value), ["2", "3", "12", "Yesterday"])
         XCTAssertEqual(stats.map(\.unit), ["runs", "wks", "runs", nil])
     }
@@ -124,15 +124,29 @@ final class HomeViewModelTests: XCTestCase {
         let stats = scoreboard(squad: squad())
 
         XCTAssertEqual(stats.map(\.spoken), [
-            "2 runs this week",
+            "2 runs done this week",
             "Hornets, 4 wins, 1 loss this season",
             "3 week streak",
             "12 runs in all",
             "last run yesterday",
         ])
         XCTAssertEqual(scoreboard(completed: 1, thisWeek: 1, streak: 1).map(\.spoken).prefix(3), [
-            "1 run this week", "1 week streak", "1 run in all",
+            "1 run done this week", "1 week streak", "1 run in all",
         ])
+    }
+
+    /// **The count is completed runs only, and the label says so** (design
+    /// critique, 2026-10-09). "This week · 0 runs" under a hero reading
+    /// "Hosting tonight" read as a contradiction; the number never changed, so
+    /// only the words do — and VoiceOver hears the same words.
+    func testThisWeeksPanelSaysItCountsRunsThatAreDone() {
+        let none = scoreboard(thisWeek: 0)[0]
+        XCTAssertEqual(none.kind, .thisWeek)
+        XCTAssertEqual(none.label, "Done this week")
+        XCTAssertEqual(none.value, "0")
+        XCTAssertEqual(none.spoken, "0 runs done this week")
+
+        XCTAssertEqual(scoreboard(thisWeek: 1)[0].spoken, "1 run done this week")
     }
 
     /// **Two tiers, the user's call (2026-10-05).** The confirmed record takes
@@ -201,6 +215,54 @@ final class HomeViewModelTests: XCTestCase {
             }
         }
         XCTAssertTrue(HomeStatsLayout.isSideBySide(at: .large), "the default size has the tile beside the board")
+    }
+
+    /// **Every run panel's label fits one line, at every size** (2026-10-09)
+    /// — beside the calendar tile at the sizes the tile is beside the board,
+    /// at Home's full width from the size it goes under. The labels are read
+    /// from `scoreboardStats`, so a renamed one is measured as written.
+    ///
+    /// The squad panel's label is the squad's name, any length the create
+    /// form allows; it wraps, and isn't held to a line.
+    @MainActor
+    func testEveryRunPanelsLabelFitsOnOneLineAtEverySize() {
+        let besideTile = HomeHeroMetrics.contentWidth - Spacing.md - RunCalendarTileMetrics.width
+
+        XCTAssertEqual(
+            StatsScoreboardMetrics.runPanelLabels.map(\.label),
+            ["Done this week", "Streak", "Total", "Last run"]
+        )
+        for category in everySize {
+            let card = HomeStatsLayout.isSideBySide(at: category) ? besideTile : HomeHeroMetrics.contentWidth
+            let available = StatsScoreboardMetrics.innerWidth(cardWidth: card) - StatsScoreboardMetrics.pauseReserve
+            for panel in StatsScoreboardMetrics.runPanelLabels {
+                let width = StatsScoreboardMetrics.labelWidth(
+                    panel.label,
+                    symbol: StatsScoreboard.symbol(for: panel.kind),
+                    at: category
+                )
+                XCTAssertLessThanOrEqual(
+                    width, available,
+                    "\"\(panel.label)\" would wrap at \(category.rawValue): \(width)pt in \(available)pt"
+                )
+            }
+        }
+    }
+
+    /// **"Done this week" is what moves the tile under the board at
+    /// `.extraLarge`** — every value would still fit beside it there, the
+    /// label wouldn't. One size earlier than the values alone, rather than a
+    /// label broken onto two lines (the user's call, 2026-10-09).
+    @MainActor
+    func testTheLabelMovesTheTileUnderTheBoardAtExtraLarge() {
+        let besideTile = HomeHeroMetrics.contentWidth - Spacing.md - RunCalendarTileMetrics.width
+
+        XCTAssertTrue(HomeStatsLayout.isSideBySide(at: .large))
+        XCTAssertTrue(StatsScoreboardMetrics.everyLabelFits(cardWidth: besideTile, at: .large))
+
+        XCTAssertTrue(StatsScoreboardMetrics.everyValueFits(cardWidth: besideTile, at: .extraLarge))
+        XCTAssertFalse(StatsScoreboardMetrics.everyLabelFits(cardWidth: besideTile, at: .extraLarge))
+        XCTAssertFalse(HomeStatsLayout.isSideBySide(at: .extraLarge))
     }
 
     // MARK: - Choosing the next run

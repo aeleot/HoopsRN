@@ -312,8 +312,12 @@ curve as its map pin — see `MAP_LAYER.md` § `CourtHeat`.
 **The stats are a scoreboard** (`Views/Components/StatsScoreboard.swift`,
 2026-10-05, the user's design — it replaced a three-column card). A near-black
 screen with a faint grid of unlit LEDs, set into a card's bezel, showing one
-panel at a time: **This week** (completed runs this ISO week), your **squad's
-record** (with its crest), the **Streak**, the **Total** and the **Last run**.
+panel at a time: **Done this week** (completed runs this ISO week), your
+**squad's record** (with its crest), the **Streak**, the **Total** and the
+**Last run**. It read "This week" until 2026-10-09 (design critique): the
+count is completed runs only, so beside a band reading "Hosting tonight" it
+said "This week · 0 runs". The count didn't change; the label says what it
+counts, and VoiceOver says "0 runs done this week".
 Each panel is a label in LED orange beside the stat's icon — the old card's
 icons, kept — over its number.
 
@@ -341,7 +345,7 @@ icons, kept — over its number.
 - **What's shown:** the run panels need a completed run (otherwise four zeros
   and a dash); a squad's record shows alone without them; neither hides the
   scoreboard. The squad panel waits for the `seasonGames` listener, so "0–0"
-  never flashes at a squad with a record. **This week uses the streak's
+  never flashes at a squad with a record. **Done this week uses the streak's
   calendar** (ISO weeks, UTC, `Game.completedThisWeek`), so the two panels can't
   disagree about which week a Sunday-night run fell in.
 - **Every value fits one line at every text size**, `.accessibility5`
@@ -349,6 +353,12 @@ icons, kept — over its number.
   never breaks and "Yesterday" never becomes "Yester / day" — at Home's full
   width at every size, and beside the calendar tile at every size the tile is
   beside it.
+- **So does every run panel's label**, since 2026-10-09
+  (`StatsScoreboardMetrics.everyLabelFits`, the labels read from
+  `scoreboardStats` itself): symbol, gap and uppercase tracked text, clear of
+  the pause control. "Finished this week" was the first choice and is 140pt at
+  the default size against the 119pt the panel has beside the tile; "Done this
+  week" is 115pt there. The squad panel's label is the squad's name and wraps.
 - **A bug the device caught:** the rotation task runs on the view as it was
   when it started, so it kept counting four panels after a squad's record
   arrived as a fifth, and skipped "Last run". Its key now includes the panels.
@@ -388,8 +398,12 @@ crest colours such as gold (240,194,48) fall well below 3:1 on a pale ground
   Home's overlay, so `MainTabView` is unchanged.
 - **Beside the board only while everything fits.** `HomeStatsLayout.isSideBySide`
   is a pure function of the text size and Home's width: every scoreboard value
-  on one line of what the 132pt tile (`RunCalendarTileMetrics.width`, about the
-  board's height at the default size) leaves it, and the tile's own date.
+  **and every run panel's label** on one line of what the 132pt tile
+  (`RunCalendarTileMetrics.width`, about the board's height at the default
+  size) leaves it, and the tile's own date. The label is what decides it now:
+  "Done this week" is 133pt at `.extraLarge` against 116pt, while every value
+  still fits, so **from `.extraLarge` the tile goes under the board** — one
+  size earlier than before, the user's call over a two-line label.
   `ViewThatFits` can't decide it — the board takes all the width it's offered.
   Past the cut the tile goes under the board, at its own size; with no stats
   it shows alone. Side by side, both are stretched to the taller one's height.

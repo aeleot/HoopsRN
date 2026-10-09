@@ -165,7 +165,7 @@ struct StatsScoreboard: View {
         .overlay(alignment: .topTrailing) { pauseButton }
     }
 
-    /// "Your stats. 3 runs this week. Hornets, 4 wins, 1 loss this season. …" —
+    /// "Your stats. 3 runs done this week. Hornets, 4 wins, 1 loss this season. …" —
     /// the whole board, whichever panel is showing.
     private var spokenBoard: String {
         (["Your stats"] + stats.map(\.spoken)).joined(separator: ". ")
@@ -229,13 +229,7 @@ struct StatsScoreboard: View {
     /// The label's symbol — the stats card's icons, kept (the user missed
     /// them once when a redesign dropped them). The squad shows its crest.
     static func symbol(for kind: HomeViewModel.ScoreboardStat.Kind) -> String? {
-        switch kind {
-        case .thisWeek: return "calendar"
-        case .squad: return nil
-        case .streak: return "flame.fill"
-        case .total: return "basketball.fill"
-        case .lastRun: return "clock.fill"
-        }
+        StatsScoreboardMetrics.symbol(for: kind)
     }
 
     // MARK: - Controls
@@ -324,9 +318,10 @@ struct ScoreboardScreen: View {
     }
 }
 
-/// The scoreboard's geometry, and the measurement that every value fits on one
-/// line of the screen at every text size — so a number never breaks, and
-/// "Yesterday" never becomes "Yester / day".
+/// The scoreboard's geometry, and the measurement that every value and every
+/// run panel's label fits on one line of the screen at every text size — so a
+/// number never breaks, "Yesterday" never becomes "Yester / day", and "Done
+/// this week" never drops "week" to a second line.
 nonisolated enum StatsScoreboardMetrics {
     /// The card's rim around the screen.
     static let bezel: CGFloat = 6
@@ -358,6 +353,18 @@ nonisolated enum StatsScoreboardMetrics {
         kind == .squad ? .numeral : .title
     }
 
+    /// The label's symbol. Here rather than on the view, like `role(for:)`, so
+    /// the label measurement below can ask it.
+    static func symbol(for kind: HomeViewModel.ScoreboardStat.Kind) -> String? {
+        switch kind {
+        case .thisWeek: return "calendar"
+        case .squad: return nil
+        case .streak: return "flame.fill"
+        case .total: return "basketball.fill"
+        case .lastRun: return "clock.fill"
+        }
+    }
+
     /// The widest value each panel realistically shows, with its unit.
     static let worstCase: [(kind: HomeViewModel.ScoreboardStat.Kind, value: String, unit: String?)] = [
         (.thisWeek, "12", "runs"),
@@ -383,6 +390,51 @@ nonisolated enum StatsScoreboardMetrics {
         worstCase.allSatisfy { line in
             lineWidth(value: line.value, unit: line.unit, role: role(for: line.kind), at: category)
                 <= innerWidth(cardWidth: cardWidth)
+        }
+    }
+
+    /// The run panels' labels, taken from `HomeViewModel.scoreboardStats` itself
+    /// so a renamed label is measured as written, never as a copy.
+    ///
+    /// **Labels were not measured until 2026-10-09**, when "This week" became
+    /// "Done this week": 115pt at the default size against the 119pt the panel
+    /// has beside the calendar tile, and 133pt at `.extraLarge` against 116pt.
+    /// The squad panel's label is the squad's own name — any length the create
+    /// form allows — so it wraps rather than being held to a line here.
+    static var runPanelLabels: [(kind: HomeViewModel.ScoreboardStat.Kind, label: String)] {
+        HomeViewModel.scoreboardStats(
+            completedCount: 1,
+            runsThisWeek: 1,
+            streak: 1,
+            lastCompletedText: "—",
+            squadStanding: nil
+        )
+        .map { ($0.kind, $0.label) }
+    }
+
+    /// A label row as `StatsScoreboard.panel` sets it: the symbol, a
+    /// `Spacing.sm` gap, and the label in the `label` role — uppercased and
+    /// tracked, as `hooprType(.label)` draws it.
+    static func labelWidth(_ label: String, symbol: String?, at category: UIContentSizeCategory) -> CGFloat {
+        let role = HooprTextRole.label
+        let size = HooprFontMetrics.scaledSize(role.size, maximumSize: role.maximumSize, at: category)
+        let font = UIFont.systemFont(ofSize: size, weight: role.uiFontWeight)
+        let text = role.isUppercase ? label.uppercased() : label
+        let textWidth = ceil((text as NSString).size(withAttributes: [.font: font, .kern: role.kerning]).width)
+
+        guard let symbol,
+              let image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(font: font))
+        else { return textWidth }
+        return ceil(image.size.width) + Spacing.sm + textWidth
+    }
+
+    /// Whether every run panel's label fits one line of a card `cardWidth`
+    /// wide at `category`, clear of the pause control — what `HomeStatsLayout`
+    /// asks beside `everyValueFits`.
+    static func everyLabelFits(cardWidth: CGFloat, at category: UIContentSizeCategory) -> Bool {
+        let available = innerWidth(cardWidth: cardWidth) - pauseReserve
+        return runPanelLabels.allSatisfy { panel in
+            labelWidth(panel.label, symbol: symbol(for: panel.kind), at: category) <= available
         }
     }
 

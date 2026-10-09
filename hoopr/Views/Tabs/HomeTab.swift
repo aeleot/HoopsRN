@@ -779,18 +779,22 @@ nonisolated enum HomeHeroMetrics {
 /// scoreboard — a pure function of the text size and the width, so it can be
 /// tested and never depends on what a layout pass happened to measure.
 ///
-/// True only while every value the scoreboard can show fits one line of what
-/// the tile leaves it. The tile itself always fits: its squares are fixed, and
-/// the label over them is capped.
+/// True only while every value the scoreboard can show, and every run panel's
+/// label, fits one line of what the tile leaves it. The tile itself always
+/// fits: its squares are fixed, and the label over them is capped.
+///
+/// **The labels count since 2026-10-09.** "Done this week" fits beside the tile
+/// at the default size and not at `.extraLarge`, where the values still do — so
+/// from `.extraLarge` the tile goes under the board, one size earlier than the
+/// values alone would move it, rather than the label breaking onto two lines.
 nonisolated enum HomeStatsLayout {
     static func isSideBySide(
         at category: UIContentSizeCategory,
         contentWidth: CGFloat = HomeHeroMetrics.contentWidth
     ) -> Bool {
-        StatsScoreboardMetrics.everyValueFits(
-            cardWidth: contentWidth - Spacing.md - RunCalendarTileMetrics.width,
-            at: category
-        )
+        let cardWidth = contentWidth - Spacing.md - RunCalendarTileMetrics.width
+        return StatsScoreboardMetrics.everyValueFits(cardWidth: cardWidth, at: category)
+            && StatsScoreboardMetrics.everyLabelFits(cardWidth: cardWidth, at: category)
     }
 }
 
