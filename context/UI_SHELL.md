@@ -40,9 +40,12 @@ RootView                    switches on RootViewModel.destination
                  │       ├── top bar: handle-on-scroll · inbox
                  │       ├── Profile pane  (identity + field rows)
                  │       └── Friends pane  (search + friends list)
-                 └── .sheet(item:) InboxSheet   ← every tab's InboxButton,
-                                                  Home's request row, any
-                                                  tapped notification
+                 ├── .sheet(item:) InboxSheet   ← every tab's InboxButton,
+                 │                                Home's request row, any
+                 │                                tapped notification
+                 └── .sheet(item:) InviteJoinSheet ← an opened invite link
+                                                     (hooprApp .onOpenURL →
+                                                     InviteRouter)
 ```
 
 `.launching` exists so the login screen never flashes at a user whose cached
@@ -66,6 +69,16 @@ including the stacked presentation used when a notification lands while some
 other sheet is up. `InboxSheet` builds its own `FriendsViewModel`,
 `SquadViewModel` and `InboxMatchesViewModel` per presentation; it used to
 borrow the profile's, back when the profile was the only way in.
+
+**An invite link is the other route in from outside the app, and it is
+presented the same way** (2026-10-08): `hooprApp`'s `.onOpenURL` hands the URL
+to `InviteRouter`, which holds the request; `MainTabView` consumes it on
+appearance (so a link that launched the app, or landed on the login screen, is
+shown the moment the signed-in shell exists) and presents `InviteJoinSheet` —
+through its own `sheet(item:)` when nothing is up, stacked over whatever sheet
+*is* up otherwise, and replacing an invite already showing. The stacking is
+`ModalStack.present(_:over:)`, shared with the notification route, which also
+handles an alert on top (dismissed, since it can't present).
 
 Edit flows *within* the profile are `.sheet(item:)` bound to
 `ProfileViewModel.editingField`, so adding an editable field means adding an
@@ -544,11 +557,12 @@ and since completion isn't a case of it, that surface gets nothing — intended,
 and what keeps the blast radius off `MapViewModel`.
 
 A card for a run you host that isn't public also carries an `InviteLinkCard` —
-the run's `hoopsrn://game/{id}` link, shown in full with a tap that copies it.
-Host-only: an invite-only run is the host's to hand out. **The link doesn't
-resolve yet** — nothing registers the scheme and nothing handles an incoming
-URL, so it's a string to send while the receiving half is built
-(`gaps/GAMES.md`).
+the run's `hoopsrn://game/{id}` link, shown in full with a tap that copies it,
+and one line under it: "Anyone with this link can open the run and join."
+Host-only: an invite-only run is the host's to hand out, so a player who joined
+through the link doesn't get it on their card. **The note used to say the link
+didn't work** — it didn't, until 2026-10-08 — and now says the thing a host
+handing out a key should know.
 
 ## `SeasonsTab`
 
@@ -853,19 +867,19 @@ sheet swaps the form for an invite step titled "Run Created". Cancel is dropped
 there and Create becomes Done: the run already exists, so offering Cancel would
 read as "discard it".
 
-**The invite step leads with what works** (UI revamp Phase 2b — a
-correctness fix): the link opens nothing and an invite-only run holds only its
-host (`gaps/GAMES.md`), so the step says so under its title ("Invites don't work
-yet, so send your players the court and time"), shows the court and time in a
-panel, and offers **"Send the court and time"** through the system share sheet
+**The invite step sends the court, the time and the link together.** Under
+its title it says what the link does ("Send your players the link. It opens
+this run in the app so they can join."), shows the court and time in a panel,
+and offers **"Send invite"** through the system share sheet
 (`CreateGameViewModel.shareText`: "Pickup run at East End Park, Durham —
-Tonight at 7:30 PM"). The link sits last in that panel as a reference, in the
-same `InviteLinkCard` the Runs card uses — with its "doesn't work yet" note
-switched off **here only**, because the line under the title has just said it;
-on the Runs card nothing else does. The Invite-only option on the form says the
-same before the run exists ("Hidden. Just you until invites work."); it used to
-promise "a link to share with the players you want in". `CreateGameCopyTests`
-pins both.
+Tonight at 7:30 PM", then the link on its own line). The sentence still leads
+because the link only opens for someone with the app. The link also sits last
+in the panel, in the same `InviteLinkCard` the Runs card uses, with its access
+note switched off **here only** — the form's Invite-only caption said who the
+link lets in a moment earlier ("Hidden. Anyone with the link can join.").
+Until 2026-10-08 this step and that caption said invites didn't work, because
+they didn't (UI revamp Phase 2b, a correctness fix); `CreateGameCopyTests`
+pins the current wording.
 
 **The form is an inset-grouped form** (rebuilt 2026-09-23, the user's call: the
 Phase 2b version was "not very structured", with "more text and not a lot of
@@ -887,8 +901,51 @@ one short line each. A same-day time before 5 PM reads "Today", from 5 PM
 
 `InviteLink` (in `Support/`) owns the `hoopsrn://game/{id}` format — one
 definition, because the create flow holds a bare document ID and the card holds
-a whole `Game`. `GameTests` pins the string so the scheme can't move on one
-side alone.
+a whole `Game` — and parses it back. `GameTests` pins the string and
+`InviteJoinTests` round-trips it and checks the built `Info.plist` registers the
+scheme, so it can't move on one side alone.
+
+## `InviteJoinSheet`
+
+What an invite link opens (2026-10-08): one run, and the one thing to do about
+it. Presented by `MainTabView` (above), never signed out. Built from the create
+sheet's vocabulary — `hooprGroupedBackground`, the "Your run is set" heading
+block (a 40pt glyph, a title, a sentence), one `FormPanel` of `FormRow`s, one
+large filled button — so a run reads the same whether you're making one or
+being asked to one. Done is the only toolbar item.
+
+`InviteJoinViewModel` (per presentation) reads the run with
+`GameService.fetchGame(id:)` and resolves a `Landing` with a pure
+`landing(for:currentUserId:now:)`. **Every state a link can land in is
+designed**, and `InviteJoinTests` pins each:
+
+| State | Heading | Offers |
+|---|---|---|
+| room on the roster | You're invited | **Join** |
+| full | This run is full — and the waitlist never moves (`Game.waitlistCaveat`) | **Join waitlist** |
+| already on it | You're on this run | See it in Runs |
+| waitlisted | You're on the waitlist (+ caveat) | See it in Runs |
+| your own run | This is your run — "Anyone you send this link to can open it and join." | See it in Runs |
+| completed, or past `visibilityGrace` | This run is over | nothing (Done) |
+| no such run | This run was called off | nothing (Done) |
+| the read failed | Couldn't open this invite (+ `GameService.message`, `.load`) | Try again |
+
+**Over outranks hosting**: yesterday's run reads as over, even to its host.
+The rest follows `LocalRunsViewModel.action(for:currentUserId:)`'s order, and
+the join button is that type's own `Action` — titled "Join"/"Join waitlist" as
+on the board, and written through `GameService.joinGame(id:)`, the board's own
+transaction. **There is no second join path into `games`.** After any join
+attempt the sheet re-reads the run quietly (no spinner), so success becomes
+"You're on this run" from the server's copy and a refusal shows why — filled,
+completed or cancelled meanwhile — with the write's message under the button.
+A join the server accepted is felt (`.success`, off `joinCount`); arriving on a
+run you're already on is not.
+
+The panel shows **where** (court, then city · distance from `homeLocation`),
+**when** (`dayText()` at `timeText`), and **room** (`spotsText` over
+`rosterText`, with a lock and "Invite only" trailing for a private run) —
+**never who**, like every run surface (`gaps/GAMES.md`). "See it in Runs"
+closes the sheet, and anything stacked under it, and selects the Runs tab.
 
 ## `ProfileView`
 

@@ -28,6 +28,11 @@ struct MainTabView: View {
     @State private var selectedScreen: Screen = .home
     @State private var inbox: InboxRoute?
 
+    /// An opened invite link, presented with `sheet(item:)` when nothing else
+    /// is up — `InviteRouter.Request` is already `Identifiable`, a fresh `id`
+    /// per open, so it is its own route.
+    @State private var invite: InviteRouter.Request?
+
     /// A court handed to the map from Home's hot list. The map consumes it and
     /// writes back `nil`, so tapping the same court twice selects it twice
     /// rather than going inert after the first.
@@ -51,6 +56,7 @@ struct MainTabView: View {
     private let matchmakingService: MatchmakingService
     private let seasonGameService: SeasonGameService
     private let notificationService: NotificationService
+    private let inviteRouter: InviteRouter
     private let recentCourtsStore: RecentCourtsStore
 
     init(
@@ -64,6 +70,7 @@ struct MainTabView: View {
         matchmakingService: MatchmakingService,
         seasonGameService: SeasonGameService,
         notificationService: NotificationService,
+        inviteRouter: InviteRouter,
         recentCourtsStore: RecentCourtsStore
     ) {
         self.authService = authService
@@ -76,6 +83,7 @@ struct MainTabView: View {
         self.matchmakingService = matchmakingService
         self.seasonGameService = seasonGameService
         self.notificationService = notificationService
+        self.inviteRouter = inviteRouter
         self.recentCourtsStore = recentCourtsStore
 
         Self.configureTabBarAppearance()
@@ -120,6 +128,19 @@ struct MainTabView: View {
             .onReceive(notificationService.$inboxRequest.compactMap { $0 }) { _ in
                 notificationService.consumeInboxRequest()
                 openInboxForNotification()
+            }
+            .sheet(item: $invite) { request in
+                inviteSheet(for: request) {
+                    invite = nil
+                }
+            }
+            // The same replay as the inbox request above, and the reason the
+            // request waits in `InviteRouter` at all: a link that launched the
+            // app, or arrived while the login screen was up, is handed over the
+            // moment this view first appears.
+            .onReceive(inviteRouter.$pending.compactMap { $0 }) { request in
+                inviteRouter.consume()
+                openInvite(request)
             }
             // The `seasonGames` listener, pointed at every squad the user is
             // on for the whole signed-in session. It used to be pointed from
@@ -269,6 +290,62 @@ struct MainTabView: View {
         inbox = InboxRoute()
     }
 
+    /// The invite sheet with everything but its dismissal wired, so the sheet
+    /// and the stacked presentation build it one way.
+    private func inviteSheet(
+        for request: InviteRouter.Request,
+        onDismiss: @escaping () -> Void
+    ) -> InviteJoinSheet {
+        InviteJoinSheet(
+            gameId: request.gameId,
+            gameService: gameService,
+            courtService: courtService,
+            onOpenRuns: openRunsFromInvite,
+            onDismiss: onDismiss
+        )
+    }
+
+    /// An invite link's route to its sheet. It arrives from outside the app,
+    /// so — like a notification tap — it can land while anything at all is up.
+    ///
+    /// **It stacks over an open sheet rather than closing it**, for
+    /// `openInboxForNotification()`'s reason: whatever is there is the
+    /// person's work in progress, and Done should return them to it. Nothing
+    /// presented → the ordinary sheet. An invite already up → replaced, since
+    /// a second link is a newer answer to the same question.
+    private func openInvite(_ request: InviteRouter.Request) {
+        // The `.sheet` route is showing one: swapping the item re-presents.
+        guard invite == nil, let top = ModalStack.topmost() else {
+            invite = request
+            return
+        }
+
+        let presenter = ModalStack.Weak()
+        let host = UIHostingController(rootView: inviteSheet(for: request) {
+            presenter.controller?.dismiss(animated: true)
+        })
+        presenter.controller = host
+
+        if top is UIHostingController<InviteJoinSheet>, let under = top.presentingViewController {
+            top.dismiss(animated: false) {
+                ModalStack.present(host, over: under)
+            }
+        } else {
+            ModalStack.present(host, over: top)
+        }
+    }
+
+    /// "See it in Runs": close the invite, and anything stacked under it, then
+    /// show the board the joined run now lives on — `openMatch`'s shape.
+    private func openRunsFromInvite() {
+        if invite != nil {
+            invite = nil
+            selectedScreen = .runs
+        } else {
+            ModalStack.dismissAll { selectedScreen = .runs }
+        }
+    }
+
     /// A notification tap's route to the inbox, which — unlike a tap on the
     /// tray — can arrive while some other sheet is up: a half-filled
     /// `CreateGameSheet`, a profile edit, the queue. The `.sheet` above can't
@@ -295,16 +372,7 @@ struct MainTabView: View {
         })
         presenter.controller = host
 
-        // An alert can't present anything. It's dismissed rather than kept:
-        // an alert is a question, not work in progress, and it'll be asked
-        // again by whatever raised it.
-        if let alert = top as? UIAlertController, let under = alert.presentingViewController {
-            alert.dismiss(animated: false) {
-                under.present(host, animated: true)
-            }
-        } else {
-            top.present(host, animated: true)
-        }
+        ModalStack.present(host, over: top)
     }
 
     /// A match row in the inbox: close the inbox, and anything stacked under
@@ -332,8 +400,9 @@ struct MainTabView: View {
     }
 }
 
-/// The UIKit side of `openInboxForNotification()`: finding what's on top, and
-/// clearing the stack. Kept here, beside its only caller.
+/// The UIKit side of `openInboxForNotification()` and `openInvite(_:)` — the two
+/// routes in from outside the app: finding what's on top, presenting over it,
+/// and clearing the stack. Kept here, beside its only callers.
 private enum ModalStack {
     final class Weak {
         weak var controller: UIViewController?
@@ -353,6 +422,20 @@ private enum ModalStack {
             top = next
         }
         return top.isBeingDismissed ? top.presentingViewController : top
+    }
+
+    /// Presents `host` over `top` — or, when `top` is an alert, which can't
+    /// present anything, over what the alert was covering. The alert is
+    /// dismissed rather than kept: it's a question, not work in progress, and
+    /// it'll be asked again by whatever raised it.
+    static func present(_ host: UIViewController, over top: UIViewController) {
+        if let alert = top as? UIAlertController, let under = alert.presentingViewController {
+            alert.dismiss(animated: false) {
+                under.present(host, animated: true)
+            }
+        } else {
+            top.present(host, animated: true)
+        }
     }
 
     static func dismissAll(completion: @escaping () -> Void) {
@@ -377,6 +460,7 @@ private enum ModalStack {
         matchmakingService: MatchmakingService(authService: authService),
         seasonGameService: SeasonGameService(authService: authService),
         notificationService: NotificationService(),
+        inviteRouter: InviteRouter(),
         recentCourtsStore: RecentCourtsStore()
     )
 }

@@ -29,6 +29,7 @@ import {
   limit,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -83,20 +84,45 @@ test('a public run is readable by any signed-in account, and by nobody signed ou
   await assertFails(getDoc(doc(signedOut, 'games', 'game-public')));
 });
 
-test('a private run is readable only by the people on it', async () => {
-  // The roster *and* the waitlist — someone holding a queue place has to be
-  // able to see the run they are queued for.
-  for (const uid of ['host', 'waiting']) {
+test('a private run opens by its ID for any signed-in account — the invite link', async () => {
+  // The roster *and* the waitlist, and a stranger holding the ID. The read rule
+  // is split (2026-10-08): `get` is the invite, and the ID is its credential.
+  for (const uid of ['host', 'waiting', 'stranger']) {
     const db = testEnv.authenticatedContext(uid).firestore();
     await assertSucceeds(getDoc(doc(db, 'games', 'game-private')));
   }
 
+  const signedOut = testEnv.unauthenticatedContext().firestore();
+  await assertFails(getDoc(doc(signedOut, 'games', 'game-private')));
+});
+
+test('a run that does not exist reads as missing, not as refused', async () => {
+  // A cancelled run's link has to land on "called off", not on a rules
+  // failure — `GameService.fetchGame(id:)` reads a missing document as `nil`.
+  // The old single `read` clause dereferenced `resource.data` and refused.
+  const stranger = testEnv.authenticatedContext('stranger').firestore();
+  const snapshot = await assertSucceeds(getDoc(doc(stranger, 'games', 'game-cancelled')));
+  assert.equal(snapshot.exists(), false);
+});
+
+test('no query turns up a private run the caller is not on', async () => {
+  // The other half of the split: `list` is unchanged, so the ID stays
+  // unguessable — there is no query a stranger can run that returns it.
   // This is the whole of the privacy model for an invite-only run: no rule
   // consults `friendships`, so a friend who isn't on the roster is a stranger
   // here. Friends' private runs are deferred deliberately
   // (`context/gaps/FRIENDS.md`).
   const stranger = testEnv.authenticatedContext('stranger').firestore();
-  await assertFails(getDoc(doc(stranger, 'games', 'game-private')));
+
+  await assertFails(getDocs(query(collection(stranger, 'games'))));
+  await assertFails(getDocs(query(collection(stranger, 'games'), where('isPublic', '==', false))));
+  await assertFails(getDocs(query(collection(stranger, 'games'), where('hostId', '==', 'host'))));
+
+  // The discoverable shape is still admitted — and returns only the public run.
+  const discoverable = await assertSucceeds(
+    getDocs(query(collection(stranger, 'games'), where('isPublic', '==', true)))
+  );
+  assert.deepEqual(discoverable.docs.map((d) => d.id), ['game-public']);
 });
 
 // The Home calendar's month read (`GameService.runs(in:)`): `playerIds
@@ -263,6 +289,37 @@ test('joining adds only the caller', async () => {
 
   const game = await readRaw(testEnv, 'games/game-public');
   assert.deepEqual(game.playerIds, ['host', 'regular', 'joiner']);
+});
+
+test('an invitee joins a private run the way the app does: read, then write, in one transaction', async () => {
+  // `GameService.mutateRoster` reads the run inside the transaction to check
+  // capacity, so a join is a `get` before it is an update. Under the old single
+  // `read` clause the read was refused and the link could open nothing.
+  const db = testEnv.authenticatedContext('invitee').firestore();
+  const reference = doc(db, 'games', 'game-private');
+
+  await assertSucceeds(
+    runTransaction(db, async (transaction) => {
+      const snapshot = await transaction.get(reference);
+      const { playerIds, queuedPlayerIds, maxPlayers } = snapshot.data();
+      const joined = [...playerIds, 'invitee'];
+      transaction.update(reference, {
+        playerIds: joined,
+        queuedPlayerIds,
+        status: joined.length >= maxPlayers ? 'full' : 'open',
+        updatedAt: serverTimestamp(),
+      });
+    })
+  );
+
+  const game = await readRaw(testEnv, 'games/game-private');
+  assert.deepEqual(game.playerIds, ['host', 'invitee']);
+
+  // And now they're on it, it's in their own runs — the listener's shape.
+  const mine = await assertSucceeds(
+    getDocs(query(collection(db, 'games'), where('playerIds', 'array-contains', 'invitee')))
+  );
+  assert.deepEqual(mine.docs.map((d) => d.id), ['game-private']);
 });
 
 test('a roster write that moves anyone but the caller is refused', async () => {

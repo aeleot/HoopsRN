@@ -6,18 +6,15 @@ import SwiftUI
 /// Runs board so the two can't diverge — the link is shown, not just copied,
 /// because a host who has already sent it needs to recognize it.
 ///
-/// **It now says what the link actually does.** A host can copy
-/// `hoopsrn://game/{id}` and that is the whole of it: the scheme is not
-/// registered, nothing implements `.onOpenURL`, and the `games` read rule
-/// refuses a non-member — so a recipient who taps it gets nothing, and **an
-/// invite-only run still holds only its host** (`gaps/GAMES.md`). Both
-/// surfaces presented it as a working invite. Drawing a feature as working
-/// that a gap file says isn't is an automatic fail under the revamp's purpose rule, so
-/// the note below is a correctness fix, not copy polish, and it lives on the
-/// component so neither surface can drift back.
-///
-/// It is not a bare disclaimer: it names the thing that *does* work, which is
-/// telling people the court and the time.
+/// **It says what the link actually does**, and the note lives on the
+/// component so neither surface can drift from it. Until 2026-10-08 that was
+/// "Opening this link doesn't work yet": nothing registered the scheme and the
+/// read rule refused a non-member, and drawing a feature as working that a gap
+/// file says isn't is an automatic fail under the revamp's purpose rule. Now
+/// the link opens the run (`InviteJoinSheet`), and what a host needs to know
+/// is the other half of that — **the link is the key**: anyone holding it can
+/// open the run and join (`database/DATABASE_SCHEMA.md`, the `get`/`list`
+/// split).
 ///
 /// The copy confirmation swaps the glyph in place and reverts, matching the
 /// uid on the profile header rather than raising a toast neither surface has
@@ -28,8 +25,9 @@ struct InviteLinkCard: View {
     /// where the surrounding row already says what this is.
     var caption: String?
 
-    /// What the link can't do yet. On by default on every surface.
-    var showsUnopenableNote: Bool = true
+    /// Who the link lets in. On by default; off only where the surrounding
+    /// screen has just said it.
+    var showsAccessNote: Bool = true
 
     @State private var didCopy = false
 
@@ -66,8 +64,8 @@ struct InviteLinkCard: View {
                     .foregroundStyle(Color.hooprBrandAccent)
                 }
 
-                if showsUnopenableNote {
-                    Text("Opening this link doesn't work yet — send the court and time too.")
+                if showsAccessNote {
+                    Text("Anyone with this link can open the run and join.")
                         .hooprType(.caption)
                         .foregroundStyle(Color.hooprSecondaryText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -91,7 +89,7 @@ struct InviteLinkCard: View {
         // A copy has nothing on screen to show for itself but this glyph, so
         // it's felt too — only on the copy, not when the glyph reverts.
         .sensoryFeedback(.success, trigger: didCopy) { _, new in new }
-        .accessibilityLabel("Copy invite link. Opening it does not work yet.")
+        .accessibilityLabel("Copy invite link. Anyone with it can join.")
         .accessibilityValue(didCopy ? "Copied" : link)
     }
 

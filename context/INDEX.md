@@ -98,7 +98,7 @@ exist; the dictionary describes code that does.
 |---|---|
 | [`plans/LIVE_HEADCOUNT.md`](plans/LIVE_HEADCOUNT.md) | Proposed — live court occupancy via a `checkins` collection. |
 | [`plans/SCALE_UP.md`](plans/SCALE_UP.md) | Proposed — multi-city scaling: the global public-games query fix, court-dataset delivery, and the sequencing around them. |
-| [`plans/BACKLOG.md`](plans/BACKLOG.md) | Proposed — unbuilt enhancement stories: solo Queue Up, Friends safety, run detail, invite links, and the Blaze-gated waitlist story. |
+| [`plans/BACKLOG.md`](plans/BACKLOG.md) | Proposed — unbuilt enhancement stories: solo Queue Up, Friends safety, run detail, and the Blaze-gated waitlist story. |
 | [`plans/LAUNCH_READINESS.md`](plans/LAUNCH_READINESS.md) | Proposed — five open items from the 2026-09-20 audit, none a submission blocker. App Check (§1) is the highest-value. |
 
 ---

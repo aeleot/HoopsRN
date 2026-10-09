@@ -57,9 +57,11 @@ and no emulator test can get to it.
 
 ## Still to build
 
-- **Friends' *private* runs**, which needs a real authorization design and
-  overlaps with invite-only games — settle it with the invite decision in
-  [`GAMES.md`](GAMES.md) rather than separately.
+- **Friends' *private* runs**, which needs a real authorization design. The
+  invite decision (2026-10-08, `../database/DATABASE_SCHEMA.md`) settled the
+  overlapping half and deliberately not this one: a private run opens for
+  anyone holding its ID, but nothing lets a friend *find* one they weren't
+  sent — `list` still ignores friendship.
 - **Deferred on purpose:** blocking and reporting, push notifications on
   request and acceptance, unique handles, typo-tolerant search, and mutual-friend
   counts — each needs a Cloud Function or a real search index. Tracked in

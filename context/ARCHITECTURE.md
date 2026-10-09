@@ -24,7 +24,7 @@ can be built with a stub.
 | `UserProfileService` | `currentProfile: UserProfile?`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns a `ListenerSupervisor`. |
 | `CourtService` | `courts: [Court]`, `loadError: String?`, `attribution: String?` | Loads the bundled dataset synchronously in `init()`, sorted by `name`. `attribution` is the dataset's own ODbL notice (with `attributionURL` beside it), which the map sheet shows. A missing or undecodable `courts.json` leaves `courts` empty **and sets `loadError`** — `MapViewModel` mirrors it as `datasetError` so the map's empty state can say why rather than reading as "no courts near you". No retry: the dataset is in the app bundle, so a failure is a build problem. |
 | `LocationService` | `authorizationStatus`, `coordinate: CLLocationCoordinate2D?` | `CLLocationManagerDelegate` wrapper. Also owns `homeLocation`, the single anchor every distance in the app measures from — **and since 2026-08-27 it follows the device**: `didUpdateLocations` feeds `adopt(_:)`, which takes the first fix and then only fixes ≥ 100m (`significantMove`) from the last one, and `homeLocation` reads that. Without a fix (denied, or not yet arrived) it stays at `defaultLocation`, downtown Durham. `coordinate` is published separately so a view model can react to a fix *arriving* — the map moves to it once — rather than only reading wherever the anchor points. The `userLocation` property removed 2026-08-22 was a different, unread one. |
-| `GameService` | `queuedGames: [Game]`, `publicGames: [Game]`, `completedGames: [Game]`, `hasLoadedGames: Bool`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns **three** session-scoped query listeners and a `ListenerSupervisor` that keys their health separately. The third, `completedGames`, is the only one **not** windowed to the future: it filters `status == completed` and orders by `completedAt` descending, capped rather than time-bounded, because `completedGameCount` is a lifetime total. Alongside them is one **one-shot read**, `runs(in:)` (2026-10-06): every run the user is on in a month, past or future, as a `getDocuments` — no listener, no supervisor, `errorMessage` untouched, throws `GameError`. It backs Home's run calendar, which the future-windowed `queuedGames` can't serve; it reuses the `queued` listener's index. |
+| `GameService` | `queuedGames: [Game]`, `publicGames: [Game]`, `completedGames: [Game]`, `hasLoadedGames: Bool`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns **three** session-scoped query listeners and a `ListenerSupervisor` that keys their health separately. The third, `completedGames`, is the only one **not** windowed to the future: it filters `status == completed` and orders by `completedAt` descending, capped rather than time-bounded, because `completedGameCount` is a lifetime total. Alongside them is one **one-shot read**, `runs(in:)` (2026-10-06): every run the user is on in a month, past or future, as a `getDocuments` — no listener, no supervisor, `errorMessage` untouched, throws `GameError`. It backs Home's run calendar, which the future-windowed `queuedGames` can't serve; it reuses the `queued` listener's index. A second, `fetchGame(id:)` (2026-10-08), reads **one run by ID** — what an invite link opens, and the only read in the app that reaches a private run the caller isn't on (the `get` half of the split read rule; `database/DATABASE_SCHEMA.md`). Same shape: no listener, `errorMessage` untouched, `nil` for a missing or undecodable run, throws `GameError`. |
 | `FriendService` | `friends: [Friendship]`, `incomingRequests: [Friendship]`, `outgoingRequests: [Friendship]`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Two session-scoped query listeners (`uidA == me`, `uidB == me`) merged client-side, and a `ListenerSupervisor` keying their health separately. |
 | `RecentCourtsStore` | `recentCourtIds: [String]` | `UserDefaults`-backed; deliberately on-device. |
 | `InboxDismissalsStore` | `keys: Set<String>` | The inbox cards this device has cleared (an "accepted your request" card asks nothing of you, so it can be swiped away). `UserDefaults`-backed, on-device, capped at 100 keys; a second device showing a card once more is correct. Injectable into `FriendsViewModel`. |
@@ -33,8 +33,9 @@ can be built with a stub.
 | `MatchmakingService` | `myTicket: MatchTicket?`, `pool: [MatchTicket]`, `isBackingOff: Bool` | `@MainActor`. Owns `matchTickets`, the pool listener and the scan. It no longer performs the contested write — that spans two collections and lives in `SeasonGameService.commitMatch`, reached through an injected `MatchCommitting`. Its retry is about contention, not network health, and is deliberately separate from the supervisor's. |
 | `SeasonGameService` | `games: [SeasonGame]`, `errorMessage`, `isRecovering`, `hasLoadedGames` | `@MainActor`. Owns `seasonGames`, and holds **the one contested write in the app** — `commitMatch`, which creates a match and spends both `matchTickets` atomically. A `seasonGame` earns its own service where a `squadInvite` didn't: it outlives both tickets, has its own listener, and is what a squad's record is derived from. |
 | `NotificationService` | `authorizationStatus: UNAuthorizationStatus?` | The only file in the app importing `UserNotifications`. **Executes a plan and decides nothing** — see the vendor boundary below. |
+| `InviteRouter` | `pending: InviteRouter.Request?` | `@MainActor`, no Firebase, no `AuthService`. `hooprApp`'s `.onOpenURL` hands it every incoming URL; it parses with `InviteLink.gameId(from:)` and **holds** the request until `MainTabView` consumes it — `NotificationService.inboxRequest`'s shape, so a link that launches the app, or lands on the login screen, is shown once the signed-in shell appears. In memory only, deliberately. |
 
-Thirteen view models are built from them, each `@StateObject` inside the view it
+The view models are built from them, each `@StateObject` inside the view it
 backs: `RootViewModel` (from `AuthService`), `LoginViewModel` (`AuthService`),
 `MapViewModel` (`CourtService` + `LocationService` + `GameService` +
 `UserProfileService` + `RecentCourtsStore`), `HomeViewModel` (`AuthService` + `CourtService` +
@@ -52,7 +53,12 @@ built per-presentation rather than per-screen, inside `CreateGameSheet`),
 `GameDayViewModel` (`SeasonGameService` + `SquadService` + `UserProfileService` +
 `NotificationService` + `CourtService`) and `ResultViewModel`
 (`SeasonGameService` + `SquadService`, plus the celebration store above), the
-latter two built per-presentation from the value being pushed.
+latter two built per-presentation from the value being pushed;
+`InboxMatchesViewModel` (`SeasonGameService` + `SquadService` + `CourtService`,
+inside `InboxSheet`); and `InviteJoinViewModel` (`GameService` +
+`CourtService`, plus the `gameId` from the link — built per-presentation inside
+`InviteJoinSheet`, and joining through `GameService.joinGame(id:)`, the board's
+own write).
 
 `LocalRunsViewModel`, `FriendsViewModel`, `MapViewModel`,
 `SquadViewModel`, `GameDayViewModel` and `ResultViewModel` are where
@@ -132,6 +138,11 @@ the same reason the first three were. `CourtService`, `LocationService` and
 assigned after launch finishes never hears about the tap that launched the app
 — a property initializer on a `StateObject` is deferred to the first body
 evaluation, which is too late.
+
+`InviteRouter` *is* a property initializer, and the contrast is the point: a
+URL reaches the app through `.onOpenURL`, a modifier in `body`, so nothing can
+deliver one before the first body evaluation has built the router. A
+notification delegate is called by the system, whenever it likes.
 
 Three things are load-bearing here:
 

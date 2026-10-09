@@ -37,6 +37,10 @@ struct hooprApp: App {
     /// is `UNUserNotificationCenter`'s delegate, and a delegate assigned after
     /// launch finishes never hears about the tap that launched the app.
     @StateObject private var notificationService: NotificationService
+    /// Holds an opened invite link until there's a signed-in tab shell to show
+    /// it in. A property initializer is fine here, unlike the services above:
+    /// nothing reads it before `body`, which is where `.onOpenURL` feeds it.
+    @StateObject private var inviteRouter = InviteRouter()
 
     /// Applied to the window itself (`windowAppearance`), so it reaches every
     /// screen *and* every sheet presented from one — including a sheet that is
@@ -82,9 +86,18 @@ struct hooprApp: App {
                 matchmakingService: matchmakingService,
                 seasonGameService: seasonGameService,
                 notificationService: notificationService,
+                inviteRouter: inviteRouter,
                 recentCourtsStore: recentCourtsStore
             )
             .windowAppearance(appearance)
+            // `hoopsrn://game/{id}` — the scheme registered in `Info.plist`.
+            // On the root, so a link that *launches* the app is delivered too:
+            // `RootView` is on screen from the first frame, long before the tab
+            // shell that will present the invite exists. `InviteRouter` holds
+            // it until then, across a login screen if need be.
+            .onOpenURL { url in
+                inviteRouter.open(url)
+            }
         }
     }
 }

@@ -434,6 +434,56 @@ final class GameService: ObservableObject {
         }
     }
 
+    /// One run, by its ID — what an invite link opens.
+    ///
+    /// A `get`, which the read rule admits for any signed-in account whatever
+    /// the run's visibility: the ID is the invite's credential, and the `list`
+    /// half of the rule still refuses every query that could turn one up (see
+    /// `firestore.rules` and `firestore-tests/games.test.mjs`). This is the
+    /// only read in the app that reaches a private run the caller isn't on.
+    ///
+    /// A read, not a subscription, like `runs(in:)`: the invite sheet shows the
+    /// run once and re-fetches after its own join, and a run the caller then
+    /// joins arrives on the `queued` listener anyway. Doesn't touch
+    /// `errorMessage` either — a link that fails to open is the sheet's to
+    /// report, inline, not a banner on whichever tab is underneath.
+    ///
+    /// - Returns: `nil` when there's no such run — cancelled, or a link that
+    ///   never named one — or when the stored document no longer decodes. The
+    ///   sheet says "called off" for all three; telling them apart would serve
+    ///   no one holding the link.
+    /// - Throws: `GameError`, never a Firestore type.
+    func fetchGame(id gameId: String) async throws -> Game? {
+        guard observedUID != nil else { throw GameError.notSignedIn }
+
+        // `document(_:)` traps on an ID with a `/` in it, or an empty one. The
+        // parser already refuses both; this is the backstop for a caller that
+        // didn't come through it.
+        guard InviteLink.isWellFormed(gameId: gameId) else { return nil }
+
+        do {
+            let snapshot = try await database
+                .collection(Collection.games)
+                .document(gameId)
+                .getDocument()
+            guard snapshot.exists else { return nil }
+            return try snapshot.data(as: Game.self)
+        } catch let decodingError as DecodingError {
+            // A drifted document, not a failed read — `decoded(_:)` skips the
+            // same thing in a list.
+            logger.error(
+                "Skipping game \(gameId, privacy: .public): \(decodingError.localizedDescription, privacy: .public)"
+            )
+            return nil
+        } catch {
+            let gameError = Self.mapped(error)
+            logger.error(
+                "Couldn't read run \(gameId, privacy: .public): \(String(describing: gameError), privacy: .public)"
+            )
+            throw gameError
+        }
+    }
+
     // MARK: - Writes
 
     /// Creates a run with the host as its first confirmed player.

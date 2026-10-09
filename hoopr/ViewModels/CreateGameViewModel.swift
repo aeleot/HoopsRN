@@ -21,9 +21,9 @@ final class CreateGameViewModel: ObservableObject {
     /// straight away — there's nothing to hand out.
     ///
     /// It's shown here rather than only on the run's card because this is the
-    /// one moment the host is certain to be looking. **The link opens nothing
-    /// yet** (`gaps/GAMES.md`), so the step leads with the court and time as
-    /// the thing to send, and offers the link as a labelled reference.
+    /// one moment the host is certain to be looking. The link opens the run in
+    /// the app (`InviteJoinSheet`), and what the step sends is the court and
+    /// time *with* the link — see `shareText`.
     @Published private(set) var inviteLink: String?
 
     let court: Court
@@ -67,13 +67,12 @@ final class CreateGameViewModel: ObservableObject {
         return "\(perSide)-on-\(perSide)"
     }
 
-    /// **Says what invite-only actually does today** (UI revamp Phase 2b,
-    ///). It promised "a link to share with the players you want
-    /// in" — but the link opens nothing, and the `games` read rule refuses a
-    /// non-member, so an invite-only run holds only its host
-    /// (`gaps/GAMES.md`). Choosing it on that promise is the kind of claim the
-    /// revamp's purpose rule fails outright. `nonisolated static` so it's testable
-    /// without a `GameService`.
+    /// **Says what invite-only actually does.** Until 2026-10-08 that was
+    /// "Just you until invites work" — the link opened nothing, so the caption
+    /// refused to promise it would (UI revamp Phase 2b). Now the link opens
+    /// the run and anyone holding it can join, which is exactly what this
+    /// says: hidden from the board, open to whoever you send it to.
+    /// `nonisolated static` so it's testable without a `GameService`.
     ///
     /// Each is one short line under its option (2026-09-23 — the sheet had
     /// "more text and not a lot of icons"); the globe and the lock say the
@@ -81,7 +80,7 @@ final class CreateGameViewModel: ObservableObject {
     nonisolated static func visibilityCaption(isPublic: Bool) -> String {
         isPublic
             ? "Anyone nearby can find and join."
-            : "Hidden. Just you until invites work."
+            : "Hidden. Anyone with the link can join."
     }
 
     // MARK: - The day
@@ -163,20 +162,36 @@ final class CreateGameViewModel: ObservableObject {
     var tipOffTimeText: String { Game.timeText(for: scheduledTime) }
 
     /// What a host sends their players for an invite-only run: where and when,
-    /// which works today, rather than a link that doesn't.
+    /// then the link.
+    ///
+    /// **The court and time lead even though the link works now.** The link
+    /// opens the run only for someone who has the app — a custom scheme means
+    /// nothing to a phone without it — so the sentence is what every recipient
+    /// can act on, and the link is what lets the ones with the app join.
     var shareText: String {
         Self.shareText(
             courtName: court.displayName,
             city: court.city,
             day: tipOffDayText,
-            time: tipOffTimeText
+            time: tipOffTimeText,
+            link: inviteLink
         )
     }
 
-    /// "Pickup run at East End Park, Durham — Tonight at 7:30 PM".
-    nonisolated static func shareText(courtName: String, city: String, day: String, time: String) -> String {
+    /// "Pickup run at East End Park, Durham — Tonight at 7:30 PM", and the
+    /// link on its own line when there is one, so a messaging app can tell
+    /// where it starts.
+    nonisolated static func shareText(
+        courtName: String,
+        city: String,
+        day: String,
+        time: String,
+        link: String? = nil
+    ) -> String {
         let place = city.isEmpty ? courtName : "\(courtName), \(city)"
-        return "Pickup run at \(place) — \(day) at \(time)"
+        let sentence = "Pickup run at \(place) — \(day) at \(time)"
+        guard let link else { return sentence }
+        return "\(sentence)\n\(link)"
     }
 
     /// The one check the form runs, shared with the write path — the button

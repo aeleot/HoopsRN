@@ -4,11 +4,11 @@ import XCTest
 /// What the "Start a Run" sheet says about invite-only runs, and what it hands
 /// a host to send.
 ///
-/// **The rule these pin** (`gaps/GAMES.md`): the invite link opens
-/// nothing and the `games` read rule refuses a non-member, so an invite-only
-/// run holds only its host. The sheet must not promise otherwise — it did,
-/// twice ("You'll get a link to share with the players you want in", and "send
-/// this link to the players you want in").
+/// **The rule these pin**: the sheet says what an invite-only run actually
+/// does. Until 2026-10-08 that meant refusing to promise a working link — it
+/// opened nothing, and the sheet had promised it twice. Now the link opens the
+/// run and anyone holding it can join, so the caption says exactly that, and
+/// what the host sends carries the link along with the court and time.
 @MainActor
 final class CreateGameCopyTests: XCTestCase {
 
@@ -23,15 +23,15 @@ final class CreateGameCopyTests: XCTestCase {
         )
     }
 
-    /// Invite-only says what it does today — hidden, and the host alone until
-    /// invites work — and never offers the link as the way in. Shortened to
-    /// one line on 2026-09-23 without losing either half.
-    func testTheInviteOnlyCaptionDoesNotPromiseAWorkingInvite() {
+    /// Invite-only says both halves of what it does: hidden from the board,
+    /// and open to anyone holding the link — which is the authorization model
+    /// (`database/DATABASE_SCHEMA.md`), so a host choosing it should read it.
+    func testTheInviteOnlyCaptionSaysTheLinkLetsAnyoneIn() {
         let caption = CreateGameViewModel.visibilityCaption(isPublic: false)
 
         XCTAssertTrue(caption.hasPrefix("Hidden."), caption)
-        XCTAssertTrue(caption.contains("Just you until invites work"), caption)
-        XCTAssertFalse(caption.lowercased().contains("link to share"), caption)
+        XCTAssertTrue(caption.contains("Anyone with the link"), caption)
+        XCTAssertFalse(caption.contains("until invites work"), caption)
     }
 
     /// Both captions stay one short line under their option.
@@ -47,6 +47,21 @@ final class CreateGameCopyTests: XCTestCase {
         XCTAssertEqual(
             CreateGameViewModel.shareText(courtName: "East End Park", city: "Durham", day: "Tonight", time: "7:30 PM"),
             "Pickup run at East End Park, Durham — Tonight at 7:30 PM"
+        )
+    }
+
+    /// The link rides along on its own line, after the sentence everyone can
+    /// act on — a recipient without the app still learns where and when.
+    func testTheShareTextCarriesTheLinkAfterTheCourtAndTime() {
+        XCTAssertEqual(
+            CreateGameViewModel.shareText(
+                courtName: "East End Park",
+                city: "Durham",
+                day: "Tonight",
+                time: "7:30 PM",
+                link: "hoopsrn://game/abc123"
+            ),
+            "Pickup run at East End Park, Durham — Tonight at 7:30 PM\nhoopsrn://game/abc123"
         )
     }
 

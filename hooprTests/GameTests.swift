@@ -448,8 +448,9 @@ final class GameTests: XCTestCase {
 
     // MARK: - Invite link
 
-    /// The format the (unbuilt) deep-link handler will have to parse. Pinning
-    /// it here means the scheme can't be changed on one side alone.
+    /// The format `InviteLink.gameId(from:)` parses back — `InviteJoinTests`
+    /// round-trips the two. Pinning it here means the scheme can't be changed
+    /// on one side alone.
     func testInviteLinkFormat() throws {
         let game = try decoder.decode(Game.self, from: storedDocument())
 

@@ -198,7 +198,7 @@ drag a Firebase type across the vendor boundary into `Models/`.
 | `hostId` | string | yes | no | Organizer's uid. Always present in `playerIds` — enforced server-side, so a run can't outlive its host leaving it. |
 | `courtId` | string | yes | no | A `Court.id` from the bundled dataset. Courts aren't in Firestore, so there's nothing to validate against — same caveat as `homeCourtId`. A stale ID renders "Unknown court". |
 | `scheduledTime` | timestamp | yes | no | Client-supplied, bounded server-side to `(now, now + 30d)`. |
-| `isPublic` | bool | yes | no | `true` = discoverable. `false` = visible only to people already on a roster. |
+| `isPublic` | bool | yes | no | `true` = discoverable. `false` = invite-only: never returned by a query to anyone off its rosters, and opened by its ID — which is what an invite link carries. See *Invites* below. |
 | `maxPlayers` | int | yes | no | 2–30, bounded by the rules. |
 | `status` | string | yes | yes | `open` \| `full` \| `in_progress` \| `completed`. **Derived, never chosen** — see below. |
 | `playerIds` | array\<string\> | yes | yes | Confirmed players, host included. Never longer than `maxPlayers`. |
@@ -257,18 +257,23 @@ Two consequences worth stating plainly:
 - **A freed slot is not handed to the first waitlisted player.** Promotion means
   writing *someone else's* uid, which this rejects by design. It needs a host
   action or a Cloud Function; neither exists yet.
-- **Invite-only runs currently hold only their host.** Nobody else can read
-  them, so nobody else can join. Invites are the missing half of that feature.
+- **The diff never consults `isPublic`.** Anyone who can name a run may move
+  themselves onto it — which is why an invite-only run's ID is its credential
+  for writing, and why the invite design below made it the credential for
+  reading too, rather than inventing a second one.
 
 Everything describing the run itself — court, time, visibility, size, host — is
 immutable, so there is no "edit a run" path to secure.
 
 ### Access
 
-- **Read:** any signed-in user, for a run that is `isPublic` **or** one they're
-  already on. The client's queries are constrained to exactly those shapes, so
-  each returns only documents the rule already admits — the two listeners, and
-  the one-shot month read below, which is the `playerIds` shape again.
+- **Get** (one document, by ID): any signed-in user, whatever its visibility.
+  This is the invite — see below.
+- **List** (any query): any signed-in user, for a run that is `isPublic`
+  **or** one they're already on. The client's queries are constrained to
+  exactly those shapes, so each returns only documents the rule already
+  admits — the two listeners, and the one-shot month read below, which is the
+  `playerIds` shape again.
 - **Create:** the host only, as the sole player, with both timestamps pinned to
   `request.time` and the schedule inside its window.
 - **Update:** any signed-in user, restricted to
@@ -277,6 +282,50 @@ immutable, so there is no "edit a run" path to secure.
 - **Delete:** the host only. **Deliberately unlike `users`**, where deletion is
   denied outright — cancelling a run is a first-class action, whereas account
   deletion is an unsupported flow.
+
+### Invites: the ID is the credential (decided 2026-10-08)
+
+An invite link is `hoopsrn://game/{id}` (`Support/InviteLink.swift`), and
+`GameService.fetchGame(id:)` opens it with a `get`. Until 2026-10-08 the read
+rule was one `allow read` clause covering queries and gets alike, and it
+refused anyone off the rosters — so the person the link was for was exactly
+the person it locked out. Two designs were on the table
+(`plans/BACKLOG.md` C6, now shipped and struck):
+
+- **Split `read` into `get` and `list` — chosen.** `get` admits any signed-in
+  account; `list` keeps the old clause unchanged. The document ID becomes the
+  invite's credential.
+- **An `inviteToken` field — rejected.** A `get` request carries no
+  parameters, so a rule can't be shown a token directly; it would have needed
+  a redemption document per invitee holding the token, a `get` clause that
+  checked it, the roster update rule gated on it for private runs (or the
+  read check is theatre — see the diff above), a host-only rotation path, a
+  "reset link" control, and a new link format. Real revocation, at roughly
+  twice the work and a new collection.
+
+Why the ID is enough, and where it isn't:
+
+- **It is unguessable.** Firestore's generated IDs are 20 characters over a
+  62-symbol alphabet, ~119 bits.
+- **It is unenumerable.** `list` is unchanged, so no query — not "all games",
+  not `isPublic == false`, not `hostId == x` — returns a private run to
+  someone off it. `firestore-tests/games.test.mjs` asserts all three refusals
+  and that the discoverable query still returns only the public run.
+- **It was already the write credential.** The roster update rule never read
+  `isPublic`; anyone holding an ID could always join blind. The split makes
+  reading agree with writing rather than widening what a leaked ID can do.
+- **Revocation is cancelling the run.** There is no token to rotate. A link
+  pasted somewhere public lets anyone signed in read the run (court, time,
+  host and roster uids — the uids are already readable through `users`) and
+  join it, until the host cancels. That's the cost, accepted deliberately.
+- **A missing run reads as missing, not refused.** The old clause dereferenced
+  `resource.data` and refused a non-existent document; `get` returns it as
+  absent, which is how a cancelled run's link lands on "called off".
+
+**Deployed 2026-10-09.** Against any ruleset before the split, a stranger's
+`get` is refused, and the invite sheet reports it as the rules not being
+deployed — which is then the truth, so that message is the first thing to
+check if an invite stops opening.
 
 ### Indexes
 
@@ -315,8 +364,9 @@ firebase deploy --only firestore:rules,firestore:indexes
 
 ### Deliberately excluded from v1
 
-Invites (the other half of invite-only), waitlist promotion, host-run controls
-for `in_progress`/`completed`, recurring runs, and any per-run chat.
+Waitlist promotion, any control for `in_progress`, recurring runs, and any
+per-run chat. (Invites shipped 2026-10-08, above; host-triggered completion
+2026-09-18.)
 
 ---
 
@@ -452,8 +502,10 @@ Blocking and reporting, push notifications on request/acceptance, mutual-friend
 counts or anything else needing a fan-out, and **letting friends see each
 other's private runs** — that last one needs a real authorization design (a
 `get()` cross-check into `friendships` from the `games` rule, or something
-denormalized onto the game document) and overlaps with the still-unbuilt
-invite-only-games work in `../GAPS.md`. Surfacing which *public* runs a friend
+denormalized onto the game document). Invites (2026-10-08) don't answer it: the
+`games` `get` admits anyone *holding* a run's ID, and a friend the host never
+sent the link to holds nothing — while `list`, the only way to *find* a run,
+still ignores friendship. Surfacing which *public* runs a friend
 is already on needs none of that: it's a client-side intersection of two lists
 the app already holds.
 

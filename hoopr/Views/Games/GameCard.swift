@@ -79,8 +79,8 @@ struct GameCard: View {
                 }
 
                 // Host-only, matching the invite design: an invite-only run is
-                // the host's to hand out, and every private run in this list is
-                // one they created until the receiving half of the link ships.
+                // the host's to hand out. A player who joined through the link
+                // is on the run but doesn't get to re-share it from here.
                 if isHost && !game.isPublic {
                     InviteLinkCard(link: game.inviteLink)
                 }
@@ -310,7 +310,7 @@ struct GameCard: View {
             Image(systemName: "info.circle")
                 .hooprType(.caption)
 
-            Text("Waitlist spots don't move up yet — ask the host if someone drops.")
+            Text(Game.waitlistCaveat)
                 .hooprType(.caption)
                 .fixedSize(horizontal: false, vertical: true)
                 .multilineTextAlignment(.leading)

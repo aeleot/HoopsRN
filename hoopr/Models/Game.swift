@@ -374,6 +374,12 @@ nonisolated extension Game {
         return openSlots == 1 ? "1 spot left" : "\(openSlots) spots left"
     }
 
+    /// What a waitlist place can't do: move up. The update rule forbids
+    /// writing another player's uid, so a freed seat is never handed on
+    /// (`gaps/GAMES.md`). Shared by `GameCard`'s waitlist note and the invite
+    /// sheet, so the same limitation is never described two ways.
+    static let waitlistCaveat = "Waitlist spots don't move up yet — ask the host if someone drops."
+
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .none

@@ -1,7 +1,7 @@
 # hoopsRN — Build and Config
 
 **Scope:** `hoopr.xcodeproj/`, `hooprTests/`, `hooprUITests/`,
-`hoopr/Assets.xcassets/`, `hoopr/GoogleService-Info.plist`, `.gitignore`,
+`hoopr/Assets.xcassets/`, `hoopr/GoogleService-Info.plist`, `hoopr/Info.plist`, `.gitignore`,
 `tools/check_context_drift.py`, `package.json`, `package-lock.json`
 **Verified:** 2026-09-24 @ f30e4b2
 
@@ -26,12 +26,23 @@ or assuming something is tested.
 | Version | `MARKETING_VERSION` 1.0, `CURRENT_PROJECT_VERSION` 1 |
 | Supported platforms | `iphoneos iphonesimulator` |
 | Device family | `1` — iPhone |
-| Info.plist | **none on disk** — `GENERATE_INFOPLIST_FILE = YES` |
+| Info.plist | **generated** (`GENERATE_INFOPLIST_FILE = YES`), merged with a partial `hoopr/Info.plist` (`INFOPLIST_FILE`) that holds only `CFBundleURLTypes` |
+| URL scheme | `hoopsrn` — invite links, `hoopsrn://game/{id}` |
 
-Because the Info.plist is generated, plist keys are build settings. The location
+The Info.plist is generated, so most plist keys are build settings. The location
 permission string is `INFOPLIST_KEY_NSLocationWhenInUseUsageDescription` =
 "hoopsRN uses your location to show courts and runs near you." Editing it means
 editing the build setting, not a file.
+
+**URL types are the exception** (2026-10-08): there is no `INFOPLIST_KEY_`
+setting for `CFBundleURLTypes`, so `hoopr/Info.plist` exists holding that one
+key, and Xcode merges it over the generated file. It sits inside the
+synchronized `hoopr/` folder, so the target carries a
+`PBXFileSystemSynchronizedBuildFileExceptionSet` excluding it from Copy Bundle
+Resources — without that, the plist is both processed and copied, and the build
+fails on two commands producing `Info.plist`. Keep every other key a build
+setting. `InviteJoinTests` reads the built app's plist and fails if the scheme
+`InviteLink` mints isn't registered.
 
 **The target was iOS 26.5 until 2026-09-20**, and this page used to say the app
 had "no 26-only API requirement". That was wrong twice over: the app called
@@ -65,8 +76,8 @@ agreed prefix is `hoops` — `hoopsOrange`, `hoopsFont`.
 **File-system-synchronized groups.** All three targets use
 `PBXFileSystemSynchronizedRootGroup`; the `Sources` and `Resources` build phases
 are literally empty. A new Swift file or resource in `hoopr/` is picked up
-automatically — no pbxproj edit, and no way to exclude a file short of moving it
-out of the directory.
+automatically — no pbxproj edit. Excluding one takes an exception set on the
+group; the only one is `hoopr/Info.plist`'s, above.
 
 ## Dependencies
 
@@ -278,14 +289,15 @@ for a ruleset it never evaluated is worse than no rules suite at all.
 
 There are **two** suites, in two languages, and neither can do the other's job.
 
-- **`hooprTests` — 691 test methods across 46 suites**, from a green
-  `-only-testing:hooprTests` run on 2026-09-25 (counted from the `.xcresult`,
+- **`hooprTests` — 810 test methods across 50 suites**, from a green
+  `-only-testing:hooprTests` run on 2026-10-09 (counted from the `.xcresult`,
   not from the log: interleaved output from parallel clones mangles the odd
   line, and a log grep read this suite as 462 once). All of them carry real
-  coverage (`RunCalendarViewModelTests` was added after that count, so it is a
-  few suites short — recount from the next `.xcresult`); there is no scaffold left in `hooprTests/`.
-- **`firestore-tests/` — 141 tests across nine files**, from a green
-  `npm run test:rules` run on 2026-09-20 against the Firestore emulator. This is
+  coverage; there is no scaffold left in `hooprTests/`. The per-suite table
+  below was last fully recounted on 2026-09-25 — only the rows touched since
+  carry fresh numbers.
+- **`firestore-tests/` — 148 tests across nine files**, from a green
+  `npm run test:rules` run on 2026-10-09 against the Firestore emulator. This is
   the only place `firestore.rules` is *evaluated* rather than read; see "A
   dry-run is not a test" above. **All seven collections are covered** as of that
   date — `games`, `friendships` and `users` were backfilled into the harness,
@@ -306,20 +318,24 @@ reached as a pure function is, in this project, untestable — which is why
 `MatchmakingService`, and why `SeasonGameNotifications` decides what to schedule
 while `NotificationService` merely schedules it.
 
-Three suites are the deliberate exceptions. Two measure UIKit rather than
-logic: `TabBarLabelTests` renders a real tab bar, and `ThemeContrastTests`
-resolves real colours. The third, `BrandMarkUsageTests`, reads the real
+Three suites are the deliberate exceptions, and a fourth bends the rule a
+little. Two measure UIKit rather than logic: `TabBarLabelTests` renders a real
+tab bar, and `ThemeContrastTests` resolves real colours. The third, `BrandMarkUsageTests`, reads the real
 `Views/` source tree the way `FirestoreRulesParityTests` reads
 `firestore.rules` — it is the only guard against a view drawing the brand fill
 as text, because a contrast test on a role cannot see a call site. A fourth
-measurement style would be one too many.
+measurement style would be one too many. `InviteJoinTests` bends it twice,
+narrowly: it builds an `InviteRouter` — the one object in `Services/` with no
+dependency at all, so there is nothing to stub — and reads the built app's
+`Info.plist`, the way `BrandMarkUsageTests` reads the source tree.
 
 | Suite | Cases | Guards |
 |---|---|---|
 | `SeasonGameTests` | 47 | The derived record and form guide, the report derivation and what a report write contains, who may report and when, create-time validation mirroring the rules, and the queue windows. |
 | `MatchRulesTests` | 50 | The pure matchmaker: every hard rule rejecting in isolation, `recordRating`'s prior (one loss doesn't gate, a long lopsided record still does), soft-rule ordering, relaxation over time and the re-scan it needs, window arithmetic across midnight and DST, empty pool, self-match. Lost the stale-claim cases when the atomic commit deleted the window they pinned. |
 | `SquadTests` | 38 | Decoding, name and roster bounds, leadership, the icon/colour allowlists. |
-| `GameTests` | 40 | Decoding, derived status, form validation, roster membership, visibility, presentation, the invite-link string, distance. |
+| `GameTests` | 43 | Decoding, derived status, form validation, roster membership, visibility, presentation, the invite-link string, distance. |
+| `InviteJoinTests` | 21 | The receiving half of an invite: `InviteLink.gameId(from:)` round-tripping every minted form and refusing any URL that would make `Firestore.document(_:)` trap; that the built app's `Info.plist` registers `InviteLink.scheme`; `InviteRouter` holding a request until consumed; every `InviteJoinViewModel.Landing` (over outranks hosting, and the join agrees with the board's `Action`); and the sheet's copy — the waitlist never promoting, the host told the link lets anyone in. |
 | `MatchTicketTests` | 22 | Ticket validation, claimability, `isSearching` vs. `isClaimable`, record decoding and `isUnplayed`. |
 | `FirestoreRulesParityTests` | 21 | Every bound mirrored between Swift and `firestore.rules`, parsed out of the rules file as text — including the `open` -> `matched` transition and the two burst-rate floors. |
 | `LocalRunsViewModelTests` | 38 | Which button a run offers; whether the host may mark a run complete (host-only, not before tip-off, not twice, and a roster of one is still a run); and the friends-on-a-run join: resolving an edge from either side of the stored pair, never counting yourself, both rosters, sorted and deduped, and the badge's own singular/plural copy. |
@@ -358,7 +374,7 @@ measurement style would be one too many.
 | `CreateGameDayPickerTests` | 7 | The create sheet's day chips: which days they offer, and that picking one keeps the time and lands somewhere `Game.validate` accepts. |
 | `FormGuideTests` | 8 | The form guide's five dots and "L5": padding, VoiceOver's reading, and whether the row still sits beside the record. |
 | `HomeHeroMetricsTests` | 7 | Home's hero measured against the real dataset — the court names that need more than two lines at `.accessibility3`. |
-| `CreateGameCopyTests` | 6 | What the create sheet says about invite-only runs: never a promise the unopenable invite link can't keep. |
+| `CreateGameCopyTests` | 7 | What the create sheet says about invite-only runs — hidden, and open to anyone with the link — and that the share text carries the link after the court and time. |
 | `SeasonsRecordSpeechTests` | 3 | The Seasons band's record read aloud as a sentence, singular at one. |
 
 ### The rules suite
@@ -373,7 +389,7 @@ measurement style would be one too many.
 | `season-games.test.mjs` | What authorizes naming another squad — **both** tickets' `getAfter()` proof, not just the home one — the court/window pinning, and the forged-leader refusal. |
 | `arrival.test.mjs` | Self-add only, no undo, no duplicates, refused once a match leaves `scheduled`. |
 | `results.test.mjs` | Mutual confirmation, evaluated with **two distinct authenticated leaders** — agreement confirms, disagreement disputes, a leader cannot write the other's report or manufacture an agreement alone, a disputed match is resolved by re-reporting, and the per-leader 5s re-touch floor doesn't catch two different leaders' first reports arriving moments apart. |
-| `games.test.mjs` | The membership diff `squads` and `friendships` were both derived from — self-moves only, in both directions, plus the duplicate-roster hole, the disjoint rosters, the locked-in host, and the capacity ceiling over an unbounded waitlist. Also the read split between a public and a private run, the create bounds, and the two update paths kept disjoint: completion is host-only, one-way, un-backdatable, and cannot travel with a roster change. |
+| `games.test.mjs` | The membership diff `squads` and `friendships` were both derived from — self-moves only, in both directions, plus the duplicate-roster hole, the disjoint rosters, the locked-in host, and the capacity ceiling over an unbounded waitlist. Also the `get`/`list` read split behind invites (2026-10-08): a private run opens by ID for any signed-in account, a missing run reads as absent rather than refused, an invitee joins through the app's own read-then-write transaction, and no query — unfiltered, `isPublic == false`, `hostId ==` — returns a private run to a stranger. Plus the create bounds, and the two update paths kept disjoint: completion is host-only, one-way, un-backdatable, and cannot travel with a roster change. |
 | `friendships.test.mjs` | The asymmetric authority: the requester spends theirs at create, and only the *other* participant may accept. The ordered pair and its derived document ID, the participants-only read, the three deletes that are one operation — and the **simultaneous-request collision**, where the second create falls through to the `update` allowlist and is refused. |
 | `users.test.mjs` | The key allowlist that makes a world-readable profile safe, asserted on **create** as well as update — the half `email` originally escaped through. Plus owner-only writes, write-once `id`/`createdAt`, the radius and name bounds, deletion refused outright, and the profile/stats paths kept disjoint so a stats sync cannot smuggle a rename. |
 
@@ -453,7 +469,8 @@ round-trip named here until 2026-08-21 is gone — so are the functions.)
 - The repo is authoritative for Firebase config. Rules edited in the console are
   lost on the next deploy.
 - Deployment target, bundle ID, and the location usage string live in
-  `project.pbxproj` build settings — there is no Info.plist to edit.
+  `project.pbxproj` build settings. `hoopr/Info.plist` holds the URL scheme and
+  nothing else.
 - New Firebase products must be added as SPM product dependencies *and* used
   only behind the vendor boundary (`ARCHITECTURE.md`).
 - **Never hand-edit `project.pbxproj` to add a file.** The project is

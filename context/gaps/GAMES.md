@@ -3,8 +3,8 @@
 **Scope:** —
 **Verified:** 2026-09-21 @ 29486ac
 
-What's unfinished about `games` — the run lifecycle, the invite link that can
-be sent but not opened, and the waitlist that doesn't move.
+What's unfinished about `games` — the run lifecycle, what invite links still
+can't do, and the waitlist that doesn't move.
 
 `Scope: —` because this is a narrative over code `DATA_MODEL.md`,
 `database/DATABASE_SCHEMA.md` and `UI_SHELL.md` own. It can't be diffed, so
@@ -12,36 +12,36 @@ it's re-read by hand every pass.
 
 ---
 
-## An invite link can be sent but not opened
+## Invite links: what the receiving half didn't close
 
-A host can copy `hoopsrn://game/{id}` from the create sheet and from the run's
-card in Queued Games (shipped 2026-08-15), and that's the whole of it:
-`hoopsrn://` isn't a registered URL scheme, nothing implements `.onOpenURL`,
-and the `games` read rule still refuses a non-member — so a recipient who taps
-the link gets nothing. **An invite-only run still holds only its host.**
+The link opens since 2026-10-08 — `hoopsrn` is registered, `hooprApp` handles
+`.onOpenURL`, `GameService.fetchGame(id:)` reads the run through the `get` half
+of a split read rule, and `InviteJoinSheet` covers every state a link can land
+in. The decision behind it (the ID is the credential; no `inviteToken`) is in
+`../database/DATABASE_SCHEMA.md`. What's still open:
 
-*Since 2026-09-23 the app says so wherever it offers the link* — the create
-sheet's Invite-only caption, its invite step (which leads with a "Send the court
-and time" share instead), and `InviteLinkCard`'s note. That makes the gap
-honest, not closed.
-
-What's left, and the middle item is a decision rather than a task:
-
-- Register `hoopsrn` under `CFBundleURLSchemes` — the scheme `InviteLink`
-  actually mints, not `hoopr` — and handle `.onOpenURL` in `hooprApp`, stashing
-  the pending `gameId` across a cold start and a sign-in.
-- **Split the `games` `read` rule into `get` (any signed-in user, by direct
-  document reference) and `list` (unchanged).** This is the decision, not a
-  detail: *an unguessable ID is not an authorization model.* The alternative is
-  an `inviteToken` field checked in the rule, which is a schema change and a
-  rotation story. Pick one deliberately.
-- `GameService.fetchGame(byId:)` plus an `InviteJoinView` covering the states a
-  link can land in: already on the roster, full (waitlist), aged out, deleted.
-
-*(A 219-line worked design for this lived in `context/prompts/` until
-2026-09-16, when the prompts directory was removed. The decision above is the
-load-bearing part of it; the rest was a view-model skeleton and an acceptance
-checklist that a future implementer would re-derive anyway. `git log` has it.)*
+- **Unverified end to end.** `firestore-tests/games.test.mjs` evaluates the
+  rule — a stranger's `get`, a missing run, the join transaction, and no query
+  leaking a private run — and `InviteJoinTests` pins the parser, the router and
+  every landing state. Nobody has yet sent a link from one account and opened
+  it on another phone, which is the only check of the cold-start and
+  signed-out paths through `InviteRouter`. It belongs with `../ROADMAP.md` §1's
+  two-account pass.
+- **It only opens with the app installed.** A custom scheme is meaningless to a
+  phone without the app, so the host's share text leads with the court and
+  time in plain words. Whether Messages even renders `hoopsrn://…` as a
+  tappable link hasn't been checked. A link that works everywhere — an
+  `https` Universal Link falling back to a web page — needs a domain serving an
+  `apple-app-site-association` file, which is infrastructure (`ROADMAP.md` §0).
+- **No revocation short of cancelling.** Deliberate — it's what choosing the ID
+  over a rotatable token costs — but a host whose link leaks has one remedy,
+  and it takes the run with it.
+- **Only the host can re-share.** `GameCard` shows `InviteLinkCard` for a
+  private run you host, not one you joined; a player who wants to bring a
+  friend has to ask the host. A product call, not a technical limit.
+- **A pending link lives in memory.** Quit the app on the login screen and the
+  invite that launched it is gone; tapping the link again recovers it. Kept
+  that way on purpose (`InviteRouter`'s doc comment).
 
 ---
 
@@ -100,9 +100,10 @@ first thing to revisit if anyone hits it in practice.
 
 ## Named ceilings
 
-- **Friends' private runs stay invisible.** Friendship doesn't factor into the
-  `games` read rule and can't without a rules change — it overlaps the invite
-  decision above, and should be settled with it rather than separately.
+- **Friends' private runs stay invisible** unless the host sends the link.
+  Friendship doesn't factor into the `games` `list` rule, so nothing lets a
+  friend *find* one; the invite decision left that alone on purpose (see
+  [`FRIENDS.md`](FRIENDS.md)).
 - **No occupancy or check-in.** Games exist — scheduling, joining, leaving,
   cancelling — but "is anyone at this court *now*" is unanswerable. See
   `../plans/LIVE_HEADCOUNT.md`.

@@ -208,6 +208,11 @@ the rest; `GameService` owns all encoding.
   model, because the create sheet builds one from a bare document ID before any
   `Game` exists. `GameTests` pins the exact string; see below.
 
+- **`waitlistCaveat` is the one sentence for a waitlist that never promotes**
+  — "Waitlist spots don't move up yet — ask the host if someone drops." Shared
+  by `GameCard`'s waitlist note and both waitlist states of the invite sheet,
+  so one limitation is never described two ways.
+
 **Its display text lives on the model, in one place** — `timeText`, `dayText`
 ("Tonight" from `eveningStartHour`, 17:00, otherwise "Today", "Tomorrow", or the
 date) and `spotsText` ("Full", "1 spot left", "N spots left"), each with a static
@@ -409,7 +414,8 @@ something a screen can show you.
 ## `InviteLink`
 
 One definition of `hoopsrn://game/{id}`, the URL a host sends to reach an
-invite-only run. Two call sites need it from different starting points — the
+invite-only run — **minted and parsed in the same file**, so the two halves
+can't drift. Two call sites mint it from different starting points — the
 create sheet has the document ID `GameService.createGame` returns, the queued
 card has a whole `Game` — so the format is a static function with a thin
 `Game.inviteLink` convenience over it.
@@ -419,11 +425,21 @@ The ID is percent-encoded against unreserved characters only, narrower than
 into two path components. Firestore's own IDs are alphanumeric, so this never
 fires in practice.
 
-**Only the sending half exists.** `hoopsrn://` is not a registered URL scheme,
-nothing implements `.onOpenURL`, and the `games` read rule still refuses a
-non-member — so a recipient tapping the link today gets nothing. `GAPS.md` §4
-holds the design for the rest, which is a real authorization decision rather
-than more UI.
+**`gameId(from:)` is the parser, and it treats the URL as hostile input.** Its
+result goes to `Firestore.document(_:)`, which *traps* on an ID containing `/`
+or an empty one, so a malformed link must stop here rather than crash the app
+it was sent to. It splits the *encoded* path before decoding — a `%2F` inside
+an ID stays inside it and is then refused, rather than decoding into a
+separator — and checks `isWellFormed(gameId:)`, Firestore's own document-ID
+rules (non-empty, no `/`, not `.`/`..`, not `__x__`, ≤1,500 bytes). Scheme and
+host match case-insensitively and one trailing slash is forgiven.
+`GameService.fetchGame(id:)` re-checks `isWellFormed` as a backstop.
+`InviteJoinTests` round-trips every minted form through the parser and asserts
+the built app's `Info.plist` registers `InviteLink.scheme`.
+
+`nonisolated`, since 2026-10-08 — it is pure string work, and the project's
+default `MainActor` isolation would otherwise keep it from the nonisolated
+rules that call it.
 
 ## `Distance`
 

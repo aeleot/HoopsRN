@@ -22,10 +22,10 @@ import SwiftUI
 /// rules allow; the time is a wheel. One is open at a time and neither is by
 /// default, so the three-tap path — Start Run, Create, done — doesn't rise.
 ///
-/// **The invite step tells the truth** (a correctness fix): the
-/// link opens nothing and an invite-only run holds only its host
-/// (`gaps/GAMES.md`), so the step leads with the court and time to send, via
-/// the system share sheet, and keeps the link below as a labelled reference.
+/// **The invite step sends the court, the time and the link together**,
+/// through the system share sheet. The link opens the run for anyone with the
+/// app (`InviteJoinSheet`); the sentence ahead of it is what everyone else can
+/// act on. The link also shows below the summary, so a host can copy it alone.
 struct CreateGameSheet: View {
     @StateObject private var viewModel: CreateGameViewModel
     let onCreated: () -> Void
@@ -415,11 +415,10 @@ struct CreateGameSheet: View {
 
     // MARK: - After an invite-only run is created
 
-    /// Leads with what works: the court and the time, to send through the
-    /// share sheet. The link follows in the same panel as a reference. Its
-    /// own "doesn't work yet" note is off here and only here, because the
-    /// line under the title has just said it; on the run's card, where
-    /// nothing else does, `InviteLinkCard` keeps it.
+    /// The run as its players will see it — the court and the time — with the
+    /// link in the same panel and one button that sends all three. Until
+    /// 2026-10-08 this step said invites didn't work, because they didn't; it
+    /// now says what the link does, since the receiving half has shipped.
     private func inviteStep(link: String) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xl) {
             VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -433,7 +432,7 @@ struct CreateGameSheet: View {
                     .foregroundStyle(Color.hooprPrimaryText)
                     .accessibilityAddTraits(.isHeader)
 
-                Text("Invites don't work yet, so send your players the court and time.")
+                Text("Send your players the link. It opens this run in the app so they can join.")
                     .hooprType(.body)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -450,7 +449,9 @@ struct CreateGameSheet: View {
                 }
                 .accessibilityElement(children: .combine)
 
-                InviteLinkCard(link: link, showsUnopenableNote: false)
+                // No access note: the Invite-only caption said who the link
+                // lets in a moment ago, and the line above says what it does.
+                InviteLinkCard(link: link, showsAccessNote: false)
                     .padding(.horizontal, FormRowMetrics.horizontalPadding)
                     .padding(.vertical, FormRowMetrics.verticalPadding)
             }
@@ -458,7 +459,7 @@ struct CreateGameSheet: View {
             ShareLink(item: viewModel.shareText) {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "square.and.arrow.up")
-                    Text("Send the court and time")
+                    Text("Send invite")
                 }
             }
             .buttonStyle(.hooprFilled(.large))

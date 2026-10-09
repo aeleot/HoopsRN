@@ -316,8 +316,10 @@ guards.
 *Deferred alongside it, each needing a Cloud Function or a real search index:*
 push notifications on a friend request or acceptance; unique handles and
 typo-tolerant search (B1 is the first half of that); mutual-friend counts; and
-friends' **private** runs, which needs a real authorization design and should be
-settled with C6's invite decision rather than separately.
+friends' **private** runs, which needs a real authorization design. The invite
+decision (shipped 2026-10-08, `database/DATABASE_SCHEMA.md`) left it open on
+purpose: a private run opens for anyone holding its ID, but nothing lets a
+friend *find* one.
 
 ---
 
@@ -395,58 +397,6 @@ What's left is the Track A queue's (once it exists) and first-run onboarding.
 
 ---
 
-### C6 — Invite links: build the receiving half
-
-**Size:** Large
-
-Sending shipped 2026-08-15 — `Support/InviteLink.swift` mints a
-`hoopsrn://game/{id}` string, `CreateGameSheet` shows it after a private run
-is created, and `GameCard`/`InviteLinkCard` repeat it for a host. None of it
-does anything yet: `hoopsrn` isn't registered under `CFBundleURLSchemes`,
-nothing implements `.onOpenURL` in `hooprApp.swift`, and the `games` `read`
-rule refuses a non-member exactly as it should for a run with `isPublic ==
-false` — so a recipient who taps the link today gets nothing. `gaps/GAMES.md`
-has the full worked shape; this story is building it.
-
-*The decision this story has to make, not default into:* the current `read`
-rule is one clause covering both the list query and a direct-by-ID get. An
-unguessable document ID is not, by itself, an authorization model — anyone who
-learns the ID (a forwarded link, a leaked log line) can attempt the same read.
-Two ways to close that honestly:
-
-- *Option 1 — trust the ID (simplest):* leave the rule as-is; a private run's
-  ID is the only credential, generated server-side and never enumerable.
-  Cheap, and consistent with how `friendships/{uidA}_{uidB}` already treats a
-  derived ID as sufficient. Weakest if a link is ever pasted somewhere public.
-- *Option 2 — an `inviteToken` field, checked separately from membership:* a
-  rotatable credential distinct from the document ID, checked in the read
-  rule. Real revocation (a host can invalidate a leaked link without deleting
-  the run), at the cost of a schema field, a rule clause, and a "regenerate
-  invite" affordance somewhere.
-
-`context/gaps/GAMES.md` carries the load-bearing decision — the `get`/`list`
-split versus an `inviteToken`. 
-
-*Acceptance criteria:*
-- The decision above is recorded in `database/DATABASE_SCHEMA.md` with its
-  reasoning.
-- `hoopsrn` registered under `CFBundleURLSchemes`; `hooprApp.swift` handles
-  `.onOpenURL`, stashing the pending `gameId` across a cold start and a
-  sign-in that hasn't completed yet.
-- `GameService.fetchGame(byId:)` added alongside the existing `createGame` /
-  `joinGame` / `leaveGame` / `cancelGame` methods, following the same
-  error-mapping convention as the rest of the service.
-- An `InviteJoinView` (or equivalent) covers every state a link can land in,
-  not just the happy path: already on the roster, full (offers the
-  waitlist), aged past `visibilityGrace`, deleted, and the "not signed in
-  yet" case the pending-`gameId` stash exists to handle.
-- Joining through an invite link uses the same self-join write `C1`'s roster
-  actions and `A1`'s Queue Up use — no second join path into `games`.
-- `InviteLink.swift`'s doc comment ("**The link is not yet openable**") and
-  `gaps/GAMES.md` are both updated once this ships.
-
----
-
 ## Track D — Needs the Blaze plan
 
 ### D6 — Waitlist promotion and *automatic* run completion
@@ -503,15 +453,13 @@ Not a commitment — the order with the fewest blocked dependencies:
 
 1. **C1** (run detail) — the biggest missing surface, and a prerequisite for
    Track A feeling trustworthy.
-2. **C6** (invite links) — the largest thing that needs no infrastructure
-   decision; settles friends' private runs with it.
-3. **A1** (instant match) — the feature at its smallest useful size.
-4. **A2** (the queue) + the `presence`-vs-`checkins` decision it shares with
+2. **A1** (instant match) — the feature at its smallest useful size.
+3. **A2** (the queue) + the `presence`-vs-`checkins` decision it shares with
    `plans/LIVE_HEADCOUNT.md`.
-5. **B1** / **B3** / **C3** — parallel; none has a rules or index
+4. **B1** / **B3** / **C3** — parallel; none has a rules or index
    dependency on the others.
-6. **A3** (auto-form) — only if A1 and A2 leave people waiting.
-7. **D6** — gated on the Blaze decision in `ROADMAP.md` §0.
+5. **A3** (auto-form) — only if A1 and A2 leave people waiting.
+6. **D6** — gated on the Blaze decision in `ROADMAP.md` §0.
 
 ## See also
 

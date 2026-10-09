@@ -69,7 +69,8 @@ down.
   default 5).
 - **Join a run**, or take a **waitlist** place when it's full.
 - **Leave** a run, or **cancel** one you host.
-- **Copy an invite link** for a private run.
+- **Send an invite link** for a private run. Anyone who opens it in the app
+  sees the run and can join it, or take a waitlist place.
 
 Capacity is enforced on the server, not just in the app: two people taking the
 last seat at the same moment cannot both succeed. A run retires from every list
@@ -133,7 +134,7 @@ hold against a modified client, not just against the app's own screens:
 | Data | Who can read it | Who can write it |
 |---|---|---|
 | Profiles | Any signed-in user | The owner only |
-| Games | Anyone, if public; participants only, if private | The host creates and cancels; everyone else may add or remove **only themselves** |
+| Games | Anyone, if public. If private, only participants can *find* it; anyone holding its invite link can open it | The host creates and cancels; everyone else may add or remove **only themselves** |
 | Friendships | The two people on it, and nobody else | The requester creates; only the recipient can accept; either can delete |
 | Squads | Any signed-in user — an opponent has to be able to see who they're playing | The leader names and disbands it; every member adds or removes **only themselves** |
 | Squad invites | The leader who sent it and the person invited | Only a leader may send one, and only to an accepted friend; either side may delete it |
@@ -246,10 +247,13 @@ verified by hand, and is tracked in `gaps/TESTING.md`.
 Stated plainly, because a feature that half-exists is worse than one that
 doesn't:
 
-- **Invite links can be sent but not opened.** A host can copy a link for a
-  private run; a recipient who taps it gets nothing. The receiving half — URL
-  handling and the access decision behind it — is unbuilt, so an invite-only run
-  currently holds only its host.
+- **An invite link only works for someone with the app.** It is a
+  `hoopsrn://` link, which a phone without the app can't open, so the host's
+  message carries the court and time as plain text too. A web link that opens
+  the app, or a store page when it isn't installed, needs a domain to host it.
+- **An invite link can't be revoked short of cancelling the run.** The link is
+  the key: anyone holding it can open the run and join, deliberately — it's
+  the design chosen over a resettable token.
 - **Waitlists don't promote.** When someone leaves a full run, the freed seat is
   not handed to the first person waiting. This is a deliberate consequence of
   the rule that nobody may write another player's name onto a roster.
@@ -280,7 +284,6 @@ These have written designs in `context/plans/` and known implementation paths.
 
 | Enhancement | Value | What it needs |
 |---|---|---|
-| **Working invite links** | Makes invite-only runs actually usable — today they're a dead end | URL handling, plus a deliberate decision on whether an unguessable link is sufficient authorisation |
 | **A run detail screen** | See who you'd be playing with before you join — today a run is a number out of a number | A privacy decision on which profile fields a roster shows; no backend change |
 | **Live court headcount** | Answers "is anyone there *now*", the question the app can't currently answer at all | A new check-in collection and its rules |
 | **Multi-city scaling** | The current game query doesn't filter by geography, so it doesn't scale past one metro | A geo-partitioned query and a court-data delivery mechanism |
