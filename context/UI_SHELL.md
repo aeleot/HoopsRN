@@ -182,7 +182,10 @@ whenever a squad invite was the only thing waiting; `InboxButtonTests` pins
 the sum.
 
 Each tab names itself in its band's `label` row, beside `InboxButton` in its
-shared `Slot` — "Tonight", "Runs", "This season". (Home's `"Let's hoop
+shared `Slot` — "Tonight", "Runs", "This season". **The Map is the exception**
+(2026-10-10): its band is one row, the search field beside the inbox in the
+same `Slot`, because there the header's height comes straight out of the map —
+see `MAP_LAYER.md` § Map chrome. (Home's `"Let's hoop
 <name>."` greeting, which shrank to fit with `minimumScaleFactor`, was removed
 in the UI revamp, assumption A2; **no text in the app shrinks to fit any more**
 — the last three `minimumScaleFactor` calls went on 2026-09-23.)
@@ -1041,8 +1044,10 @@ falls back to `.ultraThinMaterial` below it — the floor is iOS 18. That covers
 this header, `GlassChip`, `HooprSearchField`'s glass ground, `BandBackButton`,
 and the two map controls in `MAP_LAYER.md`. Glass shapes that sit side by side
 are grouped with `HooprGlassGroup` (iOS 26's `GlassEffectContainer`, the
-content unchanged below it) — the map's filter chips, since glass can't sample
-other glass (UI revamp Phase 4). The map's sheet stays deliberately opaque: it
+content unchanged below it), since glass can't sample other glass (UI revamp
+Phase 4) — only the component gallery groups any now; the map's glass chips,
+its one real use, went in the 2026-09-26 revamp, and their solid successors on
+2026-10-10. The map's sheet stays deliberately opaque: it
 holds rows you read (`MAP_LAYER.md`).
 
 The handle is **rendered, not stored** — `userName` is a display name (see

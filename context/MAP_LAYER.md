@@ -329,8 +329,6 @@ struct SheetGeometry: Equatable {
     // visibleHeight(detent:drag:), visibleMapHeight(bandHeight:detent:drag:),
     // bottomClearance, cardActionsBottomInset
 }
-
-enum MapBandLayout: Equatable { case full, compact }   // derived from SheetState
 ```
 
 **Both types and the detent arithmetic moved out of `MapTab` into
@@ -445,51 +443,56 @@ animates on the same `.spring(response: 0.35, dampingFraction: 0.85)`.
 
 ## Map chrome
 
-Everything floating over the map is **Liquid Glass**: the filter chips, the
-recenter button, and the collapsed peek pill. An *active* filter chip tints the
-same glass with `Color.hooprOrange` rather than swapping to an opaque fill, so it
-reads as the same object lit up instead of a different one.
+**The band is one row: the search field, and the inbox in its
+`InboxButton.Slot`** (`MapBand`, 2026-10-10, the user's call). It sits above
+the map rather than over it: its measured `bandHeight` pads the map's top edge,
+so the map is the rectangle below the band and the north bias frames courts in
+that rectangle (`MapFraming`). It is **70pt, the same in every state** — the
+list, a court's card, a search — so the map's top edge never moves; the field
+is a fixed 46pt at every text size.
 
-**Every glass surface goes through `.hooprGlass(tint:interactive:in:)`**
-(`Support/Glass.swift`), never `.glassEffect` directly. `glassEffect` is iOS 26
+It was three rows and 170pt, 23% of the tab, until then:
+
+- **"Near you · 97 courts"** — the courts inside your radius, a static count
+  that the sheet's header ("97 courts nearby") and the peek pill already state.
+  As the band's hero it was the least useful fact on the tab; other bands lead
+  with a live answer (Home's next tip-off, Runs' week).
+- **Four filter chips** — Games today, Starting soon, Open spots, Open to all —
+  narrowing the pins and every list. Three were refinements of the **Now**
+  segment, which already lists the courts with a run on today with their times
+  and spots, and the fourth was off the screen's edge. They were removed with
+  `CourtFilter`, `CourtActivity` and `FilterChip`; every court is drawn.
+
+Measured on an iPhone 17 (729pt tab): the map over the list at rest went from
+316pt to ~416pt, and over a hosted run's card (~275pt) from 284pt to ~384pt.
+The day before, the band had shrunk to its label row only while a card was
+open (`MapBandLayout`); a header that changed height with the sheet's state
+read as something going wrong, and that went too.
+
+The band keeps the tab's ground — `HeroWash` and `MapBandRadar`, the radar
+half off the trailing edge behind the inbox (`ThemeContrastTests` holds the
+tray on it) — and the `hooprSeparatorStrong` baseline every band closes on. It
+has no label row: the field stands where other tabs name themselves.
+
+The **recenter button** and the collapsed **peek pill** are the only chrome
+over the map, both glass through `.hooprGlass(tint:interactive:in:)`
+(`Support/Glass.swift`), never `.glassEffect` directly: `glassEffect` is iOS 26
 and the app's floor is 18, so the modifier holds the one `#available` and falls
-back to `.ultraThinMaterial` — translucent, because these all float over a moving
-map, and an opaque fill would turn a chip into a panel. The tint rides on top of
-the material so the "same object lit up" rule survives the fallback.
+back to `.ultraThinMaterial`. The sheet is deliberately **not** glass. Small
+chrome you look past can be translucent; a list of courts is something you
+read, and reading it against a moving map is worse in every way than reading it
+against a surface.
 
-The sheet is deliberately **not** glass. Small chrome you look past can be
-translucent; a list of courts is something you read, and reading it against a
-moving map is worse in every way than reading it against a surface.
+The recenter button is the **only map control** — see the zoom-stack note
+above. It floats bottom-right, just above the sheet, because it is a frequent
+casual tap and the top of a large phone is the part you cannot reach
+one-handed. It hides at `.expanded` and while searching; see **Invariants**.
 
-The map `.ignoresSafeArea()` — it *is* the screen, running under the status bar,
-the tab bar and the home indicator. `mapOverlay` insets itself by 8pt at the top
-(the old `floatingHeaderHeight` environment key is gone along with the header
-that published it) and by `max(0, sheetHeight - sheetOffset) + tabBarInset` at
-the bottom, so the chrome stays clear of both the sheet at any detent and the
-tab bar the sheet sits on. The trailing
-`Spacer` in that `VStack` is load-bearing: it holds the stack at full height so
-the row stays pinned to the top of a bottom-aligned `ZStack`.
-
-The chrome is **two rows**: a search field with the inbox button inline (the
-profile button until 2026-09-25, in the same `Slot`), then the filter chips. It
-was three — the profile button had a row to itself — and
-folding it into the search row is what pays for the field. Note the honest
-arithmetic: the new chrome is ~106pt against the old ~110pt, so this buys about
-4pt. It is **not** reclaimed map, and shouldn't be described as such; what
-changes is that the top row stops being decoration and becomes the screen's
-primary control.
-
-The recenter button is still the **only map control** — see the zoom-stack note
-above — but it no longer shares the chip row. It floats bottom-right, just above
-the sheet, because it is a frequent casual tap and the top of a large phone is
-the part you cannot reach one-handed. Moving it also hands the chips back the
-~60pt of width it was occupying. It hides at `.expanded` and while searching;
-see **Invariants**.
-
-The search field is `HooprSearchField` in its `glass` ground — the same
-component Friends and the home-court picker use on `hooprFill`. Focusing it
-raises the sheet to `.expanded` and swaps the sheet's contents for results;
-**Recent** lives there as the empty state rather than as a segment.
+The search field is `HooprSearchField` on its `fill` ground with a
+`hooprSeparatorStrong` edge — the component Friends and the home-court picker
+use. Focusing it raises the sheet to `.expanded` and swaps the sheet's
+contents for results; **Recent** lives there as the empty state rather than as
+a segment.
 
 **The matching itself is `CourtSearch.matches(_:query:limit:)`**, an in-memory
 substring scan with no debounce anywhere that calls it — 214 rows resident in
@@ -506,26 +509,6 @@ rather than each rolling their own: this search field, `QueueSheet`'s court
 picker (`MatchmakingViewModel.searchCourts(matching:)`), and the profile's
 home-court picker — which is why it lives in `Support/` rather than as a
 private helper on `MapViewModel`.
-
-**The band compacts while a court is open** (`MapBandLayout`, design critique
-2026-10-09). With a card up, the full band — "Near you" and the count, the
-search field, the chips — took 170pt of an iPhone 17's 729pt tab and a hosted
-run's card ~275pt, leaving the map 283pt. In `.detail` the band is its label
-row alone (72pt), the inbox kept in its `InboxButton.Slot`; the search field
-and chips step aside and come back as the card closes. `bandHeight` pads the
-map's top edge, so the map grows into the room: 382pt, measured on the device
-— at `.accessibility3`, where the full band and the card left almost none, a
-strip of map stays. **The map follows the band asymmetrically**: shrinking, it
-takes the room at once (the band is drawn over it); growing, `bandHeight`
-changes on the band's own spring, because set at once the map dropped a frame
-before the band grew and the tab's ground showed between them (~97pt for two
-frames, recorded on the device). **Search outranks the card**, as it does
-in the sheet: while the field has the keyboard or a query the band stays full.
-The layout is derived from `SheetState` by
-`MapBandLayout.layout(for:isSearching:)`, never stored, so no path into or out
-of `.detail` — a pin, a list row, Home's hot list, the close button, a pin
-deselect — can leave the two disagreeing. While a court is open the filters
-can't be changed; closing the card is one tap.
 
 `courtToSelect` is a `Court?` binding the shell writes when a Home hot-court row
 is tapped. `MapTab` consumes it in `.onChange`, clears it so the same court can
@@ -796,9 +779,10 @@ nearby-list row — already open this card, so one button serves both. See
   run's (or "No runs here today"'s) bottom edge in the rows' own coordinate
   space (`CardLeadEdge`), so anything above it in the card's `DividedRows` is
   inside the lead; something that must be seen without scrolling goes there.
-- The band's layout is **derived from `SheetState`**
-  (`MapBandLayout.layout(for:isSearching:)`) — never a second piece of state
-  that a new path into `.detail` could forget to set.
+- The band is **one height in every state**. Nothing about the sheet — a
+  court open, a search, a detent — changes it; only the text size could, and
+  its field is fixed. A band that resized with the sheet moved the map's top
+  edge under the reader and was removed (2026-10-10).
 - A `.detail` state never renders `.collapsed` — that is the bug `displayDetent`
   exists for. It otherwise keeps the detent it will restore to, so tapping a
   court from a full-height list doesn't shrink the sheet under the reader's
@@ -814,13 +798,12 @@ nearby-list row — already open this card, so one button serves both. See
 - **The keyboard lands in the bottom safe area, which means it feeds
   `tabBarInset` and shrinks every detent.** That is load-bearing and correct —
   the sheet lifts above the keyboard for free — so do **not** add
-  `.ignoresSafeArea(.keyboard)`. Two consequences are handled deliberately: the
-  chip row is dropped while the search field is focused (at ~95pt of chrome room
-  two rows do not fit), and a downward fling cannot settle to `.collapsed` while
+  `.ignoresSafeArea(.keyboard)`. One consequence is handled deliberately: a
+  downward fling cannot settle to `.collapsed` while the search field is
   focused, which would otherwise hide the sheet behind a live keyboard.
 - The recenter button is hidden at `.expanded` and while searching. Its inset
-  would place it on top of the filter chips, and at that detent the visible map
-  is a sliver.
+  would place it over the band's edge, and at that detent the visible map is a
+  sliver.
 - Distances are computed on `rebuild()`, not during scroll. The radius comes
   from the profile's `preferredRadius`, via `preferredRadiusMiles`.
 - The initial region, list distances, and the recenter target all read

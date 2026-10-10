@@ -846,16 +846,17 @@ final class ThemeContrastTests: XCTestCase {
 
     // MARK: - Heat
 
-    func testMapFilterChipsAndSolidSearchOnTheBand() {
-        assertContrast(.hooprOnBrand, on: .hooprOrange, atLeast: aaText, "active filter label")
-        assertContrast(.hooprPrimaryText, on: .hooprHeroBand, atLeast: aaText, "inactive filter label")
-        assertContrast(.hooprSeparatorStrong, on: .hooprHeroBand, atLeast: aaLarge, "inactive filter edge")
+    /// The map band's search field draws its fill with a strong edge. (Its
+    /// filter chips' pairings went with the chips, 2026-10-10.)
+    func testMapSolidSearchOnTheBand() {
         assertContrast(.hooprSeparatorStrong, on: .hooprFill, atLeast: aaLarge, "solid search edge")
     }
 
-    func testMapWatermarkLeavesTheCountAndEyebrowReadable() {
-        assertContrast(.hooprPrimaryText, on: .hooprBrandWatermark, atLeast: aaText, "count over pin watermark")
-        assertContrast(.hooprSecondaryText, on: .hooprBrandWatermark, atLeast: aaText, "eyebrow over pin watermark")
+    /// The radar sits behind the inbox, whose tray is `hooprPrimaryText`. (It
+    /// also sat behind the "Near you" eyebrow and the court count until the
+    /// band became one row, 2026-10-10.)
+    func testMapWatermarkLeavesTheInboxReadable() {
+        assertContrast(.hooprPrimaryText, on: .hooprBrandWatermark, atLeast: aaText, "inbox over the radar")
         for style in [UIUserInterfaceStyle.light, .dark] {
             XCTAssertGreaterThan(ratio(.hooprBrandWatermark, on: .hooprHeroBand, style), 1.05)
         }

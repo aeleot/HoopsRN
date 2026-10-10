@@ -315,8 +315,8 @@ final class MapViewModelTests: XCTestCase {
         XCTAssertEqual(counts["court-a"], 1)
     }
 
-    /// A court whose only run was completed goes quiet: the "Games today"
-    /// filter must not keep offering it.
+    /// A court whose only run was completed goes quiet: neither its pin nor
+    /// the Now segment may keep offering it.
     func testACourtWithOnlyACompletedRunIsQuiet() {
         let completed = game(
             id: "done",
@@ -328,7 +328,6 @@ final class MapViewModelTests: XCTestCase {
         let byCourt = MapViewModel.gamesByCourt(queued: [completed], published: [], now: today)
 
         XCTAssertNil(byCourt["court-a"])
-        XCTAssertFalse(CourtActivity(games: byCourt["court-a"] ?? []).hasGameToday)
     }
 
     /// A run already underway is still the one you would walk to.

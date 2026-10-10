@@ -1,6 +1,10 @@
 # hoopsRN — Map Tab Presentation Plan
 
-**Status:** plan (nothing here is implemented)
+**Status:** plan (nothing here is implemented as written). **Superseded in
+part:** the "Map tab revamp" (`e227e63`) added the wash band Pass 6 rejects
+below, and on 2026-10-10 that band became one row — search and the inbox —
+with the filter chips removed; Pass 4's run rows shipped as `DividedRows` on
+2026-10-09. See `MAP_LAYER.md` § Map chrome and § The court detail card.
 **Scope:** `hoopr/Views/Tabs/MapTab.swift`, `MapView.swift`, `CourtRow.swift`,
 `CourtGameRow.swift`, `SheetGeometry.swift`, and the sheet-side components they
 use. Read `context/MAP_LAYER.md` for the interaction machinery this plan must

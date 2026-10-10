@@ -50,33 +50,6 @@ nonisolated enum SheetState: Equatable {
     }
 }
 
-/// How much of the map's band shows.
-///
-/// **Compact while a court is open** (design critique, 2026-10-09). With a
-/// card up, the full band — label row, search field, filter chips — took 170pt
-/// of an iPhone 17's 729pt tab and a hosted run's card ~275pt, leaving the map
-/// 283pt: the smallest thing on a screen called Map. Compact keeps the label
-/// row and the inbox in its slot (72pt), and the search field and chips step
-/// aside until the card closes — 382pt of map, measured on the device.
-/// Leaving `.detail` brings them back.
-///
-/// **Search outranks the card here exactly as it does in the sheet.** While the
-/// field has the keyboard or a query, the sheet shows results rather than the
-/// card, and the field has to stay where the user is typing.
-nonisolated enum MapBandLayout: Equatable {
-    /// Label row, search field and filter chips.
-    case full
-    /// The label row alone.
-    case compact
-
-    static func layout(for state: SheetState, isSearching: Bool) -> MapBandLayout {
-        state.selectedCourt != nil && !isSearching ? .compact : .full
-    }
-
-    /// The search field and the chip row under it.
-    var showsSearch: Bool { self == .full }
-}
-
 /// The sheet's detent arithmetic, extracted from the view.
 ///
 /// `MapTab` owns the gestures, the animation and the state; this owns only
@@ -177,7 +150,7 @@ nonisolated struct SheetGeometry: Equatable {
     }
 
     /// The map left between a band `bandHeight` tall and the sheet's top edge
-    /// — the number `MapBandLayout.compact` exists to raise.
+    /// — the number the one-row `MapBand` exists to raise.
     func visibleMapHeight(bandHeight: CGFloat, detent: SheetDetent, drag: CGFloat) -> CGFloat {
         max(0, containerHeight - max(0, bandHeight) - visibleHeight(detent: detent, drag: drag))
     }

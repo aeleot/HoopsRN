@@ -36,8 +36,9 @@ Not failures — pairings the interface draws that no test pins, so nothing woul
 catch a later retune breaking them. Measured by hand on 2026-09-21:
 
 - **`ErrorBanner`'s red text on its 8% red wash** — 5.82:1 light, 6.96:1 dark.
-- **Glass chrome over the moving map** — the filter chips' labels, the recenter
-  glyph, the search field. A translucent surface has no fixed ground to
+- **Glass chrome over the moving map** — the recenter glyph and the peek
+  pill's label. (The search field sits on the band's solid fill now, and the
+  filter chips are gone.) A translucent surface has no fixed ground to
   measure; the fallback tint's 0.55 opacity is justified in a comment in
   `Glass.swift`, not asserted.
 - **What the iOS 26 tab bar finally paints.** The system adjusts a tint before

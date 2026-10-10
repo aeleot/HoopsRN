@@ -3,78 +3,46 @@ import SwiftUI
 /// The map's fixed header. Its measured height reserves a separate map rectangle.
 /// The inbox is supplied by the tab, so the band can also render in the gallery.
 ///
-/// **Compact while a court is open** (`MapBandLayout`): the label row alone,
-/// with the inbox in its slot, so the map between the band and the card gets
-/// the room the search field and chips were taking.
+/// **One row: search, and the inbox in its `Slot`** (2026-10-10, the user's
+/// call). It was three rows and 170pt — 23% of the tab — and the map between it
+/// and a court's card was down to 283pt:
+///
+/// - **"Near you · 97 courts" went.** The count is the courts inside your
+///   radius, a static number the sheet's header ("97 courts nearby") and the
+///   peek pill already state; as the band's hero it was the least useful fact
+///   on the tab. Other bands lead with a live answer — Home's next tip-off,
+///   Runs' week — and this one had none to give.
+/// - **The filter chips went**, three of four being refinements of the Now
+///   segment (`MapViewModel.rebuild()`).
+///
+/// What's left is the tab's primary control, the same height in every state —
+/// a court open, the list, a search — so the map's top edge never moves. A
+/// header that shrank while a card was open read as something going wrong.
 struct MapBand<Inbox: View>: View {
-    var layout: MapBandLayout = .full
-    let nearbyCount: Int
     @Binding var query: String
     var isSearchFocused: FocusState<Bool>.Binding
-    let activeFilters: Set<CourtFilter>
-    let onToggle: (CourtFilter) -> Void
     let onClear: () -> Void
     @ViewBuilder var inbox: () -> Inbox
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: Spacing.md) {
-                VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text("Near you")
-                        .hooprType(.label)
-                        .foregroundStyle(Color.hooprSecondaryText)
+        // Top-aligned so the inbox sits exactly in its `Slot`, where every tab
+        // keeps it; the field is 2pt taller and hangs below it.
+        HStack(alignment: .top, spacing: Spacing.md) {
+            HooprSearchField(
+                text: $query,
+                placeholder: "Search courts or a city",
+                isFocused: isSearchFocused,
+                ground: .fill,
+                fillOutline: .hooprSeparatorStrong,
+                capitalization: .words,
+                onClear: onClear
+            )
 
-                    HStack(alignment: .firstTextBaseline, spacing: Spacing.xs) {
-                        Text("\(nearbyCount)")
-                            .hooprType(.title)
-                            .monospacedDigit()
-                            .foregroundStyle(Color.hooprPrimaryText)
-                            .hooprNumericTransition(nearbyCount)
-                        Text(nearbyCount == 1 ? "court" : "courts")
-                            .hooprType(.headline)
-                            .foregroundStyle(Color.hooprSecondaryText)
-                    }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(nearbyCount == 1 ? "1 court nearby" : "\(nearbyCount) courts nearby")
-                }
-                Spacer(minLength: 0)
-                inbox()
-            }
-            .padding(.horizontal, Spacing.pageMargin)
-            .padding(.bottom, layout.showsSearch ? Spacing.sm : 0)
-
-            if layout.showsSearch {
-                VStack(alignment: .leading, spacing: 0) {
-                    HooprSearchField(
-                        text: $query,
-                        placeholder: "Search courts or a city",
-                        isFocused: isSearchFocused,
-                        ground: .fill,
-                        fillOutline: .hooprSeparatorStrong,
-                        capitalization: .words,
-                        onClear: onClear
-                    )
-                    .padding(.horizontal, Spacing.pageMargin)
-
-                    if !isSearchFocused.wrappedValue {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: Spacing.sm) {
-                                ForEach(CourtFilter.allCases) { filter in
-                                    FilterChip(symbolName: filter.symbolName, label: filter.label,
-                                               isActive: activeFilters.contains(filter)) {
-                                        onToggle(filter)
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, Spacing.pageMargin)
-                        }
-                    }
-                }
-                .transition(.opacity)
-            }
+            inbox()
         }
+        .padding(.horizontal, Spacing.pageMargin)
         .padding(.top, InboxButton.Slot.top)
-        .padding(.bottom, Spacing.sm)
+        .padding(.bottom, Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             ZStack {

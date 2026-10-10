@@ -43,9 +43,9 @@ struct MapTab: View {
 
     /// Whether the search field has the keyboard.
     ///
-    /// Load-bearing beyond the field itself: it drops the chip row, raises the
-    /// sheet, swaps the sheet's contents, and hides the recenter button — see
-    /// each of those for why.
+    /// Load-bearing beyond the field itself: it raises the sheet, swaps the
+    /// sheet's contents, and hides the recenter button — see each of those for
+    /// why.
     @FocusState private var isSearchFocused: Bool
 
     /// The run awaiting a cancel confirmation, if any.
@@ -178,14 +178,6 @@ struct MapTab: View {
     /// recenter button rides on.
     private var visibleSheetHeight: CGFloat {
         geometry.visibleHeight(detent: sheetState.displayDetent, drag: sheetDrag)
-    }
-
-    /// The label row alone while a court is open. See `MapBandLayout`.
-    private var bandLayout: MapBandLayout {
-        MapBandLayout.layout(
-            for: sheetState,
-            isSearching: isSearchFocused || viewModel.hasSearchQuery
-        )
     }
 
     var body: some View {
@@ -333,63 +325,27 @@ struct MapTab: View {
 
     // MARK: - Map chrome
 
-    /// Search and the filter chips, floating over the map on glass.
-    ///
-    /// Two rows, not three. The profile button (now the inbox button) used
-    /// to occupy a whole row on its own; folding it into the search row is what pays for the search
-    /// field without costing the map any height. (It doesn't *gain* height
-    /// either — the honest total is 4pt shorter than before. What changes is
-    /// that the top row stops being decoration and becomes the screen's
-    /// primary control.)
-    ///
-    /// The trailing `Spacer` is load-bearing: it holds the stack at full
-    /// height so the rows stay pinned to the top of a `ZStack` that aligns its
-    /// children to the bottom.
-    ///
-    /// **With a court open it is the label row alone** (`MapBandLayout`) — the
-    /// search field and chips step aside, and the map below grows into their
-    /// room, because `bandHeight` is what pads the map's top edge. They come
-    /// back as the card closes.
+    /// The tab's fixed header: search, and the inbox in its `Slot` — one row,
+    /// the same height in every state (`MapBand` has why). Its measured height
+    /// pads the map's top edge, so the map is the rectangle below it.
     private var mapBand: some View {
         MapBand(
-            layout: bandLayout,
-            nearbyCount: viewModel.nearbyCount,
             query: $viewModel.searchQuery,
             isSearchFocused: $isSearchFocused,
-            activeFilters: viewModel.activeFilters,
-            onToggle: { filter in
-                withAnimation(.hooprSnap) { viewModel.toggle(filter) }
-            },
             onClear: { viewModel.clearSearch() }
         ) {
             InboxButton(friendService: friendService, squadService: squadService, action: onOpenInbox)
         }
-        // The map's top edge follows the band. Shrinking, it takes the room at
-        // once — the band is drawn over it while it closes. Growing, it gives
-        // the room back on the band's own spring: set at once, the map dropped
-        // to the full band's edge a frame before the band grew to meet it, and
-        // the tab's ground showed between them — ~97pt for two frames as a
-        // court's card closed (recorded on the device, 2026-10-09).
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
-            if bandHeight > 0, height > bandHeight {
-                withAnimation(.hooprSpring) { bandHeight = height }
-            } else {
-                bandHeight = height
-            }
-        }
-        .animation(.hooprSpring, value: isSearchFocused)
-        .animation(.hooprSpring, value: bandLayout)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bandHeight = $0 }
     }
 
-    /// The only map control left, and it now floats bottom-right rather than
-    /// sharing the chip row.
+    /// The only map control left, floating bottom-right.
     ///
     /// Recenter is a frequent, casual tap; the top of a 6.7" phone is the part
     /// you can't reach one-handed. Resting directly above the tab bar — the
     /// same low baseline `collapsedPeek` sits on — puts it in the thumb zone
     /// and matches where every other map app keeps it, rather than floating
-    /// it wherever the sheet's *default* detent happens to put it. It hands
-    /// the chips back the ~60pt of width it was taking, too.
+    /// it wherever the sheet's *default* detent happens to put it.
     ///
     /// There used to be a `+`/`−` pair with a vertical slider between them. It
     /// occupied a 44×180pt column of the map to duplicate a pinch every user
@@ -398,7 +354,7 @@ struct MapTab: View {
     /// triggers and the log-scale span conversion that fed it.
     private var recenterButton: some View {
         // Hidden at the expanded detent. Its inset would put it above the
-        // chrome's bottom edge — on top of the filter chips — and at that
+        // band's bottom edge — on top of the search field — and at that
         // detent the visible map is a sliver anyway.
         let isHidden = sheetState.displayDetent == .expanded || isSearchFocused
 
@@ -794,7 +750,7 @@ struct MapTab: View {
     }
 
     /// Now / Nearby / Saved. Switching only changes which courts the sheet
-    /// lists — the map and its filters are unaffected.
+    /// lists — the map is unaffected.
     private var listTabs: some View {
         HStack(spacing: 0) {
             ForEach(MapViewModel.ListTab.allCases) { tab in

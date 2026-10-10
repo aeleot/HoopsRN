@@ -38,20 +38,14 @@ inconsistently — most rows are `null`. `CourtBadges` renders all five on the
 list row and the map's detail card. Absent means unknown, so nothing is inferred
 and no placeholder badge is shown.
 
-**`CourtFilter` no longer reads any of them except `access`.** It filtered on
-`isLit` and `hoops` until 2026-08-27, and that sparsity made the filters
-destructive rather than merely weak: `isLit` is `null` for 193 of 214 courts and
-an absent tag is excluded, so one tap hid 95% of the map. The chips are now
-activity predicates — "Games today", "Starting soon" (a run under way or
-tipping off within the hour), "Open spots", and "Open to all" (`access`,
-the one attribute field the dataset populates well at 172/214). They take a
-`CourtActivity`, because whether anyone is playing is a join between bundled
-geography and Firestore that `Court` cannot answer alone.
-
-`CourtActivity` is that joined half: today's runs at one court, with `.quiet`
-for a court with nothing on. Having a total value rather than an optional is
-what keeps every filter predicate total — the absent-tag third state that made
-the amenity filters dangerous has no equivalent here.
+**Nothing filters on them.** The map's filters went on 2026-10-10 — the
+user's call, with the band's chip row: three of the four ("Games today",
+"Starting soon", "Open spots") were refinements of the Now segment, and the
+amenity filters before them (`isLit`, `hoops`, until 2026-08-27) hid 95% of the
+map, because `isLit` is `null` for 193 of 214 courts and an absent tag was
+excluded. `CourtFilter` and the `CourtActivity` join it took went with them.
+The attributes are read only by `CourtBadges`, which shows what is known and
+nothing for what isn't.
 
 `displayName` is `name` with the words "basketball court" stripped and the
 leftover whitespace collapsed. **Every one of the 214 courts in the dataset is

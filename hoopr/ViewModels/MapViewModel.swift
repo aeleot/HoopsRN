@@ -75,17 +75,14 @@ final class MapViewModel: ObservableObject {
 
     // MARK: - Published state
 
-    /// Courts drawn on the map — every court that passes the active filters,
-    /// regardless of distance.
+    /// Courts drawn on the map — every court in the dataset, regardless of
+    /// distance.
     @Published private(set) var courts: [Court] = []
 
     /// The rows in the sheet for the `.nearby` and `.saved` segments, already
-    /// filtered and ordered. Empty while `.now` is showing — that segment
+    /// chosen and ordered. Empty while `.now` is showing — that segment
     /// renders `activeCourts` instead.
     @Published private(set) var listedCourts: [NearbyCourt] = []
-
-    /// Radius and filter count, independent of the sheet's selected segment.
-    @Published private(set) var nearbyCount = 0
 
     /// The rows in the sheet for the `.now` segment.
     @Published private(set) var activeCourts: [ActiveCourt] = []
@@ -116,8 +113,6 @@ final class MapViewModel: ObservableObject {
 
     /// Courts matching `searchQuery`, empty while the query is blank.
     @Published private(set) var searchResults: [Court] = []
-
-    @Published private(set) var activeFilters: Set<CourtFilter> = []
 
     @Published private(set) var favoriteCourtIds: Set<String> = []
 
@@ -245,9 +240,9 @@ final class MapViewModel: ObservableObject {
             .sink { [weak self] message in self?.datasetError = message }
             .store(in: &cancellables)
 
-        // The nearby list depends on the saved radius as well as the dataset
-        // and filters, so it rebuilds when the radius moves. Editing the
-        // radius in the profile reflows this list without a reload.
+        // The nearby list depends on the saved radius as well as the dataset,
+        // so it rebuilds when the radius moves. Editing the radius in the
+        // profile reflows this list without a reload.
         //
         // Distances are still measured from the hardcoded home location; swap
         // `homeLocation` for a profile-owned one and this pipeline follows.
@@ -300,21 +295,6 @@ final class MapViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.rebuild() }
             .store(in: &cancellables)
-    }
-
-    // MARK: - Filters
-
-    func toggle(_ filter: CourtFilter) {
-        if activeFilters.contains(filter) {
-            activeFilters.remove(filter)
-        } else {
-            activeFilters.insert(filter)
-        }
-        rebuild()
-    }
-
-    func isActive(_ filter: CourtFilter) -> Bool {
-        activeFilters.contains(filter)
     }
 
     // MARK: - Favourites and recents
@@ -470,18 +450,19 @@ final class MapViewModel: ObservableObject {
             .mapValues(\.count)
     }
 
+    /// **There are no filters** (2026-10-10, the user's call). The map's chips
+    /// — Games today, Starting soon, Open spots, Open to all — narrowed the pins
+    /// and every list, and three of the four were refinements of the **Now**
+    /// segment, which already lists the courts with a run on today, each with
+    /// its time and spots. They went with the band's second row. Every court
+    /// is drawn; the segments choose what the sheet lists.
     private func rebuild() {
-        let filtered = courtService.courts.filter { court in
-            let activity = CourtActivity(games: gamesByCourtID[court.id] ?? [])
-            return activeFilters.allSatisfy { $0.matches(court, activity: activity) }
-        }
-        courts = filtered
+        courts = courtService.courts
 
-        let ranked = Self.ranked(courts: filtered, from: searchOrigin)
+        let ranked = Self.ranked(courts: courts, from: searchOrigin)
         let byID = Dictionary(uniqueKeysWithValues: ranked.map { ($0.court.id, $0) })
 
-        // Recency order, not distance order. Filters still apply, so a court
-        // can drop out of it.
+        // Recency order, not distance order.
         recentCourts = recentCourtIds.compactMap { byID[$0]?.court }
 
         activeCourts = Self.rankActive(
@@ -491,7 +472,6 @@ final class MapViewModel: ObservableObject {
 
         let radiusMeters = Distance.meters(miles: radiusMiles)
         let nearby = ranked.filter { $0.distanceMeters <= radiusMeters }
-        nearbyCount = nearby.count
 
         switch selectedTab {
         case .now:
@@ -645,16 +625,12 @@ final class MapViewModel: ObservableObject {
             // Deliberately not an apology. With no runs booked this is the
             // most common state the tab has, and the only lever the UI has on
             // that cold start is to make starting one the obvious next move.
-            return activeFilters.isEmpty
-                ? "Be the first — start a run at a court near you."
-                : "Try removing a filter."
+            return "Be the first — start a run at a court near you."
         case .nearby:
             // Names the radius actually in force rather than pointing at a
             // "Search here" button the map has never had. `radiusMiles` is
             // published for exactly this — see its note.
-            return activeFilters.isEmpty
-                ? "Nothing within \(UserProfile.radiusText(radiusMiles)). Widen your radius in your profile."
-                : "Try removing a filter."
+            return "Nothing within \(UserProfile.radiusText(radiusMiles)). Widen your radius in your profile."
         case .saved:
             return "Tap the star on any court to save it here."
         }
@@ -765,10 +741,10 @@ final class MapViewModel: ObservableObject {
     }
 
     /// The court the Now segment's empty-state button starts a run at: the
-    /// nearest one that passes the active filters.
+    /// nearest one.
     ///
-    /// `nil` only when the filters or the dataset have left nothing at all, in
-    /// which case the button has nowhere to send the user and isn't shown.
+    /// `nil` only when the dataset has nothing at all, in which case the button
+    /// has nowhere to send the user and isn't shown.
     var nearestCourtForNewRun: Court? {
         listedCourts.first?.court ?? Self.ranked(
             courts: courts,

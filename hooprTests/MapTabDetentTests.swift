@@ -286,78 +286,53 @@ final class MapTabDetentTests: XCTestCase {
         )
     }
 
-    // MARK: - The band while a court is open (design critique, 2026-10-09)
+    // MARK: - The one-row band (2026-10-10)
 
-    /// With a court open the band is its label row alone, at every detent the
-    /// card can return to.
-    func testAnOpenCourtCompactsTheBand() {
-        for detent in SheetDetent.allCases {
-            let state = SheetState.detail(court: Self.court, returningTo: detent)
-            XCTAssertEqual(MapBandLayout.layout(for: state, isSearching: false), .compact, "\(detent)")
-        }
-        XCTAssertFalse(MapBandLayout.compact.showsSearch)
-    }
-
-    /// Closing the card brings the search field and chips back, whichever
-    /// detent the sheet returns to.
-    func testLeavingTheDetailRestoresTheFullBand() {
-        for detent in SheetDetent.allCases {
-            let open = SheetState.detail(court: Self.court, returningTo: detent)
-            let closed = SheetState.rest(open.detent)
-
-            XCTAssertEqual(MapBandLayout.layout(for: open, isSearching: false), .compact)
-            XCTAssertEqual(MapBandLayout.layout(for: closed, isSearching: false), .full, "\(detent)")
-        }
-        XCTAssertTrue(MapBandLayout.full.showsSearch)
-    }
-
-    /// Search outranks the card, as it does in the sheet: while the field has
-    /// the keyboard or a query, the field stays where the user is typing.
-    func testSearchKeepsTheFullBandWithACourtOpen() {
-        let open = SheetState.detail(court: Self.court, returningTo: .medium)
-        XCTAssertEqual(MapBandLayout.layout(for: open, isSearching: true), .full)
-        XCTAssertEqual(MapBandLayout.layout(for: .rest(.medium), isSearching: true), .full)
-    }
-
-    /// iPhone 17, measured from the live app on 2026-10-09: a 729pt tab, a
-    /// full band of 170pt, a compact one of 72pt, and a hosted run's card
-    /// resting at ~275pt under either — 283pt of map before, 382pt after. The
-    /// card rests exactly where it did, so **every point the band gives up is
-    /// map.**
+    /// iPhone 17, measured from the live app: a 729pt tab, and a band of 170pt
+    /// while it had three rows — 316pt of map over the list at rest, 284pt over
+    /// a hosted run's card (~275pt). One row is 70pt. **Neither sheet moves**,
+    /// so every point the band gave up is map, in both states — and the band
+    /// is the same height in both, which is what the compact-on-select band it
+    /// replaces wasn't.
     private let tabHeight: CGFloat = 729
-    private let fullBand: CGFloat = 170
-    private let compactBand: CGFloat = 72
+    private let threeRowBand: CGFloat = 170
+    private let oneRowBand: CGFloat = 70
     private let hostedRunCard: CGFloat = 275
 
-    private func withBand(_ band: CGFloat) -> SheetGeometry {
-        SheetGeometry(containerHeight: tabHeight, fittedMediumHeight: hostedRunCard, topInset: band + 12)
+    private func sheet(under band: CGFloat, card: CGFloat? = nil) -> SheetGeometry {
+        SheetGeometry(containerHeight: tabHeight, fittedMediumHeight: card, topInset: band + 12)
     }
 
-    func testACompactBandHandsItsHeightToTheMap() {
-        XCTAssertEqual(withBand(fullBand).visibleMapHeight(bandHeight: fullBand, detent: .medium, drag: 0), 284)
-        XCTAssertEqual(withBand(compactBand).visibleMapHeight(bandHeight: compactBand, detent: .medium, drag: 0), 382)
-        XCTAssertEqual(
-            withBand(compactBand).sheetHeight(detent: .medium, drag: 0),
-            withBand(fullBand).sheetHeight(detent: .medium, drag: 0),
-            "the card rests at the same height under either band"
-        )
-        XCTAssertEqual(
-            withBand(compactBand).visibleMapHeight(bandHeight: compactBand, detent: .medium, drag: 0)
-                - withBand(fullBand).visibleMapHeight(bandHeight: fullBand, detent: .medium, drag: 0),
-            fullBand - compactBand
-        )
+    private func map(under band: CGFloat, card: CGFloat? = nil) -> CGFloat {
+        sheet(under: band, card: card).visibleMapHeight(bandHeight: band, detent: .medium, drag: 0)
     }
 
-    /// The full band held an expanded card 12pt under itself, below the 0.78
-    /// cap; with the compact band the cap is what stops it.
-    func testACompactBandLetsAnExpandedCardRiseToItsCap() {
-        XCTAssertEqual(withBand(fullBand).expandedHeight, tabHeight - fullBand - 12)
-        XCTAssertEqual(withBand(compactBand).expandedHeight, tabHeight * 0.78, accuracy: 0.001)
+    func testTheOneRowBandHandsItsHeightToTheMap() {
+        XCTAssertEqual(map(under: threeRowBand), 316)
+        XCTAssertEqual(map(under: oneRowBand), 416)
+
+        XCTAssertEqual(map(under: threeRowBand, card: hostedRunCard), 284)
+        XCTAssertEqual(map(under: oneRowBand, card: hostedRunCard), 384)
+
+        for card in [nil, hostedRunCard] {
+            XCTAssertEqual(
+                sheet(under: oneRowBand, card: card).sheetHeight(detent: .medium, drag: 0),
+                sheet(under: threeRowBand, card: card).sheetHeight(detent: .medium, drag: 0),
+                "the sheet rests at the same height under either band"
+            )
+        }
+    }
+
+    /// The three-row band held an expanded sheet 12pt under itself, below the
+    /// 0.78 cap; under one row the cap is what stops it.
+    func testTheOneRowBandLetsAnExpandedSheetRiseToItsCap() {
+        XCTAssertEqual(sheet(under: threeRowBand).expandedHeight, tabHeight - threeRowBand - 12)
+        XCTAssertEqual(sheet(under: oneRowBand).expandedHeight, tabHeight * 0.78, accuracy: 0.001)
     }
 
     /// The visible map never goes negative, however tall the band or the sheet.
     func testTheVisibleMapIsNeverNegative() {
-        XCTAssertEqual(withBand(fullBand).visibleMapHeight(bandHeight: 900, detent: .expanded, drag: 0), 0)
+        XCTAssertEqual(sheet(under: threeRowBand).visibleMapHeight(bandHeight: 900, detent: .expanded, drag: 0), 0)
         XCTAssertEqual(geometry.visibleMapHeight(bandHeight: -10, detent: .collapsed, drag: 0), geometry.containerHeight)
     }
 

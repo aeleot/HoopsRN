@@ -289,10 +289,12 @@ for a ruleset it never evaluated is worse than no rules suite at all.
 
 There are **two** suites, in two languages, and neither can do the other's job.
 
-- **`hooprTests` — 810 test methods across 50 suites**, from a green
-  `-only-testing:hooprTests` run on 2026-10-09 (counted from the `.xcresult`,
-  not from the log: interleaved output from parallel clones mangles the odd
-  line, and a log grep read this suite as 462 once). All of them carry real
+- **`hooprTests` — 811 test methods across 48 suites**, from a green
+  `-only-testing:hooprTests` run on 2026-10-10, after the map's filter
+  suites (`CourtFilterTests`, `FilterChipLayoutTests`) went with the chips.
+  Counted from the `.xcresult`, not from the log: interleaved output from
+  parallel clones mangles the odd line, and a log grep read this suite as 462
+  once. All of them carry real
   coverage; there is no scaffold left in `hooprTests/`. The per-suite table
   below was last fully recounted on 2026-09-25 — only the rows touched since
   carry fresh numbers.
@@ -355,7 +357,6 @@ dependency at all, so there is nothing to stub — and reads the built app's
 | `CourtHeatTests` | 13 | `CourtHeat`'s rule — count to tier, clamped at both ends — the five stops it resolves to, the ramp's shape, and where the pin label flips from black to white. |
 | `SpacingTests` | 3 | That every `Spacing` role which claims to be a step *is* one on `Spacing.scale`, that the scale rises, and that the roles keep their relative order. Not the values — those would just restate `Spacing.swift`. |
 | `BrandMarkUsageTests` | 2 | That no view draws `hooprOrange` as a mark (`foregroundStyle`, `tint`, `stroke`), by reading `hoopr/Views/` — balanced-paren aware, so a wrapped ternary is caught — and that the scanner itself can fail. |
-| `CourtFilterTests` | 10 | The court filter predicates. |
 | `SeasonsAccessibilityTests` | 4 | Dynamic Type behind the Seasons tab: that a fixed-diameter pill keeps its glyph inside its own circle at every content size, and that the cap making that true is load-bearing. |
 | `LocationServiceTests` | 6 | The home-location anchor. |
 | `CourtTests` | 6 | `Court.displayName`. |
