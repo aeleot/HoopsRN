@@ -1,7 +1,7 @@
 {
-  "version": 1,
+  "version": 3,
   "generated": "2026-08-06",
-  "attribution": "Court data © OpenStreetMap contributors, ODbL 1.0",
+  "attribution": "Court data © OpenStreetMap contributors, ODbL 1.0. Municipal data: City of Durham; City of Raleigh Parks, Recreation and Cultural Resources (Open Raleigh Data Policy); Town of Chapel Hill; Wake County Government.",
   "cities": [
     "Apex",
     "Cary",
@@ -19,6 +19,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "47019f83-dcea-5241-a686-f28d9fbc4010",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -34,6 +35,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "24e0d097-2342-5e7f-ab6e-844990bd6c60",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -49,6 +51,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "026ef8f9-8799-5818-9460-2c9d65ab6cdd",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -64,6 +67,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "d91437ff-053c-501c-93e3-f998860f9cb7",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -79,6 +83,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "999a9ba8-964d-5ae1-aff1-51b34fe774e0",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -94,6 +99,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "207b1a30-dc34-51d8-b447-6e49a6966425",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -109,6 +115,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "89148dc7-0e56-595d-9055-562a64ff3d83",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -124,6 +131,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "02f30a39-cead-5bb2-9a7c-4e313e254419",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -139,6 +147,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "e5ae6d93-dfc3-50ff-8cc6-a5f853c507aa",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -154,12 +163,17 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "1057d48e-ae1b-5dfc-912b-ffec3aaedd25",
       "hoops": 2,
       "surface": "paved",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 892121523
+      "osmId": 892121523,
+      "provenance": {
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "7618ddf1-88a2-5148-a43a-db0dee60870b",
@@ -169,6 +183,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "99a82e1a-4c1b-52f7-ba94-ff9e007ab2f4",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -184,6 +199,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "f3974c1c-4176-58d3-840f-8c251f1307f5",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -196,15 +212,19 @@
       "name": "Apex Basketball Court #9",
       "latitude": 35.646643,
       "longitude": -78.830099,
-      "address": "Apex, NC",
+      "address": "301 Stinson Ave., Holly Springs, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "a7a4725d-ffb8-5b99-96cd-fafe6aec6cf6",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 734163207
+      "osmId": 734163207,
+      "provenance": {
+        "address": "wake_parks"
+      }
     },
     {
       "id": "5ededd71-4966-5565-9a3e-dfe5660ab3f3",
@@ -214,6 +234,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "76924ccf-309f-547b-a0fe-d17692eb3f4b",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -229,6 +250,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "76924ccf-309f-547b-a0fe-d17692eb3f4b",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -241,15 +263,20 @@
       "name": "Harold D Ritter Park Basketball Court",
       "latitude": 35.728747,
       "longitude": -78.781973,
-      "address": "Apex, NC",
+      "address": "301 Lochmere Drive West, Cary, NC",
       "access": "public",
-      "city": "Apex",
+      "city": "Cary",
+      "facilityId": "5689fccf-6a3f-5760-bc19-c6de795d08c2",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 202030520
+      "osmId": 202030520,
+      "provenance": {
+        "address": "wake_parks",
+        "city": "wake_parks"
+      }
     },
     {
       "id": "56f5aaef-32ed-5eaf-8e71-eb0100de3a8c",
@@ -259,12 +286,16 @@
       "address": "Apex, NC",
       "access": "school",
       "city": "Apex",
+      "facilityId": "4c7662ed-ba28-51f6-b363-7df3a953699c",
       "hoops": null,
       "surface": "concrete",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 681701030
+      "osmId": 681701030,
+      "provenance": {
+        "surface": "osm"
+      }
     },
     {
       "id": "c78e388a-c815-58f6-9579-858d741dcbbf",
@@ -274,6 +305,7 @@
       "address": "Apex, NC",
       "access": "school",
       "city": "Apex",
+      "facilityId": "e8201885-4889-505b-8a8d-9e721939d80c",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -289,6 +321,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "57737540-b792-5c90-886d-dc11614f015a",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -301,15 +334,19 @@
       "name": "Seymour Athletic Fields Basketball Court",
       "latitude": 35.719908,
       "longitude": -78.903143,
-      "address": "Apex, NC",
+      "address": "2500 Evans Road, 2600 Evan Road",
       "access": "public",
       "city": "Apex",
+      "facilityId": "dc2dddf7-3f77-5d97-917e-9a34e665ee3c",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 694546343
+      "osmId": 694546343,
+      "provenance": {
+        "address": "wake_parks"
+      }
     },
     {
       "id": "97a0266a-10c1-5d62-89ad-4f9614783dfa",
@@ -319,6 +356,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "bd30beda-2d8f-504e-a8da-2364c0a8cc5f",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -334,6 +372,7 @@
       "address": "Apex, NC",
       "access": "public",
       "city": "Apex",
+      "facilityId": "fb201053-0c4d-5d50-8060-02dba8f23f2c",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -349,12 +388,17 @@
       "address": "Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "8e49146a-f9d6-56b0-8d69-348c01ff9874",
       "hoops": 2,
       "surface": "concrete",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 827160469
+      "osmId": 827160469,
+      "provenance": {
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "50a6eca3-bf09-5c37-9290-a1701df14a39",
@@ -364,6 +408,7 @@
       "address": "Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "fc27dde5-da27-51dc-82a2-dd4468809ed7",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -379,6 +424,7 @@
       "address": "Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "4504c966-c677-5ba7-ba0e-c405ae0ed8e9",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -388,48 +434,68 @@
     },
     {
       "id": "eb6a5335-b9f9-5669-89dc-c6e10cf2466e",
-      "name": "Cary Basketball Court #2",
+      "name": "Apex Basketball Court #14",
       "latitude": 35.754467,
       "longitude": -78.822509,
-      "address": "Cary, NC",
+      "address": "2200 Laura Duncan Road",
       "access": "public",
-      "city": "Cary",
+      "city": "Apex",
+      "facilityId": "4a903fe2-39e3-5684-bd21-a547060395a6",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 117935513
+      "osmId": 117935513,
+      "provenance": {
+        "address": "wake_parks",
+        "city": "wake_parks",
+        "name": "derived-from-city"
+      }
     },
     {
       "id": "a03eda13-447e-5fc9-9d08-48164f35fc11",
-      "name": "Cary Basketball Court #3",
+      "name": "North Cary Park Basketball Court #3",
       "latitude": 35.821557,
       "longitude": -78.788853,
-      "address": "Cary, NC",
+      "address": "1100 Norwell Boulevard, Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "cc7a7154-0805-537b-bad6-9a300ac288c3",
       "hoops": null,
       "surface": "concrete",
       "isLit": true,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 229030196
+      "osmId": 229030196,
+      "provenance": {
+        "address": "wake_parks",
+        "name": "wake_parks",
+        "surface": "osm",
+        "isLit": "osm"
+      }
     },
     {
       "id": "e5b3b46f-1c11-5e43-8f0d-c181ef31be7f",
-      "name": "Cary Basketball Court #4",
+      "name": "North Cary Park Basketball Court #4",
       "latitude": 35.821372,
       "longitude": -78.788883,
-      "address": "Cary, NC",
+      "address": "1100 Norwell Boulevard, Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "cc7a7154-0805-537b-bad6-9a300ac288c3",
       "hoops": null,
       "surface": "concrete",
       "isLit": true,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 229030197
+      "osmId": 229030197,
+      "provenance": {
+        "address": "wake_parks",
+        "name": "wake_parks",
+        "surface": "osm",
+        "isLit": "osm"
+      }
     },
     {
       "id": "dc436f52-ba37-51c1-9e7c-61a16048aa1a",
@@ -439,12 +505,16 @@
       "address": "Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "2f85018c-a82b-59ff-94a0-acc356fb0482",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 434469792
+      "osmId": 434469792,
+      "provenance": {
+        "surface": "osm"
+      }
     },
     {
       "id": "b0cd713c-728f-5171-8165-8ec9ebfd5629",
@@ -454,12 +524,16 @@
       "address": "Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "2f85018c-a82b-59ff-94a0-acc356fb0482",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 434469793
+      "osmId": 434469793,
+      "provenance": {
+        "surface": "osm"
+      }
     },
     {
       "id": "ba56b623-132b-5250-86f0-d7ceea55df4e",
@@ -469,6 +543,7 @@
       "address": "Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "2a0b850e-548a-53c3-b38e-fd700092b97b",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -484,6 +559,7 @@
       "address": "Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "1e62d9db-10d6-5f4f-a8ec-3fadae1a3389",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -499,6 +575,7 @@
       "address": "Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "c84dd144-6d76-5870-aa7b-28ef82da9f02",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -511,30 +588,41 @@
       "name": "Davis Drive Elementary School Basketball Court",
       "latitude": 35.780397,
       "longitude": -78.851167,
-      "address": "Cary, NC",
+      "address": "2101 Davis Drive, Cary, NC",
       "access": "school",
       "city": "Cary",
+      "facilityId": "c0bc84e3-7d94-55a4-ae73-e4cb9ec9e464",
       "hoops": 2,
       "surface": "concrete",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 827090308
+      "osmId": 827090308,
+      "provenance": {
+        "address": "wake_parks",
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "13dc7993-c6ae-5fa1-9577-2eeb6a26fadb",
       "name": "Davis Drive Park Basketball Court",
       "latitude": 35.773124,
       "longitude": -78.845501,
-      "address": "Cary, NC",
+      "address": "1610 Davis Drive, Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "069d4568-2a74-50cd-83ab-50f3ad38eb63",
       "hoops": null,
       "surface": "concrete",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 129427057
+      "osmId": 129427057,
+      "provenance": {
+        "address": "wake_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "0e1f3dd9-1a51-5b43-9f0d-4eedcdf95b36",
@@ -544,6 +632,7 @@
       "address": "Cary, NC",
       "access": "school",
       "city": "Cary",
+      "facilityId": "5f3e96e7-d83f-5e47-909c-533501792c66",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -559,6 +648,7 @@
       "address": "Cary, NC",
       "access": "school",
       "city": "Cary",
+      "facilityId": "3e2930f7-2b11-59ac-9356-fe131d69d595",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -574,6 +664,7 @@
       "address": "Cary, NC",
       "access": "school",
       "city": "Cary",
+      "facilityId": "507b61d8-ca5b-5aa7-8c9a-ab266813947e",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -586,105 +677,144 @@
       "name": "Lexie Lane Park Basketball Court",
       "latitude": 35.78898,
       "longitude": -78.79083,
-      "address": "Cary, NC",
+      "address": "301 N Dixon Street, Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "5e5e1182-9089-58f3-ad52-3f5266f4b165",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 126670636
+      "osmId": 126670636,
+      "provenance": {
+        "address": "wake_parks"
+      }
     },
     {
       "id": "9f082d47-9512-54f1-99de-78296b788513",
       "name": "Macdonald Woods Park Basketball Court",
       "latitude": 35.75425,
       "longitude": -78.76687,
-      "address": "Cary, NC",
+      "address": "1601 Seabrook Avenue, Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "332ea23c-fe92-5b80-afb1-e0454a68ce3d",
       "hoops": null,
       "surface": "concrete",
       "isLit": false,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 728234113
+      "osmId": 728234113,
+      "provenance": {
+        "address": "wake_parks",
+        "surface": "osm",
+        "isLit": "osm"
+      }
     },
     {
       "id": "f8db2165-204a-56ed-84d3-b406e4961409",
       "name": "Playground Basketball Court",
       "latitude": 35.75479,
       "longitude": -78.822559,
-      "address": "Cary, NC",
+      "address": "2200 Laura Duncan Road",
       "access": "public",
-      "city": "Cary",
+      "city": "Apex",
+      "facilityId": "4a903fe2-39e3-5684-bd21-a547060395a6",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 117935518
+      "osmId": 117935518,
+      "provenance": {
+        "address": "wake_parks",
+        "city": "wake_parks"
+      }
     },
     {
       "id": "9c36c0b3-593c-5ea6-a74c-70a95853f673",
       "name": "Powell Drive Park Basketball Court",
       "latitude": 35.779004,
       "longitude": -78.7135,
-      "address": "Cary, NC",
+      "address": "740 Powell Dr",
       "access": "public",
-      "city": "Cary",
+      "city": "Raleigh",
+      "facilityId": "22972c09-a773-5923-b913-c823ff8f81fb",
       "hoops": null,
-      "surface": null,
-      "isLit": null,
-      "isCovered": null,
+      "surface": "asphalt",
+      "isLit": true,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 821984541
+      "osmId": 821984541,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts",
+        "surface": "raleigh_courts",
+        "city": "raleigh_courts"
+      }
     },
     {
       "id": "448580df-c35e-51ce-b466-755cd9ca1b22",
       "name": "R. S. Dunham Park Basketball Court",
       "latitude": 35.777914,
       "longitude": -78.770535,
-      "address": "Cary, NC",
+      "address": "519 Walnut Street, Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "f640d520-3e7d-57fa-8c5a-c4ba01892579",
       "hoops": 4,
       "surface": "paved",
       "isLit": false,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 1219639463
+      "osmId": 1219639463,
+      "provenance": {
+        "address": "wake_parks",
+        "hoops": "osm",
+        "surface": "osm",
+        "isLit": "osm"
+      }
     },
     {
       "id": "749f6323-419d-5175-9a37-56fc0e6343b0",
       "name": "Robert V. Godbold Park Basketball Court",
       "latitude": 35.800582,
       "longitude": -78.791273,
-      "address": "Cary, NC",
+      "address": "2050 NW Maynard Road, Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "21543db8-30ed-59f7-b686-fe521e7edaae",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 1221435896
+      "osmId": 1221435896,
+      "provenance": {
+        "address": "wake_parks"
+      }
     },
     {
       "id": "15712451-dad8-5e31-9f81-c3241525b933",
       "name": "Tennis Court Basketball Court",
       "latitude": 35.761559,
       "longitude": -78.812349,
-      "address": "Cary, NC",
+      "address": "1414 Tarbert Drive, Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "605dfb0e-10d8-5cb0-800a-5c1f1c7a930d",
       "hoops": null,
       "surface": "concrete",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 584799407
+      "osmId": 584799407,
+      "provenance": {
+        "address": "wake_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "4a3b5692-623a-5b5a-9a72-9f52282f9b7b",
@@ -694,12 +824,16 @@
       "address": "Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "39c6ef51-7f42-5666-ba42-ae8136d07432",
       "hoops": null,
       "surface": null,
       "isLit": true,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 108649910
+      "osmId": 108649910,
+      "provenance": {
+        "isLit": "osm"
+      }
     },
     {
       "id": "8e632300-ad99-512b-b21b-c03c0b4dea67",
@@ -709,27 +843,37 @@
       "address": "Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "39c6ef51-7f42-5666-ba42-ae8136d07432",
       "hoops": null,
       "surface": null,
       "isLit": true,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 108649927
+      "osmId": 108649927,
+      "provenance": {
+        "isLit": "osm"
+      }
     },
     {
       "id": "d3195478-0192-589a-b374-27e408891e44",
       "name": "Urban Park Basketball Court",
       "latitude": 35.788264,
       "longitude": -78.771623,
-      "address": "Cary, NC",
+      "address": "414 E Chatham Street, Cary, NC",
       "access": "public",
       "city": "Cary",
+      "facilityId": "5c84111e-7957-5d6e-a916-a00df5e856cf",
       "hoops": 2,
       "surface": "concrete",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 1139078042
+      "osmId": 1139078042,
+      "provenance": {
+        "address": "wake_parks",
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "eafebe44-5cab-5aea-9dc9-e6930f36e3b1",
@@ -739,6 +883,7 @@
       "address": "Chapel Hill, NC",
       "access": "school",
       "city": "Chapel Hill",
+      "facilityId": "edbc6fb2-2e39-5649-a825-c27862653bc8",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -754,12 +899,16 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "92278625-7ec2-5a99-b856-92333997e753",
       "hoops": 4,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 257759537
+      "osmId": 257759537,
+      "provenance": {
+        "hoops": "osm"
+      }
     },
     {
       "id": "aed62ecf-fb69-57b6-a09b-5816d82d32fb",
@@ -769,12 +918,17 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "260060fa-90f6-510c-8dfa-7e8ce709787b",
       "hoops": 1,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 1357851406
+      "osmId": 1357851406,
+      "provenance": {
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "54c1486a-8c4c-5506-8afb-5e3fde5c90fd",
@@ -784,6 +938,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "09fb4606-c9bc-580a-acf0-664e11dd3747",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -799,12 +954,17 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "5c64dd2a-488f-59cc-a346-c7fd59c4ba2e",
       "hoops": null,
       "surface": "concrete",
       "isLit": true,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 111520141
+      "osmId": 111520141,
+      "provenance": {
+        "surface": "osm",
+        "isLit": "osm"
+      }
     },
     {
       "id": "0e499ae2-12b7-50c7-8353-828d982c58c8",
@@ -814,12 +974,17 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "5c64dd2a-488f-59cc-a346-c7fd59c4ba2e",
       "hoops": null,
       "surface": "concrete",
       "isLit": true,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 111520156
+      "osmId": 111520156,
+      "provenance": {
+        "surface": "osm",
+        "isLit": "osm"
+      }
     },
     {
       "id": "d18e700f-c037-5cf7-91f9-5750d4c56bfe",
@@ -829,6 +994,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "4d1ff4a5-02b1-5ce1-855f-65867f571726",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -838,33 +1004,45 @@
     },
     {
       "id": "fcaeca02-e247-5eaf-8b7a-a3ba28432aed",
-      "name": "Chapel Hill Basketball Court #15",
+      "name": "Scroggs School Basketball Court #15",
       "latitude": 35.87777,
       "longitude": -79.066818,
-      "address": "Chapel Hill, NC",
+      "address": "501 Kildaire Road, Chapel Hill NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "f6478f7b-afd5-5ee7-a6eb-0ec0f7dbd2d9",
       "hoops": null,
       "surface": "concrete",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 211456246
+      "osmId": 211456246,
+      "provenance": {
+        "address": "chapelhill_facilities",
+        "name": "chapelhill_facilities",
+        "surface": "osm"
+      }
     },
     {
       "id": "db629e0b-afc2-57d9-8e08-8a028c02adc8",
-      "name": "Chapel Hill Basketball Court #16",
+      "name": "Scroggs School Basketball Court #16",
       "latitude": 35.877841,
       "longitude": -79.066607,
-      "address": "Chapel Hill, NC",
+      "address": "501 Kildaire Road, Chapel Hill NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "f6478f7b-afd5-5ee7-a6eb-0ec0f7dbd2d9",
       "hoops": null,
       "surface": "concrete",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 211456248
+      "osmId": 211456248,
+      "provenance": {
+        "address": "chapelhill_facilities",
+        "name": "chapelhill_facilities",
+        "surface": "osm"
+      }
     },
     {
       "id": "772b1b57-de32-56d6-8b0a-8aad106276cc",
@@ -874,6 +1052,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "4d1ff4a5-02b1-5ce1-855f-65867f571726",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -889,6 +1068,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "1bb8f194-f556-59ba-8a1f-19837b7a81c5",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -904,6 +1084,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "41d15ebc-3c24-5c50-83c6-2772de05dff3",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -916,15 +1097,22 @@
       "name": "Chapel Hill Basketball Court #2",
       "latitude": 35.955061,
       "longitude": -79.063456,
-      "address": "Chapel Hill, NC",
+      "address": "100 Northern Park Drive, Chapel Hill NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "f8cd0661-c8d3-52ff-b07f-47ee5cbcf0f7",
       "hoops": 2,
       "surface": "concrete",
       "isLit": true,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 260840583
+      "osmId": 260840583,
+      "provenance": {
+        "address": "chapelhill_facilities",
+        "hoops": "osm",
+        "surface": "osm",
+        "isLit": "osm"
+      }
     },
     {
       "id": "833f9d5b-9220-5138-9557-fb50357bd228",
@@ -934,6 +1122,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "9653db3c-56ce-5798-87c4-903760eeef02",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -949,6 +1138,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "cd54c7fb-0597-565f-93bb-e5dba8f484c3",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -964,6 +1154,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "45dcfc50-bfca-5739-8092-ad3e6795d304",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -979,6 +1170,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "3d232923-0125-57e0-8cc2-2cf8eb7a1d4c",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -994,12 +1186,16 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "8c366aef-bbd8-57c8-b681-e70e189032fd",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 468493715
+      "osmId": 468493715,
+      "provenance": {
+        "surface": "osm"
+      }
     },
     {
       "id": "7b5f33bd-9728-508e-a223-938e8699565c",
@@ -1009,12 +1205,16 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "e02a0751-5033-5b7a-8a70-03349eb40b2b",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 664936809
+      "osmId": 664936809,
+      "provenance": {
+        "surface": "osm"
+      }
     },
     {
       "id": "bcdd446d-ec92-53c9-8079-4fa3f523e3f1",
@@ -1024,6 +1224,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "af547554-621c-52f3-b6cf-292ba1a1d41d",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1039,6 +1240,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "0236a13d-f084-525b-b338-664954d36999",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1054,6 +1256,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "b1b4ff89-d078-5c28-b4b4-f9c9b68b4702",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1069,6 +1272,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "d969c50d-4a7d-5e06-ae9b-fca6ef37ab99",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1084,12 +1288,16 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "1fa947a7-9452-52dd-84c2-e38ca7ef0585",
       "hoops": 2,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 430254291
+      "osmId": 430254291,
+      "provenance": {
+        "hoops": "osm"
+      }
     },
     {
       "id": "05fc5b46-cc97-5780-b383-e69cc1e84142",
@@ -1099,6 +1307,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "f13c45ef-4b5a-5b4a-ab5a-e577c053a24b",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1114,6 +1323,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "b419c7e3-8c99-5bdb-9f97-b84ee806592d",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1129,6 +1339,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "c4b6eda2-e2e2-5dc8-aedb-e5aad3218588",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1144,12 +1355,17 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "d435b099-30ab-5309-aa58-c1b6e8eae9da",
       "hoops": 2,
       "surface": "tartan",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 537852268
+      "osmId": 537852268,
+      "provenance": {
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "8bddbd6e-148d-5a4c-9910-4d5f75ad15af",
@@ -1159,12 +1375,17 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "70cfbfdb-6965-556c-8095-e301b7a344a3",
       "hoops": 2,
       "surface": null,
       "isLit": false,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 830168944
+      "osmId": 830168944,
+      "provenance": {
+        "hoops": "osm",
+        "isLit": "osm"
+      }
     },
     {
       "id": "01116932-8e50-5acd-a578-433ddbb41530",
@@ -1174,12 +1395,17 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "c5e2090a-d315-5fcb-bda0-4cf6b24cb809",
       "hoops": 2,
       "surface": "plastic_tile",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 1207272971
+      "osmId": 1207272971,
+      "provenance": {
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "67e54cd8-4e84-5a0d-a07b-4e7a1b2c6179",
@@ -1189,12 +1415,17 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "9c58a15c-bef0-58db-8aa8-fa958b7eb632",
       "hoops": 1,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 273400876
+      "osmId": 273400876,
+      "provenance": {
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "f4f3071c-175d-50f6-934c-7eaa14333f51",
@@ -1204,12 +1435,16 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "07d8e706-7a53-5a3c-9ff9-498400063ee5",
       "hoops": 1,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 277722832
+      "osmId": 277722832,
+      "provenance": {
+        "hoops": "osm"
+      }
     },
     {
       "id": "95c7cc07-703e-5f04-b546-6899d3cc8655",
@@ -1219,57 +1454,79 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "3a481335-eccf-55bd-aa74-cade7307c613",
       "hoops": 1,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 954094151
+      "osmId": 954094151,
+      "provenance": {
+        "hoops": "osm"
+      }
     },
     {
       "id": "2d455b53-0d31-5617-9ed4-9efcf1d02158",
       "name": "Chapel Hill Road Park Basketball Court",
       "latitude": 35.947073,
       "longitude": -78.978383,
-      "address": "Chapel Hill, NC",
+      "address": "3751 SW Durham Dr",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "6378d0ea-f8b8-5ca8-a4bf-87594289588f",
       "hoops": null,
       "surface": "concrete",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 133109972
+      "osmId": 133109972,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "209cdddc-c310-51a2-bd91-6ca14f52cfb7",
       "name": "Community Center Park Basketball Court",
       "latitude": 35.926147,
       "longitude": -79.033247,
-      "address": "Chapel Hill, NC",
+      "address": "200 Plant Road, Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "e61fc001-a1d5-5c3e-bd3f-b406a5135cde",
       "hoops": 6,
       "surface": "asphalt",
       "isLit": false,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 44731672
+      "osmId": 44731672,
+      "provenance": {
+        "address": "chapelhill_facilities",
+        "hoops": "osm",
+        "surface": "osm",
+        "isLit": "osm"
+      }
     },
     {
       "id": "58694bd9-caee-513d-b210-aa231020a3af",
       "name": "Exchange Pool Basketball Court",
       "latitude": 35.921652,
       "longitude": -79.063264,
-      "address": "Chapel Hill, NC",
+      "address": "399 Umstead Drive, Chapel Hill NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "71993cf3-2701-5def-80a4-020e060f9ab3",
       "hoops": 2,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 538294527
+      "osmId": 538294527,
+      "provenance": {
+        "address": "chapelhill_facilities",
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "23b50e7e-b4fc-5319-9456-86675543bf67",
@@ -1279,6 +1536,7 @@
       "address": "Chapel Hill, NC",
       "access": "school",
       "city": "Chapel Hill",
+      "facilityId": "e67462ec-1362-573a-96d9-4e296e1b1d40",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1291,15 +1549,22 @@
       "name": "Hargraves Park Basketball Court",
       "latitude": 35.913175,
       "longitude": -79.063845,
-      "address": "Chapel Hill, NC",
+      "address": "216 N Roberson St, Chapel Hill NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "56bde7c1-5dc3-5d96-a2d9-8b45cbfe756e",
       "hoops": 2,
       "surface": "concrete",
       "isLit": true,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 277470974
+      "osmId": 277470974,
+      "provenance": {
+        "address": "chapelhill_facilities",
+        "hoops": "osm",
+        "surface": "osm",
+        "isLit": "osm"
+      }
     },
     {
       "id": "49413466-bcbd-55e6-955b-979dbfebf2dc",
@@ -1309,12 +1574,17 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "f40a5f66-8bbd-5173-80e8-78def58aafcc",
       "hoops": 2,
       "surface": "concrete",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 1219652105
+      "osmId": 1219652105,
+      "provenance": {
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "03153edc-6c1c-5eac-ba41-b9bea3370ef4",
@@ -1324,6 +1594,7 @@
       "address": "Chapel Hill, NC",
       "access": "school",
       "city": "Chapel Hill",
+      "facilityId": "9d72c25e-6337-5d54-b501-29093040ea6b",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1336,15 +1607,22 @@
       "name": "North Forest Hills Park Basketball Court",
       "latitude": 35.951891,
       "longitude": -79.050242,
-      "address": "Chapel Hill, NC",
+      "address": "121 Collums Road, Chapel Hill NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "7c69f91a-631c-574b-b309-51cb3d8590ff",
       "hoops": 1,
       "surface": "asphalt",
       "isLit": false,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 508295040
+      "osmId": 508295040,
+      "provenance": {
+        "address": "chapelhill_facilities",
+        "hoops": "osm",
+        "surface": "osm",
+        "isLit": "osm"
+      }
     },
     {
       "id": "e93978da-f358-5bd1-9d87-0ccccacc4e6b",
@@ -1354,12 +1632,17 @@
       "address": "Chapel Hill, NC",
       "access": "school",
       "city": "Chapel Hill",
+      "facilityId": "17405b3d-e521-5de5-aeae-f4824ed959db",
       "hoops": 2,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 531574795
+      "osmId": 531574795,
+      "provenance": {
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "0a5f3a02-afe3-5fa2-abff-1e4de90d5220",
@@ -1369,6 +1652,7 @@
       "address": "Chapel Hill, NC",
       "access": "public",
       "city": "Chapel Hill",
+      "facilityId": "0aa1c829-12f1-50c6-bfbd-eb1de2caead1",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1381,150 +1665,196 @@
       "name": "Bethesda Park Basketball Court",
       "latitude": 35.943956,
       "longitude": -78.846438,
-      "address": "Durham, NC",
+      "address": "1816 Stage Rd",
       "access": "public",
       "city": "Durham",
+      "facilityId": "01c4e620-7f78-5f8f-8256-3d87e4fd6a9d",
       "hoops": 2,
       "surface": "concrete",
       "isLit": true,
       "isCovered": true,
       "osmType": "way",
-      "osmId": 132704611
+      "osmId": 132704611,
+      "provenance": {
+        "address": "durham_parks",
+        "hoops": "osm",
+        "surface": "osm",
+        "isLit": "osm",
+        "isCovered": "osm"
+      }
     },
     {
       "id": "fe7755ba-b82c-533c-a2ca-e1b645c968bf",
       "name": "Birchwood Park Basketball Court",
       "latitude": 35.980751,
       "longitude": -78.84182,
-      "address": "Durham, NC",
+      "address": "3105 Hursey St",
       "access": "public",
       "city": "Durham",
+      "facilityId": "5b004088-41fb-5359-953f-2b151b7325a1",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 105593959
+      "osmId": 105593959,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "c2d0a080-eaad-5dbb-a3b1-3dca958fcb5d",
       "name": "Burton Park Basketball Court #1",
       "latitude": 35.977078,
       "longitude": -78.888396,
-      "address": "Durham, NC",
+      "address": "1501 Sima Ave",
       "access": "public",
       "city": "Durham",
+      "facilityId": "e45612fc-dcd2-506c-9278-c9ef8b8154ed",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 103747385
+      "osmId": 103747385,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "0e313ca1-01cd-5990-b83b-a09f865e8f83",
       "name": "Burton Park Basketball Court #2",
       "latitude": 35.976069,
       "longitude": -78.889955,
-      "address": "Durham, NC",
+      "address": "1501 Sima Ave",
       "access": "public",
       "city": "Durham",
+      "facilityId": "cc0f7866-2cc9-540e-9a4e-d6f976bad85c",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 105612612
+      "osmId": 105612612,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "baca0f51-5d9b-5fba-abb6-dd350960d579",
       "name": "C R Wood Park Basketball Court #1",
       "latitude": 35.972102,
       "longitude": -78.861854,
-      "address": "Durham, NC",
+      "address": "417 Commonwealth St",
       "access": "public",
       "city": "Durham",
+      "facilityId": "30841323-1d5c-5dae-aa11-b01431aa1161",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 105612616
+      "osmId": 105612616,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "ef1f2307-8a30-5341-8124-1e739d92e6f1",
       "name": "C R Wood Park Basketball Court #2",
       "latitude": 35.971915,
       "longitude": -78.861923,
-      "address": "Durham, NC",
+      "address": "417 Commonwealth St",
       "access": "public",
       "city": "Durham",
+      "facilityId": "30841323-1d5c-5dae-aa11-b01431aa1161",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 707311279
+      "osmId": 707311279,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "ee6d3644-f36c-5822-9875-5c5397dd4e0d",
       "name": "Carroll Street Park Basketball Court",
       "latitude": 35.993154,
       "longitude": -78.915402,
-      "address": "Durham, NC",
+      "address": "815 Carroll St",
       "access": "public",
       "city": "Durham",
+      "facilityId": "ea9969b4-5c96-5939-94c8-26c0822fabb6",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 105646662
+      "osmId": 105646662,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "f2ad861a-b4d4-5883-b825-8cfaab15e6f7",
       "name": "Cook Road Park Basketball Court",
       "latitude": 35.952918,
       "longitude": -78.912965,
-      "address": "Durham, NC",
+      "address": "602 Cook Rd",
       "access": "public",
       "city": "Durham",
+      "facilityId": "798237a8-f798-5278-896c-e4d9171d770a",
       "hoops": null,
       "surface": "paved",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 105672415
+      "osmId": 105672415,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "15460a4f-1ab0-53e1-ad59-a1b4dca73ec6",
       "name": "Cornwallis Road Park Basketball Court",
       "latitude": 35.977581,
       "longitude": -78.952604,
-      "address": "Durham, NC",
+      "address": "2830 Wade Rd",
       "access": "public",
       "city": "Durham",
+      "facilityId": "bdb061e3-65e6-5eb9-93d0-535d96f5abf5",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 105745504
+      "osmId": 105745504,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "8464321f-e2da-5338-b8dd-c4bc55431aec",
       "name": "Crest Street Park Basketball Court",
       "latitude": 36.013051,
       "longitude": -78.937327,
-      "address": "Durham, NC",
+      "address": "2503 Crest St",
       "access": "public",
       "city": "Durham",
+      "facilityId": "a93dd4eb-209d-5da8-b82c-0004ef3af0d7",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 105745516
+      "osmId": 105745516,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "67499824-f692-5a9c-8fab-536e66d1d6da",
@@ -1534,6 +1864,7 @@
       "address": "Durham, NC",
       "access": "school",
       "city": "Durham",
+      "facilityId": "759b1015-63f5-5acd-81e1-cea0e84f6a41",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1549,12 +1880,16 @@
       "address": "Durham, NC",
       "access": "public",
       "city": "Durham",
+      "facilityId": "9c888062-3bf5-513c-8af6-2201d602f96d",
       "hoops": 2,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 47280371
+      "osmId": 47280371,
+      "provenance": {
+        "hoops": "osm"
+      }
     },
     {
       "id": "f6a5cc5b-95ef-5dd0-9273-548863a6c580",
@@ -1564,6 +1899,7 @@
       "address": "Durham, NC",
       "access": "public",
       "city": "Durham",
+      "facilityId": "c08363a3-0e45-5ca2-9642-f919e785630e",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1579,6 +1915,7 @@
       "address": "Durham, NC",
       "access": "public",
       "city": "Durham",
+      "facilityId": "f37a1fc7-0ba0-5762-9cb6-6c3b270c59a0",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1594,6 +1931,7 @@
       "address": "Durham, NC",
       "access": "public",
       "city": "Durham",
+      "facilityId": "678c26a3-a95b-5478-bb06-d7838aea487a",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1609,12 +1947,16 @@
       "address": "Durham, NC",
       "access": "public",
       "city": "Durham",
+      "facilityId": "3bcd0f79-e0ea-5715-a0bf-c9f2e2ce9a71",
       "hoops": null,
       "surface": "paved",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 580559594
+      "osmId": 580559594,
+      "provenance": {
+        "surface": "osm"
+      }
     },
     {
       "id": "254c1aa6-d791-53c8-ae6d-0c267ad65c8a",
@@ -1624,6 +1966,7 @@
       "address": "Durham, NC",
       "access": "public",
       "city": "Durham",
+      "facilityId": "200c7a5b-41ee-5ffe-a961-c2f61ececb92",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1639,6 +1982,7 @@
       "address": "Durham, NC",
       "access": "public",
       "city": "Durham",
+      "facilityId": "200c7a5b-41ee-5ffe-a961-c2f61ececb92",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1654,6 +1998,7 @@
       "address": "Durham, NC",
       "access": "public",
       "city": "Durham",
+      "facilityId": "4ec08627-af37-5683-a055-9d9dcbb7b70b",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1669,6 +2014,7 @@
       "address": "Durham, NC",
       "access": "public",
       "city": "Durham",
+      "facilityId": "050a2c01-a37f-5c11-9922-134b5e463abb",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1681,45 +2027,57 @@
       "name": "East Durham Park Basketball Court",
       "latitude": 35.985751,
       "longitude": -78.870308,
-      "address": "Durham, NC",
+      "address": "2500 E Main St",
       "access": "public",
       "city": "Durham",
+      "facilityId": "d8e06b1b-a40d-5cb8-8d55-1cff501f7639",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 105860960
+      "osmId": 105860960,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "67404f26-61ae-5083-9d1f-11c097e961d6",
       "name": "East End Park Basketball Court",
       "latitude": 35.997841,
       "longitude": -78.887233,
-      "address": "Durham, NC",
+      "address": "1200 N Alston Ave",
       "access": "public",
       "city": "Durham",
+      "facilityId": "0e9ad1d2-d072-5fbc-840b-e7ae836cd89e",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 82690258
+      "osmId": 82690258,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "4ab4b1fb-bab0-5af3-95b7-e7dc856c27f5",
       "name": "Elmira Park Basketball Court",
       "latitude": 35.963232,
       "longitude": -78.904637,
-      "address": "Durham, NC",
+      "address": "540 Elmira Ave",
       "access": "public",
       "city": "Durham",
+      "facilityId": "8af600fd-89a0-588f-83fd-57d6a4894e35",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 105860964
+      "osmId": 105860964,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "d30c88ce-57d3-52e4-9a68-06e6d3d9923a",
@@ -1729,27 +2087,37 @@
       "address": "Durham, NC",
       "access": "public",
       "city": "Durham",
+      "facilityId": "45014e55-99a6-52fd-ae16-b5d93a086abd",
       "hoops": 1,
       "surface": "asphalt",
       "isLit": false,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 1287108653
+      "osmId": 1287108653,
+      "provenance": {
+        "hoops": "osm",
+        "surface": "osm",
+        "isLit": "osm"
+      }
     },
     {
       "id": "805d4cd6-16d2-5e98-88af-f665f76a74a7",
       "name": "Hillside Park Basketball Court",
       "latitude": 35.980224,
       "longitude": -78.902705,
-      "address": "Durham, NC",
+      "address": "1301 S Roxboro St",
       "access": "public",
       "city": "Durham",
+      "facilityId": "13905ac2-b250-59cd-ae89-a837a86f7ac5",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106297069
+      "osmId": 106297069,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "aed18bee-9ecd-5f28-9454-7e5240389e0c",
@@ -1759,6 +2127,7 @@
       "address": "Durham, NC",
       "access": "public",
       "city": "Durham",
+      "facilityId": "de907fc3-421e-56e0-a52b-e2624009d315",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1771,15 +2140,20 @@
       "name": "Lakeview Park Basketball Court",
       "latitude": 36.039313,
       "longitude": -78.877153,
-      "address": "Durham, NC",
+      "address": "3500 Dearborn Dr",
       "access": "public",
       "city": "Durham",
+      "facilityId": "08ae1fd5-0a01-5393-a24f-b9e7df333e2c",
       "hoops": null,
       "surface": "concrete",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106380679
+      "osmId": 106380679,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "adb7f2dd-c8a3-5a02-afce-5ccc6645aedd",
@@ -1789,6 +2163,7 @@
       "address": "Durham, NC",
       "access": "school",
       "city": "Durham",
+      "facilityId": "f733e689-1157-570e-aba9-d951f4339c5c",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1801,45 +2176,57 @@
       "name": "Long Meadow Park Basketball Court #1",
       "latitude": 35.994062,
       "longitude": -78.884689,
-      "address": "Durham, NC",
+      "address": "917 Liberty St",
       "access": "public",
       "city": "Durham",
+      "facilityId": "3244a94d-70be-5998-a4a9-68292b1f126d",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106396595
+      "osmId": 106396595,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "5fa6173b-73a1-5228-b537-e905443bd8c7",
       "name": "Long Meadow Park Basketball Court #2",
       "latitude": 35.994063,
       "longitude": -78.884862,
-      "address": "Durham, NC",
+      "address": "917 Liberty St",
       "access": "public",
       "city": "Durham",
+      "facilityId": "3244a94d-70be-5998-a4a9-68292b1f126d",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106396609
+      "osmId": 106396609,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "bf25eb10-c509-5948-b365-9499d81102a3",
       "name": "Long Meadow Park Basketball Court #3",
       "latitude": 35.994064,
       "longitude": -78.885033,
-      "address": "Durham, NC",
+      "address": "917 Liberty St",
       "access": "public",
       "city": "Durham",
+      "facilityId": "3244a94d-70be-5998-a4a9-68292b1f126d",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106396624
+      "osmId": 106396624,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "58b47fc4-42ec-5462-9085-dd428aab0e4e",
@@ -1849,6 +2236,7 @@
       "address": "Durham, NC",
       "access": "school",
       "city": "Durham",
+      "facilityId": "60b4a062-47ad-5d29-a38c-6e82dadace19",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -1861,75 +2249,99 @@
       "name": "Lyon Park Basketball Court",
       "latitude": 35.987638,
       "longitude": -78.918314,
-      "address": "Durham, NC",
+      "address": "1200 W Lakewood Ave",
       "access": "public",
       "city": "Durham",
+      "facilityId": "23f533f6-d87e-59b4-b40c-8d798cbbd235",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106435767
+      "osmId": 106435767,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "6930c523-3639-564e-94fd-82863443829a",
       "name": "Morreene Road Park Basketball Court",
       "latitude": 36.006779,
       "longitude": -78.955216,
-      "address": "Durham, NC",
+      "address": "1102 Morreene Rd",
       "access": "public",
       "city": "Durham",
+      "facilityId": "19b5236c-6948-5772-b4a0-0f4ee6068347",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106435710
+      "osmId": 106435710,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "f62108ff-66d0-5f81-8d34-ebf519eb2b1d",
       "name": "Old Farm Road Park Basketball Court #1",
       "latitude": 36.076167,
       "longitude": -78.897629,
-      "address": "Durham, NC",
+      "address": "7 Hedgerow Pl",
       "access": "public",
       "city": "Durham",
+      "facilityId": "52f2e363-bf4a-5ac8-b88f-bc5c38338fa2",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106435724
+      "osmId": 106435724,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "8dcc4652-2f40-5132-b349-58701deb18a1",
       "name": "Old Farm Road Park Basketball Court #2",
       "latitude": 36.07631,
       "longitude": -78.897612,
-      "address": "Durham, NC",
+      "address": "7 Hedgerow Pl",
       "access": "public",
       "city": "Durham",
+      "facilityId": "52f2e363-bf4a-5ac8-b88f-bc5c38338fa2",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106435810
+      "osmId": 106435810,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "3222168b-6840-5dbd-a446-1e55d04feb09",
       "name": "Oval Drive Park Basketball Court",
       "latitude": 36.017088,
       "longitude": -78.927763,
-      "address": "Durham, NC",
+      "address": "2200 W Club Blvd",
       "access": "public",
       "city": "Durham",
+      "facilityId": "111adad7-ffd3-54bc-ae1e-3fd87b9c064f",
       "hoops": 1,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 27303687
+      "osmId": 27303687,
+      "provenance": {
+        "address": "durham_parks",
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "7fc3b32e-b0be-545f-a985-78c3343f3e48",
@@ -1939,12 +2351,16 @@
       "address": "Durham, NC",
       "access": "school",
       "city": "Durham",
+      "facilityId": "1898df24-7361-5b24-97fe-95ab4383515b",
       "hoops": 2,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 1205877886
+      "osmId": 1205877886,
+      "provenance": {
+        "hoops": "osm"
+      }
     },
     {
       "id": "1e749ad5-a96d-56ff-8c7b-0aa71eb3ede0",
@@ -1954,72 +2370,95 @@
       "address": "Durham, NC",
       "access": "school",
       "city": "Durham",
+      "facilityId": "2975e066-e7ff-595f-afc7-6d034d9f245c",
       "hoops": 2,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 1205879491
+      "osmId": 1205879491,
+      "provenance": {
+        "hoops": "osm"
+      }
     },
     {
       "id": "b7985535-693d-5854-8b12-bac59dd41da7",
       "name": "Red Maple Park Basketball Court #1",
       "latitude": 36.033306,
       "longitude": -78.87559,
-      "address": "Durham, NC",
+      "address": "3320 Hinson Dr",
       "access": "public",
       "city": "Durham",
+      "facilityId": "61eb8720-c4a0-56f9-800f-1679abd9a76e",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106521879
+      "osmId": 106521879,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "1b21d782-3c41-563b-aba4-d5c4d8cf9b93",
       "name": "Red Maple Park Basketball Court #2",
       "latitude": 36.033307,
       "longitude": -78.875357,
-      "address": "Durham, NC",
+      "address": "3320 Hinson Dr",
       "access": "public",
       "city": "Durham",
+      "facilityId": "61eb8720-c4a0-56f9-800f-1679abd9a76e",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106521894
+      "osmId": 106521894,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "825cdd39-e05b-5fcb-aa4c-d03bed90d678",
       "name": "River Forest Basketball Court",
       "latitude": 36.07732,
       "longitude": -78.900676,
-      "address": "Durham, NC",
+      "address": "1000 Windermere Dr",
       "access": "public",
       "city": "Durham",
+      "facilityId": "3bef9560-3456-5dbe-8dd4-68487311e140",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 215498391
+      "osmId": 215498391,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "3d86a281-e1f6-5e2f-b48f-f1602f4da2d5",
       "name": "Rockwood Park Basketball Court",
       "latitude": 35.971821,
       "longitude": -78.920857,
-      "address": "Durham, NC",
+      "address": "2310 Whitley Dr",
       "access": "public",
       "city": "Durham",
+      "facilityId": "aa979d35-cc5d-55dc-938a-493d4ac10328",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 103681481
+      "osmId": 103681481,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "8efed5ee-df2d-5e84-bbf1-a6278d41585c",
@@ -2029,177 +2468,234 @@
       "address": "Durham, NC",
       "access": "school",
       "city": "Durham",
+      "facilityId": "3a04d319-10f1-505b-8ee1-51cd78f1d8eb",
       "hoops": 1,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 580549782
+      "osmId": 580549782,
+      "provenance": {
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "ad1c5be3-c85a-5461-bda6-2b5f04a8b9d8",
       "name": "Sherwood Park Basketball Court #1",
       "latitude": 36.000774,
       "longitude": -78.87192,
-      "address": "Durham, NC",
+      "address": "1720 Cheek Rd",
       "access": "public",
       "city": "Durham",
+      "facilityId": "53b961ce-827c-5954-82da-f5102fcaf2c3",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106789441
+      "osmId": 106789441,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "595f78b5-d1b5-52a2-a3a5-0868baaf6798",
       "name": "Sherwood Park Basketball Court #2",
       "latitude": 36.001855,
       "longitude": -78.871105,
-      "address": "Durham, NC",
+      "address": "1720 Cheek Rd",
       "access": "public",
       "city": "Durham",
+      "facilityId": "4d5609e7-d805-5512-969d-44f5cf476f60",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 813706462
+      "osmId": 813706462,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "c3bda31d-29fd-5da6-a79d-a8949aae9ba3",
       "name": "Sherwood Park Basketball Court #3",
       "latitude": 36.002013,
       "longitude": -78.871155,
-      "address": "Durham, NC",
+      "address": "1720 Cheek Rd",
       "access": "public",
       "city": "Durham",
+      "facilityId": "4d5609e7-d805-5512-969d-44f5cf476f60",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 813706463
+      "osmId": 813706463,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "fb60ef52-bb65-546f-a44b-185c568f6445",
       "name": "Solite Park Basketball Court",
       "latitude": 35.935542,
       "longitude": -78.910051,
-      "address": "Durham, NC",
+      "address": "4704 Fayetteville Rd",
       "access": "public",
       "city": "Durham",
+      "facilityId": "bf03cf2b-fc6c-5b19-abd7-99f7a5cafa6d",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106789497
+      "osmId": 106789497,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "58b37f92-761f-5bd8-8606-7a36e6b31c84",
       "name": "Southern Boundaries Park Basketball Court #1",
       "latitude": 35.956015,
       "longitude": -78.925583,
-      "address": "Durham, NC",
+      "address": "3400 Third Fork Dr",
       "access": "public",
       "city": "Durham",
+      "facilityId": "6818db35-ffaa-5b4a-a5c2-5452767987ac",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106789428
+      "osmId": 106789428,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "45e6d460-fb83-51c0-bf0b-fc1372f0d6ba",
       "name": "Southern Boundaries Park Basketball Court #2",
       "latitude": 35.95602,
       "longitude": -78.925277,
-      "address": "Durham, NC",
+      "address": "3400 Third Fork Dr",
       "access": "public",
       "city": "Durham",
+      "facilityId": "6818db35-ffaa-5b4a-a5c2-5452767987ac",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106789479
+      "osmId": 106789479,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "d77fa4b8-4bce-58e9-a2c2-765b37fa348d",
       "name": "Twin Lakes Park Basketball Court",
       "latitude": 35.998709,
       "longitude": -78.842517,
-      "address": "Durham, NC",
+      "address": "439 Chandler Rd",
       "access": "public",
       "city": "Durham",
+      "facilityId": "feaec0ae-7763-58b9-98da-27c5b00c3c24",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106792056
+      "osmId": 106792056,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "a487df01-aaad-5b85-a2ff-1a8b920b853a",
       "name": "Unity Village Park Basketball Court",
       "latitude": 35.965432,
       "longitude": -78.885182,
-      "address": "Durham, NC",
+      "address": "2011 Matilene St",
       "access": "public",
       "city": "Durham",
+      "facilityId": "627c974f-9386-5e46-af5a-8e8bea1482b3",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 106954678
+      "osmId": 106954678,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "af467f95-0432-5ee2-b080-ccfa5b644ade",
       "name": "Walltown Park Basketball Court #1",
       "latitude": 36.01816,
       "longitude": -78.914612,
-      "address": "Durham, NC",
+      "address": "1308 W Club Blvd",
       "access": "public",
       "city": "Durham",
+      "facilityId": "b0a80420-cfb5-5ce1-b910-ea9e5b81dd28",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 74097649
+      "osmId": 74097649,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "caac573d-0b01-5100-97e5-183f66c4eea6",
       "name": "Walltown Park Basketball Court #2",
       "latitude": 36.017965,
       "longitude": -78.91466,
-      "address": "Durham, NC",
+      "address": "1308 W Club Blvd",
       "access": "public",
       "city": "Durham",
+      "facilityId": "b0a80420-cfb5-5ce1-b910-ea9e5b81dd28",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 74097747
+      "osmId": 74097747,
+      "provenance": {
+        "address": "durham_parks"
+      }
     },
     {
       "id": "9dd9e200-aad8-5c12-80da-43a08d79ab17",
       "name": "White Oak Park Basketball Court",
       "latitude": 35.972644,
       "longitude": -78.91236,
-      "address": "Durham, NC",
+      "address": "2504 Dallas St",
       "access": "public",
       "city": "Durham",
+      "facilityId": "47e92729-2f50-50df-8611-41ed31fa478f",
       "hoops": null,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 103697701
+      "osmId": 103697701,
+      "provenance": {
+        "address": "durham_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "ade05562-716c-5edd-9b96-a1c6c7da6913",
@@ -2209,6 +2705,7 @@
       "address": "Morrisville, NC",
       "access": "public",
       "city": "Morrisville",
+      "facilityId": "77144d7a-23cc-5e34-8b36-d551f1fefcc8",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2221,60 +2718,88 @@
       "name": "Davis Drive Elementary School Basketball Court",
       "latitude": 35.77976,
       "longitude": -78.851265,
-      "address": "Morrisville, NC",
+      "address": "2101 Davis Drive, Cary, NC",
       "access": "school",
-      "city": "Morrisville",
+      "city": "Cary",
+      "facilityId": "c0bc84e3-7d94-55a4-ae73-e4cb9ec9e464",
       "hoops": 4,
       "surface": "concrete",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 827090302
+      "osmId": 827090302,
+      "provenance": {
+        "address": "wake_parks",
+        "city": "wake_parks",
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "30ae29a7-2a19-5842-9400-6fa34bb1f009",
       "name": "Davis Drive Middle School Basketball Court",
       "latitude": 35.77781,
       "longitude": -78.852086,
-      "address": "Morrisville, NC",
+      "address": "2101 Davis Drive, Cary, NC",
       "access": "school",
-      "city": "Morrisville",
+      "city": "Cary",
+      "facilityId": "3415f1fa-8819-5a82-9af1-fe6abc840473",
       "hoops": 2,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 827090309
+      "osmId": 827090309,
+      "provenance": {
+        "address": "wake_parks",
+        "city": "wake_parks",
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "551b7c75-b351-5fe3-9c48-5fb4a584bea5",
       "name": "Ed Yerha Park Basketball Court",
       "latitude": 35.775349,
       "longitude": -78.860113,
-      "address": "Morrisville, NC",
+      "address": "1216 Jenks Carpenter Road, Cary, NC",
       "access": "public",
-      "city": "Morrisville",
+      "city": "Cary",
+      "facilityId": "80743a22-98f7-5d37-ade6-8ab13d67fd3e",
       "hoops": 2,
       "surface": "concrete",
       "isLit": false,
       "isCovered": false,
       "osmType": "way",
-      "osmId": 215291950
+      "osmId": 215291950,
+      "provenance": {
+        "address": "wake_parks",
+        "city": "wake_parks",
+        "hoops": "osm",
+        "surface": "osm",
+        "isLit": "osm",
+        "isCovered": "osm"
+      }
     },
     {
       "id": "a038a6f2-fefb-5a84-9f8e-7eae24f3372c",
       "name": "Green Hope Elementary Park Basketball Court",
       "latitude": 35.804814,
       "longitude": -78.861287,
-      "address": "Morrisville, NC",
+      "address": "2727 Louis Stephens Drive, Cary, NC",
       "access": "school",
-      "city": "Morrisville",
+      "city": "Cary",
+      "facilityId": "5b921df2-77b6-5450-a0dd-bbf53d8fd407",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 220743490
+      "osmId": 220743490,
+      "provenance": {
+        "address": "wake_parks",
+        "city": "wake_parks"
+      }
     },
     {
       "id": "a47c0bbd-8978-5e1f-aa75-aecada5beefb",
@@ -2284,6 +2809,7 @@
       "address": "Morrisville, NC",
       "access": "public",
       "city": "Morrisville",
+      "facilityId": "312bfce4-d795-5d5e-82b7-2f536d46bb7f",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2299,6 +2825,7 @@
       "address": "Morrisville, NC",
       "access": "public",
       "city": "Morrisville",
+      "facilityId": "b39524b8-5b86-5e16-95b5-3837645c04b1",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2314,12 +2841,16 @@
       "address": "Morrisville, NC",
       "access": "public",
       "city": "Morrisville",
+      "facilityId": "cbc8f9a5-d953-5838-9440-92fd4bd656cb",
       "hoops": null,
       "surface": null,
       "isLit": true,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 366512786
+      "osmId": 366512786,
+      "provenance": {
+        "isLit": "osm"
+      }
     },
     {
       "id": "0f521734-af97-5800-b689-7b784a19d8fa",
@@ -2329,6 +2860,7 @@
       "address": "Morrisville, NC",
       "access": "public",
       "city": "Morrisville",
+      "facilityId": "16fda656-961f-5cf2-83e7-f6521f2c1cbc",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2344,6 +2876,7 @@
       "address": "Morrisville, NC",
       "access": "public",
       "city": "Morrisville",
+      "facilityId": "444b0a8e-fde9-5adf-884e-c4a90e695e9c",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2359,12 +2892,17 @@
       "address": "Morrisville, NC",
       "access": "public",
       "city": "Morrisville",
+      "facilityId": "60563cfe-dcb8-5cce-878d-132d1d1e7633",
       "hoops": 6,
       "surface": "paved",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 505680285
+      "osmId": 505680285,
+      "provenance": {
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "2115b2ef-6809-599a-a2ff-115a5aa46d52",
@@ -2374,12 +2912,16 @@
       "address": "Morrisville, NC",
       "access": "public",
       "city": "Morrisville",
+      "facilityId": "8e08a74a-6985-5865-99ba-077c720ee400",
       "hoops": 2,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 457548796
+      "osmId": 457548796,
+      "provenance": {
+        "hoops": "osm"
+      }
     },
     {
       "id": "8f9f2bfc-e208-5ebb-a3e0-bfcea94b41b3",
@@ -2389,6 +2931,7 @@
       "address": "Morrisville, NC",
       "access": "public",
       "city": "Morrisville",
+      "facilityId": "58c0b967-0209-5799-a25f-b61c9befe764",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2404,6 +2947,7 @@
       "address": "Morrisville, NC",
       "access": "public",
       "city": "Morrisville",
+      "facilityId": "4b4cfe62-3ff5-5bbb-bff2-ed70615b4198",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2416,45 +2960,64 @@
       "name": "Sears Farm Road Park Basketball Court",
       "latitude": 35.799592,
       "longitude": -78.881068,
-      "address": "Morrisville, NC",
+      "address": "5077 Sears Farm Road, Cary, NC",
       "access": "public",
-      "city": "Morrisville",
+      "city": "Cary",
+      "facilityId": "9bbbd3cb-8d30-598b-84b9-280897d1599e",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 227244765
+      "osmId": 227244765,
+      "provenance": {
+        "address": "wake_parks",
+        "city": "wake_parks"
+      }
     },
     {
       "id": "9ab988d0-d8cd-539e-a170-35dfebb9f21e",
       "name": "Brentwood Park Basketball Court #1",
       "latitude": 35.82832,
       "longitude": -78.599088,
-      "address": "Raleigh, NC",
+      "address": "3315 Vinson Ct",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "caf73794-8e71-546c-ba2c-39f95ba90d44",
       "hoops": null,
-      "surface": null,
-      "isLit": null,
-      "isCovered": null,
+      "surface": "asphalt",
+      "isLit": false,
+      "isCovered": false,
       "osmType": "node",
-      "osmId": 13239350156
+      "osmId": 13239350156,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts",
+        "surface": "raleigh_courts"
+      }
     },
     {
       "id": "8dfa458d-4a71-524a-9564-201fa56f331b",
       "name": "Brentwood Park Basketball Court #2",
       "latitude": 35.828205,
       "longitude": -78.598981,
-      "address": "Raleigh, NC",
+      "address": "3315 Vinson Ct",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "caf73794-8e71-546c-ba2c-39f95ba90d44",
       "hoops": null,
-      "surface": null,
-      "isLit": null,
-      "isCovered": null,
+      "surface": "asphalt",
+      "isLit": false,
+      "isCovered": false,
       "osmType": "node",
-      "osmId": 13239350158
+      "osmId": 13239350158,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts",
+        "surface": "raleigh_courts"
+      }
     },
     {
       "id": "710c509a-e0f0-5959-9d73-f543876b8dab",
@@ -2464,6 +3027,7 @@
       "address": "Raleigh, NC",
       "access": "restricted",
       "city": "Raleigh",
+      "facilityId": "7205f245-a487-5b8d-95bc-6a08c58fe75e",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2479,6 +3043,7 @@
       "address": "Raleigh, NC",
       "access": "school",
       "city": "Raleigh",
+      "facilityId": "b1b898cb-9b6f-581c-b218-fdcec86156b5",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2491,15 +3056,21 @@
       "name": "Eastgate Park Basketball Court",
       "latitude": 35.838581,
       "longitude": -78.62325,
-      "address": "Raleigh, NC",
+      "address": "4200 Quail Hollow Dr",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "805ba0db-d7db-5acb-a82e-16fcff925456",
       "hoops": null,
       "surface": null,
-      "isLit": null,
-      "isCovered": null,
+      "isLit": false,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 452145416
+      "osmId": 452145416,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts"
+      }
     },
     {
       "id": "7d3abac4-9bea-5159-8c35-7e90d517ad6c",
@@ -2509,6 +3080,7 @@
       "address": "Raleigh, NC",
       "access": "restricted",
       "city": "Raleigh",
+      "facilityId": "91cee816-4c7b-50b5-b5d2-40dd94769610",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2524,6 +3096,7 @@
       "address": "Raleigh, NC",
       "access": "restricted",
       "city": "Raleigh",
+      "facilityId": "5441ba17-e075-5d60-871a-1e6d62f20f48",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2536,30 +3109,42 @@
       "name": "Fred Fletcher Park Basketball Court",
       "latitude": 35.792881,
       "longitude": -78.647769,
-      "address": "Raleigh, NC",
+      "address": "805 Washington St",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "34f1bc66-c520-5f14-adc1-d8d87b9df9b0",
       "hoops": null,
       "surface": null,
-      "isLit": null,
-      "isCovered": null,
+      "isLit": false,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 1009102506
+      "osmId": 1009102506,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts"
+      }
     },
     {
       "id": "31691e1d-cbe6-546c-bf8c-b942e203858a",
       "name": "Glen Eden Pilot Park Basketball Court",
       "latitude": 35.828166,
       "longitude": -78.684445,
-      "address": "Raleigh, NC",
+      "address": "1500 Glen Eden Dr",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "d5caaf5d-1f37-5a7a-908d-8863b930b6b3",
       "hoops": null,
       "surface": null,
-      "isLit": null,
-      "isCovered": null,
+      "isLit": false,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 148772159
+      "osmId": 148772159,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts"
+      }
     },
     {
       "id": "1ab98e11-f8f2-595d-855c-808af4af73af",
@@ -2569,6 +3154,7 @@
       "address": "Raleigh, NC",
       "access": "restricted",
       "city": "Raleigh",
+      "facilityId": "ad14379f-6226-5a2a-9248-6bc9571ddee4",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2584,6 +3170,7 @@
       "address": "Raleigh, NC",
       "access": "school",
       "city": "Raleigh",
+      "facilityId": "a3d6a219-cbca-5030-8381-1b115031fbb8",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2596,15 +3183,22 @@
       "name": "Green Road Park Basketball Court",
       "latitude": 35.841454,
       "longitude": -78.592281,
-      "address": "Raleigh, NC",
+      "address": "4201 Green Rd",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "a627c6d7-b374-5625-9400-7290c0669fee",
       "hoops": null,
-      "surface": null,
-      "isLit": null,
-      "isCovered": null,
+      "surface": "asphalt",
+      "isLit": false,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 693984850
+      "osmId": 693984850,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts",
+        "surface": "raleigh_courts"
+      }
     },
     {
       "id": "93e38564-8733-5749-9a3c-da72fb9c11dc",
@@ -2614,6 +3208,7 @@
       "address": "Raleigh, NC",
       "access": "restricted",
       "city": "Raleigh",
+      "facilityId": "af628f7a-006f-5a66-9525-b42498fd1d4d",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2626,30 +3221,41 @@
       "name": "Halifax Park Children's Outdoor Basketball Court",
       "latitude": 35.793717,
       "longitude": -78.638423,
-      "address": "Raleigh, NC",
+      "address": "1015 Halifax St",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "c07a63dc-ee6a-545c-8b19-9bb40debebc0",
       "hoops": null,
       "surface": null,
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 1196916458
+      "osmId": 1196916458,
+      "provenance": {
+        "address": "raleigh_park_bounds"
+      }
     },
     {
       "id": "257aacc1-06cc-5228-b954-42738d230784",
       "name": "Halifax Park Outdoor Basketball Court",
       "latitude": 35.793345,
       "longitude": -78.639078,
-      "address": "Raleigh, NC",
+      "address": "1015 Halifax St",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "c07a63dc-ee6a-545c-8b19-9bb40debebc0",
       "hoops": null,
       "surface": "concrete",
       "isLit": false,
-      "isCovered": null,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 633944102
+      "osmId": 633944102,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isCovered": "raleigh_courts",
+        "surface": "osm",
+        "isLit": "osm"
+      }
     },
     {
       "id": "2bbfa243-bf35-5bcc-b2da-064f94cbbc9a",
@@ -2659,6 +3265,7 @@
       "address": "Raleigh, NC",
       "access": "school",
       "city": "Raleigh",
+      "facilityId": "1897d3a1-7cec-5959-9aa6-41378653059a",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2671,30 +3278,41 @@
       "name": "Isabella Cannon Park Basketball Court",
       "latitude": 35.792685,
       "longitude": -78.669885,
-      "address": "Raleigh, NC",
+      "address": "2601 Kilgore Ave",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "1a013cc6-6013-5518-9aa1-5bbad3b739f3",
       "hoops": null,
       "surface": null,
-      "isLit": null,
-      "isCovered": null,
+      "isLit": false,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 313019053
+      "osmId": 313019053,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts"
+      }
     },
     {
       "id": "ebc0be45-0311-56e1-87dd-011c1a234f61",
       "name": "J. W. York Elementary School Basketball Court",
       "latitude": 35.852955,
       "longitude": -78.684235,
-      "address": "Raleigh, NC",
+      "address": "5125 Berkeley St, Raleigh, NC",
       "access": "school",
       "city": "Raleigh",
+      "facilityId": "9f59c184-8d46-5a90-bbc6-9a462e6c9515",
       "hoops": null,
       "surface": "concrete",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 1487495834
+      "osmId": 1487495834,
+      "provenance": {
+        "address": "wake_parks",
+        "surface": "osm"
+      }
     },
     {
       "id": "e6a69699-7d2b-509c-a42f-787160318fe2",
@@ -2704,6 +3322,7 @@
       "address": "Raleigh, NC",
       "access": "school",
       "city": "Raleigh",
+      "facilityId": "24097938-1e7e-535e-b5cc-63d22e58f256",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2719,6 +3338,7 @@
       "address": "Raleigh, NC",
       "access": "school",
       "city": "Raleigh",
+      "facilityId": "24097938-1e7e-535e-b5cc-63d22e58f256",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2731,15 +3351,22 @@
       "name": "Kiwanis Park Basketball Court",
       "latitude": 35.81552,
       "longitude": -78.631285,
-      "address": "Raleigh, NC",
+      "address": "2525 Noble Rd",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "6fd52ef6-0dc8-562b-8bcb-d4018906d90a",
       "hoops": null,
       "surface": "concrete",
       "isLit": false,
-      "isCovered": null,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 913687473
+      "osmId": 913687473,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isCovered": "raleigh_courts",
+        "surface": "osm",
+        "isLit": "osm"
+      }
     },
     {
       "id": "fb7580a3-8d61-5cf3-bd99-f88eebef2f6e",
@@ -2749,6 +3376,7 @@
       "address": "Raleigh, NC",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "b3676237-a334-5f9a-850e-bd541f0d5262",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2761,60 +3389,88 @@
       "name": "Laurel Hills Park Basketball Court #1",
       "latitude": 35.830904,
       "longitude": -78.698239,
-      "address": "Raleigh, NC",
+      "address": "3808 Edwards Mill Rd",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "02cec2cb-e697-5006-a70a-5c574e45d0f6",
       "hoops": 2,
       "surface": "acrylic",
-      "isLit": null,
-      "isCovered": null,
+      "isLit": false,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 1246136217
+      "osmId": 1246136217,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts",
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "decd7c1a-4ea6-5def-ab67-73e7bd1df60c",
       "name": "Laurel Hills Park Basketball Court #2",
       "latitude": 35.831105,
       "longitude": -78.698518,
-      "address": "Raleigh, NC",
+      "address": "3808 Edwards Mill Rd",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "02cec2cb-e697-5006-a70a-5c574e45d0f6",
       "hoops": 2,
       "surface": "paved",
-      "isLit": null,
-      "isCovered": null,
+      "isLit": false,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 1246136218
+      "osmId": 1246136218,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts",
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "8647cd2e-d534-5701-b666-a507470da50a",
       "name": "Laurel Hills Park Basketball Court #3",
       "latitude": 35.829938,
       "longitude": -78.698007,
-      "address": "Raleigh, NC",
+      "address": "3808 Edwards Mill Rd",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "286aa33c-86ab-5d27-b5b8-472f1d851c01",
       "hoops": 1,
       "surface": "concrete",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 1246136213
+      "osmId": 1246136213,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "3551f2a4-d08e-519d-a925-4003ef9faeba",
       "name": "Lenoir Street Park Basketball Court",
       "latitude": 35.773533,
       "longitude": -78.648631,
-      "address": "Raleigh, NC",
+      "address": "626 W Lenoir St",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "9d8e6c2c-2b30-53ef-b7a4-5bba232391bf",
       "hoops": null,
       "surface": null,
-      "isLit": null,
-      "isCovered": null,
+      "isLit": true,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 1230462521
+      "osmId": 1230462521,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts"
+      }
     },
     {
       "id": "496e8ac6-f65c-584c-b233-1af0a0a9c36b",
@@ -2824,6 +3480,7 @@
       "address": "Raleigh, NC",
       "access": "school",
       "city": "Raleigh",
+      "facilityId": "4273b07c-2306-5567-8dde-736ece84bea1",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2839,6 +3496,7 @@
       "address": "Raleigh, NC",
       "access": "school",
       "city": "Raleigh",
+      "facilityId": "b135b7c6-85b5-5984-95cb-c6bd916db102",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2851,15 +3509,20 @@
       "name": "Mary Belle Pate Park Basketball Court",
       "latitude": 35.751799,
       "longitude": -78.680154,
-      "address": "Raleigh, NC",
+      "address": "2640 Sierra Dr",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "c84326ce-4713-5ab8-944f-3d93680d51f9",
       "hoops": null,
       "surface": null,
       "isLit": null,
-      "isCovered": null,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 754405688
+      "osmId": 754405688,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isCovered": "raleigh_courts"
+      }
     },
     {
       "id": "b6daa13d-5ff2-5b30-8041-9d689c433670",
@@ -2869,6 +3532,7 @@
       "address": "Raleigh, NC",
       "access": "restricted",
       "city": "Raleigh",
+      "facilityId": "e2ced787-55a9-5557-b1db-5ce42c05a13d",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2881,45 +3545,66 @@
       "name": "Method Park Basketball Court",
       "latitude": 35.793085,
       "longitude": -78.695243,
-      "address": "Raleigh, NC",
+      "address": "514 Method Rd",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "cc99cf11-84e0-5b92-8b21-984630b153fc",
       "hoops": null,
       "surface": "asphalt",
-      "isLit": null,
-      "isCovered": null,
+      "isLit": true,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 424203799
+      "osmId": 424203799,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts",
+        "surface": "osm"
+      }
     },
     {
       "id": "99af08be-70a7-5aaf-8ce9-0b35c7bf4afd",
       "name": "Millbrook Exchange Park Basketball Court #1",
       "latitude": 35.868547,
       "longitude": -78.607783,
-      "address": "Raleigh, NC",
+      "address": "1815 Spring Forest Rd",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "fb464d83-4634-5f95-a095-028dd72faccd",
       "hoops": null,
-      "surface": null,
-      "isLit": null,
-      "isCovered": null,
+      "surface": "asphalt",
+      "isLit": false,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 529709884
+      "osmId": 529709884,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts",
+        "surface": "raleigh_courts"
+      }
     },
     {
       "id": "f06ac5d7-e531-5092-87e2-928f179872c2",
       "name": "Millbrook Exchange Park Basketball Court #2",
       "latitude": 35.8688,
       "longitude": -78.607763,
-      "address": "Raleigh, NC",
+      "address": "1815 Spring Forest Rd",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "fb464d83-4634-5f95-a095-028dd72faccd",
       "hoops": null,
-      "surface": null,
-      "isLit": null,
-      "isCovered": null,
+      "surface": "asphalt",
+      "isLit": false,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 801408745
+      "osmId": 801408745,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts",
+        "surface": "raleigh_courts"
+      }
     },
     {
       "id": "97333720-80d8-596a-b335-611bd4bec950",
@@ -2929,6 +3614,7 @@
       "address": "Raleigh, NC",
       "access": "school",
       "city": "Raleigh",
+      "facilityId": "97a130a9-6884-5e1a-a78a-0a1e6c93ba24",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2944,6 +3630,7 @@
       "address": "Raleigh, NC",
       "access": "school",
       "city": "Raleigh",
+      "facilityId": "1c962971-45c6-55eb-a090-c3ab5829c8a6",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2959,6 +3646,7 @@
       "address": "Raleigh, NC",
       "access": "restricted",
       "city": "Raleigh",
+      "facilityId": "dbd43868-5b32-5838-a692-c1f762d39aff",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -2971,15 +3659,21 @@
       "name": "Peach Road Park Basketball Court",
       "latitude": 35.74247,
       "longitude": -78.654639,
-      "address": "Raleigh, NC",
+      "address": "911 Ileagnes Rd",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "f54609a7-a5b7-5aad-b44a-788538cc4269",
       "hoops": null,
       "surface": null,
-      "isLit": null,
-      "isCovered": null,
+      "isLit": true,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 997759470
+      "osmId": 997759470,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts"
+      }
     },
     {
       "id": "d5807fc7-8d3a-5a66-a9b9-563b9b6a3a68",
@@ -2989,6 +3683,7 @@
       "address": "Raleigh, NC",
       "access": "restricted",
       "city": "Raleigh",
+      "facilityId": "4b0db77a-d751-505b-9579-3bfd55422f00",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -3004,12 +3699,18 @@
       "address": "Raleigh, NC",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "42cf790b-d368-5a4e-a620-6f1b7c7fb56b",
       "hoops": 2,
       "surface": "asphalt",
       "isLit": false,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 1022989660
+      "osmId": 1022989660,
+      "provenance": {
+        "hoops": "osm",
+        "surface": "osm",
+        "isLit": "osm"
+      }
     },
     {
       "id": "a2561965-f394-53fc-b4b2-eecab303b7f7",
@@ -3019,12 +3720,17 @@
       "address": "Raleigh, NC",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "34995966-f141-5540-8e51-b08424ba3c71",
       "hoops": 2,
       "surface": "concrete",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 1159085769
+      "osmId": 1159085769,
+      "provenance": {
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "901375c9-aafb-5763-b32a-46409737faa2",
@@ -3034,6 +3740,7 @@
       "address": "Raleigh, NC",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "a28cc300-58d3-58a0-8b12-ca6c9b883f1b",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -3049,6 +3756,7 @@
       "address": "Raleigh, NC",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "e8495efb-cd68-5d99-9820-cad4bcafae4d",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -3064,6 +3772,7 @@
       "address": "Raleigh, NC",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "0003b200-d4d4-5950-ae3a-2337e7e160a0",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -3079,6 +3788,7 @@
       "address": "Raleigh, NC",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "1ae46625-99ba-5c6d-bfda-163697a171f9",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -3094,6 +3804,7 @@
       "address": "Raleigh, NC",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "2407b6c7-ef41-54b9-910e-5987bb34d8be",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -3106,15 +3817,22 @@
       "name": "Roberts Park Basketball Court",
       "latitude": 35.775823,
       "longitude": -78.617985,
-      "address": "Raleigh, NC",
+      "address": "1300 E Martin St",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "2561461e-593e-51ae-ba77-05ee736153b4",
       "hoops": null,
-      "surface": null,
-      "isLit": null,
-      "isCovered": null,
+      "surface": "sports court tile",
+      "isLit": true,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 772284032
+      "osmId": 772284032,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts",
+        "surface": "raleigh_courts"
+      }
     },
     {
       "id": "a616e51e-b4fb-5ce8-baee-7df51bef3af3",
@@ -3124,6 +3842,7 @@
       "address": "Raleigh, NC",
       "access": "school",
       "city": "Raleigh",
+      "facilityId": "dfcecf63-161f-50de-b18c-811f98036490",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -3136,15 +3855,21 @@
       "name": "Sertoma Arts Center Basketball Court",
       "latitude": 35.859495,
       "longitude": -78.665667,
-      "address": "Raleigh, NC",
+      "address": "1400 W Millbrook Rd",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "ac1053a3-57b7-590b-a885-13e64b7ad9fe",
       "hoops": null,
       "surface": null,
-      "isLit": null,
-      "isCovered": null,
+      "isLit": false,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 156329768
+      "osmId": 156329768,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isLit": "raleigh_courts",
+        "isCovered": "raleigh_courts"
+      }
     },
     {
       "id": "136d7b7b-922e-5923-afe7-0f2157980ca7",
@@ -3154,6 +3879,7 @@
       "address": "Raleigh, NC",
       "access": "school",
       "city": "Raleigh",
+      "facilityId": "a3bb07b3-605a-507a-aa3a-29c657325af1",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -3169,6 +3895,7 @@
       "address": "Raleigh, NC",
       "access": "restricted",
       "city": "Raleigh",
+      "facilityId": "72b08bae-5330-5734-9783-9624ee001c96",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -3184,12 +3911,17 @@
       "address": "Raleigh, NC",
       "access": "restricted",
       "city": "Raleigh",
+      "facilityId": "2e8f75b4-8483-5aa9-8a11-cc81a62df04d",
       "hoops": 2,
       "surface": "asphalt",
       "isLit": null,
       "isCovered": null,
       "osmType": "way",
-      "osmId": 1531536772
+      "osmId": 1531536772,
+      "provenance": {
+        "hoops": "osm",
+        "surface": "osm"
+      }
     },
     {
       "id": "2e9707c1-34ef-56c2-9317-53e0e893411f",
@@ -3199,6 +3931,7 @@
       "address": "Raleigh, NC",
       "access": "school",
       "city": "Raleigh",
+      "facilityId": "41d0e83a-cd5b-546f-8d5a-e4b098fa2e08",
       "hoops": null,
       "surface": null,
       "isLit": null,
@@ -3211,15 +3944,59 @@
       "name": "Worthdale Park Basketball Court",
       "latitude": 35.763059,
       "longitude": -78.586819,
-      "address": "Raleigh, NC",
+      "address": "1001 Cooper Rd",
       "access": "public",
       "city": "Raleigh",
+      "facilityId": "35d43f33-6c5f-5341-bff8-3cf8334a70a5",
       "hoops": null,
       "surface": "concrete",
       "isLit": true,
-      "isCovered": null,
+      "isCovered": false,
       "osmType": "way",
-      "osmId": 892013492
+      "osmId": 892013492,
+      "provenance": {
+        "address": "raleigh_park_bounds",
+        "isCovered": "raleigh_courts",
+        "surface": "osm",
+        "isLit": "osm"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "source": "chapelhill_facilities",
+      "grain": "park",
+      "url": "https://services2.arcgis.com/7KRXAKALbBGlCW77/arcgis/rest/services/Parks_and_Recreation_Facilities/FeatureServer/0",
+      "attribution": "Town of Chapel Hill",
+      "fetched": "2026-09-22"
+    },
+    {
+      "source": "durham_parks",
+      "grain": "park",
+      "url": "https://webgis2.durhamnc.gov/server/rest/services/PublicServices/Community/MapServer/8",
+      "attribution": "City of Durham",
+      "fetched": "2026-09-22"
+    },
+    {
+      "source": "raleigh_courts",
+      "grain": "court",
+      "url": "https://services.arcgis.com/v400IkDOw1ad7Yad/arcgis/rest/services/Raleigh_Parks_Athletic_Courts_and_Fields/FeatureServer/0",
+      "attribution": "City of Raleigh Parks, Recreation and Cultural Resources (Open Raleigh Data Policy)",
+      "fetched": "2026-09-22"
+    },
+    {
+      "source": "raleigh_park_bounds",
+      "grain": "park",
+      "url": "https://maps.raleighnc.gov/arcgis/rest/services/Parks/Greenway/MapServer/5",
+      "attribution": "City of Raleigh Parks, Recreation and Cultural Resources (Open Raleigh Data Policy)",
+      "fetched": "2026-09-22"
+    },
+    {
+      "source": "wake_parks",
+      "grain": "park",
+      "url": "https://services1.arcgis.com/a7CWfuGP5ZnLYE7I/arcgis/rest/services/Wake_Parks_Public/FeatureServer/0",
+      "attribution": "Wake County Government",
+      "fetched": "2026-09-22"
     }
   ]
 }

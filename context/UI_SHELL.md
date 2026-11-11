@@ -306,7 +306,7 @@ nearby yet", hint "Opens the map.").
 **It reads nothing new.** Every value comes off listeners the app already keeps
 open: `GameService`'s two arrays, `CourtService.courts`, the profile snapshot,
 and `FriendService`. The hot list calls
-`MapViewModel.gameCountsByCourt(queued:published:)` directly — it is
+`MapViewModel.gameCountsByFacility(...)` directly — it is
 `nonisolated static` and pure, so Home shares the map's counting rule instead of
 restating it. No extra Firestore read, no rules change. **A busy court's dot
 glows** (`CourtGlowHalo`, Phase 5), from the same threshold and on the same
