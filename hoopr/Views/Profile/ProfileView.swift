@@ -85,17 +85,20 @@ struct ProfileView: View {
 
     // MARK: Profile-pane presentation
 
-    /// Presented separately from `viewModel.editingField`, which is strictly
-    /// the profile *document*'s editable fields — appearance is stored on the
-    /// device and saves without a network round trip, so it shares none of
-    /// that sheet's in-flight and failure handling.
-    @State private var isEditingAppearance = false
+    /// The two sheets presented outside `viewModel.editingField`, which is
+    /// strictly the profile *document*'s editable fields: appearance is stored
+    /// on the device and saves without a network round trip, and a password
+    /// reset is a Firebase Auth action, not a write to the profile document —
+    /// so neither shares that sheet's in-flight and failure handling. One
+    /// route, presented with `sheet(item:)` like the house's other sheets.
+    private enum SettingsSheet: String, Identifiable {
+        case appearance
+        case password
 
-    /// Presented outside `viewModel.editingField` for the same reason as the
-    /// appearance sheet: a password reset is a Firebase Auth action, not a
-    /// write to the profile document, so it shares none of that sheet's
-    /// in-flight or failure handling.
-    @State private var isChangingPassword = false
+        var id: String { rawValue }
+    }
+
+    @State private var settingsSheet: SettingsSheet?
 
     @AppStorage(AppearancePreference.storageKey)
     private var appearance: AppearancePreference = .system
@@ -138,26 +141,28 @@ struct ProfileView: View {
             .sheet(item: $viewModel.editingField) { field in
                 editSheet(for: field)
             }
-            .sheet(isPresented: $isEditingAppearance) {
-                AppearanceSheet(preference: $appearance) {
-                    isEditingAppearance = false
+            .sheet(item: $settingsSheet) { sheet in
+                switch sheet {
+                case .appearance:
+                    AppearanceSheet(preference: $appearance) {
+                        settingsSheet = nil
+                    }
+                case .password:
+                    // Only reachable when `canChangePassword`, which is exactly
+                    // when there's an email to send to.
+                    ChangePasswordSheet(
+                        email: viewModel.email ?? "",
+                        isSending: viewModel.isSendingPasswordReset,
+                        didSend: viewModel.didSendPasswordReset,
+                        errorMessage: viewModel.passwordResetError,
+                        onSend: { Task { await viewModel.sendPasswordReset() } },
+                        onCancel: {
+                            settingsSheet = nil
+                            viewModel.cancelChangingPassword()
+                        },
+                        onDone: { settingsSheet = nil }
+                    )
                 }
-            }
-            .sheet(isPresented: $isChangingPassword) {
-                // Only reachable when `canChangePassword`, which is exactly
-                // when there's an email to send to.
-                ChangePasswordSheet(
-                    email: viewModel.email ?? "",
-                    isSending: viewModel.isSendingPasswordReset,
-                    didSend: viewModel.didSendPasswordReset,
-                    errorMessage: viewModel.passwordResetError,
-                    onSend: { Task { await viewModel.sendPasswordReset() } },
-                    onCancel: {
-                        isChangingPassword = false
-                        viewModel.cancelChangingPassword()
-                    },
-                    onDone: { isChangingPassword = false }
-                )
             }
             .sheet(item: $presentedPlayer) { route in
                 PlayerProfileSheet(uid: route.uid, viewModel: friendsViewModel) {
@@ -487,7 +492,7 @@ struct ProfileView: View {
                     placeholder: "••••••••",
                     onTap: viewModel.canChangePassword ? {
                         viewModel.beginChangingPassword()
-                        isChangingPassword = true
+                        settingsSheet = .password
                     } : nil
                 )
 
@@ -500,7 +505,7 @@ struct ProfileView: View {
                     label: "Appearance",
                     value: appearance.title,
                     placeholder: AppearancePreference.system.title,
-                    onTap: { isEditingAppearance = true }
+                    onTap: { settingsSheet = .appearance }
                 )
 
                 // Immutable by design — `createdAt` is write-once server-side.

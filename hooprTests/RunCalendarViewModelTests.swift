@@ -103,6 +103,7 @@ final class RunCalendarViewModelTests: XCTestCase {
         games: [SeasonGame] = [],
         squadState: RunCalendarViewModel.SquadGamesState = .available,
         loadState: RunCalendarViewModel.LoadState = .loaded,
+        hasFetched: Bool = false,
         liveLoaded: Bool = true,
         bounds: ClosedRange<Date>? = nil,
         now: Date? = nil
@@ -112,7 +113,7 @@ final class RunCalendarViewModelTests: XCTestCase {
         let month = CalendarMonth(containing: date(2026, 10, 15, in: calendar), calendar: calendar)
         return RunCalendarViewModel.page(
             month: month, now: now, runs: runs, seasonGames: games, squad: squad(),
-            squadState: squadState, loadState: loadState, liveLoaded: liveLoaded,
+            squadState: squadState, loadState: loadState, hasFetched: hasFetched, liveLoaded: liveLoaded,
             bounds: bounds ?? RunCalendarViewModel.bounds(
                 createdAt: nil, latestScheduledSquadGame: nil, now: now, calendar: calendar
             ),
@@ -321,6 +322,25 @@ final class RunCalendarViewModelTests: XCTestCase {
             XCTAssertTrue(page.marks.isEmpty)
             XCTAssertNil(page.squadColorKey)
         }
+    }
+
+    /// A month fetched once this session keeps its marks while it is fetched
+    /// again — opening the popup forces one — rather than drawing runs the
+    /// view model already holds as emptiness for the round trip (2026-11-11).
+    /// The first fetch of a month is still a load, whatever the live listener
+    /// holds.
+    func testARefetchOfAFetchedMonthKeepsItsMarks() {
+        let calendar = makeCalendar()
+        let runs = [run("r", at: date(2026, 10, 9, in: calendar))]
+
+        let refreshing = october(runs: runs, loadState: .loading, hasFetched: true)
+        XCTAssertFalse(refreshing.isLoading)
+        XCTAssertEqual(refreshing.marks[9]?.runCount, 1)
+        XCTAssertNotNil(refreshing.squadColorKey)
+
+        let first = october(runs: runs, loadState: .loading, hasFetched: false)
+        XCTAssertTrue(first.isLoading)
+        XCTAssertTrue(first.marks.isEmpty)
     }
 
     /// Squad games that couldn't be read: no squad zones — and the

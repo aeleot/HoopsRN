@@ -65,6 +65,16 @@ nonisolated enum HooprFontMetrics {
         return min(scaled, maximumSize)
     }
 
+    /// The width `text` takes in `font`, rounded up to a whole point — the
+    /// one measurement behind every "does it fit at this size" rule
+    /// (`StatsScoreboardMetrics`, `RunCalendarMetrics`), so the three of
+    /// them can't round or kern differently.
+    static func width(of text: String, font: UIFont, kerning: CGFloat = 0) -> CGFloat {
+        var attributes: [NSAttributedString.Key: Any] = [.font: font]
+        if kerning != 0 { attributes[.kern] = kerning }
+        return ceil((text as NSString).size(withAttributes: attributes).width)
+    }
+
     /// The text style whose default size is nearest `size`, so the scaling
     /// curve matches what the system would apply to text of that size. Body and
     /// large sizes are deliberately scaled less aggressively by the metrics

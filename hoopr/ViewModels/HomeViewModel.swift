@@ -247,6 +247,7 @@ final class HomeViewModel: ObservableObject {
     init(
         authService: AuthService,
         courtService: CourtService,
+        locationService: LocationService,
         gameService: GameService,
         userProfileService: UserProfileService,
         friendService: FriendService,
@@ -326,6 +327,22 @@ final class HomeViewModel: ObservableObject {
             .sink { [weak self] count in self?.incomingRequestCount = count }
             .store(in: &cancellables)
 
+        // A device fix moves the origin every distance here is measured from
+        // — the hero's "1.2 mi" and the preview's dots and puck — so both
+        // rebuild when one lands, as the map's list does. Until 2026-11-11
+        // nothing here listened for it: they were rebuilt only by game and
+        // court snapshots, which land before the first fix on a cold launch,
+        // so the preview sat on downtown Durham until some run anywhere in
+        // the dataset changed.
+        locationService.$coordinate
+            .compactMap { $0 }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.rebuildNextRun()
+                self?.rebuildNearestCourts()
+            }
+            .store(in: &cancellables)
+
         // The court dataset feeds both derived lists — the hot list needs the
         // court behind each id, and the next run needs its court resolved for
         // a name and a distance.
@@ -346,7 +363,6 @@ final class HomeViewModel: ObservableObject {
             .sink { [weak self] queued, published in
                 self?.rebuildNextRun(queued: queued)
                 self?.rebuildHotCourts(queued: queued, published: published)
-                self?.rebuildNearestCourts()
             }
             .store(in: &cancellables)
 
@@ -686,9 +702,9 @@ final class HomeViewModel: ObservableObject {
         )
     }
 
-    /// Rebuilt beside `hotCourts`, and published only when it changes: every
-    /// game snapshot lands here, and an unchanged preview mustn't hand the
-    /// map behind it a new value to redraw.
+    /// Rebuilt when the dataset loads and when a fix moves the origin — the
+    /// only two things it reads — and published only when it changes, so an
+    /// unchanged preview never hands the map behind it a new value to redraw.
     private func rebuildNearestCourts() {
         let origin = searchOrigin
         let nearest = Self.nearestCourts(

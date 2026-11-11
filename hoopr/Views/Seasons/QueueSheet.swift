@@ -55,7 +55,13 @@ struct QueueSheet: View {
     /// The day behind the third segment, `nil` until one is picked — which is
     /// exactly what makes that segment read "Custom date" rather than a date.
     @State private var customDate: Date?
-    @State private var isPickingCustomDate = false
+    /// The calendar for a custom day, presented with `sheet(item:)` like the
+    /// house's other sheets.
+    private struct CustomDateRoute: Identifiable {
+        let id = "custom-date"
+    }
+
+    @State private var customDateRoute: CustomDateRoute?
     /// The calendar's own selection while its sheet is up, so backing out of
     /// it leaves `customDate` alone.
     @State private var draftCustomDate = Date()
@@ -126,7 +132,7 @@ struct QueueSheet: View {
             }
         }
         .onAppear(perform: primeDefaults)
-        .sheet(isPresented: $isPickingCustomDate) {
+        .sheet(item: $customDateRoute) { _ in
             customDateSheet
         }
     }
@@ -297,7 +303,7 @@ struct QueueSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { isPickingCustomDate = false }
+                    Button("Cancel") { customDateRoute = nil }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { commitCustomDate() }
@@ -543,7 +549,7 @@ struct QueueSheet: View {
         let calendar = Calendar.current
         draftCustomDate = customDate
             ?? calendar.startOfDay(for: now.addingTimeInterval(2 * 86400))
-        isPickingCustomDate = true
+        customDateRoute = CustomDateRoute()
     }
 
     /// Takes the calendar's date and moves the time range onto it.
@@ -568,7 +574,7 @@ struct QueueSheet: View {
         }
 
         customDate = day
-        isPickingCustomDate = false
+        customDateRoute = nil
 
         withAnimation(.hooprSpring) {
             selectedDay = .custom

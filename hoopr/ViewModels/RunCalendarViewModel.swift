@@ -361,6 +361,7 @@ final class RunCalendarViewModel: ObservableObject {
                 runs: Self.merged(fetched: fetched[month.start] ?? [], live: live, liveFrom: liveFrom),
                 seasonGames: seasonGames, squad: squad, squadState: squadState,
                 loadState: loadStates[month.start] ?? .idle,
+                hasFetched: fetched[month.start] != nil,
                 liveLoaded: gameService.hasLoadedGames, bounds: bounds
             )
         }
@@ -384,7 +385,11 @@ final class RunCalendarViewModel: ObservableObject {
     /// fetch or the squad's games haven't answered, the grid draws bare — a
     /// half-loaded month would be an answer, and the wrong one. A **failed**
     /// fetch still draws what the live listener holds, with the failure beside
-    /// it to say the month is incomplete.
+    /// it to say the month is incomplete. And a month fetched once this
+    /// session is **not loading when it is fetched again** (`hasFetched`):
+    /// opening the popup forces a refetch of the current month, and until
+    /// 2026-11-11 that blanked the tile and the grid for the round trip,
+    /// drawing runs the view model already held as nothing.
     nonisolated static func page(
         month: CalendarMonth,
         now: Date,
@@ -393,11 +398,13 @@ final class RunCalendarViewModel: ObservableObject {
         squad: Squad?,
         squadState: SquadGamesState,
         loadState: LoadState,
+        hasFetched: Bool = false,
         liveLoaded: Bool,
         bounds: ClosedRange<Date>,
         calendar: Calendar = .current
     ) -> Page {
-        let isLoading = !liveLoaded || loadState == .idle || loadState == .loading || squadState == .loading
+        let isFetching = loadState == .idle || (loadState == .loading && !hasFetched)
+        let isLoading = !liveLoaded || isFetching || squadState == .loading
         let failure: String? = {
             guard case .failed(let error) = loadState else { return nil }
             return failureText(for: error, month: month, now: now, calendar: calendar)
@@ -410,16 +417,20 @@ final class RunCalendarViewModel: ObservableObject {
             : opponentsByDay(seasonGames: games, squadId: squad?.id ?? "", in: month.start, calendar: calendar)
 
         let grid = monthGrid(for: month.start, calendar: calendar)
+        // One formatter for the month, not two per day: `rebuild()` builds
+        // two pages on every snapshot, and a `DateFormatter` is among the
+        // dearest objects Foundation makes.
+        let dayFormatter = makeDayFormatter(calendar: calendar)
         var dayTitles: [Int: String] = [:]
         var spokenDays: [Int: String] = [:]
         for day in grid.compactMap({ $0 }) {
             guard let date = calendar.date(byAdding: .day, value: day - 1, to: month.start) else { continue }
-            dayTitles[day] = spokenDay(date, runCount: 0, squadOpponents: [], calendar: calendar)
+            dayTitles[day] = dayFormatter.string(from: date)
             spokenDays[day] = spokenDay(
                 date,
                 runCount: dayMarks[day]?.runCount ?? 0,
                 squadOpponents: opponents[day] ?? [],
-                calendar: calendar
+                formatter: dayFormatter
             )
         }
 
@@ -689,9 +700,23 @@ final class RunCalendarViewModel: ObservableObject {
         squadOpponents: [String],
         calendar: Calendar = .current
     ) -> String {
+        spokenDay(date, runCount: runCount, squadOpponents: squadOpponents, formatter: makeDayFormatter(calendar: calendar))
+    }
+
+    /// "Tuesday, October 7" — the formatter `spokenDay` and a page's
+    /// `dayTitles` share, built once per page.
+    private nonisolated static func makeDayFormatter(calendar: Calendar) -> DateFormatter {
         let formatter = makeFormatter(calendar: calendar)
         formatter.setLocalizedDateFormatFromTemplate("EEEEMMMMd")
+        return formatter
+    }
 
+    private nonisolated static func spokenDay(
+        _ date: Date,
+        runCount: Int,
+        squadOpponents: [String],
+        formatter: DateFormatter
+    ) -> String {
         var parts = [formatter.string(from: date)]
         if runCount > 0 { parts.append(countText(runCount, "run")) }
         parts += squadOpponents.map { "squad game against \($0)" }

@@ -99,7 +99,9 @@ exist; the dictionary describes code that does.
 | [`plans/LIVE_HEADCOUNT.md`](plans/LIVE_HEADCOUNT.md) | Proposed — live court occupancy via a `checkins` collection. |
 | [`plans/SCALE_UP.md`](plans/SCALE_UP.md) | Proposed — multi-city scaling: the global public-games query fix, court-dataset delivery, and the sequencing around them. |
 | [`plans/BACKLOG.md`](plans/BACKLOG.md) | Proposed — unbuilt enhancement stories: solo Queue Up, Friends safety, run detail, and the Blaze-gated waitlist story. |
-| [`plans/LAUNCH_READINESS.md`](plans/LAUNCH_READINESS.md) | Proposed — five open items from the 2026-09-20 audit, none a submission blocker. App Check (§1) is the highest-value. |
+| [`plans/LAUNCH_GAMEPLAN.md`](plans/LAUNCH_GAMEPLAN.md) | **Active, week of 2026-10-19.** Day-by-day schedule closing every audit item, with gates, the rules-deploy protocol, the full manual test plan (two phones), triage, cut list, and the launch runbook. COMPLETE target Sun 2026-10-25; launch target Thu 2026-11-05. |
+| [`plans/PRE_LAUNCH_AUDIT.md`](plans/PRE_LAUNCH_AUDIT.md) | **Read first before shipping.** 2026-10-18 audit: four App Store blockers, eight user-facing bugs, ops/release checklist, doc drift, and UX touch-ups. Supersedes `LAUNCH_READINESS.md`. |
+| [`plans/LAUNCH_READINESS.md`](plans/LAUNCH_READINESS.md) | Superseded by `PRE_LAUNCH_AUDIT.md`, which folds in all five items. |
 
 ---
 

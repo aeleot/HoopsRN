@@ -420,7 +420,7 @@ nonisolated enum StatsScoreboardMetrics {
         let size = HooprFontMetrics.scaledSize(role.size, maximumSize: role.maximumSize, at: category)
         let font = UIFont.systemFont(ofSize: size, weight: role.uiFontWeight)
         let text = role.isUppercase ? label.uppercased() : label
-        let textWidth = ceil((text as NSString).size(withAttributes: [.font: font, .kern: role.kerning]).width)
+        let textWidth = HooprFontMetrics.width(of: text, font: font, kerning: role.kerning)
 
         guard let symbol,
               let image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(font: font))
@@ -441,6 +441,6 @@ nonisolated enum StatsScoreboardMetrics {
     static func width(of text: String, role: HooprTextRole, at category: UIContentSizeCategory) -> CGFloat {
         let size = HooprFontMetrics.scaledSize(role.size, maximumSize: role.maximumSize, at: category)
         let font = UIFont.monospacedDigitSystemFont(ofSize: size, weight: role.uiFontWeight)
-        return ceil((text as NSString).size(withAttributes: [.font: font]).width)
+        return HooprFontMetrics.width(of: text, font: font)
     }
 }

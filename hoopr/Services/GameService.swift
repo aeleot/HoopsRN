@@ -461,26 +461,32 @@ final class GameService: ObservableObject {
         // didn't come through it.
         guard InviteLink.isWellFormed(gameId: gameId) else { return nil }
 
+        let snapshot: DocumentSnapshot
         do {
-            let snapshot = try await database
+            snapshot = try await database
                 .collection(Collection.games)
                 .document(gameId)
                 .getDocument()
-            guard snapshot.exists else { return nil }
-            return try snapshot.data(as: Game.self)
-        } catch let decodingError as DecodingError {
-            // A drifted document, not a failed read — `decoded(_:)` skips the
-            // same thing in a list.
-            logger.error(
-                "Skipping game \(gameId, privacy: .public): \(decodingError.localizedDescription, privacy: .public)"
-            )
-            return nil
         } catch {
             let gameError = Self.mapped(error)
             logger.error(
                 "Couldn't read run \(gameId, privacy: .public): \(String(describing: gameError), privacy: .public)"
             )
             throw gameError
+        }
+        guard snapshot.exists else { return nil }
+
+        do {
+            return try snapshot.data(as: Game.self)
+        } catch {
+            // A drifted document, not a failed read — whatever the decoder
+            // threw, `Codable`'s `DecodingError` or Firestore's own. The same
+            // catch-all `decoded(_:)` applies to a list, so the two read paths
+            // agree on what "no longer decodes" means.
+            logger.error(
+                "Skipping game \(gameId, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
+            return nil
         }
     }
 

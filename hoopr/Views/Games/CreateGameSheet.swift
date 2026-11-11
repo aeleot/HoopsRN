@@ -78,7 +78,7 @@ struct CreateGameSheet: View {
                     }
 
                     if let errorMessage = viewModel.errorMessage {
-                        problem(errorMessage)
+                        ProblemLine(message: errorMessage)
                     }
                 }
                 .padding(.horizontal, Spacing.pageMargin)
@@ -195,7 +195,7 @@ struct CreateGameSheet: View {
             // A form left open long enough for its own tip-off to pass would
             // otherwise leave Create disabled with no explanation.
             if let hint = viewModel.validationHint, !viewModel.isSaving {
-                problem(hint)
+                ProblemLine(message: hint)
                     .padding(.horizontal, FormRowMetrics.horizontalPadding)
             }
         }
@@ -421,22 +421,11 @@ struct CreateGameSheet: View {
     /// now says what the link does, since the receiving half has shipped.
     private func inviteStep(link: String) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xl) {
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                Image(systemName: "checkmark.circle.fill")
-                    .hooprFont(40, maximumSize: 56)
-                    .foregroundStyle(Color.hooprBrandAccent)
-                    .accessibilityHidden(true)
-
-                Text("Your run is set")
-                    .hooprType(.title)
-                    .foregroundStyle(Color.hooprPrimaryText)
-                    .accessibilityAddTraits(.isHeader)
-
-                Text("Send your players the link. It opens this run in the app so they can join.")
-                    .hooprType(.body)
-                    .foregroundStyle(Color.hooprSecondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            SheetHeading(
+                symbol: "checkmark.circle.fill",
+                title: "Your run is set",
+                message: "Send your players the link. It opens this run in the app so they can join."
+            )
 
             FormPanel {
                 FormRow(glyph: FormRowGlyph(.court, isLandscape: true)) {
@@ -481,18 +470,4 @@ struct CreateGameSheet: View {
     }
 
     // MARK: - Problems
-
-    /// A validation hint or a failed write: red, marked, and one line where
-    /// it fits.
-    private func problem(_ message: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Image(systemName: "exclamationmark.circle.fill")
-                .hooprType(.caption)
-                .accessibilityHidden(true)
-            Text(message)
-                .hooprType(.caption)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .foregroundStyle(Color.hooprRed)
-    }
 }

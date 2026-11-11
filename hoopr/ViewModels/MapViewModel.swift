@@ -229,9 +229,15 @@ final class MapViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        // Every court is drawn (there are no filters — see `rebuild()`), so
+        // the pins are the dataset itself: published once when it loads, not
+        // again on every rebuild the lists go through.
         courtService.$courts
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.rebuild() }
+            .sink { [weak self] courts in
+                self?.courts = courts
+                self?.rebuild()
+            }
             .store(in: &cancellables)
 
         courtService.$loadError
@@ -457,8 +463,6 @@ final class MapViewModel: ObservableObject {
     /// its time and spots. They went with the band's second row. Every court
     /// is drawn; the segments choose what the sheet lists.
     private func rebuild() {
-        courts = courtService.courts
-
         let ranked = Self.ranked(courts: courts, from: searchOrigin)
         let byID = Dictionary(uniqueKeysWithValues: ranked.map { ($0.court.id, $0) })
 

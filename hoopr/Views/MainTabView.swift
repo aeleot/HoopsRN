@@ -187,6 +187,7 @@ struct MainTabView: View {
                 HomeTab(
                     authService: authService,
                     courtService: courtService,
+                    locationService: locationService,
                     gameService: gameService,
                     userProfileService: userProfileService,
                     friendService: friendService,

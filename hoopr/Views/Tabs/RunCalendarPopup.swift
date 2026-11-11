@@ -481,7 +481,7 @@ nonisolated enum RunCalendarMetrics {
         )
         let font = UIFont.systemFont(ofSize: size, weight: .bold)
         return (1 ... 31)
-            .map { ceil(("\($0)" as NSString).size(withAttributes: [.font: font]).width) }
+            .map { HooprFontMetrics.width(of: "\($0)", font: font) }
             .max() ?? 0
     }
 

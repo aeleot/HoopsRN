@@ -56,6 +56,7 @@ struct HomeTab: View {
     init(
         authService: AuthService,
         courtService: CourtService,
+        locationService: LocationService,
         gameService: GameService,
         userProfileService: UserProfileService,
         friendService: FriendService,
@@ -73,6 +74,7 @@ struct HomeTab: View {
         _viewModel = StateObject(wrappedValue: HomeViewModel(
             authService: authService,
             courtService: courtService,
+            locationService: locationService,
             gameService: gameService,
             userProfileService: userProfileService,
             friendService: friendService,

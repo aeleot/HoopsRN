@@ -1,6 +1,8 @@
 # Plan — Launch Readiness
 
-**Status:** proposed — five open items, none of them a submission blocker
+**Status:** **superseded by [`PRE_LAUNCH_AUDIT.md`](PRE_LAUNCH_AUDIT.md)** (2026-10-18),
+which folds in all five items below. Kept until they are tracked there; then delete.
+Originally: five open items, none of them a submission blocker.
 **Drafted:** 2026-09-20 · **Pruned:** 2026-09-24 (the icon, deployment
 target, device family, permission string and rules coverage all shipped
 2026-09-20 and were removed — they're in git history)

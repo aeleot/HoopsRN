@@ -130,28 +130,11 @@ struct InviteJoinSheet: View {
         }
     }
 
-    /// The glyph, the one-line answer, and the sentence under it — the create
-    /// sheet's "Your run is set" block, so the two read as one family.
+    /// The glyph, the one-line answer, and the sentence under it —
+    /// `SheetHeading`, the create sheet's "Your run is set" block, so the two
+    /// read as one family.
     private func heading(symbol: String, copy: InviteJoinViewModel.Copy) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Image(systemName: symbol)
-                .hooprFont(40, maximumSize: 56)
-                .foregroundStyle(Color.hooprBrandAccent)
-                .accessibilityHidden(true)
-
-            Text(copy.title)
-                .hooprType(.title)
-                .foregroundStyle(Color.hooprPrimaryText)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityAddTraits(.isHeader)
-
-            if let message = copy.message {
-                Text(message)
-                    .hooprType(.body)
-                    .foregroundStyle(Color.hooprSecondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
+        SheetHeading(symbol: symbol, title: copy.title, message: copy.message)
     }
 
     /// Where, when, and whether there's room — the three things anyone
@@ -233,7 +216,7 @@ struct InviteJoinSheet: View {
                 .disabled(viewModel.isJoining)
 
                 if let joinError = viewModel.joinError {
-                    problem(joinError)
+                    ProblemLine(message: joinError)
                 }
             }
         } else if landing != .over {
@@ -245,20 +228,6 @@ struct InviteJoinSheet: View {
             }
             .buttonStyle(.hooprFilled(.large, role: .secondary))
         }
-    }
-
-    /// A refused join: red, marked, under the button it answers — the create
-    /// sheet's `problem(_:)`.
-    private func problem(_ message: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Image(systemName: "exclamationmark.circle.fill")
-                .hooprType(.caption)
-                .accessibilityHidden(true)
-            Text(message)
-                .hooprType(.caption)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .foregroundStyle(Color.hooprRed)
     }
 
     private static func symbol(for landing: InviteJoinViewModel.Landing) -> String {

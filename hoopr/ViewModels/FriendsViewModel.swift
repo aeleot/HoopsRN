@@ -148,7 +148,6 @@ final class FriendsViewModel: ObservableObject {
 
     @Published private(set) var friends: [Row] = []
     @Published private(set) var incomingRequests: [Row] = []
-    @Published private(set) var outgoingRequests: [Row] = []
 
     /// People who said yes to a request *you* sent, lately — the inbox's
     /// "accepted your request" cards. Newest first. A subset of `friends`, so
@@ -315,7 +314,6 @@ final class FriendsViewModel: ObservableObject {
         guard let uid = friendService.currentUserId else {
             edgesByUid = [:]
             incomingRequests = []
-            outgoingRequests = []
             friends = []
             recentlyAccepted = []
             return
@@ -339,12 +337,11 @@ final class FriendsViewModel: ObservableObject {
         guard let uid = friendService.currentUserId else { return }
 
         incomingRequests = incoming.map { row(for: $0.otherUid(than: uid)) }
-        outgoingRequests = outgoing.map { row(for: $0.otherUid(than: uid)) }
         friends = accepted.map { row(for: $0.otherUid(than: uid)) }
         recentlyAccepted = Self.recentlyAccepted(
             accepted,
             by: uid,
-            dismissed: inboxDismissals.keys,
+            dismissed: Set(inboxDismissals.keys),
             now: Date()
         ).map { row(for: $0.otherUid(than: uid)) }
     }
@@ -417,15 +414,18 @@ final class FriendsViewModel: ObservableObject {
 
     /// Fetches the names this screen doesn't have yet.
     ///
-    /// One batch across all three lists, and only for uids missing from the
-    /// cache, so a new request costs one lookup rather than a re-fetch of
-    /// everyone. A failure is deliberately silent: the rows are already usable
-    /// without a name, and the uid stays missing from the cache, so the next
-    /// snapshot retries it on its own. Putting a transient name failure in the
-    /// error banner would push the friendship's own errors off the screen.
+    /// One batch across every edge — incoming, outgoing and accepted, so the
+    /// profile sheet for someone you've asked has their name too — and only
+    /// for uids missing from the cache, so a new request costs one lookup
+    /// rather than a re-fetch of everyone. A failure is deliberately silent:
+    /// the rows are already usable without a name, and the uid stays missing
+    /// from the cache, so the next snapshot retries it on its own. Putting a
+    /// transient name failure in the error banner would push the friendship's
+    /// own errors off the screen.
     private func resolveMissingProfiles() {
-        let shown = incomingRequests + outgoingRequests + friends
-        let missing = Set(shown.map(\.uid)).subtracting(profilesByUid.keys)
+        guard let uid = friendService.currentUserId else { return }
+        let shown = (incoming + outgoing + accepted).map { $0.otherUid(than: uid) }
+        let missing = Set(shown).subtracting(profilesByUid.keys)
         guard !missing.isEmpty else { return }
 
         let service = userProfileService
