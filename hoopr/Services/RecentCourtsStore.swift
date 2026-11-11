@@ -7,6 +7,9 @@ import Foundation
 /// meaningful only on the phone they happened on, and not worth a document
 /// read on every launch. Favourites are the thing that syncs — see
 /// `UserProfileService.setFavorite(courtId:isFavorite:)`.
+///
+/// A `RecentKeysStore` with a `@Published` mirror of its list, so the map's
+/// recents row can observe it.
 final class RecentCourtsStore: ObservableObject {
     @Published private(set) var recentCourtIds: [String] = []
 
@@ -14,22 +17,17 @@ final class RecentCourtsStore: ObservableObject {
     /// rather than a second search.
     static let maxEntries = 10
 
-    private let defaults: UserDefaults
-    private let storageKey = "recentCourtIds"
+    private let store: RecentKeysStore
 
     /// `defaults` is injectable so tests can run against a scratch suite
     /// instead of the real one.
     init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        recentCourtIds = defaults.stringArray(forKey: storageKey) ?? []
+        store = RecentKeysStore(storageKey: "recentCourtIds", capacity: Self.maxEntries, defaults: defaults)
+        recentCourtIds = store.keys
     }
 
     /// Moves a court to the front, whether or not it was already present.
     func record(courtId: String) {
-        var ids = recentCourtIds
-        ids.removeAll { $0 == courtId }
-        ids.insert(courtId, at: 0)
-        recentCourtIds = Array(ids.prefix(Self.maxEntries))
-        defaults.set(recentCourtIds, forKey: storageKey)
+        recentCourtIds = store.record(courtId)
     }
 }

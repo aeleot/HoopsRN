@@ -10,7 +10,7 @@ import Foundation
 /// `squadName` for the pool UI, `memberIds` so the no-shared-players rule needs
 /// no extra read, and `wins`/`losses` for opponent ranking. **None of them is
 /// the record of truth.** A squad's real W-L is a query over confirmed
-/// `seasonGames` (plan §1.1); these are display-and-scoring copies a client
+/// `seasonGames`; these are display-and-scoring copies a client
 /// wrote about itself, and treating them as anything more would reintroduce the
 /// forgeable counter the schema deliberately avoids.
 ///
@@ -180,18 +180,6 @@ nonisolated extension MatchTicket {
     /// `Game.schedulingWindow` puts on a pickup run, reused so the two can't
     /// disagree about how far ahead the app plans.
     static var maximumWindowLead: TimeInterval { Game.schedulingWindow }
-
-    /// The share of games won, or `0.5` for a squad that hasn't played.
-    ///
-    /// An unplayed squad sits at the midpoint rather than at zero: treating "no
-    /// record" as "loses everything" would rank every new squad against the
-    /// worst opponents in the pool, which is the opposite of what a fresh
-    /// squad needs.
-    var winPercentage: Double {
-        let played = wins + losses
-        guard played > 0 else { return 0.5 }
-        return Double(wins) / Double(played)
-    }
 
     var isUnplayed: Bool { wins + losses == 0 }
 

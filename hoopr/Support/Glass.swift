@@ -72,3 +72,32 @@ private struct HooprGlass<S: Shape>: ViewModifier {
         }
     }
 }
+
+/// Glass shapes that sit side by side, rendered as one group (UI revamp
+/// Phase 4): iOS 26's `GlassEffectContainer`, and the content unchanged on iOS
+/// 18, where the material fallback has nothing to group.
+///
+/// **Why a row of glass needs it.** Glass can't sample other glass: each
+/// shape refracts what's behind it, and a neighbouring glass shape isn't
+/// "behind" in that sense. Rendered separately, adjacent chips each sample the
+/// map on their own and can disagree at their edges; in a container they share
+/// one sampling pass — which is also the cheaper way to draw them. `spacing`
+/// is how close two shapes must be before they blend into one; `nil` takes the
+/// system's default, which keeps chips a few points apart as separate shapes.
+///
+/// Here rather than at the call site so this file stays the only place a
+/// glass API is named.
+struct HooprGlassGroup<Content: View>: View {
+    var spacing: CGFloat?
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: spacing) {
+                content
+            }
+        } else {
+            content
+        }
+    }
+}

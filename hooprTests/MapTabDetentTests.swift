@@ -21,6 +21,26 @@ final class MapTabDetentTests: XCTestCase {
 
     // MARK: - Heights
 
+    func testExpandedStopsBelowTheMeasuredBandAndGap() {
+        let band = SheetGeometry(containerHeight: 729, topInset: 232)
+        XCTAssertEqual(band.expandedHeight, 497)
+        XCTAssertEqual(band.mediumHeight, 243)
+    }
+
+    func testSmallBandKeepsTheOriginalExpandedFraction() {
+        XCTAssertEqual(SheetGeometry(containerHeight: 729, topInset: 80).expandedHeight, 729 * 0.78)
+    }
+
+    func testLargeBandAndKeyboardKeepTheDetentsOrdered() {
+        for inset: CGFloat in [250, 400, 500] {
+            let sheet = SheetGeometry(containerHeight: 400, fittedMediumHeight: 500, topInset: inset)
+            XCTAssertGreaterThanOrEqual(sheet.expandedHeight, 0)
+            XCTAssertLessThanOrEqual(sheet.mediumHeight, sheet.expandedHeight)
+            XCTAssertLessThanOrEqual(sheet.restingMediumHeight, sheet.expandedHeight)
+            XCTAssertLessThanOrEqual(sheet.sheetHeight(detent: .expanded, drag: -500), max(0, 400 - inset))
+        }
+    }
+
     func testMediumIsAThirdAndExpandedIsMostOfTheContainer() {
         XCTAssertEqual(geometry.mediumHeight, 769 / 3, accuracy: 0.001)
         XCTAssertEqual(geometry.expandedHeight, 769 * 0.78, accuracy: 0.001)
@@ -81,6 +101,37 @@ final class MapTabDetentTests: XCTestCase {
     }
 
     // MARK: - Rubber banding
+
+    func testCollapseProgressClampsAtBothEndsOfTravel() {
+        XCTAssertEqual(geometry.collapseProgress(offset: -40), 0)
+        XCTAssertEqual(geometry.collapseProgress(offset: 0), 0)
+        XCTAssertEqual(geometry.collapseProgress(offset: geometry.restingMediumHeight / 2), 0.5)
+        XCTAssertEqual(geometry.collapseProgress(offset: geometry.restingMediumHeight), 1)
+        XCTAssertEqual(geometry.collapseProgress(offset: geometry.restingMediumHeight + 40), 1)
+    }
+
+    func testCollapseProgressUsesTheFittedCardHeight() {
+        let fitted = SheetGeometry(containerHeight: 769, fittedMediumHeight: 400)
+        XCTAssertEqual(fitted.collapseProgress(offset: 200), 0.5)
+        XCTAssertEqual(fitted.collapseProgress(offset: 400), 1)
+        XCTAssertEqual(SheetGeometry(containerHeight: 0).collapseProgress(offset: 10), 0)
+    }
+
+    func testContentFadesDuringOnlyTheFirstFortyPercent() {
+        XCTAssertEqual(SheetGeometry.contentOpacity(collapseProgress: -0.2), 1)
+        XCTAssertEqual(SheetGeometry.contentOpacity(collapseProgress: 0), 1)
+        XCTAssertEqual(SheetGeometry.contentOpacity(collapseProgress: 0.2), 0.5)
+        for progress: CGFloat in [0.4, 0.6, 1, 1.2] {
+            XCTAssertEqual(SheetGeometry.contentOpacity(collapseProgress: progress), 0)
+        }
+    }
+
+    func testReversingCollapseRetracesTheSameOpacity() {
+        let progress: [CGFloat] = [0, 0.1, 0.2, 0.3, 0.4, 0.6, 1]
+        let down = progress.map { SheetGeometry.contentOpacity(collapseProgress: $0) }
+        let up = progress.reversed().map { SheetGeometry.contentOpacity(collapseProgress: $0) }
+        XCTAssertEqual(down, up.reversed())
+    }
 
     /// However hard it's flung, the overshoot eases toward the limit and stops.
     ///
@@ -156,6 +207,51 @@ final class MapTabDetentTests: XCTestCase {
         XCTAssertEqual(SheetGeometry.nextDetent(from: .collapsed, projecting: 10_000), .collapsed)
     }
 
+    // MARK: - A court card's fitted medium
+
+    /// The map's container on an iPhone 17 once the map stopped above the tab
+    /// bar: `.medium` is ~215pt, which left a court card ~112pt to scroll —
+    /// the name and distance, then half a run.
+    private let cardGeometry = SheetGeometry(containerHeight: 645)
+
+    private func fitted(_ height: CGFloat?) -> SheetGeometry {
+        SheetGeometry(containerHeight: cardGeometry.containerHeight, fittedMediumHeight: height)
+    }
+
+    /// The list, and a card that hasn't measured yet, rest at a third.
+    func testWithoutAFittedHeightMediumIsStillAThird() {
+        XCTAssertEqual(fitted(nil).restingMediumHeight, cardGeometry.mediumHeight)
+        XCTAssertEqual(fitted(nil).sheetHeight(detent: .medium, drag: 0), 215, accuracy: 0.5)
+    }
+
+    /// A card whose lead needs more than a third rests tall enough to show it
+    /// — the fix for a run cut in half at `.medium`.
+    func testACardThatNeedsMoreRoomRestsTallerAtMedium() {
+        let geometry = fitted(262)
+        XCTAssertEqual(geometry.sheetHeight(detent: .medium, drag: 0), 262)
+        XCTAssertEqual(geometry.sheetOffset(detent: .medium, drag: 0), 0)
+    }
+
+    /// A card with only a name and "No runs here today" keeps the list's
+    /// height — it never rests *shorter* than a third.
+    func testACardThatNeedsLessRoomKeepsTheListsHeight() {
+        XCTAssertEqual(fitted(180).restingMediumHeight, cardGeometry.mediumHeight)
+    }
+
+    /// A card taller than the expanded sheet (huge text, a long waitlist note)
+    /// is capped there, and scrolls.
+    func testAFittedHeightNeverExceedsExpanded() {
+        XCTAssertEqual(fitted(900).restingMediumHeight, cardGeometry.expandedHeight)
+    }
+
+    /// Dragging a taller card down stops at its own resting height before the
+    /// sheet starts to leave the screen, exactly as the list does at a third.
+    func testDraggingAFittedCardDownFloorsAtItsRestingHeight() {
+        let geometry = fitted(262)
+        XCTAssertEqual(geometry.sheetHeight(detent: .expanded, drag: 10_000), 262)
+        XCTAssertEqual(geometry.sheetOffset(detent: .medium, drag: 30), 30)
+    }
+
     // MARK: - Display detent
 
     /// The bug this rule exists for: a court tapped while the list sits
@@ -188,6 +284,78 @@ final class MapTabDetentTests: XCTestCase {
             SheetState.detail(court: Self.court, returningTo: .medium).selectedCourt?.id,
             Self.court.id
         )
+    }
+
+    // MARK: - The one-row band (2026-10-10)
+
+    /// iPhone 17, measured from the live app: a 729pt tab, and a band of 170pt
+    /// while it had three rows — 316pt of map over the list at rest, 284pt over
+    /// a hosted run's card (~275pt). One row is 70pt. **Neither sheet moves**,
+    /// so every point the band gave up is map, in both states — and the band
+    /// is the same height in both, which is what the compact-on-select band it
+    /// replaces wasn't.
+    private let tabHeight: CGFloat = 729
+    private let threeRowBand: CGFloat = 170
+    private let oneRowBand: CGFloat = 70
+    private let hostedRunCard: CGFloat = 275
+
+    private func sheet(under band: CGFloat, card: CGFloat? = nil) -> SheetGeometry {
+        SheetGeometry(containerHeight: tabHeight, fittedMediumHeight: card, topInset: band + 12)
+    }
+
+    private func map(under band: CGFloat, card: CGFloat? = nil) -> CGFloat {
+        sheet(under: band, card: card).visibleMapHeight(bandHeight: band, detent: .medium, drag: 0)
+    }
+
+    func testTheOneRowBandHandsItsHeightToTheMap() {
+        XCTAssertEqual(map(under: threeRowBand), 316)
+        XCTAssertEqual(map(under: oneRowBand), 416)
+
+        XCTAssertEqual(map(under: threeRowBand, card: hostedRunCard), 284)
+        XCTAssertEqual(map(under: oneRowBand, card: hostedRunCard), 384)
+
+        for card in [nil, hostedRunCard] {
+            XCTAssertEqual(
+                sheet(under: oneRowBand, card: card).sheetHeight(detent: .medium, drag: 0),
+                sheet(under: threeRowBand, card: card).sheetHeight(detent: .medium, drag: 0),
+                "the sheet rests at the same height under either band"
+            )
+        }
+    }
+
+    /// The three-row band held an expanded sheet 12pt under itself, below the
+    /// 0.78 cap; under one row the cap is what stops it.
+    func testTheOneRowBandLetsAnExpandedSheetRiseToItsCap() {
+        XCTAssertEqual(sheet(under: threeRowBand).expandedHeight, tabHeight - threeRowBand - 12)
+        XCTAssertEqual(sheet(under: oneRowBand).expandedHeight, tabHeight * 0.78, accuracy: 0.001)
+    }
+
+    /// The visible map never goes negative, however tall the band or the sheet.
+    func testTheVisibleMapIsNeverNegative() {
+        XCTAssertEqual(sheet(under: threeRowBand).visibleMapHeight(bandHeight: 900, detent: .expanded, drag: 0), 0)
+        XCTAssertEqual(geometry.visibleMapHeight(bandHeight: -10, detent: .collapsed, drag: 0), geometry.containerHeight)
+    }
+
+    /// What's on screen is the sheet less its slide: all of it at rest, none
+    /// of it collapsed — the number the map's framing and the recenter
+    /// button read.
+    func testTheVisibleSheetIsItsHeightLessItsSlide() {
+        XCTAssertEqual(geometry.visibleHeight(detent: .medium, drag: 0), geometry.mediumHeight)
+        XCTAssertEqual(geometry.visibleHeight(detent: .expanded, drag: 0), geometry.expandedHeight)
+        XCTAssertEqual(geometry.visibleHeight(detent: .collapsed, drag: 0), 0)
+        XCTAssertEqual(geometry.visibleHeight(detent: .medium, drag: 50), geometry.mediumHeight - 50)
+    }
+
+    // MARK: - Clearance above the tab bar
+
+    /// **No pane's last row sits closer than `Spacing.md` to the tab bar.** The
+    /// lists keep exactly that under their last row; the court card keeps more
+    /// under its buttons. The bar's glass starts at this container's bottom
+    /// edge, so these insets are the whole gap.
+    @MainActor
+    func testNoPaneSitsCloserThanSpacingMdToTheTabBar() {
+        XCTAssertEqual(SheetGeometry.bottomClearance, Spacing.md)
+        XCTAssertGreaterThanOrEqual(SheetGeometry.cardActionsBottomInset, SheetGeometry.bottomClearance)
     }
 
     private static let court = Court(

@@ -101,7 +101,7 @@ struct FriendsPaneContent: View {
         if viewModel.friends.isEmpty {
             message(viewModel.friendsEmptyText)
         } else {
-            VStack(spacing: 10) {
+            DividedRows(leadingInset: FriendRow<EmptyView>.textInset) {
                 ForEach(viewModel.friends) { row in
                     FriendRow(
                         // Always the handle, never a home court. A subtitle
@@ -180,7 +180,7 @@ struct FriendsPaneContent: View {
         case .results:
             header(title: "Results", countText: "\(viewModel.searchRows.count)")
 
-            VStack(spacing: 10) {
+            DividedRows(leadingInset: FriendRow<EmptyView>.textInset) {
                 ForEach(viewModel.searchRows) { row in
                     FriendRow(
                         row: row,
@@ -232,23 +232,26 @@ struct FriendsPaneContent: View {
 
     // MARK: - Shared pieces
 
+    /// A `label` with its count at the trailing edge — the roster header on
+    /// Seasons, so a list of people reads the same wherever it is. The count
+    /// used to sit in a filled capsule, one more shape for a number.
     private func header(title: String, countText: String) -> some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .firstTextBaseline) {
             Text(title)
-                .hooprFont(18, weight: .bold)
-                .foregroundStyle(Color.hooprPrimaryText)
-
-            Text(countText)
-                .hooprFont(12, weight: .semibold)
+                .hooprType(.label)
                 .foregroundStyle(Color.hooprSecondaryText)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Capsule().fill(Color.hooprFill))
 
             Spacer()
+
+            Text(countText)
+                .hooprType(.caption)
+                .monospacedDigit()
+                .foregroundStyle(Color.hooprSecondaryText)
+                .hooprNumericTransition(text: countText)
         }
-        .padding(.bottom, 12)
+        .padding(.bottom, Spacing.xs)
         .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 
     private func message(_ text: String) -> some View {

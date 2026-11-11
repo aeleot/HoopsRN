@@ -262,6 +262,22 @@ nonisolated extension Game {
         }
         return streak
     }
+
+    /// How many of `games` were completed in the ISO week containing `now` —
+    /// Home's "This week".
+    ///
+    /// **The streak's week, not the device's.** `Calendar.current` in the US
+    /// starts the week on Sunday; the streak buckets Monday-first in UTC. Two
+    /// panels on one scoreboard counting different weeks would show "0 runs this
+    /// week" beside a streak that just counted one. Same calendar, same answer.
+    nonisolated static func completedThisWeek(in games: [Game], now: Date = Date()) -> Int {
+        let calendar = streakCalendar
+        let thisWeek = streakWeek(for: now, calendar: calendar)
+        return games
+            .compactMap(\.completedAt)
+            .filter { streakWeek(for: $0, calendar: calendar) == thisWeek }
+            .count
+    }
 }
 
 // MARK: - Presentation helpers
@@ -305,23 +321,41 @@ nonisolated extension Game {
     /// as supporting detail, so they need the halves separately — derived from
     /// the same `scheduledTime`, so they cannot disagree.
     var timeText: String {
-        Self.timeFormatter.string(from: scheduledTime)
+        Self.timeText(for: scheduledTime)
     }
 
-    /// "Tonight" / "Tomorrow" / "Sat, Aug 15".
+    /// The hour a same-day run starts reading as "Tonight".
+    static let eveningStartHour = 17
+
+    /// `timeText` for a time that isn't a run yet — the create sheet's pick.
+    static func timeText(for date: Date) -> String {
+        timeFormatter.string(from: date)
+    }
+
+    /// "Tonight" / "Today" / "Tomorrow" / "Sat, Aug 15".
     ///
     /// The same three-way split `scheduledText()` makes, so a run never reads
-    /// as "Today" on one surface and "Sat" on another. "Tonight" rather than
-    /// "Today" because the surfaces that use it are read on the way out of the
-    /// door; a morning run still reads correctly, just warmly.
+    /// as "Today" on one surface and "Sat" on another. **"Tonight" from 5 PM,
+    /// "Today" before it** (2026-09-23): the create sheet showed "Tonight" over
+    /// "11:15 AM" on the device, and Home and Runs had the same wart for any
+    /// morning run. 5 PM is where Seasons' own "Tonight" window starts
+    /// (`QueueWindow.tonight`).
     func dayText(relativeTo now: Date = Date()) -> String {
+        Self.dayText(for: scheduledTime, relativeTo: now)
+    }
+
+    /// `dayText` for a time that isn't a run yet — the create sheet's pick —
+    /// so a run reads the same before and after it exists.
+    static func dayText(for date: Date, relativeTo now: Date = Date()) -> String {
         let calendar = Calendar.current
-        if calendar.isDate(scheduledTime, inSameDayAs: now) { return "Tonight" }
+        if calendar.isDate(date, inSameDayAs: now) {
+            return calendar.component(.hour, from: date) >= Self.eveningStartHour ? "Tonight" : "Today"
+        }
         if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now),
-           calendar.isDate(scheduledTime, inSameDayAs: tomorrow) {
+           calendar.isDate(date, inSameDayAs: tomorrow) {
             return "Tomorrow"
         }
-        return Self.dayFormatter.string(from: scheduledTime)
+        return dayFormatter.string(from: date)
     }
 
     /// "9 spots left" / "1 spot left" / "Full".
@@ -339,6 +373,12 @@ nonisolated extension Game {
         if isFull { return "Full" }
         return openSlots == 1 ? "1 spot left" : "\(openSlots) spots left"
     }
+
+    /// What a waitlist place can't do: move up. The update rule forbids
+    /// writing another player's uid, so a freed seat is never handed on
+    /// (`gaps/GAMES.md`). Shared by `GameCard`'s waitlist note and the invite
+    /// sheet, so the same limitation is never described two ways.
+    static let waitlistCaveat = "Waitlist spots don't move up yet — ask the host if someone drops."
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()

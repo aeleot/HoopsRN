@@ -17,6 +17,23 @@ import SwiftUI
 /// profile header. That header is gone — every avatar in the app now sits on a
 /// surface — so the variant went with it.
 struct PlayerAvatar: View {
+    /// Every diameter the app draws an avatar at, named by where (UI revamp
+    /// Phase 6) — the shape `SquadCrest.Size` has, so a new screen picks a
+    /// size rather than inventing a sixth.
+    enum Size {
+        /// Beside a name in a bar — the profile's top bar.
+        static let inline: CGFloat = 28
+        /// A squad roster or an invite row, where the crest sets the scale.
+        static let roster: CGFloat = 34
+        /// A friends-list row.
+        static let row: CGFloat = 44
+        /// The player sheet's header.
+        static let sheet: CGFloat = 56
+        /// Your own profile — the base the identity block scales from with
+        /// Dynamic Type.
+        static let profile: CGFloat = 72
+    }
+
     /// One or two uppercased letters, or empty to select the fallback glyph.
     let initial: String
 

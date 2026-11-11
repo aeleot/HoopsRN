@@ -96,16 +96,14 @@ exist; the dictionary describes code that does.
 
 | Plan | Status |
 |---|---|
-| [`plans/SEASONS.md`](plans/SEASONS.md) | **Shipped.** All eight phases built and folded into the entries; §6 records where each went. Kept for §0 (why there is no server-side matchmaker), §7 (what's deliberately out of reach) and §8 (live risks). |
-| [`plans/FRIENDS.md`](plans/FRIENDS.md) | **Partly shipped.** Phases 1–4 (backend, UI, discovery, the friends'-public-runs badge) are built. Only Phase 5 (safety tooling) is still a proposal, and it was deferred on purpose. |
-| [`plans/STATS_CARD.md`](plans/STATS_CARD.md) | **Partly shipped.** Phases 1–3 built. The write that fills the card — a host marking their own run complete — landed 2026-09-18, so it no longer sits empty on a real account; the plan's §11 and §14 predate that. See `gaps/GAMES.md`. |
-| [`plans/APP_SHELL_AND_HOME.md`](plans/APP_SHELL_AND_HOME.md) | **Shipped.** Bottom tab bar, Home tab, inline court search. Its §5 records the colour work a native tab bar forced — now tracked in `gaps/ACCESSIBILITY.md`. |
 | [`plans/LIVE_HEADCOUNT.md`](plans/LIVE_HEADCOUNT.md) | Proposed — live court occupancy via a `checkins` collection. |
 | [`plans/SCALE_UP.md`](plans/SCALE_UP.md) | Proposed — multi-city scaling: the global public-games query fix, court-dataset delivery, and the sequencing around them. |
 | [`plans/COURT_DATA_PLATFORM.md`](plans/COURT_DATA_PLATFORM.md) | Proposed — statewide NC coverage. Its API question is **closed (no API, decided 2026-09-22)**; §4 is kept as the record of why. Owns **ingest** (Geofabrik extract, boundary-based city assignment) where `SCALE_UP.md` §2 owns delivery. Leads with the measurement that reframes both: all of NC is ~1,764 courts / ~795KB, so bundling survives statewide and size was never the blocker. |
 | [`plans/COURT_DATA_SOURCES.md`](plans/COURT_DATA_SOURCES.md) | Proposed — **how to make the Triangle data actually accurate.** A completed 2026-09-22 survey of four official sources (Raleigh PRCR court-level, Wake County all-jurisdiction, Durham, Chapel Hill) with endpoints and field names, what each would measurably fix, and the honest negatives (Cary publishes no basketball field; no hoop-count source exists). Its §4 is the load-bearing part: official *court-level* and *park-level* claims are different kinds of fact and must not be merged. |
-| [`plans/BACKLOG.md`](plans/BACKLOG.md) | Proposed — enhancement stories across four tracks. Its Queue Up track shipped 2026-09-16; the rest stands. |
-| [`plans/LAUNCH_READINESS.md`](plans/LAUNCH_READINESS.md) | **Partly shipped.** The 2026-09-20 staff audit, ten items, none of them code defects. Items 1, 3, 6 and 10 landed the same day — **no submission blockers remain**. App Check (§2) is the highest-value item left. Its correction note records an availability claim the audit got wrong. |
+| [`plans/BACKLOG.md`](plans/BACKLOG.md) | Proposed — unbuilt enhancement stories: solo Queue Up, Friends safety, run detail, and the Blaze-gated waitlist story. |
+| [`plans/LAUNCH_GAMEPLAN.md`](plans/LAUNCH_GAMEPLAN.md) | **Active, week of 2026-10-19.** Day-by-day schedule closing every audit item, with gates, the rules-deploy protocol, the full manual test plan (two phones), triage, cut list, and the launch runbook. COMPLETE target Sun 2026-10-25; launch target Thu 2026-11-05. |
+| [`plans/PRE_LAUNCH_AUDIT.md`](plans/PRE_LAUNCH_AUDIT.md) | **Read first before shipping.** 2026-10-18 audit: four App Store blockers, eight user-facing bugs, ops/release checklist, doc drift, and UX touch-ups. Supersedes `LAUNCH_READINESS.md`. |
+| [`plans/LAUNCH_READINESS.md`](plans/LAUNCH_READINESS.md) | Superseded by `PRE_LAUNCH_AUDIT.md`, which folds in all five items. |
 
 ---
 

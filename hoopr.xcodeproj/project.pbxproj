@@ -35,9 +35,22 @@
 		684BDBAB30105918002369B8 /* hooprUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = hooprUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		94AE9470301454690084F338 /* Exceptions for "hoopr" folder in "hoopr" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 684BDB9130105917002369B8 /* hoopr */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		684BDB9430105917002369B8 /* hoopr */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				94AE9470301454690084F338 /* Exceptions for "hoopr" folder in "hoopr" target */,
+			);
 			path = hoopr;
 			sourceTree = "<group>";
 		};
@@ -417,6 +430,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = hoopr/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = hoopsRN;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "hoopsRN uses your location to show courts and runs near you.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -461,6 +475,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = hoopr/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = hoopsRN;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "hoopsRN uses your location to show courts and runs near you.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

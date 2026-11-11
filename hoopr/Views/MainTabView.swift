@@ -1,7 +1,9 @@
+import Combine
 import SwiftUI
+import UIKit
 
 struct MainTabView: View {
-    /// The four top-level destinations. Named `Screen` rather than `Tab`
+    /// The five top-level destinations. Named `Screen` rather than `Tab`
     /// because `SwiftUI.Tab` is the builder used below and shadowing it here
     /// would make the `TabView` unreadable.
     private enum Screen: Hashable {
@@ -9,6 +11,14 @@ struct MainTabView: View {
         case map
         case runs
         case seasons
+        case profile
+    }
+
+    /// The inbox, presented with `sheet(item:)` like every other sheet in the
+    /// app. A fresh `id` per request, so a second request while one is being
+    /// dismissed is a new presentation rather than a no-op.
+    private struct InboxRoute: Identifiable {
+        let id = UUID()
     }
 
     /// Home, not the map. The map answers "where can I hoop?", which is a
@@ -16,29 +26,37 @@ struct MainTabView: View {
     /// "am I signed up for something tonight?", which is the more common
     /// reason to open the app at all.
     @State private var selectedScreen: Screen = .home
-    @State private var showProfile = false
+    @State private var inbox: InboxRoute?
+
+    /// An opened invite link, presented with `sheet(item:)` when nothing else
+    /// is up — `InviteRouter.Request` is already `Identifiable`, a fresh `id`
+    /// per open, so it is its own route.
+    @State private var invite: InviteRouter.Request?
 
     /// A court handed to the map from Home's hot list. The map consumes it and
     /// writes back `nil`, so tapping the same court twice selects it twice
     /// rather than going inert after the first.
     @State private var courtToShowOnMap: Court?
 
+    /// A match the inbox asked to open. Handed to `SeasonsTab`, which replaces
+    /// its stack with the match's screen and writes back `nil` — the
+    /// `courtToShowOnMap` hand-off, for the Seasons tab.
+    @State private var matchToOpen: SeasonsTab.MatchDestination?
+
     @ObservedObject private var authService: AuthService
     @ObservedObject private var userProfileService: UserProfileService
     private let courtService: CourtService
     private let locationService: LocationService
     private let gameService: GameService
-    /// Observed, unlike the other services held here, because `ProfileButton`
-    /// reads it: the button carries a dot while a friend request is unanswered,
-    /// and a plain `let` wouldn't redraw when one arrives.
-    @ObservedObject private var friendService: FriendService
-    /// Observed, same reason as `friendService`: `ProfileButton`'s badge now
-    /// carries squad invites too, and it reads this directly rather than
-    /// through whichever screen's own `SquadViewModel` happens to be alive.
-    @ObservedObject private var squadService: SquadService
+    /// Plain `let`s: the badge that reads them is `InboxButton`, which
+    /// observes both itself, so nothing here has to redraw when a request or
+    /// an invite arrives.
+    private let friendService: FriendService
+    private let squadService: SquadService
     private let matchmakingService: MatchmakingService
     private let seasonGameService: SeasonGameService
     private let notificationService: NotificationService
+    private let inviteRouter: InviteRouter
     private let recentCourtsStore: RecentCourtsStore
 
     init(
@@ -52,6 +70,7 @@ struct MainTabView: View {
         matchmakingService: MatchmakingService,
         seasonGameService: SeasonGameService,
         notificationService: NotificationService,
+        inviteRouter: InviteRouter,
         recentCourtsStore: RecentCourtsStore
     ) {
         self.authService = authService
@@ -64,30 +83,89 @@ struct MainTabView: View {
         self.matchmakingService = matchmakingService
         self.seasonGameService = seasonGameService
         self.notificationService = notificationService
+        self.inviteRouter = inviteRouter
         self.recentCourtsStore = recentCourtsStore
+
+        Self.configureTabBarAppearance()
+    }
+
+    /// Gives the bar a fixed, opaque presence instead of the system's default
+    /// floating glass, which reads as translucent chrome rather than a
+    /// permanent fixture. `hooprFill` — the "filled but unemphasised region"
+    /// role already used for field backgrounds — is the surface; the selected
+    /// item sits on `hooprHoverFill`, the same "selected without being loud"
+    /// role a pressed row uses.
+    ///
+    /// Set on `UITabBar.appearance()` rather than a per-instance property:
+    /// SwiftUI's `TabView` still bridges to `UITabBarController` on iPhone, so
+    /// the proxy default is what the bar it builds actually reads. Idempotent,
+    /// so calling it from every `init()` is harmless.
+    private static func configureTabBarAppearance() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(Color.hooprFill)
+        appearance.selectionIndicatorTintColor = UIColor(Color.hooprHoverFill)
+
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
     }
 
     var body: some View {
-        // The profile takes over the whole screen — it has its own header and
-        // back button — so it replaces this interface rather than rendering
-        // inside it. That is also what satisfies "the profile button appears
-        // everywhere except the profile": there is no tab bar behind it.
-        if showProfile {
-            ProfileView(
-                authService: authService,
-                userProfileService: userProfileService,
-                courtService: courtService,
-                friendService: friendService,
-                squadService: squadService
-            ) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    showProfile = false
+        tabs
+            // One inbox, presented over whichever tab is showing — by that
+            // tab's `InboxButton`, by Home's friend-request row, and by a
+            // tapped notification. Here rather than in each tab so there is
+            // exactly one presenter and one route into it.
+            .sheet(item: $inbox) { _ in
+                inboxSheet {
+                    inbox = nil
                 }
             }
-            .transition(.opacity)
-        } else {
-            tabs
-        }
+            // `@Published` replays its current value on subscription, so a
+            // request left by the tap that *launched* the app — before this
+            // view existed — is picked up the moment it appears, not only
+            // ones that arrive while it's on screen.
+            .onReceive(notificationService.$inboxRequest.compactMap { $0 }) { _ in
+                notificationService.consumeInboxRequest()
+                openInboxForNotification()
+            }
+            .sheet(item: $invite) { request in
+                inviteSheet(for: request) {
+                    invite = nil
+                }
+            }
+            // The same replay as the inbox request above, and the reason the
+            // request waits in `InviteRouter` at all: a link that launched the
+            // app, or arrived while the login screen was up, is handed over the
+            // moment this view first appears.
+            .onReceive(inviteRouter.$pending.compactMap { $0 }) { request in
+                inviteRouter.consume()
+                openInvite(request)
+            }
+            // The `seasonGames` listener, pointed at every squad the user is
+            // on for the whole signed-in session. It used to be pointed from
+            // the Seasons tab, which left it idle until that tab was first
+            // opened — and the inbox now lists matches, which a notification
+            // tap can open before any other screen has been shown. Squad
+            // detail's history reads off the same listener, so a squad missing
+            // from it would render an empty season rather than its own.
+            .onReceive(squadService.$squads.map { $0.map(\.id) }.removeDuplicates()) { squadIds in
+                seasonGameService.observe(squadIds: squadIds)
+            }
+    }
+
+    /// The inbox with everything but its dismissal wired, so the sheet and the
+    /// stacked presentation (`openInboxForNotification()`) build it one way.
+    private func inboxSheet(onDismiss: @escaping () -> Void) -> InboxSheet {
+        InboxSheet(
+            friendService: friendService,
+            squadService: squadService,
+            userProfileService: userProfileService,
+            courtService: courtService,
+            seasonGameService: seasonGameService,
+            onOpenMatch: openMatch,
+            onDismiss: onDismiss
+        )
     }
 
     /// A native `TabView`, not the hand-rolled glass header this replaced.
@@ -109,11 +187,13 @@ struct MainTabView: View {
                 HomeTab(
                     authService: authService,
                     courtService: courtService,
+                    locationService: locationService,
                     gameService: gameService,
                     userProfileService: userProfileService,
                     friendService: friendService,
                     squadService: squadService,
-                    onOpenProfile: openProfile,
+                    seasonGameService: seasonGameService,
+                    onOpenInbox: openInbox,
                     onOpenRuns: { selectedScreen = .runs },
                     onOpenMap: { court in
                         courtToShowOnMap = court
@@ -132,7 +212,7 @@ struct MainTabView: View {
                     friendService: friendService,
                     squadService: squadService,
                     courtToSelect: $courtToShowOnMap,
-                    onOpenProfile: openProfile
+                    onOpenInbox: openInbox
                 )
             }
 
@@ -143,7 +223,7 @@ struct MainTabView: View {
                     userProfileService: userProfileService,
                     friendService: friendService,
                     squadService: squadService,
-                    onOpenProfile: openProfile,
+                    onOpenInbox: openInbox,
                     onOpenMap: {
                         courtToShowOnMap = nil
                         selectedScreen = .map
@@ -151,11 +231,11 @@ struct MainTabView: View {
                 )
             }
 
-            // Fourth, and the practical ceiling. The label was measured before
-            // it was fixed, per the plan's §5: rendered at `.accessibility3`,
-            // "Seasons" is 42pt wide in the 80pt slot a four-tab bar gives it
-            // on a 320pt screen. It keeps the noun the feature is actually
-            // called rather than being shortened to "Squad" pre-emptively.
+            // The widest label, measured before it was fixed: rendered at
+            // `.accessibility3`, "Seasons" is 42pt wide — inside the 64pt slot
+            // a five-tab bar gives it on a 320pt screen. It keeps the noun the
+            // feature is actually called rather than being shortened to
+            // "Squad" pre-emptively.
             //
             // The reason there's room is worth knowing — `UITabBar` clamps its
             // own content size category at XXL and shows the large-content HUD
@@ -172,7 +252,22 @@ struct MainTabView: View {
                     userProfileService: userProfileService,
                     courtService: courtService,
                     notificationService: notificationService,
-                    onOpenProfile: openProfile
+                    matchToOpen: $matchToOpen,
+                    onOpenInbox: openInbox
+                )
+            }
+
+            // Fifth, since 2026-09-25: the profile was a full-screen takeover
+            // behind a person glyph in every tab's corner, and that corner
+            // went to the inbox. `TabBarLabelTests` measures all five.
+            Tab("Profile", systemImage: "person.crop.circle.fill", value: Screen.profile) {
+                ProfileView(
+                    authService: authService,
+                    userProfileService: userProfileService,
+                    courtService: courtService,
+                    friendService: friendService,
+                    squadService: squadService,
+                    onOpenInbox: openInbox
                 )
             }
         }
@@ -185,12 +280,171 @@ struct MainTabView: View {
         // assertion in `ThemeContrastTests` is on the nominal value this hands
         // over, and the rendered figure is re-measured from a screenshot.
         .tint(Color.hooprBrandAccent)
+        // Belt-and-suspenders with `configureTabBarAppearance()`: this is the
+        // SwiftUI-native path to the same fixed, opaque bar, for whichever
+        // rendering path the system takes for the `Tab` builder.
+        .toolbarBackground(Color.hooprFill, for: .tabBar)
+        .toolbarBackgroundVisibility(.visible, for: .tabBar)
     }
 
-    private func openProfile() {
-        withAnimation(.easeInOut(duration: 0.2)) {
-            showProfile = true
+    private func openInbox() {
+        inbox = InboxRoute()
+    }
+
+    /// The invite sheet with everything but its dismissal wired, so the sheet
+    /// and the stacked presentation build it one way.
+    private func inviteSheet(
+        for request: InviteRouter.Request,
+        onDismiss: @escaping () -> Void
+    ) -> InviteJoinSheet {
+        InviteJoinSheet(
+            gameId: request.gameId,
+            gameService: gameService,
+            courtService: courtService,
+            onOpenRuns: openRunsFromInvite,
+            onDismiss: onDismiss
+        )
+    }
+
+    /// An invite link's route to its sheet. It arrives from outside the app,
+    /// so — like a notification tap — it can land while anything at all is up.
+    ///
+    /// **It stacks over an open sheet rather than closing it**, for
+    /// `openInboxForNotification()`'s reason: whatever is there is the
+    /// person's work in progress, and Done should return them to it. Nothing
+    /// presented → the ordinary sheet. An invite already up → replaced, since
+    /// a second link is a newer answer to the same question.
+    private func openInvite(_ request: InviteRouter.Request) {
+        // The `.sheet` route is showing one: swapping the item re-presents.
+        guard invite == nil, let top = ModalStack.topmost() else {
+            invite = request
+            return
         }
+
+        let presenter = ModalStack.Weak()
+        let host = UIHostingController(rootView: inviteSheet(for: request) {
+            presenter.controller?.dismiss(animated: true)
+        })
+        presenter.controller = host
+
+        if top is UIHostingController<InviteJoinSheet>, let under = top.presentingViewController {
+            top.dismiss(animated: false) {
+                ModalStack.present(host, over: under)
+            }
+        } else {
+            ModalStack.present(host, over: top)
+        }
+    }
+
+    /// "See it in Runs": close the invite, and anything stacked under it, then
+    /// show the board the joined run now lives on — `openMatch`'s shape.
+    private func openRunsFromInvite() {
+        if invite != nil {
+            invite = nil
+            selectedScreen = .runs
+        } else {
+            ModalStack.dismissAll { selectedScreen = .runs }
+        }
+    }
+
+    /// A notification tap's route to the inbox, which — unlike a tap on the
+    /// tray — can arrive while some other sheet is up: a half-filled
+    /// `CreateGameSheet`, a profile edit, the queue. The `.sheet` above can't
+    /// present then, because its presenter is already presenting, and the tap
+    /// used to be silently lost.
+    ///
+    /// **So it stacks the inbox on top instead of closing what's there**
+    /// (2026-09-25). Closing it would throw away whatever the person was in the
+    /// middle of; stacked, Done returns them to it. It has to be UIKit to do
+    /// that — a SwiftUI sheet can only be presented by the view that owns it,
+    /// and the open sheet belongs to some tab. Nothing is presented → the
+    /// ordinary sheet. The inbox already up → nothing to do.
+    private func openInboxForNotification() {
+        guard inbox == nil else { return }
+        guard let top = ModalStack.topmost() else {
+            openInbox()
+            return
+        }
+        guard !(top is UIHostingController<InboxSheet>) else { return }
+
+        let presenter = ModalStack.Weak()
+        let host = UIHostingController(rootView: inboxSheet {
+            presenter.controller?.dismiss(animated: true)
+        })
+        presenter.controller = host
+
+        ModalStack.present(host, over: top)
+    }
+
+    /// A match row in the inbox: close the inbox, and anything stacked under
+    /// it, then open the match on the Seasons tab — game day for a match to
+    /// come, the result screen for one waiting on a report.
+    private func openMatch(_ row: InboxMatchesViewModel.Row) {
+        let destination: SeasonsTab.MatchDestination = switch row.kind {
+        case .upcoming: .gameDay(mySquadId: row.mySquadId, game: row.game)
+        case .report, .disputed: .result(mySquadId: row.mySquadId, game: row.game)
+        }
+
+        let navigate = {
+            selectedScreen = .seasons
+            matchToOpen = destination
+        }
+
+        if inbox != nil {
+            inbox = nil
+            navigate()
+        } else {
+            // The stacked inbox, over another sheet. Going to the match means
+            // leaving that sheet too, so the whole stack is dismissed.
+            ModalStack.dismissAll(completion: navigate)
+        }
+    }
+}
+
+/// The UIKit side of `openInboxForNotification()` and `openInvite(_:)` — the two
+/// routes in from outside the app: finding what's on top, presenting over it,
+/// and clearing the stack. Kept here, beside its only callers.
+private enum ModalStack {
+    final class Weak {
+        weak var controller: UIViewController?
+    }
+
+    private static var root: UIViewController? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        return scene?.keyWindow?.rootViewController
+    }
+
+    /// The top of the presentation stack, or `nil` when nothing is presented
+    /// over the root — the case the ordinary `.sheet` handles.
+    static func topmost() -> UIViewController? {
+        guard var top = root?.presentedViewController else { return nil }
+        while let next = top.presentedViewController, !next.isBeingDismissed {
+            top = next
+        }
+        return top.isBeingDismissed ? top.presentingViewController : top
+    }
+
+    /// Presents `host` over `top` — or, when `top` is an alert, which can't
+    /// present anything, over what the alert was covering. The alert is
+    /// dismissed rather than kept: it's a question, not work in progress, and
+    /// it'll be asked again by whatever raised it.
+    static func present(_ host: UIViewController, over top: UIViewController) {
+        if let alert = top as? UIAlertController, let under = alert.presentingViewController {
+            alert.dismiss(animated: false) {
+                under.present(host, animated: true)
+            }
+        } else {
+            top.present(host, animated: true)
+        }
+    }
+
+    static func dismissAll(completion: @escaping () -> Void) {
+        guard let root, root.presentedViewController != nil else {
+            completion()
+            return
+        }
+        root.dismiss(animated: true, completion: completion)
     }
 }
 
@@ -207,6 +461,7 @@ struct MainTabView: View {
         matchmakingService: MatchmakingService(authService: authService),
         seasonGameService: SeasonGameService(authService: authService),
         notificationService: NotificationService(),
+        inviteRouter: InviteRouter(),
         recentCourtsStore: RecentCourtsStore()
     )
 }

@@ -27,8 +27,7 @@ import SwiftUI
 /// 16 — with no rule about which is which), fixed control heights (seven button
 /// heights for what is three kinds of button) and the `ProfileView` row gap of
 /// 10 are all off this scale on purpose and stay as they are: they are
-/// composition decisions, and Phase 2 recomposes the screens they belong to.
-/// The audit (`context/plans/UI_REVAMP_AUDIT.md` §4) has the census.
+/// composition decisions.
 enum Spacing {
 
     // MARK: - The scale

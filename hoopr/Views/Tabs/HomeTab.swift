@@ -8,9 +8,8 @@ import SwiftUI
 /// reason to open the app at all, so that answer is what this screen leads
 /// with.
 ///
-/// **The redesign is about which element says it** (`UI_REDESIGN_BRIEF.md`
-/// §5.1). The screen asked the right question and then buried the answer: the
-/// largest type on it was a greeting carrying no information, and the run was
+/// **The redesign is about which element says it.** The screen asked the
+/// right question and then buried the answer: the largest type on it was a greeting carrying no information, and the run was
 /// a 17pt line inside a box, under a 12pt label, below the stats card for
 /// anyone who had stats. Now the run *is* the screen — the tip-off time set as
 /// the hero numeral in a full-bleed band, the court under it, everything else
@@ -23,48 +22,70 @@ import SwiftUI
 ///   hairline — which is also what survives Dynamic Type: at `.accessibility3`
 ///   the hero-to-caption size ratio falls from 3.4× to 2.3× (`Typography.swift`),
 ///   so a hierarchy carried only by point size is a third gone. Position is not.
-/// - **The stats are a card below the answer, at row weight.** They are
+/// - **The stats are a scoreboard below the answer.** The run counts are
 ///   self-reported counters the owner's client writes and they under-count by
 ///   construction, so they never take the hero's numeral tier — that is kept for
 ///   the answer and for a squad's record, which is a query over results two
-///   leaders confirmed. (The redesign first cut them to one grey sentence; that
-///   read as broken, and `StatsCard` records why it went back.)
+///   leaders confirmed and is the one number on the scoreboard set that large
+///   (`StatsScoreboard`).
 /// - **Loading is not emptiness.** `hasLoaded` distinguishes "you have nothing
 ///   on" from "we haven't looked yet". Without it the empty state's call to
 ///   action flashed at people who were, in fact, signed up for something.
 struct HomeTab: View {
     @StateObject private var viewModel: HomeViewModel
+    @StateObject private var calendar: RunCalendarViewModel
     @ObservedObject private var friendService: FriendService
     @ObservedObject private var squadService: SquadService
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    /// Handed up rather than handled here — switching tabs is the shell's job,
-    /// and Home is the one screen that wants to send you somewhere else.
-    let onOpenProfile: () -> Void
+    /// Home's content width as laid out, for `HomeStatsLayout`. The 402pt
+    /// phone's until the first layout says otherwise.
+    @State private var contentWidth = HomeHeroMetrics.contentWidth
+
+    /// The month popup, presented on the month it opens at.
+    @State private var calendarMonth: CalendarMonth?
+
+    /// Handed up rather than handled here — switching tabs and presenting the
+    /// inbox are the shell's jobs, and Home is the one screen that wants to
+    /// send you somewhere else.
+    let onOpenInbox: () -> Void
     let onOpenRuns: () -> Void
     let onOpenMap: (Court?) -> Void
 
     init(
         authService: AuthService,
         courtService: CourtService,
+        locationService: LocationService,
         gameService: GameService,
         userProfileService: UserProfileService,
         friendService: FriendService,
         squadService: SquadService,
-        onOpenProfile: @escaping () -> Void,
+        seasonGameService: SeasonGameService,
+        onOpenInbox: @escaping () -> Void,
         onOpenRuns: @escaping () -> Void,
         onOpenMap: @escaping (Court?) -> Void
     ) {
         self.friendService = friendService
         self.squadService = squadService
-        self.onOpenProfile = onOpenProfile
+        self.onOpenInbox = onOpenInbox
         self.onOpenRuns = onOpenRuns
         self.onOpenMap = onOpenMap
         _viewModel = StateObject(wrappedValue: HomeViewModel(
             authService: authService,
             courtService: courtService,
+            locationService: locationService,
             gameService: gameService,
             userProfileService: userProfileService,
-            friendService: friendService
+            friendService: friendService,
+            squadService: squadService,
+            seasonGameService: seasonGameService
+        ))
+        _calendar = StateObject(wrappedValue: RunCalendarViewModel(
+            gameService: gameService,
+            seasonGameService: seasonGameService,
+            squadService: squadService,
+            userProfileService: userProfileService
         ))
     }
 
@@ -78,65 +99,101 @@ struct HomeTab: View {
                         ErrorBanner(message: message)
                     }
 
-                    hotCourts
+                    if showsStats {
+                        yourStats
+                    }
 
                     if viewModel.incomingRequestCount > 0 {
                         friendRequestRow
                     }
 
-                    if viewModel.hasStats {
-                        yourStats
-                    }
+                    hotCourts
                 }
                 .padding(.horizontal, Spacing.pageMargin)
                 .padding(.top, Spacing.xxl)
                 .padding(.bottom, Spacing.xxxl)
             }
         }
+        .hooprStatusBarScrim()
         .background(Color.hooprBackground)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay { calendarPopup }
     }
 
     // MARK: - The band
 
-    /// The hero (`UI_REDESIGN_BRIEF.md` M2). Full-bleed, grounded in
-    /// `hooprHeroBand`, closed by a `hooprSeparatorStrong` baseline.
+    /// The hero. Full-bleed, closed by a
+    /// `hooprSeparatorStrong` baseline.
     ///
-    /// The ground ignores the top safe area so the band runs under the status
-    /// bar while its content stays below it — the band is *content*, not
-    /// chrome, so it scrolls away with everything else rather than pinning.
+    /// **The app's own mark and colour open it** (2026-09-23, at the user's
+    /// request — the home page wanted "some sort of design" and "maybe the
+    /// hoopsRN logo"). The top row is the wordmark opposite the inbox button,
+    /// in the row every tab already spends on that button, so it costs no
+    /// height; the day label moves down to sit on the time it qualifies. The
+    /// ground is the brand orange at the band's own luminance, rising from
+    /// behind the mark (`HeroWash`, `hooprBrandWash`) — Login's colour, and the
+    /// same move the squad bands make with a crest's — so every ratio on the
+    /// band is the one `ThemeContrastTests` already holds.
+    ///
+    /// **The whole band opens Runs** (2026-09-24, at the user's request),
+    /// wherever it's pressed — the inbox button excepted, which is a button of
+    /// its own and takes the touch first. The arrow at the
+    /// last row's trailing edge is what says so: it replaced a "Your runs ›" line
+    /// that named the destination but only the words were a target.
+    ///
+    /// The band is *content*, not chrome, so it scrolls away with everything
+    /// else rather than pinning.
     private var heroBand: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
-            HStack(alignment: .top, spacing: Spacing.sm) {
-                Text(bandLabel)
-                    .hooprType(.label)
-                    .foregroundStyle(Color.hooprSecondaryText)
-                    .padding(.top, Spacing.xs)
+            HStack(alignment: .center, spacing: Spacing.sm) {
+                HooprWordmark()
 
                 Spacer(minLength: 0)
 
-                ProfileButton(
+                InboxButton(
                     friendService: friendService,
                     squadService: squadService,
-                    action: onOpenProfile
+                    action: onOpenInbox
                 )
             }
 
-            bandAnswer
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                // Not over "No run tonight", which says it already.
+                if !isOpen {
+                    Text(bandLabel)
+                        .hooprType(.label)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                }
+
+                bandAnswer
+            }
         }
         .padding(.horizontal, Spacing.pageMargin)
-        // The profile button's slot — the same point on every tab.
-        .padding(.top, ProfileButton.Slot.top)
+        // The inbox button's slot — the same point on every tab.
+        .padding(.top, InboxButton.Slot.top)
         .padding(.bottom, Spacing.xxl)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // After the padding, so the margins and the empty space between rows
+        // take the press too, not only the text.
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onOpenRuns)
         .background {
-            Color.hooprHeroBand.ignoresSafeArea(edges: .top)
+            ZStack {
+                HeroWash(placement: .leading(.hooprBrandWash))
+                HomeBandBall()
+            }
+            .clipped()
+            .ignoresSafeArea(edges: .top)
         }
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Color.hooprSeparatorStrong)
                 .frame(height: 1)
         }
+    }
+
+    private var isOpen: Bool {
+        viewModel.hasLoaded && viewModel.nextRun == nil
     }
 
     /// The label above the answer. It names the *day* when there is a run,
@@ -151,12 +208,7 @@ struct HomeTab: View {
         if !viewModel.hasLoaded {
             loadingAnswer
         } else if let listing = viewModel.nextRun {
-            Button(action: onOpenRuns) {
-                bookedAnswer(listing)
-            }
-            .buttonStyle(.plain)
-            .accessibilityElement(children: .combine)
-            .accessibilityHint("Double tap to open your runs")
+            bookedAnswer(listing)
         } else {
             openAnswer
         }
@@ -180,36 +232,29 @@ struct HomeTab: View {
 
             courtLine(listing)
 
-            detailLine(for: listing)
-                .padding(.top, Spacing.xs)
-
-            openRunsCue
+            rowWithArrow {
+                detailLine(for: listing)
+            }
+            .padding(.top, Spacing.xs)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
+        // One element, read as one sentence, that opens Runs — what the
+        // `Button` this replaced gave it. The band's own tap gesture is for
+        // touch; VoiceOver needs an element that says what it does. The arrow
+        // is hidden, so it stays out of the sentence.
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Double tap to open your runs")
+        .accessibilityAction { onOpenRuns() }
     }
 
     /// Where. The glyph is a court rather than a pin: the line names *which
     /// court*, and a pin next to the distance below would say "location"
-    /// twice.
-    ///
-    /// Aligned on the first text baseline, so when a long court name wraps —
-    /// five in the dataset need three or four lines at `.accessibility3`
-    /// (`HomeHeroMetrics`) — the glyph stays with the first line.
+    /// twice. `CourtTitle` is shared with the map's court card, and owns the
+    /// rule for when the glyph has to make room for a long name.
     private func courtLine(_ listing: LocalRunsViewModel.Listing) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
-            Image(systemName: "sportscourt.fill")
-                .hooprType(.headline)
-                .foregroundStyle(Color.hooprBrandAccent)
-                .accessibilityHidden(true)
-
-            Text(listing.courtName)
-                .hooprType(.title)
-                .foregroundStyle(Color.hooprPrimaryText)
-                .lineLimit(HomeHeroMetrics.courtNameLineLimit)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            CourtTitle(name: listing.courtName)
             Spacer(minLength: 0)
         }
     }
@@ -227,13 +272,23 @@ struct HomeTab: View {
     /// item that has to move.
     private func detailLine(for listing: LocalRunsViewModel.Listing) -> some View {
         FlowLayout(spacing: Spacing.lg, lineSpacing: Spacing.sm) {
-            if let badge {
-                Text(badge.text)
-                    .hooprType(.badge)
-                    .foregroundStyle(badge.foreground)
-                    .padding(.horizontal, Spacing.Pill.horizontal)
-                    .padding(.vertical, Spacing.Pill.vertical)
-                    .background(Capsule().fill(badge.wash.opacity(0.12)))
+            if let status {
+                // `.band`, not `.surface`: the band is lighter than a card in
+                // dark mode, and at a card's 12% HOSTING measured 4.44:1 on it
+                // (4.37 on the brand wash) — under AA since Phase 2b, when only
+                // the card was asserted. The band's 8% clears
+                // (`ThemeContrastTests.testTheHostingPillReadsOnHomesBand`).
+                HooprBadge(status, on: .band)
+                    // **Aligns the word, not the capsule** (2026-09-24, at the
+                    // user's request). The pill's own padding put "HOSTING"
+                    // 8pt in from the time, the court and the day label above
+                    // it — and at 8% the capsule is too faint to read as the
+                    // edge, so the word read as the indent. Pulling the frame
+                    // in by that padding lets the capsule reach out past the
+                    // margin and the text land on it, the way a tinted chip is
+                    // set in a column of text. The gap to the next item is
+                    // still measured from the capsule's trailing edge.
+                    .padding(.leading, -Spacing.Pill.horizontal)
             }
 
             spotsItem(listing.game)
@@ -290,60 +345,97 @@ struct HomeTab: View {
         .accessibilityLabel(spoken)
     }
 
-    /// The band is a button, and until this line nothing said so.
+    /// The band is a button, and this is what says so.
     ///
     /// **A blind reviewer shown only the screenshots could not find a primary
     /// action anywhere on Home** — the band navigates to Runs, but it drew no
     /// affordance at all, so the most-opened screen in the app read as a
-    /// scoreboard you cannot act on. The archetype this screen is built to
-    /// (`UI_REDESIGN_BRIEF.md` §4, A1) requires one action in or under the
-    /// band; the first build implemented everything but that clause.
+    /// scoreboard you cannot act on. The screen's design requires one action
+    /// in or under the band. It was a "Your runs ›" line until 2026-09-24, when the user
+    /// replaced it with an arrow and made the whole band the target.
     ///
     /// Deliberately a cue rather than a filled button: the action is
     /// *navigation to a decision*, not the decision itself — join, leave and
     /// cancel belong on Runs, which is the rationale `UI_SHELL.md` records for
     /// this card being read-only, and a filled button here would promise the
     /// commitment rather than the trip.
-    private var openRunsCue: some View {
-        HStack(spacing: 4) {
-            Text("Your runs")
-                .hooprType(.body)
-                .fontWeight(.semibold)
-
-            Image(systemName: "chevron.right")
-                .hooprFont(12, weight: .semibold, maximumSize: 16)
-        }
-        .foregroundStyle(Color.hooprBrandAccent)
-        .padding(.top, Spacing.xs)
+    ///
+    /// **Primary text, not white and not the accent** (the user asked for
+    /// white, 2026-09-24). `hooprPrimaryText` *is* white in dark mode, where
+    /// the band is #242426, and black in light mode, where the band is #F5F5F5
+    /// and a literal white would be 1.1:1 — invisible. It is also asserted on
+    /// the watermark ball this sits on the rim of (`ThemeContrastTests`,
+    /// "court name over the ball").
+    ///
+    /// Hidden from VoiceOver: it is a picture of the action, and the action is
+    /// on the element beside it (`bookedAnswer`).
+    private var runsArrow: some View {
+        Image(systemName: "arrow.right")
+            .hooprFont(18, weight: .semibold, maximumSize: 24)
+            .foregroundStyle(Color.hooprPrimaryText)
+            .accessibilityHidden(true)
     }
 
-    /// Nothing booked. The answer is a phrase rather than a number, so it
-    /// takes the display tier and the action that fixes it sits right under
-    /// it — the hot list below the baseline says *where*, so this doesn't
-    /// repeat it.
-    private var openAnswer: some View {
-        VStack(alignment: .leading, spacing: Spacing.lg) {
-            Text("Nothing on tonight")
-                .hooprType(.display)
-                .foregroundStyle(Color.hooprPrimaryText)
-                .fixedSize(horizontal: false, vertical: true)
+    /// The band's last row, with the arrow at its trailing edge.
+    ///
+    /// In the row rather than laid over the corner, because the court title
+    /// above it has no width to give: `CourtTitle` records a 3pt margin at
+    /// `.accessibility3`, so nothing may narrow it. This row is the one that
+    /// wraps freely — `FlowLayout` moves only the item that has to move.
+    private func rowWithArrow<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        HStack(alignment: .center, spacing: Spacing.md) {
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-            Button {
-                onOpenMap(nil)
-            } label: {
-                Text("Find a court")
-                    .hooprType(.body)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.hooprOnBrand)
-                    .padding(.horizontal, Spacing.xl)
-                    .frame(minHeight: 44)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.hooprOrange)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            runsArrow
+        }
+    }
+
+    /// Nothing booked.
+    ///
+    /// **A quieter sibling of the booked state, not a louder one** (reworked
+    /// 2026-09-22 at the user's request). It first set "Nothing on tonight" in
+    /// the 40pt display tier over a full-width button, and a statement that
+    /// size, in the band where a tip-off time normally sits, read as a
+    /// headline about nothing. Now it has the booked state's own shape: the
+    /// icon-and-title line the court name uses, at the same `title` size, and
+    /// one line saying what to do, with the band's arrow at its far end. It is
+    /// still the largest thing on the screen, which is what the answer should
+    /// be.
+    ///
+    /// **No "Find a court" button since 2026-10-05** (the user's call). It
+    /// opened the map with nothing selected, and "Tonight nearby" now draws a
+    /// live map that does exactly that, a scroll's width below — two ways to
+    /// the same place, one of them a filled button competing with the answer.
+    /// So the whole band opens Runs, as it does with a run booked, and with
+    /// nothing to press inside it the answer is one VoiceOver element that
+    /// says so, as `bookedAnswer` is.
+    private var openAnswer: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
+                Image(systemName: "figure.basketball")
+                    .hooprType(.headline)
+                    .foregroundStyle(Color.hooprBrandAccent)
+                    .accessibilityHidden(true)
+
+                Text("No run tonight")
+                    .hooprType(.title)
+                    .foregroundStyle(Color.hooprPrimaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .buttonStyle(.plain)
+
+            rowWithArrow {
+                Text("Join one nearby or start your own.")
+                    .hooprType(.body)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Double tap to open your runs")
+        .accessibilityAction { onOpenRuns() }
     }
 
     /// The listener hasn't answered yet. Two blocks at the hero's own
@@ -353,8 +445,10 @@ struct HomeTab: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             placeholder(width: 180, height: 46)
             placeholder(width: 240, height: 30)
-            placeholder(width: 140, height: 16)
-                .padding(.top, Spacing.xs)
+            rowWithArrow {
+                placeholder(width: 140, height: 16)
+            }
+            .padding(.top, Spacing.xs)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityLabel("Loading your next run")
@@ -366,14 +460,13 @@ struct HomeTab: View {
             .frame(width: width, height: height)
     }
 
-    /// Matches `GameCard`'s priority order — your own relationship to the run
-    /// says more than its status does — and its split of `foreground` from
-    /// `wash`, for the reason recorded there.
-    private var badge: (text: String, foreground: Color, wash: Color)? {
-        if viewModel.isHostingNextRun { return ("Hosting", Color.hooprBrandAccent, Color.hooprOrange) }
-        if viewModel.isWaitlistedOnNextRun { return ("Waitlist", Color.hooprSecondaryText, Color.hooprSecondaryText) }
-        if viewModel.nextRun?.game.isFull == true { return ("Full", Color.hooprSecondaryText, Color.hooprSecondaryText) }
-        return nil
+    /// `RunStatus`'s ladder, the one `GameCard` and the map's card use.
+    private var status: RunStatus? {
+        RunStatus.of(
+            isHost: viewModel.isHostingNextRun,
+            isWaitlisted: viewModel.isWaitlistedOnNextRun,
+            isFull: viewModel.nextRun?.game.isFull == true
+        )
     }
 
     // MARK: - Below the baseline
@@ -381,6 +474,14 @@ struct HomeTab: View {
     /// Where the action is. Rows on the page rather than rows in a card: the
     /// list is already one group, and a box around it grouped nothing a
     /// heading didn't.
+    ///
+    /// **With nothing on anywhere, a map of the courts around you** —
+    /// `TonightNearbyPreview`, which opens the map with nothing selected — the
+    /// band's "Find a court" button did that until the preview replaced it.
+    /// Which of the four states shows is
+    /// `HomeViewModel.nearbySection`; a failed listener is never the empty
+    /// state. A change of state cross-fades rather than cuts — games arriving
+    /// while the preview is up replace it in place.
     @ViewBuilder
     private var hotCourts: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
@@ -388,28 +489,40 @@ struct HomeTab: View {
                 .hooprType(.label)
                 .foregroundStyle(Color.hooprSecondaryText)
 
-            if !viewModel.hasLoaded {
-                Text("Checking what's on…")
-                    .hooprType(.body)
-                    .foregroundStyle(Color.hooprSecondaryText)
-            } else if viewModel.hotCourts.isEmpty {
-                Text("Nothing scheduled anywhere today. Be the first.")
-                    .hooprType(.body)
-                    .foregroundStyle(Color.hooprSecondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(viewModel.hotCourts.enumerated()), id: \.element.id) { index, hot in
-                        if index > 0 {
-                            Divider()
-                                .overlay(Color.hooprBorder)
-                        }
+            Group {
+                switch viewModel.nearbySection {
+                case .loading:
+                    Text("Checking what's on…")
+                        .hooprType(.body)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                case .unavailable:
+                    Text("Couldn't check what's on.")
+                        .hooprType(.body)
+                        .foregroundStyle(Color.hooprSecondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                case .preview:
+                    TonightNearbyPreview(
+                        courts: viewModel.nearestCourts,
+                        origin: viewModel.previewOrigin
+                    ) {
+                        onOpenMap(nil)
+                    }
+                case .list:
+                    VStack(spacing: 0) {
+                        ForEach(Array(viewModel.hotCourts.enumerated()), id: \.element.id) { index, hot in
+                            if index > 0 {
+                                Divider()
+                                    .overlay(Color.hooprBorder)
+                            }
 
-                        hotCourtRow(hot)
+                            hotCourtRow(hot)
+                        }
                     }
                 }
             }
+            .transition(.opacity)
         }
+        .animation(Motion.animation(.swap, reduceMotion: reduceMotion), value: viewModel.nearbySection)
     }
 
     private func hotCourtRow(_ hot: HomeViewModel.HotCourt) -> some View {
@@ -422,6 +535,15 @@ struct HomeTab: View {
                 Circle()
                     .fill(CourtHeat.color(forGameCount: hot.gameCount))
                     .frame(width: 10, height: 10)
+                    // A busy court glows, as its pin does on the map. The
+                    // background, so the halo swells past the dot without
+                    // pushing the name: at its peak it reaches 7pt beyond the
+                    // dot, and the name starts 12pt away.
+                    .background {
+                        if CourtHeat.glows(forGameCount: hot.gameCount) {
+                            CourtGlowHalo()
+                        }
+                    }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(hot.court.displayName)
@@ -462,31 +584,111 @@ struct HomeTab: View {
         .accessibilityLabel("\(hot.court.displayName), \(hot.court.city), \(gameCountText(hot.gameCount)) today")
     }
 
-    /// The participation card, under the same kind of label as the hot list.
+    /// Whether there is a stats row at all: a scoreboard to show, or — for
+    /// someone with no stats yet and no squad — a calendar with something on it.
+    /// With neither, the row is hidden, rather than drawn as an empty month.
+    private var showsStats: Bool {
+        !viewModel.scoreboardStats.isEmpty || calendar.tile.hasMarks
+    }
+
+    /// The stats scoreboard and the run calendar's tile, under the same kind of
+    /// label as the hot list.
     ///
-    /// Below the answer and below what's on tonight, because it looks back
-    /// rather than forward — but a card again, not the sentence the redesign
-    /// first cut it to. See `StatsCard` for why, and for why it can't break
-    /// mid-word any more.
+    /// Directly under the band, above what's on tonight (the user's order,
+    /// 2026-09-23). A scoreboard since 2026-10-05 — see `StatsScoreboard` for
+    /// why the record and the run counts are set at different sizes, and for
+    /// how its rotation is bounded. **The tile sits to its right, as tall as
+    /// it** (the user's design, 2026-10-06), and opens the month in a popup.
+    ///
+    /// **Side by side only while everything fits.** That is a function of the
+    /// text size and the width (`HomeStatsLayout`), decided up front: the
+    /// scoreboard takes all the width it is offered, so `ViewThatFits` would
+    /// pick side by side every time and clip. Past it, the tile goes under the
+    /// scoreboard.
     private var yourStats: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text("Your stats")
                 .hooprType(.label)
                 .foregroundStyle(Color.hooprSecondaryText)
 
-            StatsCard(
-                completedCount: viewModel.completedGameCount,
-                participationStreak: viewModel.participationStreak,
-                lastCompletedText: viewModel.lastCompletedText
-            )
+            statsPanels
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
+    }
+
+    @ViewBuilder
+    private var statsPanels: some View {
+        let stats = viewModel.scoreboardStats
+
+        if stats.isEmpty {
+            calendarTile()
+                .fixedSize()
+        } else if HomeStatsLayout.isSideBySide(
+            at: HooprFontMetrics.contentSizeCategory(for: dynamicTypeSize),
+            contentWidth: contentWidth
+        ) {
+            HStack(alignment: .top, spacing: Spacing.md) {
+                StatsScoreboard(stats: stats, fillsHeight: true)
+                calendarTile(fillsHeight: true)
+                    .frame(width: RunCalendarTileMetrics.width)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                StatsScoreboard(stats: stats)
+                calendarTile()
+                    .fixedSize()
+            }
+        }
+    }
+
+    private func calendarTile(fillsHeight: Bool = false) -> some View {
+        RunCalendarTile(tile: calendar.tile, fillsHeight: fillsHeight) {
+            withAnimation(Motion.animation(.snap, reduceMotion: reduceMotion)) {
+                calendarMonth = calendar.open()
+            }
+        }
+    }
+
+    /// The month, as one box over a dimmed Home (the user's call: smaller than
+    /// a slide-up sheet, with an X). The backdrop closes it too.
+    ///
+    /// Two insertions, not one, so each takes its own transition: the backdrop
+    /// fades, the card settles in on `Motion.present`.
+    private var calendarPopup: some View {
+        ZStack {
+            if calendarMonth != nil {
+                Color.hooprBackdrop
+                    .ignoresSafeArea()
+                    .onTapGesture(perform: closeCalendar)
+                    .accessibilityHidden(true)
+                    .transition(.opacity)
+            }
+
+            if calendarMonth != nil {
+                RunCalendarPopup(
+                    page: calendar.page,
+                    onPage: calendar.showMonth(offset:),
+                    onRetry: calendar.retry,
+                    onClose: closeCalendar
+                )
+                .transition(Motion.present(reduceMotion: reduceMotion))
+            }
+        }
+    }
+
+    private func closeCalendar() {
+        withAnimation(Motion.animation(.snap, reduceMotion: reduceMotion)) {
+            calendarMonth = nil
         }
     }
 
     /// Someone is blocked on you. It was a card below the fold; it is a row
     /// above it now. Still navigation only — answering a request is a write,
-    /// and writes belong on the screen that owns them.
+    /// and writes belong on the screen that owns them, which is the inbox:
+    /// the row opens it directly, the same sheet the tray in the band opens,
+    /// rather than the profile the inbox used to hide inside.
     private var friendRequestRow: some View {
-        Button(action: onOpenProfile) {
+        Button(action: onOpenInbox) {
             HStack(spacing: Spacing.md) {
                 Image(systemName: "person.crop.circle.badge.plus")
                     .hooprType(.headline)
@@ -537,10 +739,10 @@ struct HomeTab: View {
 ///
 /// So the cap is `nil` and `HomeHeroMetricsTests` measures **every court in
 /// the shipped dataset** against it. The band is the top of a scroll view; it
-/// can grow. Clipping the screen's own answer is the one thing it must not do
-/// (`UI_REVAMP_PROMPT.md` §2c, "reflow, don't clip").
+/// can grow. Clipping the screen's own answer is the one thing it must not do:
+/// reflow, don't clip.
 ///
-/// The same shape as `ResultPillMetrics`: the number the layout depends on
+/// The same shape as the retired `ResultPillMetrics`: the number the layout depends on
 /// lives beside the view that draws it, and a test asks whether it still
 /// holds.
 nonisolated enum HomeHeroMetrics {
@@ -572,5 +774,66 @@ nonisolated enum HomeHeroMetrics {
             context: nil
         )
         return max(1, Int((box.height / font.lineHeight).rounded()))
+    }
+}
+
+/// Whether Home's stats row has room for the calendar tile beside the
+/// scoreboard — a pure function of the text size and the width, so it can be
+/// tested and never depends on what a layout pass happened to measure.
+///
+/// True only while every value the scoreboard can show, and every run panel's
+/// label, fits one line of what the tile leaves it. The tile itself always
+/// fits: its squares are fixed, and the label over them is capped.
+///
+/// **The labels count since 2026-10-09.** "Done this week" fits beside the tile
+/// at the default size and not at `.extraLarge`, where the values still do — so
+/// from `.extraLarge` the tile goes under the board, one size earlier than the
+/// values alone would move it, rather than the label breaking onto two lines.
+nonisolated enum HomeStatsLayout {
+    static func isSideBySide(
+        at category: UIContentSizeCategory,
+        contentWidth: CGFloat = HomeHeroMetrics.contentWidth
+    ) -> Bool {
+        let cardWidth = contentWidth - Spacing.md - RunCalendarTileMetrics.width
+        return StatsScoreboardMetrics.everyValueFits(cardWidth: cardWidth, at: category)
+            && StatsScoreboardMetrics.everyLabelFits(cardWidth: cardWidth, at: category)
+    }
+}
+
+/// The app icon's basketball, enlarged and half off the band's trailing edge —
+/// the ball on its way off the page (the user's design, 2026-09-23). Two
+/// thirds of the band's width across, centred on its right edge, so the
+/// visible half fills the band's right third; the inbox button sits over it.
+///
+/// **Drawn at a pressed row's lightness** (`hooprBrandWatermark`): a notch off
+/// the band in the orange's hue, so it reads as a shape without taking a
+/// contrast ratio from anything that runs across it — the detail line, a long
+/// court name, the inbox button. `ThemeContrastTests` holds each of those on
+/// its colour. The seams are the symbol's own knockouts, so the band shows
+/// through them.
+///
+/// Decorative: hidden from VoiceOver, and it never takes a touch.
+struct HomeBandBall: View {
+    /// Tilted a little, so the seams read as a ball in motion rather than a
+    /// badge set square.
+    private static let tilt: Angle = .degrees(-20)
+
+    var body: some View {
+        GeometryReader { proxy in
+            let diameter = proxy.size.width * 2 / 3
+
+            Image(systemName: "basketball.fill")
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(Color.hooprBrandWatermark)
+                .rotationEffect(Self.tilt)
+                .frame(width: diameter, height: diameter)
+                // Centred on the trailing edge, and high enough that the
+                // inbox button sits on the ball rather than on its rim —
+                // measured on the device, where 58% put the rim through it.
+                .position(x: proxy.size.width, y: proxy.size.height * 0.5)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }

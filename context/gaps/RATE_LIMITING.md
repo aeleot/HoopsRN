@@ -114,7 +114,7 @@ during the same review; not a throttling gap, but it shares the root cause
 
 Named here because it is what people usually mean by "abuse tooling", and it is
 a different problem from rate limiting. `PRODUCT_OVERVIEW.md` lists it under
-safety tooling; `plans/FRIENDS.md` Phase 5 is the closest thing to a design.
+safety tooling; `plans/BACKLOG.md` B3 is the closest thing to a design.
 
 ---
 

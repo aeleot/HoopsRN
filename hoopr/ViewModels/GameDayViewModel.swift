@@ -4,7 +4,7 @@ import os
 
 fileprivate let logger = Logger(subsystem: "com.hoopsrn", category: "GameDayViewModel")
 
-/// Drives screen 7 — the countdown, both rosters, and live arrival.
+/// Drives game day — the countdown, both rosters, and live arrival.
 ///
 /// A cross-collection join, per `ARCHITECTURE.md`: it resolves both squads'
 /// rosters to names, which needs `SquadService` (mine, and — via

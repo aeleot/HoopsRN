@@ -1,13 +1,31 @@
 import SwiftUI
 
-/// The Seasons tab — plan §5, screens 1 and 2.
+/// The Seasons tab — squad home, or the empty state before there is a squad.
 ///
 /// Two states over one scroll view. With no squad it's a hero empty state that
 /// explains what a season *is* before asking for anything; with a squad it's
 /// squad home — crest, record, roster, and the one card that matters right now.
 ///
-/// **The matchmaking card carries screens 5 and 6 as states rather than
-/// destinations** — plan §5's screen 2 already describes this space as "next
+/// **Redesigned in UI revamp Phase 2b**. The tab
+/// opened on the word "Seasons" at 28pt — the tab bar's own label — over a
+/// stack of three cards, and the squad's **record** — the one number in the
+/// app nobody can type, a query over results two leaders independently
+/// confirmed — was 13pt grey text inside the first of them. Now the tab opens
+/// on a band like Home's and Runs': the squad's crest and name, and the record
+/// set as the screen's numeral, with its last five results as dots beside it. The match card
+/// follows directly, so **Queue up** sits under the band rather than two cards
+/// down, and the roster is rows rather than a card.
+///
+/// **The band is neutral, not the squad's colour — measured, not chosen.** The
+/// brief proposed the crest colour as the band's ground. No tint strong enough
+/// to read as the squad's colour keeps the band at AA: at 14% the secondary
+/// text falls to 4.26:1 on the gold crest in dark mode, and the baseline under
+/// its 3:1 floor on red and gold even at 10%. So the colour lives in the crest
+/// — large, full-strength, its glyph asserted at AA on every fill — which does
+/// the same job: you know whose squad this is before you read the name.
+///
+/// **The matchmaking card carries searching and match found as states rather than
+/// destinations** — the design always described this space as "next
 /// match, searching, or find a match", so `MatchmakingCard` swaps its contents
 /// in place instead of pushing anywhere.
 struct SeasonsTab: View {
@@ -18,11 +36,11 @@ struct SeasonsTab: View {
     /// comment for why a write sequence lives in a view model.
     @StateObject private var matchmaking: MatchmakingViewModel
 
-    /// Observed because `ProfileButton` reads it for its badge dot.
+    /// Observed because `InboxButton` reads it for its badge.
     @ObservedObject private var friendService: FriendService
 
     /// Stored rather than only threaded into the two view models above:
-    /// pushing screen 7 builds a fresh `GameDayViewModel` on demand, and that
+    /// pushing game day builds a fresh `GameDayViewModel` on demand, and that
     /// join needs all four directly.
     private let squadService: SquadService
     private let seasonGameService: SeasonGameService
@@ -30,7 +48,28 @@ struct SeasonsTab: View {
     private let courtService: CourtService
     private let notificationService: NotificationService
 
-    private let onOpenProfile: () -> Void
+    private let onOpenInbox: () -> Void
+
+    /// A match the inbox asked to open, handed down by the shell. Consumed —
+    /// the stack is replaced with its screen — and written back `nil`, the
+    /// same hand-off `MapTab` uses for `courtToSelect`, so the same match can
+    /// be opened twice.
+    @Binding private var matchToOpen: MatchDestination?
+
+    /// The two screens the inbox can open, from outside this tab. Narrower
+    /// than `Route`, which stays private: nothing outside needs to push squad
+    /// detail.
+    enum MatchDestination: Hashable {
+        case gameDay(mySquadId: String, game: SeasonGame)
+        case result(mySquadId: String, game: SeasonGame)
+
+        fileprivate var route: Route {
+            switch self {
+            case .gameDay(let mySquadId, let game): .gameDay(mySquadId: mySquadId, game: game)
+            case .result(let mySquadId, let game): .result(mySquadId: mySquadId, game: game)
+            }
+        }
+    }
 
     /// Wrapped for `sheet(item:)` rather than presented with `isPresented` —
     /// the house convention, and the one that survives a rapid re-tap without
@@ -39,17 +78,17 @@ struct SeasonsTab: View {
         let id = "create-squad"
     }
 
-    /// Screen 4, presented with `sheet(item:)` like every other sheet here.
+    /// The queue sheet, presented with `sheet(item:)` like every other sheet here.
     private struct QueueRoute: Identifiable {
         let id = "queue"
         let squad: Squad
     }
 
-    /// Every push this stack makes. Screens 7 and 8 carry the match itself
+    /// Every push this stack makes. Game day and the result screen carry the match itself
     /// rather than just its ID — `SeasonGame` is already `Hashable`, and the
     /// object is already in hand at every call site that pushes it, so there's
     /// nothing to look back up.
-    private enum Route: Hashable {
+    fileprivate enum Route: Hashable {
         case squad(String)
         case gameDay(mySquadId: String, game: SeasonGame)
         case result(mySquadId: String, game: SeasonGame)
@@ -59,6 +98,14 @@ struct SeasonsTab: View {
     @State private var queueing: QueueRoute?
     @State private var path: [Route] = []
 
+    /// Squad detail and game day zoom out of what was tapped — the band's
+    /// squad, a row, the match card — and back into it (UI revamp Phase 3).
+    @Namespace private var zoom
+
+    /// The zoom source ID for a squad, shared by the band, the rows and the
+    /// push's destination.
+    private static func zoomID(forSquad id: String) -> String { "squad-\(id)" }
+
     init(
         squadService: SquadService,
         matchmakingService: MatchmakingService,
@@ -67,15 +114,17 @@ struct SeasonsTab: View {
         userProfileService: UserProfileService,
         courtService: CourtService,
         notificationService: NotificationService,
-        onOpenProfile: @escaping () -> Void
+        matchToOpen: Binding<MatchDestination?>,
+        onOpenInbox: @escaping () -> Void
     ) {
+        _matchToOpen = matchToOpen
         self.friendService = friendService
         self.squadService = squadService
         self.seasonGameService = seasonGameService
         self.userProfileService = userProfileService
         self.courtService = courtService
         self.notificationService = notificationService
-        self.onOpenProfile = onOpenProfile
+        self.onOpenInbox = onOpenInbox
         _viewModel = StateObject(wrappedValue: SquadViewModel(
             squadService: squadService,
             friendService: friendService,
@@ -94,38 +143,44 @@ struct SeasonsTab: View {
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: Spacing.interCard) {
-                    header
+                VStack(alignment: .leading, spacing: 0) {
+                    band
 
-                    if let errorMessage = viewModel.errorMessage {
-                        ErrorBanner(
-                            message: errorMessage,
-                            // Only when a listener is down. An action that
-                            // failed is retried by repeating the action.
-                            onRetry: viewModel.isRecovering ? { viewModel.retry() } : nil,
-                            onDismiss: { viewModel.dismissError() }
-                        )
-                    }
+                    VStack(alignment: .leading, spacing: Spacing.section) {
+                        if let errorMessage = viewModel.errorMessage {
+                            ErrorBanner(
+                                message: errorMessage,
+                                // Only when a listener is down. An action that
+                                // failed is retried by repeating the action.
+                                onRetry: viewModel.isRecovering ? { viewModel.retry() } : nil,
+                                onDismiss: { viewModel.dismissError() }
+                            )
+                        }
 
-                    if !viewModel.hasLoaded {
-                        loading
-                    } else if let squad = viewModel.primarySquad {
-                        squadHome(squad)
-                    } else {
-                        emptyState
+                        if viewModel.hasLoaded, let squad = viewModel.primarySquad {
+                            squadHome(squad)
+                        }
                     }
+                    .padding(.horizontal, Spacing.pageMargin)
+                    .padding(.top, Spacing.xxl)
+                    .padding(.bottom, Spacing.xxxl)
                 }
-                .padding(.horizontal, Spacing.pageMargin)
-                .padding(.bottom, 32)
             }
+            .hooprStatusBarScrim()
             .background(Color.hooprBackground)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // Every squad the user is on, not just the primary one: screen 9's
-            // history reads off this listener, and a secondary squad's detail
-            // view would otherwise render an empty season rather than its own.
-            // `array-contains-any` serves up to ten squads from one query.
-            .task(id: viewModel.squads.map(\.id)) {
-                seasonGameService.observe(squadIds: viewModel.squads.map(\.id))
+            // The `seasonGames` listener used to be pointed from here, which
+            // left it idle until this tab was first opened. It's `MainTabView`'s
+            // now: the inbox lists matches, and a notification tap can open
+            // the inbox before this tab has ever been shown.
+            //
+            // `initial: true` because a match can be the reason this tab is
+            // mounted at all — the inbox selects it and sets the binding in
+            // the same transaction.
+            .onChange(of: matchToOpen, initial: true) { _, destination in
+                guard let destination else { return }
+                path = [destination.route]
+                matchToOpen = nil
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
@@ -138,10 +193,12 @@ struct SeasonsTab: View {
                             path.append(.result(mySquadId: squadId, game: game))
                         }
                     )
+                    .hooprZoomDestination(sourceID: Self.zoomID(forSquad: squadId), in: zoom)
                 case .gameDay(let mySquadId, let game):
                     GameDayView(
                         game: game,
                         mySquadId: mySquadId,
+                        squadColorKey: viewModel.squad(id: mySquadId)?.colorKey,
                         seasonGameService: seasonGameService,
                         squadService: squadService,
                         userProfileService: userProfileService,
@@ -151,6 +208,7 @@ struct SeasonsTab: View {
                             path.append(.result(mySquadId: mySquadId, game: played))
                         }
                     )
+                    .hooprZoomDestination(sourceID: MatchmakingCard.zoomID(for: game), in: zoom)
                 case .result(let mySquadId, let game):
                     ResultView(
                         game: game,
@@ -177,261 +235,197 @@ struct SeasonsTab: View {
         }
     }
 
-    /// The squad's record, read from the derived query rather than a stored
-    /// counter. Reads as "No games played yet" until Phase 6 confirms
-    /// something, and starts moving on its own the day it does.
-    private var recordText: String {
-        let record = matchmaking.myRecord
-        return record.isUnplayed ? "No games played yet" : "\(record.displayText) this season"
-    }
+    // MARK: - The band
 
-    // MARK: - Header
+    /// The tab's hero — the same band as Home and
+    /// Runs: full-bleed, `hooprHeroBand`, closed by a `hooprSeparatorStrong`
+    /// baseline, the inbox button in its shared slot.
+    private var band: some View {
+        VStack(alignment: .leading, spacing: Spacing.lg) {
+            HStack(alignment: .top, spacing: Spacing.sm) {
+                Text(bandLabel)
+                    .hooprType(.label)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .padding(.top, Spacing.xs)
 
-    /// Top-aligned, with the title centred in a row the button's height, so
-    /// the button sits in `ProfileButton.Slot` whatever the title's size: a
-    /// centred row moved it down as the title grew with Dynamic Type. It also
-    /// used to sit 8pt further out and 4pt higher than on every other tab.
-    private var header: some View {
-        HStack(alignment: .top) {
-            Text("Seasons")
-                .hooprFont(28, weight: .bold, maximumSize: 40)
-                .foregroundStyle(Color.hooprPrimaryText)
-                .frame(minHeight: ProfileButton.Slot.size)
+                Spacer(minLength: 0)
 
-            Spacer(minLength: 8)
+                InboxButton(friendService: friendService, squadService: squadService, action: onOpenInbox)
+            }
 
-            ProfileButton(friendService: friendService, squadService: squadService, action: onOpenProfile)
+            bandAnswer
         }
-        .padding(.top, ProfileButton.Slot.top)
-    }
-
-    private var loading: some View {
-        HStack {
-            Spacer()
-            ProgressView()
-            Spacer()
+        .padding(.horizontal, Spacing.pageMargin)
+        .padding(.top, InboxButton.Slot.top)
+        .padding(.bottom, Spacing.xxl)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // The squad's own colour as the band's wash (UI revamp Phase 4)
+        // — plain until the squad has loaded, and plain with no squad, where
+        // there's no one's colour to show yet.
+        .background {
+            HeroWash(placement: bandWash)
+                .ignoresSafeArea(edges: .top)
+                .animation(.hooprSwap, value: bandWash)
         }
-        .padding(.top, 40)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.hooprSeparatorStrong)
+                .frame(height: 1)
+        }
     }
 
-    // MARK: - Screen 1: no squad
+    private var bandWash: HeroWash.Placement {
+        guard viewModel.hasLoaded, let squad = viewModel.primarySquad else { return .plain }
+        return .leading(.hooprSquadWash(squad.colorKey))
+    }
+
+    private var bandLabel: String {
+        viewModel.hasLoaded && viewModel.primarySquad != nil ? "This season" : "Seasons"
+    }
+
+    @ViewBuilder
+    private var bandAnswer: some View {
+        if !viewModel.hasLoaded {
+            loadingAnswer
+        } else if let squad = viewModel.primarySquad {
+            squadAnswer(squad)
+        } else {
+            emptyAnswer
+        }
+    }
+
+    // MARK: - Squad home
+
+    /// Whose squad, and how they're doing. The name and crest open squad
+    /// detail, as the header card did; the record under them is the hero.
+    /// Both halves are shared with squad detail (`SquadBand.swift`), so the
+    /// push opens on the band that was tapped.
+    private func squadAnswer(_ squad: Squad) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.lg) {
+            Button {
+                path.append(.squad(squad.id))
+            } label: {
+                SquadIdentity(squad: squad, showsDisclosure: true)
+                    .contentShape(Rectangle())
+                    .hooprZoomSource(id: Self.zoomID(forSquad: squad.id), in: zoom)
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityHint("Opens squad details")
+
+            SquadRecordLine(record: matchmaking.myRecord, form: matchmaking.myForm)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Below the band: the one live thing, then who's on the squad.
+    @ViewBuilder
+    private func squadHome(_ squad: Squad) -> some View {
+        MatchmakingCard(
+            viewModel: matchmaking,
+            squad: squad,
+            zoomNamespace: zoom,
+            onQueue: { queueing = QueueRoute(squad: squad) },
+            onOpenGameDay: { game in
+                path.append(.gameDay(mySquadId: squad.id, game: game))
+            }
+        )
+        // Re-pointed whenever the primary squad changes, which is also the
+        // first render — the view model no-ops on a repeat.
+        .task(id: squad.id) { matchmaking.start(squad: squad) }
+
+        rosterSection(squad)
+    }
+
+    /// Rows under a label, not a card: the roster is one list, and a box
+    /// around it grouped nothing the label doesn't.
+    private func rosterSection(_ squad: Squad) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Roster")
+                    .hooprType(.label)
+                    .foregroundStyle(Color.hooprSecondaryText)
+
+                Spacer()
+
+                Text(squad.rosterText)
+                    .hooprType(.caption)
+                    .foregroundStyle(Color.hooprSecondaryText)
+            }
+
+            VStack(spacing: 0) {
+                ForEach(Array(viewModel.members(of: squad).enumerated()), id: \.element.id) { index, member in
+                    if index > 0 {
+                        Divider().overlay(Color.hooprBorder)
+                    }
+                    SquadMemberRow(member: member)
+                        .padding(.vertical, Spacing.sm)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - No squad
 
     /// A hero, not an error. Someone with no squad hasn't failed at anything —
     /// they've arrived at a feature they haven't used, and the screen's job is
     /// to say what it's for in one sentence.
-    private var emptyState: some View {
-        VStack(spacing: 14) {
+    ///
+    /// The brief's model for the whole app (assumption A5), so it keeps its
+    /// shape — crest, one line, one action — and moves into the band, left
+    /// aligned like Home's empty state, with the same compact button.
+    private var emptyAnswer: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             SquadCrest(
                 iconKey: Squad.defaultIconKey,
                 colorKey: Squad.defaultColorKey,
                 size: SquadCrest.Size.hero
             )
-            .padding(.top, 24)
+            .padding(.bottom, Spacing.xs)
 
             Text("Play a season")
-                .hooprFont(22, weight: .bold)
+                .hooprType(.title)
                 .foregroundStyle(Color.hooprPrimaryText)
 
             Text("Form a squad, queue for 3v3 matches against other squads nearby, and build a record that actually means something.")
-                .hooprFont(15)
+                .hooprType(.body)
                 .foregroundStyle(Color.hooprSecondaryText)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 320)
+                .fixedSize(horizontal: false, vertical: true)
 
             Button {
                 creating = CreateRoute()
             } label: {
-                Text("Create a squad")
-                    .hooprFont(16, weight: .semibold)
-                    .foregroundStyle(Color.hooprOnBrand)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12).fill(Color.hooprOrange)
-                    )
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 4)
-            .frame(maxWidth: 320)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, 12)
-    }
-
-    // MARK: - Screen 2: squad home
-
-    @ViewBuilder
-    private func squadHome(_ squad: Squad) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.interCard) {
-            Button {
-                path.append(.squad(squad.id))
-            } label: {
-                squadHeader(squad)
-            }
-            .buttonStyle(.plain)
-
-            MatchmakingCard(
-                viewModel: matchmaking,
-                squad: squad,
-                onQueue: { queueing = QueueRoute(squad: squad) },
-                onOpenGameDay: { game in
-                    path.append(.gameDay(mySquadId: squad.id, game: game))
+                HStack(spacing: 6) {
+                    Image(systemName: "plus.circle.fill")
+                    Text("Create a squad")
                 }
-            )
-            // Re-pointed whenever the primary squad changes, which is also the
-            // first render — the view model no-ops on a repeat.
-            .task(id: squad.id) { matchmaking.start(squad: squad) }
-
-            rosterCard(squad)
-
-            // More than one squad is legal — the schema doesn't stop it — so
-            // the others get rows rather than being silently dropped by
-            // `primarySquad`.
-            if viewModel.squads.count > 1 {
-                otherSquads(besides: squad)
             }
-
-            Button {
-                creating = CreateRoute()
-            } label: {
-                Text("Create another squad")
-                    .hooprFont(15, weight: .semibold)
-                    .foregroundStyle(Color.hooprSecondaryText)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private func squadHeader(_ squad: Squad) -> some View {
-        HStack(spacing: 14) {
-            SquadCrest(squad: squad, size: SquadCrest.Size.hero)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(squad.name)
-                    .hooprFont(22, weight: .bold)
-                    .foregroundStyle(Color.hooprPrimaryText)
-                    .multilineTextAlignment(.leading)
-
-                Text("\(squad.format.displayName) · \(squad.region)")
-                    .hooprFont(13)
-                    .foregroundStyle(Color.hooprSecondaryText)
-
-                // The record is a *query* over confirmed games, not a stored
-                // counter (plan §1.1), so it moves the moment two leaders
-                // agree on a result with nothing to invalidate.
-                SquadRecordLine(recordText: recordText, form: matchmaking.myForm)
-            }
-
-            Spacer(minLength: 0)
-
-            Image(systemName: "chevron.right")
-                .hooprFont(14, weight: .semibold)
-                .foregroundStyle(Color.hooprSecondaryText)
-        }
-        .padding(Spacing.cardPadding)
-        .cardChrome()
-        .accessibilityElement(children: .combine)
-        .accessibilityHint("Opens squad details")
-    }
-
-    private func rosterCard(_ squad: Squad) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Roster")
-                    .hooprFont(13, weight: .semibold)
-                    .foregroundStyle(Color.hooprSecondaryText)
-                    .textCase(.uppercase)
-
-                Spacer()
-
-                Text(squad.rosterText)
-                    .hooprFont(13)
-                    .foregroundStyle(Color.hooprSecondaryText)
-            }
-
-            ForEach(viewModel.members(of: squad)) { member in
-                SquadMemberRow(member: member)
-            }
+            .buttonStyle(.hooprFilled(.regular))
+            .padding(.top, Spacing.sm)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(Spacing.cardPadding)
-        .cardChrome()
     }
 
-    @ViewBuilder
-    private func otherSquads(besides primary: Squad) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Your other squads")
-                .hooprFont(13, weight: .semibold)
-                .foregroundStyle(Color.hooprSecondaryText)
-                .textCase(.uppercase)
+    /// The squads listener hasn't answered. Shapes at the hero's proportions,
+    /// so nothing moves when it does — and never the empty state's "Play a
+    /// season", which would tell a squad leader they have no squad.
+    private var loadingAnswer: some View {
+        HStack(alignment: .center, spacing: Spacing.md) {
+            Circle()
+                .fill(Color.hooprHoverFill)
+                .frame(width: SquadCrest.Size.hero, height: SquadCrest.Size.hero)
 
-            ForEach(viewModel.squads.filter { $0.id != primary.id }) { squad in
-                Button {
-                    path.append(.squad(squad.id))
-                } label: {
-                    HStack(spacing: 12) {
-                        SquadCrest(squad: squad, size: SquadCrest.Size.row)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(squad.name)
-                                .hooprFont(15, weight: .semibold)
-                                .foregroundStyle(Color.hooprPrimaryText)
-                            Text(squad.rosterText)
-                                .hooprFont(13)
-                                .foregroundStyle(Color.hooprSecondaryText)
-                        }
-
-                        Spacer(minLength: 0)
-
-                        Image(systemName: "chevron.right")
-                            .hooprFont(13, weight: .semibold)
-                            .foregroundStyle(Color.hooprSecondaryText)
-                    }
-                    .padding(12)
-                    .cardChrome(cornerRadius: 12)
-                }
-                .buttonStyle(.plain)
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.hooprHoverFill)
+                    .frame(width: 180, height: 28)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.hooprHoverFill)
+                    .frame(width: 110, height: 14)
             }
         }
-    }
-}
-
-/// The squad's record with its recent form beside it — "1–0 this season (W)".
-///
-/// **Beside when it fits, beneath when it doesn't.** The pills are fixed-diameter
-/// circles (`ResultPillMetrics`, and the cap is load-bearing), so five of them
-/// are 164pt wide before the record's own text is counted, and the column this
-/// sits in is about 230pt at the default text size. One to three results fit
-/// beside the record; four or five, and every result at the accessibility sizes,
-/// take the column instead — the same `ViewThatFits` rule the queue sheet's time
-/// chips follow and for the same reason: a row that stops fitting takes a column
-/// rather than being squeezed or clipped.
-///
-/// Stateless, and internal rather than private, so the width at which it flips
-/// can be rendered and looked at without standing up a `SeasonsTab`.
-struct SquadRecordLine: View {
-    let recordText: String
-    let form: [SeasonGame.Outcome]
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: Spacing.sm) {
-                record
-                FormGuide(form: form)
-            }
-
-            VStack(alignment: .leading, spacing: Spacing.hairline) {
-                record
-                FormGuide(form: form)
-            }
-        }
-    }
-
-    private var record: some View {
-        Text(recordText)
-            .hooprFont(13)
-            .foregroundStyle(Color.hooprSecondaryText)
+        .accessibilityLabel("Loading your squad")
     }
 }
 
@@ -452,7 +446,7 @@ struct SquadMemberRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            PlayerAvatar(initial: member.initial, diameter: 34)
+            PlayerAvatar(initial: member.initial, diameter: PlayerAvatar.Size.roster)
 
             VStack(alignment: .leading, spacing: 2) {
                 if member.isResolved {

@@ -371,73 +371,7 @@ final class LocalRunsViewModelTests: XCTestCase {
         XCTAssertTrue(LocalRunsViewModel.timeline(queued: [], nearby: []).isEmpty)
     }
 
-    // MARK: - The band's copy
-
-    func testTheScheduleIsSingularAtOne() {
-        XCTAssertEqual(LocalRunsViewModel.scheduleText(count: 1), "game on the schedule")
-    }
-
-    /// Zero included — "0 games on the schedule", not "0 game".
-    func testTheScheduleIsPluralOtherwise() {
-        XCTAssertEqual(LocalRunsViewModel.scheduleText(count: 0), "games on the schedule")
-        XCTAssertEqual(LocalRunsViewModel.scheduleText(count: 2), "games on the schedule")
-    }
-
-    func testNoPlaceOnAnyRunIsAFreeAgent() {
-        XCTAssertEqual(
-            LocalRunsViewModel.rosterText(suitedUp: 0, waitlisted: 0, onSchedule: 3),
-            "You're a free agent"
-        )
-    }
-
-    /// The empty board is a real state, and the line still reads.
-    func testAnEmptyBoardIsStillAFreeAgent() {
-        XCTAssertEqual(
-            LocalRunsViewModel.rosterText(suitedUp: 0, waitlisted: 0, onSchedule: 0),
-            "You're a free agent"
-        )
-    }
-
-    func testSomeOfTheBoardIsCountedPlainly() {
-        XCTAssertEqual(
-            LocalRunsViewModel.rosterText(suitedUp: 2, waitlisted: 0, onSchedule: 5),
-            "You're suited up for 2"
-        )
-    }
-
-    /// "1 game on the schedule — you're suited up for 1" says the number twice.
-    func testTheWholeBoardDoesNotRepeatTheNumber() {
-        XCTAssertEqual(
-            LocalRunsViewModel.rosterText(suitedUp: 1, waitlisted: 0, onSchedule: 1),
-            "You're suited up"
-        )
-        XCTAssertEqual(
-            LocalRunsViewModel.rosterText(suitedUp: 2, waitlisted: 0, onSchedule: 2),
-            "You're suited up for both"
-        )
-        XCTAssertEqual(
-            LocalRunsViewModel.rosterText(suitedUp: 4, waitlisted: 0, onSchedule: 4),
-            "You're suited up for all 4"
-        )
-    }
-
-    /// The rail marks a waitlist place too, but only a roster spot means
-    /// you're playing — the line must not call a waitlist "suited up".
-    func testAWaitlistPlaceIsNotSuitedUp() {
-        XCTAssertEqual(
-            LocalRunsViewModel.rosterText(suitedUp: 0, waitlisted: 1, onSchedule: 1),
-            "You're on the waitlist for 1"
-        )
-    }
-
-    func testSpotsAndWaitlistPlacesAreSaidApart() {
-        XCTAssertEqual(
-            LocalRunsViewModel.rosterText(suitedUp: 1, waitlisted: 1, onSchedule: 2),
-            "You're suited up for 1 · waitlisted for 1"
-        )
-    }
-
-    // MARK: - The band's eyebrow
+    // MARK: - The week strip and the day sections
 
     /// Pinned to UTC so the day boundary doesn't move with the machine's zone.
     private var utc: Calendar {
@@ -450,45 +384,105 @@ final class LocalRunsViewModelTests: XCTestCase {
         utc.date(from: DateComponents(year: 2026, month: 9, day: day, hour: hour, minute: minute))!
     }
 
-    func testTheEyebrowSaysTonightWhileEverythingIsToday() {
+    /// Wednesday 23 September 2026, 6 PM UTC.
+    private var wednesday: Date { utcDate(day: 23, hour: 18) }
+
+    private func entry(_ id: String, at date: Date, yours: Bool = false) -> LocalRunsViewModel.TimelineEntry {
+        let minutes = date.timeIntervalSince(now) / 60
+        return LocalRunsViewModel.TimelineEntry(listing: listing(id: id, minutesFromNow: minutes), isYours: yours)
+    }
+
+    /// Seven days from today, each counting its runs and yours.
+    func testTheStripCountsEachDaysRunsAndYours() {
+        let timeline = [
+            entry("a", at: utcDate(day: 23, hour: 19), yours: true),
+            entry("b", at: utcDate(day: 23, hour: 20)),
+            entry("c", at: utcDate(day: 25, hour: 18), yours: true),
+        ]
+
+        let strip = LocalRunsViewModel.weekStrip(timeline: timeline, now: wednesday, calendar: utc)
+
+        XCTAssertEqual(strip.count, 7)
+        XCTAssertEqual(strip[0].day, utcDate(day: 23, hour: 0))
+        XCTAssertEqual(strip.map(\.total), [2, 0, 1, 0, 0, 0, 0])
+        XCTAssertEqual(strip.map(\.yours), [1, 0, 1, 0, 0, 0, 0])
+    }
+
+    /// Last night's run, still listed inside the grace window, is on today's
+    /// column — the strip has no yesterday, and the run is still on the board.
+    func testLastNightsRunCountsTowardToday() {
+        let strip = LocalRunsViewModel.weekStrip(
+            timeline: [entry("late", at: utcDate(day: 22, hour: 23, minute: 30))],
+            now: utcDate(day: 23, hour: 0, minute: 30),
+            calendar: utc
+        )
+        XCTAssertEqual(strip[0].total, 1)
+    }
+
+    /// Runs past the strip's last day are counted as "later", not dropped.
+    func testRunsAfterTheWeekAreLater() {
+        let timeline = [
+            entry("in", at: utcDate(day: 29, hour: 23)),
+            entry("out", at: utcDate(day: 30, hour: 9)),
+            entry("way-out", at: utcDate(day: 30, hour: 18)),
+        ]
+        XCTAssertEqual(LocalRunsViewModel.laterCount(timeline: timeline, now: wednesday, calendar: utc), 2)
         XCTAssertEqual(
-            LocalRunsViewModel.eyebrowText(
-                tipOffs: [utcDate(day: 22, hour: 18, minute: 45), utcDate(day: 22, hour: 23, minute: 59)],
-                now: utcDate(day: 22, hour: 18),
-                calendar: utc
-            ),
-            "Tonight"
+            LocalRunsViewModel.weekStrip(timeline: timeline, now: wednesday, calendar: utc).last?.total, 1
         )
     }
 
-    func testOneGameAfterMidnightMakesItComingUp() {
-        XCTAssertEqual(
-            LocalRunsViewModel.eyebrowText(
-                tipOffs: [utcDate(day: 22, hour: 18, minute: 45), utcDate(day: 23, hour: 0, minute: 30)],
-                now: utcDate(day: 22, hour: 18),
-                calendar: utc
-            ),
-            "Coming up"
-        )
+    /// One heading per day, in the timeline's own order.
+    func testTheBoardGroupsUnderOneHeadingPerDay() {
+        let timeline = [
+            entry("a", at: utcDate(day: 23, hour: 19)),
+            entry("b", at: utcDate(day: 23, hour: 21)),
+            entry("c", at: utcDate(day: 24, hour: 18)),
+        ]
+        let sections = LocalRunsViewModel.sections(timeline: timeline, now: wednesday, calendar: utc)
+
+        XCTAssertEqual(sections.map(\.day), [utcDate(day: 23, hour: 0), utcDate(day: 24, hour: 0)])
+        XCTAssertEqual(sections.map { $0.entries.map(\.id) }, [["a", "b"], ["c"]])
     }
 
-    /// A run from late last night is still listed inside the visibility grace.
-    /// It's in the past, so it must not read as "Coming up".
-    func testLastNightsRunStillListedIsNotComingUp() {
-        XCTAssertEqual(
-            LocalRunsViewModel.eyebrowText(
-                tipOffs: [utcDate(day: 21, hour: 23, minute: 30)],
-                now: utcDate(day: 22, hour: 1),
-                calendar: utc
-            ),
-            "Tonight"
+    func testLastNightsRunFilesUnderToday() {
+        let sections = LocalRunsViewModel.sections(
+            timeline: [
+                entry("late", at: utcDate(day: 22, hour: 23, minute: 30)),
+                entry("tonight", at: utcDate(day: 23, hour: 19)),
+            ],
+            now: utcDate(day: 23, hour: 0, minute: 30),
+            calendar: utc
         )
+        XCTAssertEqual(sections.count, 1, "yesterday's run and today's share today's heading")
     }
 
-    func testAnEmptyBoardSaysTonight() {
-        XCTAssertEqual(
-            LocalRunsViewModel.eyebrowText(tipOffs: [], now: utcDate(day: 22, hour: 18), calendar: utc),
-            "Tonight"
-        )
+    func testAnEmptyBoardHasNoSections() {
+        XCTAssertTrue(LocalRunsViewModel.sections(timeline: [], now: wednesday, calendar: utc).isEmpty)
+    }
+
+    /// "Today", "Tomorrow", the weekday within the week, the date beyond it.
+    func testHeadingsSayTheDayTheWayAPlayerWould() {
+        let title = { (day: Int) in
+            LocalRunsViewModel.sectionTitle(for: self.utcDate(day: day, hour: 0), now: self.wednesday, calendar: self.utc)
+        }
+        XCTAssertEqual(title(23), "Today")
+        XCTAssertEqual(title(24), "Tomorrow")
+        XCTAssertFalse(["Today", "Tomorrow"].contains(title(26)))
+        XCTAssertFalse(title(26).contains("Sep"), "within the week, the weekday alone")
+        XCTAssertTrue(title(30).contains("30"), "beyond the week, the date")
+    }
+
+    // MARK: - What VoiceOver says for a day
+
+    func testADayWithRunsSaysHowManyAndYours() {
+        let day = LocalRunsViewModel.DaySummary(day: wednesday, total: 3, yours: 2)
+        XCTAssertTrue(RunsWeekStrip.spoken(day, isToday: true).hasPrefix("Today, "))
+        XCTAssertTrue(RunsWeekStrip.spoken(day, isToday: true).hasSuffix("3 runs, you're in 2"))
+    }
+
+    func testAnEmptyDaySaysSo() {
+        let day = LocalRunsViewModel.DaySummary(day: wednesday, total: 0, yours: 0)
+        XCTAssertTrue(RunsWeekStrip.spoken(day, isToday: false).hasSuffix("no runs"))
     }
 }

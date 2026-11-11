@@ -65,6 +65,16 @@ nonisolated enum HooprFontMetrics {
         return min(scaled, maximumSize)
     }
 
+    /// The width `text` takes in `font`, rounded up to a whole point — the
+    /// one measurement behind every "does it fit at this size" rule
+    /// (`StatsScoreboardMetrics`, `RunCalendarMetrics`), so the three of
+    /// them can't round or kern differently.
+    static func width(of text: String, font: UIFont, kerning: CGFloat = 0) -> CGFloat {
+        var attributes: [NSAttributedString.Key: Any] = [.font: font]
+        if kerning != 0 { attributes[.kern] = kerning }
+        return ceil((text as NSString).size(withAttributes: attributes).width)
+    }
+
     /// The text style whose default size is nearest `size`, so the scaling
     /// curve matches what the system would apply to text of that size. Body and
     /// large sizes are deliberately scaled less aggressively by the metrics
@@ -140,8 +150,7 @@ private struct ScaledSystemFont: ViewModifier {
 /// `hooprFont` fixed the scaling problem — a literal size that still respects
 /// Dynamic Type — but left every call site choosing its own number, so the app
 /// grew six spellings of the same uppercase section label at two sizes and two
-/// weights (`context/plans/UI_REVAMP_AUDIT.md` §2.4). These roles are the
-/// vocabulary above the numbers: a view says what a piece of text *is*, and
+/// weights. These roles are the vocabulary above the numbers: a view says what a piece of text *is*, and
 /// this file decides how big that is.
 ///
 /// **Constraint 2 still holds.** Every role resolves to a `hooprFont` call, so
@@ -154,7 +163,7 @@ private struct ScaledSystemFont: ViewModifier {
 /// the hero is the one place in the app where a clipped word would take the
 /// screen's whole answer with it. What guards them instead is a metrics type
 /// per hero (`HomeHeroMetrics`), measured against the frame it lives in — the
-/// pattern `ResultPillMetrics` established.
+/// pattern the (since retired) `ResultPillMetrics` established.
 ///
 /// **What the ladder does at `.accessibility3`, measured** (the values
 /// `HooprFontMetrics` produces on iOS 26.5, not an estimate):

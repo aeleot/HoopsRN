@@ -5,16 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Quick start
 
 - **Read first**: [`context/INDEX.md`](context/INDEX.md) is a routing table into architecture, data model, UI structure, and more. Start there for any major change. It separates three kinds of doc: **entries** describe code that exists, [`gaps/`](context/gaps/) describes what's wrong with it, and [`plans/`](context/plans/) describes code that doesn't exist yet.
-- **Tests**: `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:hooprTests`
+- **Tests**: `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -only-testing:hooprTests`
 - **Run**: Open `hoopr.xcodeproj` in Xcode, select the `hoopr` scheme, pick an iOS 26.5 Simulator, Cmd+R.
-- **Run a single test**: `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:hooprTests/SuiteName/testName`
+- **Run a single test**: `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -only-testing:hooprTests/SuiteName/testName`
 
 ## Common commands
 
 | Task | Command |
 |---|---|
-| Run all unit tests | `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:hooprTests` |
-| Run a specific test suite | `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:hooprTests/GameTests` |
+| Run all unit tests | `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -only-testing:hooprTests` |
+| Run a specific test suite | `xcodebuild test -project hoopr.xcodeproj -scheme hoopr -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' -only-testing:hooprTests/GameTests` |
 | Dry-run Firebase rules/indexes | `npm install -g firebase-tools && firebase login && firebase deploy --only firestore:rules,firestore:indexes --dry-run` |
 | **Evaluate** the rules against the emulator | `npm install && npm run test:rules` |
 | Check if docs are stale | `python3 tools/check_context_drift.py` |
@@ -74,10 +74,10 @@ Three things break the design if violated:
 
 ### Cross-collection joins live in view models
 
-`LocalRunsViewModel`, `FriendsViewModel`, and `FindAMatchViewModel` join data from multiple services — the services themselves have no dependencies on each other. For example:
+`LocalRunsViewModel`, `FriendsViewModel`, and `MapViewModel` join data from multiple services — the services themselves have no dependencies on each other. For example:
 - `LocalRunsViewModel` joins runs to the bundled court dataset for distance filtering.
 - `FriendsViewModel` joins friendship UIDs to profiles for names.
-- `FindAMatchViewModel` colours map pins by court busyness (summing queued and public games, deduped by court ID).
+- `MapViewModel` colours map pins by court busyness (summing queued and public games, deduped by court ID).
 
 Pushing joins into a service layer would create unwanted collection-to-collection dependencies.
 
@@ -112,7 +112,7 @@ The codebase has a published **context dictionary** at [`context/INDEX.md`](cont
 ### Models are in `hoopr/Models/`
 Domain types: `Game`, `UserProfile`, `Friendship`, `Court`, `Facility`, `GameStatus`, error enums. No Firestore types escape the service layer.
 
-**A `Court` is one playing surface; a `Facility` is the place a player travels to.** OSM splits a park into a way per surface, so Long Meadow Park is three courts 17m apart — which used to mean three overlapping map pins and three separate queues at one physical court. Every court carries a `facilityId` (a court on its own is a facility of one), the map draws one pin per facility, and `FindAMatchViewModel.gamesByFacility` keys the game join on it. Games still store `courtId`: the facility is applied on read, so this needed no migration and no rules change. See [`COURT_DATASET.md`](context/COURT_DATASET.md) for how `facilityId` is minted and why it's safe to re-mint.
+**A `Court` is one playing surface; a `Facility` is the place a player travels to.** OSM splits a park into a way per surface, so Long Meadow Park is three courts 17m apart — which used to mean three overlapping map pins and three separate queues at one physical court. Every court carries a `facilityId` (a court on its own is a facility of one), the map draws one pin per facility, and `MapViewModel.gamesByFacility` keys the game join on it. Games still store `courtId`: the facility is applied on read, so this needed no migration and no rules change. See [`COURT_DATASET.md`](context/COURT_DATASET.md) for how `facilityId` is minted and why it's safe to re-mint.
 
 ### Services are in `hoopr/Services/`
 Query listeners, error translation, and state publication. Subscribe to `AuthService` internally; publish clean models. `ListenerSupervisor` recovers from transient network errors per listener.
@@ -139,7 +139,7 @@ Until `firestore.rules` is deployed, writes fail with `permission-denied` — th
 `Big-Boss-LLC.hoopr` binds to the Firebase app `hoopsrn-4f1e9`. Changing it requires a new app in the Firebase console and a fresh `GoogleService-Info.plist` — it orphans existing installs.
 
 ### Tests are unit-focused, UI tests skip
-`hooprTests/` has **500 real test methods across 31 files** (counted and run green 2026-09-22 — the previous "463 across 28" was stale), and `firestore-tests/` has 141 covering all seven collections. `hooprUITests` fails to launch on this project (SpringBoard `RequestDenied`), so don't run it. The fixture data in test files is non-scaffolding — it's either real Firestore documents or realistic test doubles.
+`hooprTests/` has 834 real test methods (counted from the `.xcresult` and run green 2026-11-11, after merging `queue-system` into `court-data-accuracy`), and `firestore-tests/` has 148 covering all seven collections. The test destination pins `OS=26.5`: the iOS 27 runtime installed alongside it has no iPhone 17, so an unpinned `name=iPhone 17` fails to resolve. `hooprUITests` fails to launch on this project (SpringBoard `RequestDenied`), so don't run it. The fixture data in test files is non-scaffolding — it's either real Firestore documents or realistic test doubles.
 
 ## Token efficiency
 

@@ -1,7 +1,10 @@
 import SwiftUI
 
-/// Full-screen profile. Presented in place of the main tab interface rather
-/// than inside it, so it owns the whole screen including its own back button.
+/// The Profile tab — the fifth, since 2026-09-25. It used to be a full-screen
+/// takeover that replaced the tab interface, reached through a person glyph
+/// in every tab's top-right corner and left through its own back button. That
+/// glyph's slot went to the inbox (`InboxButton`), and the profile came into
+/// the tab bar, where it keeps its scroll position and pane like any other tab.
 ///
 /// **Two panes, one screen.** Friends used to be the third tab of
 /// `MainTabView`; it lives here now, behind a selector under the identity
@@ -46,13 +49,13 @@ struct ProfileView: View {
     /// views are stateless and are rebuilt on every switch.
     @StateObject private var friendsViewModel: FriendsViewModel
 
-    /// Own instance, same reasoning as `friendsViewModel` — this screen owns
-    /// what it presents rather than reaching for one the Seasons tab already
-    /// built. Both independently mirror the same `SquadService`, so there's
-    /// nothing for the two to disagree about.
-    @StateObject private var squadViewModel: SquadViewModel
+    /// Held only for `InboxButton` in the top bar, which observes both
+    /// itself. The inbox the button opens is presented by `MainTabView`, not
+    /// here — it's one sheet over whichever tab is showing.
+    private let friendService: FriendService
+    private let squadService: SquadService
 
-    private let onBack: () -> Void
+    private let onOpenInbox: () -> Void
 
     @State private var pane: Pane = .profile
 
@@ -67,13 +70,12 @@ struct ProfileView: View {
 
     // MARK: Friends-pane presentation
     //
-    // Owned here rather than by `FriendsPaneContent` because the toolbar that
-    // opens the inbox and the list that opens a profile are two separate views
-    // in two separate parts of the scroll — there is no single pane view left
-    // to hold this between them.
+    // Owned here rather than by `FriendsPaneContent` because the search field
+    // and the list that opens a profile are two separate views in two separate
+    // parts of the scroll — there is no single pane view left to hold this
+    // between them.
 
     @FocusState private var isSearchFocused: Bool
-    @State private var isInboxPresented = false
     @State private var presentedPlayer: PlayerRoute?
 
     /// Which friend a remove confirmation is about. Held here rather than on
@@ -83,23 +85,33 @@ struct ProfileView: View {
 
     // MARK: Profile-pane presentation
 
-    /// Presented separately from `viewModel.editingField`, which is strictly
-    /// the profile *document*'s editable fields — appearance is stored on the
-    /// device and saves without a network round trip, so it shares none of
-    /// that sheet's in-flight and failure handling.
-    @State private var isEditingAppearance = false
+    /// The two sheets presented outside `viewModel.editingField`, which is
+    /// strictly the profile *document*'s editable fields: appearance is stored
+    /// on the device and saves without a network round trip, and a password
+    /// reset is a Firebase Auth action, not a write to the profile document —
+    /// so neither shares that sheet's in-flight and failure handling. One
+    /// route, presented with `sheet(item:)` like the house's other sheets.
+    private enum SettingsSheet: String, Identifiable {
+        case appearance
+        case password
 
-    /// Presented outside `viewModel.editingField` for the same reason as the
-    /// appearance sheet: a password reset is a Firebase Auth action, not a
-    /// write to the profile document, so it shares none of that sheet's
-    /// in-flight or failure handling.
-    @State private var isChangingPassword = false
+        var id: String { rawValue }
+    }
+
+    @State private var settingsSheet: SettingsSheet?
 
     @AppStorage(AppearancePreference.storageKey)
     private var appearance: AppearancePreference = .system
 
-    /// The gap between rows. The page margin is `Spacing.pageMargin`.
-    private static let rowSpacing: CGFloat = 10
+    #if DEBUG
+    /// The component gallery, presented with `sheet(item:)` like the house's
+    /// other sheets. Debug builds only.
+    private struct GalleryRoute: Identifiable {
+        let id = "component-gallery"
+    }
+
+    @State private var galleryRoute: GalleryRoute?
+    #endif
 
     init(
         authService: AuthService,
@@ -107,21 +119,17 @@ struct ProfileView: View {
         courtService: CourtService,
         friendService: FriendService,
         squadService: SquadService,
-        onBack: @escaping () -> Void
+        onOpenInbox: @escaping () -> Void
     ) {
-        self.onBack = onBack
+        self.friendService = friendService
+        self.squadService = squadService
+        self.onOpenInbox = onOpenInbox
         _viewModel = StateObject(wrappedValue: ProfileViewModel(
             authService: authService,
             userProfileService: userProfileService,
             courtService: courtService
         ))
         _friendsViewModel = StateObject(wrappedValue: FriendsViewModel(
-            friendService: friendService,
-            userProfileService: userProfileService,
-            courtService: courtService
-        ))
-        _squadViewModel = StateObject(wrappedValue: SquadViewModel(
-            squadService: squadService,
             friendService: friendService,
             userProfileService: userProfileService,
             courtService: courtService
@@ -133,30 +141,27 @@ struct ProfileView: View {
             .sheet(item: $viewModel.editingField) { field in
                 editSheet(for: field)
             }
-            .sheet(isPresented: $isEditingAppearance) {
-                AppearanceSheet(preference: $appearance) {
-                    isEditingAppearance = false
-                }
-            }
-            .sheet(isPresented: $isChangingPassword) {
-                // Only reachable when `canChangePassword`, which is exactly
-                // when there's an email to send to.
-                ChangePasswordSheet(
-                    email: viewModel.email ?? "",
-                    isSending: viewModel.isSendingPasswordReset,
-                    didSend: viewModel.didSendPasswordReset,
-                    errorMessage: viewModel.passwordResetError,
-                    onSend: { Task { await viewModel.sendPasswordReset() } },
-                    onCancel: {
-                        isChangingPassword = false
-                        viewModel.cancelChangingPassword()
-                    },
-                    onDone: { isChangingPassword = false }
-                )
-            }
-            .sheet(isPresented: $isInboxPresented) {
-                InboxSheet(viewModel: friendsViewModel, squadViewModel: squadViewModel) {
-                    isInboxPresented = false
+            .sheet(item: $settingsSheet) { sheet in
+                switch sheet {
+                case .appearance:
+                    AppearanceSheet(preference: $appearance) {
+                        settingsSheet = nil
+                    }
+                case .password:
+                    // Only reachable when `canChangePassword`, which is exactly
+                    // when there's an email to send to.
+                    ChangePasswordSheet(
+                        email: viewModel.email ?? "",
+                        isSending: viewModel.isSendingPasswordReset,
+                        didSend: viewModel.didSendPasswordReset,
+                        errorMessage: viewModel.passwordResetError,
+                        onSend: { Task { await viewModel.sendPasswordReset() } },
+                        onCancel: {
+                            settingsSheet = nil
+                            viewModel.cancelChangingPassword()
+                        },
+                        onDone: { settingsSheet = nil }
+                    )
                 }
             }
             .sheet(item: $presentedPlayer) { route in
@@ -164,6 +169,11 @@ struct ProfileView: View {
                     presentedPlayer = nil
                 }
             }
+            #if DEBUG
+            .sheet(item: $galleryRoute) { _ in
+                ComponentGallery { galleryRoute = nil }
+            }
+            #endif
             .confirmationDialog(
                 "Remove \(pendingRemoval?.nameForProse ?? "this player")?",
                 isPresented: .init(
@@ -217,12 +227,11 @@ struct ProfileView: View {
                 handle: handle,
                 initial: initials,
                 progress: barProgress,
-                unansweredCount: friendsViewModel.unansweredCount,
-                badgeText: friendsViewModel.badgeText,
-                onBack: onBack,
+                friendService: friendService,
+                squadService: squadService,
                 onOpenInbox: {
                     isSearchFocused = false
-                    isInboxPresented = true
+                    onOpenInbox()
                 }
             )
         }
@@ -230,15 +239,27 @@ struct ProfileView: View {
 
     // MARK: - Identity
 
+    /// The identity as the screen's band: the same
+    /// ground and baseline every screen opens on, continuing up through the top
+    /// bar at rest (`ProfileTopBar`), so the page opens on one band rather
+    /// than a bar, a strip of page, then the block.
     private var identity: some View {
         ProfileIdentityBlock(
             handle: handle,
             initial: initials,
-            userId: viewModel.userId
+            userId: viewModel.userId,
+            homeCourt: viewModel.homeCourtName
         )
         .padding(.horizontal, Spacing.pageMargin)
-        .padding(.top, 8)
-        .padding(.bottom, 22)
+        .padding(.top, Spacing.sm)
+        .padding(.bottom, Spacing.xxl)
+        .frame(maxWidth: .infinity)
+        .background(Color.hooprHeroBand, ignoresSafeAreaEdges: [])
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.hooprSeparatorStrong)
+                .frame(height: 1)
+        }
         // Measured rather than assumed: the block's height moves with the
         // reader's text size, and it's what decides when the top bar's title
         // has a reason to appear.
@@ -302,8 +323,12 @@ struct ProfileView: View {
             }
         }
         .padding(.horizontal, Spacing.pageMargin)
-        .padding(.top, 4)
-        .padding(.bottom, 14)
+        .padding(.top, Spacing.md)
+        // On the Profile pane the selector's own hairline is the header's
+        // edge; a second rule 14pt under it read as a doubled line once rows
+        // scrolled beneath (device, 2026-09-23). The Friends pane's search
+        // field sits below the selector, so its edge still needs one.
+        .padding(.bottom, pane == .friends ? 14 : 0)
         .background(Color.hooprBackground)
         .overlay(alignment: .bottom) {
             // Only once something is actually scrolling under the header —
@@ -311,67 +336,67 @@ struct ProfileView: View {
             Rectangle()
                 .fill(Color.hooprBorder)
                 .frame(height: 1)
-                .opacity(barProgress)
+                .opacity(pane == .friends ? barProgress : 0)
         }
     }
 
-    /// A segmented control rather than the shell's glass pills: those float
-    /// over a live map and need to refract it, while this sits on a flat page
-    /// where a solid selection is simply easier to read.
+    /// Two labels with an underline under the selected one — the map list's
+    /// Now / Nearby / Saved treatment, so the app has one way of switching
+    /// between views of the same thing.
+    ///
+    /// **No filled ground.** It was an orange pill sliding over a
+    /// grey track: the screen's loudest shape, for a choice between two
+    /// halves of one page. The underline still slides between the two.
     private var paneSelector: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 0) {
             ForEach(Pane.allCases, id: \.self) { item in
                 let isSelected = pane == item
 
                 Button {
                     isSearchFocused = false
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(.hooprSpring) {
                         pane = item
                     }
                 } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: item.symbol)
-                            .hooprFont(12, weight: .medium, maximumSize: 15)
+                    VStack(spacing: Spacing.sm) {
+                        HStack(spacing: 6) {
+                            Image(systemName: item.symbol)
+                                .hooprFont(13, weight: .semibold, maximumSize: 18)
 
-                        Text(item.title)
-                            .hooprFont(14, weight: .semibold, maximumSize: 18)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                            // Wraps rather than shrinking — the pane's old
+                            // `minimumScaleFactor(0.8)` goes with the pill.
+                            Text(item.title)
+                                .hooprType(.subhead)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .foregroundStyle(isSelected ? Color.hooprPrimaryText : Color.hooprSecondaryText)
 
-                        // No badge here. This segment used to carry a dot for
-                        // waiting requests, which was only honest while the
-                        // inbox was inside the pane it selects. The inbox is in
-                        // the top bar now and its badge is visible from both
-                        // panes, so a second indicator would point at a place
-                        // the requests no longer live.
-                    }
-                    .padding(.vertical, 9)
-                    .frame(maxWidth: .infinity)
-                    .foregroundStyle(
-                        isSelected ? Color.hooprOnBrand : Color.hooprSecondaryText
-                    )
-                    .background {
-                        if isSelected {
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color.hooprOrange)
-                                // One shape moved between the two pills rather
-                                // than two shapes fading, so the selection
-                                // slides.
-                                .matchedGeometryEffect(id: "pane", in: paneSelection)
+                        ZStack {
+                            Color.clear.frame(height: 2)
+                            if isSelected {
+                                Capsule()
+                                    .fill(Color.hooprBrandAccent)
+                                    .frame(height: 2)
+                                    // One shape moved between the two labels
+                                    // rather than two fading, so the
+                                    // selection slides.
+                                    .matchedGeometryEffect(id: "pane", in: paneSelection)
+                            }
                         }
                     }
-                    .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(item.title)
                 .accessibilityAddTraits(isSelected ? [.isSelected] : [])
             }
         }
-        .padding(4)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.hooprFill)
-        )
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.hooprBorder)
+                .frame(height: 1)
+        }
     }
 
     // MARK: - Panes
@@ -381,6 +406,7 @@ struct ProfileView: View {
         switch pane {
         case .profile:
             profileFields
+                .padding(.top, Spacing.xl)
 
         case .friends:
             FriendsPaneContent(
@@ -392,9 +418,11 @@ struct ProfileView: View {
     }
 
     /// The profile as one column of rows: every field on a line of its own,
-    /// each led by its symbol, values free to run the width of the page.
+    /// each led by its symbol, values free to run the width of the page —
+    /// grouped by subject under labels, with hairlines between the rows
+    /// (`DividedRows`) instead of a card around each one.
     private var profileFields: some View {
-        VStack(alignment: .leading, spacing: 22) {
+        VStack(alignment: .leading, spacing: Spacing.section) {
             // Errors raised outside a sheet — a profile load, a sign-out — used
             // to surface in a pinned bottom bar. There isn't one any more, so
             // they lead the pane instead, where they're read before the fields
@@ -403,7 +431,7 @@ struct ProfileView: View {
                 ErrorBanner(message: errorMessage)
             }
 
-            section("Your Game") {
+            section("Your game") {
                 // The setting the rest of the app is organised around, so it
                 // leads — first row, and the only one carrying a second fact.
                 ProfileRow(
@@ -464,7 +492,7 @@ struct ProfileView: View {
                     placeholder: "••••••••",
                     onTap: viewModel.canChangePassword ? {
                         viewModel.beginChangingPassword()
-                        isChangingPassword = true
+                        settingsSheet = .password
                     } : nil
                 )
 
@@ -477,7 +505,7 @@ struct ProfileView: View {
                     label: "Appearance",
                     value: appearance.title,
                     placeholder: AppearancePreference.system.title,
-                    onTap: { isEditingAppearance = true }
+                    onTap: { settingsSheet = .appearance }
                 )
 
                 // Immutable by design — `createdAt` is write-once server-side.
@@ -487,21 +515,49 @@ struct ProfileView: View {
                     value: viewModel.dateJoinedText,
                     placeholder: "—"
                 )
+
+                // The end of the list, not a bar of its own: the rows already
+                // run to the bottom of the screen, and a pinned bar over them
+                // would be a permanent reminder of the one action nobody comes
+                // here for.
+                ProfileActionRow(
+                    symbol: "rectangle.portrait.and.arrow.right",
+                    title: "Sign Out",
+                    tint: .destructive
+                ) {
+                    viewModel.signOut()
+                }
             }
 
-            // The end of the list, not a bar of its own: the rows already run
-            // to the bottom of the screen, and a pinned bar over them would be
-            // a permanent reminder of the one action nobody comes here for.
-            ProfileActionRow(
-                symbol: "rectangle.portrait.and.arrow.right",
-                title: "Sign Out",
-                tint: .destructive
-            ) {
-                viewModel.signOut()
-            }
-            .padding(.top, 4)
+            #if DEBUG
+            galleryDoor
+            #endif
         }
     }
+
+    #if DEBUG
+    /// The way into the component gallery (UI revamp Phase 6): the build's
+    /// version, tapped three times. **Debug builds only** — the caption and the
+    /// gallery are both compiled out of a release, so neither ships.
+    private var galleryDoor: some View {
+        Text("hoopsRN \(Self.versionText)")
+            .hooprType(.caption)
+            .foregroundStyle(Color.hooprSecondaryText)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+            .onTapGesture(count: 3) { galleryRoute = GalleryRoute() }
+            .accessibilityHint("Triple-tap opens the component gallery")
+    }
+
+    /// "1.0 (1)", from the bundle.
+    private static var versionText: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        return "\(version) (\(build))"
+    }
+    #endif
 
     /// Count and unit as one value — "12 courts" — rather than a value with a
     /// unit hung off it. `nil` at zero, which renders the placeholder.
@@ -510,19 +566,21 @@ struct ProfileView: View {
         return "\(count) \(viewModel.favoriteCourtUnitText)"
     }
 
-    /// A titled group of rows, using the same section heading as the Local Runs
-    /// tab so the two screens read as one app.
+    /// A group of rows under a `label`, the section heading every redesigned
+    /// screen uses (Seasons' roster, squad detail's history).
     private func section<Content: View>(
         _ title: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: Self.rowSpacing) {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(title)
-                .hooprFont(18, weight: .bold)
-                .foregroundStyle(Color.hooprPrimaryText)
-                .padding(.bottom, 2)
+                .hooprType(.label)
+                .foregroundStyle(Color.hooprSecondaryText)
+                .accessibilityAddTraits(.isHeader)
 
-            content()
+            DividedRows(leadingInset: ProfileRow.textInset) {
+                content()
+            }
         }
     }
 
@@ -573,6 +631,6 @@ struct ProfileView: View {
         courtService: CourtService(),
         friendService: FriendService(authService: authService),
         squadService: SquadService(authService: authService),
-        onBack: {}
+        onOpenInbox: {}
     )
 }

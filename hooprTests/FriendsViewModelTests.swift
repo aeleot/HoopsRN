@@ -189,6 +189,81 @@ final class FriendsViewModelTests: XCTestCase {
         }
     }
 
+    // MARK: - recentlyAccepted
+
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    /// The inbox's "accepted your request" card is for requests *you* sent:
+    /// accepting someone else's request isn't news to you.
+    func testOnlyRequestsYouSentCountAsAccepted() {
+        let mine = acceptedEdge(uidB: "bbb", requestedBy: "aaa", acceptedAgo: 60)
+        let theirs = acceptedEdge(uidB: "ccc", requestedBy: "ccc", acceptedAgo: 60)
+
+        let result = FriendsViewModel.recentlyAccepted([mine, theirs], by: "aaa", dismissed: [], now: now)
+
+        XCTAssertEqual(result.map(\.id), [mine.id])
+    }
+
+    /// A week, then it ages out on its own — the inbox isn't a friends list.
+    func testAcceptancesAgeOutAfterTheWindow() {
+        let fresh = acceptedEdge(uidB: "bbb", requestedBy: "aaa", acceptedAgo: FriendsViewModel.acceptanceWindow - 60)
+        let stale = acceptedEdge(uidB: "ccc", requestedBy: "aaa", acceptedAgo: FriendsViewModel.acceptanceWindow + 60)
+
+        let result = FriendsViewModel.recentlyAccepted([fresh, stale], by: "aaa", dismissed: [], now: now)
+
+        XCTAssertEqual(result.map(\.id), [fresh.id])
+    }
+
+    func testDismissedAcceptancesStayGone() {
+        let edge = acceptedEdge(uidB: "bbb", requestedBy: "aaa", acceptedAgo: 60)
+
+        let result = FriendsViewModel.recentlyAccepted([edge], by: "aaa", dismissed: [edge.id], now: now)
+
+        XCTAssertTrue(result.isEmpty)
+    }
+
+    /// Newest first; an unacknowledged write (`nil`) is the newest of all.
+    func testAcceptancesAreNewestFirst() {
+        let older = acceptedEdge(uidB: "bbb", requestedBy: "aaa", acceptedAgo: 3_600)
+        let newer = acceptedEdge(uidB: "ccc", requestedBy: "aaa", acceptedAgo: 60)
+        let pendingWrite = Friendship(
+            uidA: "aaa", uidB: "ddd", requestedBy: "aaa", status: .accepted,
+            createdAt: nil, updatedAt: nil
+        )
+
+        let result = FriendsViewModel.recentlyAccepted(
+            [older, pendingWrite, newer], by: "aaa", dismissed: [], now: now
+        )
+
+        XCTAssertEqual(result.map(\.id), [pendingWrite.id, newer.id, older.id])
+    }
+
+    func testDismissalsPersistNewestFirstAndCapped() {
+        let suite = "InboxDismissalsStoreTests"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = InboxDismissalsStore(defaults: defaults)
+
+        for index in 0...InboxDismissalsStore.maxEntries {
+            store.record("edge\(index)")
+        }
+
+        XCTAssertEqual(store.keys.count, InboxDismissalsStore.maxEntries)
+        XCTAssertTrue(store.keys.contains("edge\(InboxDismissalsStore.maxEntries)"))
+        XCTAssertFalse(store.keys.contains("edge0"))
+    }
+
+    private func acceptedEdge(uidB: String, requestedBy: String, acceptedAgo: TimeInterval) -> Friendship {
+        Friendship(
+            uidA: "aaa",
+            uidB: uidB,
+            requestedBy: requestedBy,
+            status: .accepted,
+            createdAt: now.addingTimeInterval(-acceptedAgo - 60),
+            updatedAt: now.addingTimeInterval(-acceptedAgo)
+        )
+    }
+
     // MARK: - Fixtures
 
     private func profile(id: String, name: String) -> UserProfile {

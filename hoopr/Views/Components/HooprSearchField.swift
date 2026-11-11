@@ -42,6 +42,7 @@ struct HooprSearchField: View {
     var isFocused: FocusState<Bool>.Binding
 
     var ground: Ground = .fill
+    var fillOutline: Color = .hooprBorder
     /// 46 on Friends and the map, 48 in the home-court picker, which has a
     /// whole sheet to fill. Parameterised rather than unified: the map's row is
     /// height-budgeted against the sheet's detents.
@@ -66,7 +67,7 @@ struct HooprSearchField: View {
     private var strokeColor: Color? {
         if isFocused.wrappedValue { return Color.hooprBrandAccent }
         switch ground {
-        case .fill:  return Color.hooprBorder
+        case .fill:  return fillOutline
         case .glass: return nil
         }
     }
@@ -102,7 +103,7 @@ struct HooprSearchField: View {
                 .hooprFont(15, weight: .medium, maximumSize: 20)
                 .foregroundStyle(Color.hooprSecondaryText)
 
-            TextField(placeholder, text: $text)
+            TextField(placeholder, text: $text, prompt: .hooprPrompt(placeholder))
                 .hooprFont(16, maximumSize: 22)
                 .foregroundStyle(Color.hooprPrimaryText)
                 .focused(isFocused)

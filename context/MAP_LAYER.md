@@ -5,17 +5,18 @@
 `hoopr/Views/Tabs/SheetGeometry.swift`,
 `hoopr/Views/Components/CourtBadges.swift`, `hoopr/Support/CourtHeat.swift`,
 `hoopr/Support/CourtSearch.swift`
-**Verified:** 2026-09-20 @ 349d309
+**Verified:** 2026-09-24 @ f30e4b2
 
 The map tab and its bottom sheet — the densest interaction code in the app, and
 the part most likely to break subtly when edited. Read this before touching
 `MapView.swift` or `MapTab.swift`. The Local Runs tab and the profile are in
 `UI_SHELL.md`.
 
-`MapTab` was called `FindAMatchTab` until the third tab stopped being a
-"Find Match" placeholder and became Friends — at which point a file named for
-matchmaking that renders the court map was purely confusing. Its view model is
-still `FindAMatchViewModel`.
+`MapTab` and `MapViewModel` were `FindAMatchTab` and `FindAMatchViewModel` until
+2026-09-24 (the tab first, when the third tab stopped being a "Find Match"
+placeholder and became Friends; the view model, and its tests, later). Both
+names are gone from the code — an older note or commit saying "find a match"
+means this.
 
 ---
 
@@ -159,8 +160,12 @@ here too — see the `title` note above.
 
 ## `CourtHeat` — the pins' heat-map colouring
 
-Added 2026-08-21. Every pin's disc is coloured by **how many games are
-scheduled at that court today**: an all-orange scale that *starts* on the
+Added 2026-08-21. Every pin's disc is coloured by **how many runs are still on
+the board at that court today** — scheduled for today and not completed or
+aged out (`Game.isVisible(at:)`), so the number on a pin, Home's "N today" and
+the court card's list always agree (they didn't until 2026-09-24, when a
+completed run still counted toward a pin the card then showed empty). An
+all-orange scale that *starts* on the
 brand orange for nothing scheduled and darkens and reddens in even steps to a
 saturated reddish orange for the busiest tier.
 
@@ -171,6 +176,24 @@ clamped at both ends — and exposes `color(forGameCount:)` and
 `hooprOnHeat(tier:)` roles for that tier. Nothing about the map's own code
 decides what the colours *are*, only what count goes in; Home's hot-court dot
 calls the same functions, so "how busy is this court" has one definition.
+
+**A busy court glows** (UI revamp Phase 5, 2026-09-24). From
+`CourtHeat.glowsFrom` runs today (3, the top two tiers) a halo swells out
+from behind the ring and fades, every two seconds. It is `hooprCourtGlow`,
+not the pin's heat colour: the busy tiers are deep reds, and a translucent
+deep red over a dark ground barely showed in a render. That role carries its
+own per-appearance alpha (see `Theme.swift`), which is why a halo held by a
+view needs no re-add when the appearance flips.
+`CourtMarkerView` animates it as a keyframe `CAAnimation` sampled from
+`Motion.Glow` — the same curve Home's dot draws in SwiftUI — phased off the
+clock so every glowing pin pulses together. Three details are load-bearing:
+the halo is a view, not a layer, for the dynamic-colour reason above; it
+reaches past the pin's `bounds` but collision is computed from `bounds`, so a
+glow never costs a neighbour its place; and the animation is kept on
+completion, or backgrounding the app would strip it and the pins would come
+back still. A running glow is left alone on restyle rather than restarted.
+Under Reduce Motion the halo holds still, read on each configure. The count
+and the colour already say how busy the court is; the glow never says it alone.
 
 **The fill and its label are one table, and the label is not `hooprOnBrand`.**
 The pin's count used to be black on every tier, which is 6.62:1 on the quietest
@@ -208,7 +231,7 @@ collision priority in `configureAsCourt`. Conflating "selected" with "busy"
 would have made a cool, quiet court flash warm the moment you tapped it — the
 opposite of what the colour is supposed to mean.
 
-**Where the count comes from.** `FindAMatchViewModel.gameCountsByFacility` (see
+**Where the count comes from.** `MapViewModel.gameCountsByFacility` (see
 `ARCHITECTURE.md`) buckets `GameService`'s `queuedGames` + `publicGames` by
 **facility** for the current calendar day, and publishes it as
 `gameCountByFacilityID: [String: Int]`. `MapTab` threads that into `MapView`
@@ -223,7 +246,7 @@ counts across a MapKit group's members, went with clustering.)
 **Changed 2026-09-22 (dataset v2).** Pins were per *court*, and OSM tags each
 playing surface as its own way — so Long Meadow Park drew three pins 17m apart,
 each coloured by only its own surface's runs. `Court.facilityId` groups them;
-`FindAMatchViewModel.mapCourts` reduces the filtered courts to one per facility.
+`MapViewModel.mapCourts` reduces the courts to one per facility.
 The card that opens on tap adds `"3 courts"` to its city · distance line for a
 multi-surface facility (`viewModel.surfaceCountText(for:)`), because with one pin
 where there were three, that count is the only thing distinguishing a park from a
@@ -320,7 +343,9 @@ enum SheetState: Equatable {
 struct SheetGeometry: Equatable {
     let containerHeight: CGFloat
     // mediumHeight, expandedHeight, sheetHeight(detent:drag:),
-    // sheetOffset(detent:drag:), rubberBanded(_:), nextDetent(from:projecting:)
+    // sheetOffset(detent:drag:), rubberBanded(_:), nextDetent(from:projecting:),
+    // visibleHeight(detent:drag:), visibleMapHeight(bandHeight:detent:drag:),
+    // bottomClearance, cardActionsBottomInset
 }
 ```
 
@@ -352,6 +377,18 @@ Three accessors do the work, and mixing them up is the bug this shape invites:
 lands; `mediumHeight` is a third of it and `expandedHeight` 0.78 of it.
 `UIScreen.main` is deprecated on iOS 26 and is no longer read anywhere.
 
+**A court card sets its own `.medium` height** (2026-09-23,
+`SheetGeometry.fittedMediumHeight` → `restingMediumHeight`). Since the map
+stopped above the tab bar, a third of the container is ~215pt on an iPhone 17,
+which left the card's scroll body ~112pt: the name and distance (~63pt), then
+**half a run** (~72pt) — "the full details are half shown until the view is
+expanded", the user's report. The card now measures its lead (header plus the
+first run, or "No runs here today") and rests at handle + lead + a 12pt gap +
+action row, never below a third and never above `.expanded`. Measured: a
+hosted run rests at 273pt (lead 158pt), 443pt at `.accessibility3`; a court with
+no runs stays at ~215pt. Every drag and rubber-band limit measures from
+`restingMediumHeight`, so a taller card drags exactly like the list.
+
 **`containerHeight` is the usable height, not the full one.** The same
 `onGeometryChange` also reads `safeAreaInsets.bottom` into `tabBarInset` — both
 in one `SheetMetrics` value, so neither lags a frame behind the other — and
@@ -365,13 +402,38 @@ one the user can reach and its last rows render underneath the tab bar.
 module's default main-actor isolation, its `Equatable` conformance is
 actor-isolated and won't compile.
 
-**The sheet's content stops above the tab bar; its surface does not.** The
-content frame stays `sheetHeight` and is lifted by `.padding(.bottom,
-tabBarInset)`, while the background is drawn `sheetHeight + tabBarInset` tall
-and top-anchored. The tab bar floats with transparent margins around it, so a
-sheet that ended where its content does would show a band of map between the
-two.
+**The sheet's content is explicitly clipped above the tab bar.** Measured on
+an iPhone 17 (iOS 26.5): the settled tab frame is `(0, 62, 402, 729)`, the
+reported bottom safe inset is 83pt, and the detent budget is 646pt. The tab
+and sheet content end at y=791, exactly the bar's top. The defect was drawing
+overflow, not a missing positioning inset: a SwiftUI frame alone allowed the
+scroll content to remain visible through the glass and at y=864. Each pane
+now clips at `sheetHeight`, and a stationary viewport clips the sliding
+sheet at the tab's bottom edge. The tab's `hooprSurface` background continues
+under the bar. No second 83pt positioning inset is added.
 
+`SheetGeometry.collapseProgress(offset:)` measures the slide using the resting
+medium height, including a fitted card. The contents fade during progress
+0–0.4 and stop taking new touches at half opacity. The surface fades opposite
+the peek pill during progress 0.6–1, so the final part of the slide carries no
+rows or segment control. These curves retrace on expansion.
+
+**No pane's last row sits closer than `Spacing.md` to the tab bar**
+(`SheetGeometry.bottomClearance`, 2026-10-09). The lists keep exactly that
+under the foot of their scroll; the court card keeps
+`SheetGeometry.cardActionsBottomInset` (14pt) under its pinned buttons.
+`MapTabDetentTests` holds both. Measured on the live app, the card's buttons
+end at y=777 and the bar's glass starts at y=791 in both appearances — **the
+design critique's "about 8pt" was the light-mode bar's shadow**, which starts
+~7pt above the glass. The gap was not changed, only named and pinned.
+
+`SheetGeometry.visibleHeight(detent:drag:)` — the sheet less its slide — is
+what the map's north bias and the recenter button measure from, and
+`visibleMapHeight(bandHeight:detent:drag:)` is the map left between the band
+and the sheet.
+
+In debug builds, launch with `-MapLayoutDiagnostics` and `NSUnbufferedIO=YES`
+to log the tab, bar and sheet frames.
 Between medium and expanded the sheet **grows and shrinks** — `sheetHeight`
 tracks the finger, so the top edge moves and the bottom stays put. Only heading
 to or from `.collapsed` does it **offset** instead, leaving the screen entirely;
@@ -393,56 +455,62 @@ the bottom of the screen.
 
 Other constants: `tapSlop` 6pt — a handle drag shorter than this is a tap, which
 toggles between medium and collapsed; `detentThreshold` 60pt; `peekBottomInset`
-28. Overshoot is rubber-banded through `resistance(_:)`, an exponential ease
+12, under the peek pill and the recenter button. Overshoot is rubber-banded through `resistance(_:)`, an exponential ease
 toward a 40pt limit, applied only past the collapsed extreme. Every settle
 animates on the same `.spring(response: 0.35, dampingFraction: 0.85)`.
 
 ## Map chrome
 
-Everything floating over the map is **Liquid Glass**: the filter chips, the
-recenter button, and the collapsed peek pill. An *active* filter chip tints the
-same glass with `Color.hooprOrange` rather than swapping to an opaque fill, so it
-reads as the same object lit up instead of a different one.
+**The band is one row: the search field, and the inbox in its
+`InboxButton.Slot`** (`MapBand`, 2026-10-10, the user's call). It sits above
+the map rather than over it: its measured `bandHeight` pads the map's top edge,
+so the map is the rectangle below the band and the north bias frames courts in
+that rectangle (`MapFraming`). It is **70pt, the same in every state** — the
+list, a court's card, a search — so the map's top edge never moves; the field
+is a fixed 46pt at every text size.
 
-**Every glass surface goes through `.hooprGlass(tint:interactive:in:)`**
-(`Support/Glass.swift`), never `.glassEffect` directly. `glassEffect` is iOS 26
+It was three rows and 170pt, 23% of the tab, until then:
+
+- **"Near you · 97 courts"** — the courts inside your radius, a static count
+  that the sheet's header ("97 courts nearby") and the peek pill already state.
+  As the band's hero it was the least useful fact on the tab; other bands lead
+  with a live answer (Home's next tip-off, Runs' week).
+- **Four filter chips** — Games today, Starting soon, Open spots, Open to all —
+  narrowing the pins and every list. Three were refinements of the **Now**
+  segment, which already lists the courts with a run on today with their times
+  and spots, and the fourth was off the screen's edge. They were removed with
+  `CourtFilter`, `CourtActivity` and `FilterChip`; every court is drawn.
+
+Measured on an iPhone 17 (729pt tab): the map over the list at rest went from
+316pt to ~416pt, and over a hosted run's card (~275pt) from 284pt to ~384pt.
+The day before, the band had shrunk to its label row only while a card was
+open (`MapBandLayout`); a header that changed height with the sheet's state
+read as something going wrong, and that went too.
+
+The band keeps the tab's ground — `HeroWash` and `MapBandRadar`, the radar
+half off the trailing edge behind the inbox (`ThemeContrastTests` holds the
+tray on it) — and the `hooprSeparatorStrong` baseline every band closes on. It
+has no label row: the field stands where other tabs name themselves.
+
+The **recenter button** and the collapsed **peek pill** are the only chrome
+over the map, both glass through `.hooprGlass(tint:interactive:in:)`
+(`Support/Glass.swift`), never `.glassEffect` directly: `glassEffect` is iOS 26
 and the app's floor is 18, so the modifier holds the one `#available` and falls
-back to `.ultraThinMaterial` — translucent, because these all float over a moving
-map, and an opaque fill would turn a chip into a panel. The tint rides on top of
-the material so the "same object lit up" rule survives the fallback.
+back to `.ultraThinMaterial`. The sheet is deliberately **not** glass. Small
+chrome you look past can be translucent; a list of courts is something you
+read, and reading it against a moving map is worse in every way than reading it
+against a surface.
 
-The sheet is deliberately **not** glass. Small chrome you look past can be
-translucent; a list of courts is something you read, and reading it against a
-moving map is worse in every way than reading it against a surface.
+The recenter button is the **only map control** — see the zoom-stack note
+above. It floats bottom-right, just above the sheet, because it is a frequent
+casual tap and the top of a large phone is the part you cannot reach
+one-handed. It hides at `.expanded` and while searching; see **Invariants**.
 
-The map `.ignoresSafeArea()` — it *is* the screen, running under the status bar,
-the tab bar and the home indicator. `mapOverlay` insets itself by 8pt at the top
-(the old `floatingHeaderHeight` environment key is gone along with the header
-that published it) and by `max(0, sheetHeight - sheetOffset) + tabBarInset` at
-the bottom, so the chrome stays clear of both the sheet at any detent and the
-tab bar the sheet sits on. The trailing
-`Spacer` in that `VStack` is load-bearing: it holds the stack at full height so
-the row stays pinned to the top of a bottom-aligned `ZStack`.
-
-The chrome is **two rows**: a search field with the profile button inline, then
-the filter chips. It was three — the profile button had a row to itself — and
-folding it into the search row is what pays for the field. Note the honest
-arithmetic: the new chrome is ~106pt against the old ~110pt, so this buys about
-4pt. It is **not** reclaimed map, and shouldn't be described as such; what
-changes is that the top row stops being decoration and becomes the screen's
-primary control.
-
-The recenter button is still the **only map control** — see the zoom-stack note
-above — but it no longer shares the chip row. It floats bottom-right, just above
-the sheet, because it is a frequent casual tap and the top of a large phone is
-the part you cannot reach one-handed. Moving it also hands the chips back the
-~60pt of width it was occupying. It hides at `.expanded` and while searching;
-see **Invariants**.
-
-The search field is `HooprSearchField` in its `glass` ground — the same
-component Friends and the home-court picker use on `hooprFill`. Focusing it
-raises the sheet to `.expanded` and swaps the sheet's contents for results;
-**Recent** lives there as the empty state rather than as a segment.
+The search field is `HooprSearchField` on its `fill` ground with a
+`hooprSeparatorStrong` edge — the component Friends and the home-court picker
+use. Focusing it raises the sheet to `.expanded` and swaps the sheet's
+contents for results; **Recent** lives there as the empty state rather than as
+a segment.
 
 **The matching itself is `CourtSearch.matches(_:query:limit:)`**, an in-memory
 substring scan with no debounce anywhere that calls it — 214 rows resident in
@@ -458,7 +526,7 @@ query returns nothing rather than the whole dataset. Three call sites share it
 rather than each rolling their own: this search field, `QueueSheet`'s court
 picker (`MatchmakingViewModel.searchCourts(matching:)`), and the profile's
 home-court picker — which is why it lives in `Support/` rather than as a
-private helper on `FindAMatchViewModel`.
+private helper on `MapViewModel`.
 
 `courtToSelect` is a `Court?` binding the shell writes when a Home hot-court row
 is tapped. `MapTab` consumes it in `.onChange`, clears it so the same court can
@@ -470,7 +538,7 @@ uses rather than reaching into the sheet's state machine.
 Three segments, added when the sheet's list grew a way to answer "is anyone
 playing" instead of only "what's near me." **Recent isn't a fourth** — it moved
 to the search field's empty state (below) when `.now` took its slot, which is
-why `FindAMatchViewModel.ListTab` has exactly three cases.
+why `MapViewModel.ListTab` has exactly three cases.
 
 - **Now** — courts with a run scheduled today, soonest tip-off first. The
   segment's whole reason to exist, and the map's answer, in list form, to the
@@ -514,31 +582,83 @@ runs at that court, if any — with the same Join/Leave/Cancel actions the Runs
 tab offers**, and finally the same `CourtBadges` the list row shows, plus two
 buttons:
 
-- **Directions** — hands the court to Maps via `MKMapItem.openInMaps`, driving
+- **Directions** — a large secondary button (`HooprButtonStyle`), which hands the court to Maps via `MKMapItem.openInMaps`, driving
   mode. The app knows where courts are and nothing about how to get to one.
   Two constructions behind one `#available`: `MKMapItem(location:address:)` on
   iOS 26, which carries the court's street address into the Maps callout, and
   `MKMapItem(placemark:)` below it, which carries only the coordinate. **The
   route is identical either way** — the address is a label, not an input.
-- **Start Run** — presents `CreateGameSheet` for that court. One button covers
-  both entry points because both converge here. See `UI_SHELL.md`.
+- **Start Run** ("Add a run" once the court has one) — a large primary button
+  presenting `CreateGameSheet` for that court. One button covers both entry
+  points because both converge here. See `UI_SHELL.md`.
 
 **Runs lead the card and `CourtBadges` moved below them** — a card that opened
 with amenity badges put the surface material ahead of the thing a
 "find a game right now" tab actually exists to answer. `viewModel.gamesToday(at:)`
-filters to `Game.isVisible(at:)`, same cutoff the `Now` segment uses, so a run
-that finished two hours ago is gone from both rather than sitting here with a
-stale Join button. Each run row's action comes from
-`FindAMatchViewModel.action(for:)`, which calls straight through to
+filters to `Game.isVisible(at:)`, same cutoff the `Now` segment and the pin
+counts use, so a run that finished two hours ago is gone from all three rather
+than sitting here with a stale Join button. Each run row's action comes from
+`MapViewModel.action(for:)`, which calls straight through to
 `LocalRunsViewModel.action(for:)` rather than restating the rule — the map and
 the Runs tab must never offer a different button for the same run. One write
 in flight at a time via `pendingGameId`, the same `GameCard`/`LocalRunsTab`
 convention: the acting row shows a spinner and every other row's button goes
 inert. This is the **only** place besides the Runs tab either surface performs
 a roster action from — the `Now` segment's own rows carry no buttons and route
-here instead. The runs list and the card body around it scroll independently
-of the header and the pinned action row below, so "Start Run"/"Directions"
-never end up below the fold behind a long list of today's games.
+here instead. The card body scrolls and the action row below it is pinned, so
+"Start Run"/"Directions" never end up below the fold behind a long list of
+today's games — or behind a long court name.
+
+**The action row is measured, and stacks at accessibility sizes** (live pass,
+2026-09-25). Phase 6's `HooprButtonStyle` grows with the text size where the
+old buttons were a fixed 48pt with capped labels, so at `.accessibility3`
+"Directions" broke mid-word ("Dire/cti…") beside "Start Run", and the sheet's
+fitted height — which had assumed a 48pt row — left "No runs here today." below
+the fold. From the accessibility sizes up the buttons stack, Start Run first,
+and `cardActionsMeasuredHeight` feeds `cardFittedHeight` in place of the old
+constant (which remains only as the height before first layout).
+
+**The header scrolls with the body, since 2026-09-22 (UI revamp Phase 2b).** It
+used to be a fixed band above the scroll, and that only held while the name was
+capped at two lines — which is what truncated it to "East En…" at
+`.accessibility3`. The name now wraps in full (the `title` role, via the shared
+`CourtTitle`), and a fixed header that tall exceeded the `.medium` sheet and
+pushed the pinned action row below the fold. The pinned row is what's
+load-bearing, so the header gives way: at the top of the scroll it reads as it
+always did.
+
+**Court names on the map fit one line and shed parts rather than wrap** (the
+user's call, 2026-09-22 — the full name is one tap away and is what the Runs
+tab shows). `CourtName` is the rule, used by the card header, `CourtRow`,
+`CourtGameRow` and the search rows: a name that doesn't fit sheds a trailing
+"Park", then its `#N` court number, and only then is cut with an ellipsis.
+"Park" goes first because the number is what tells sibling courts apart
+("Long Meadow Park #1" and "#3"), and only a *trailing* "Park" goes — four names
+carry it mid-name ("Lake Park Trail") where it is part of the place. In
+`CourtRow` the badges are still shed before the name is touched. The card's star
+and close buttons are fixed 44pt targets with capped glyphs, and `CourtTitle`
+drops its court glyph at every accessibility size, where the name needs the
+width more — measured with the symbol's drawn width, which is about 1.56× its
+font size. At `.accessibility3` "East End Park" reads "East End".
+`CourtNameTests` and `CourtCardLayoutTests` pin the rule.
+
+**Each run row reads like a run on the Runs board** — time first as the row's
+rank, spots left as a number, the same HOSTING / WAITLIST / FULL badge
+(`RunStatus`'s one priority ladder, drawn by `HooprBadge`) and the same
+waitlist-doesn't-promote note. It stays a compact row rather than a `GameCard`
+because every run here is at *this* court.
+
+**A row on the sheet, not a card inside it** (design critique, 2026-10-09). The
+row was a bordered box (`cardChrome`) holding a tinted "Cancel run" pill,
+inside a sheet that is already a surface. Now the header and the runs are
+`DividedRows` — a `hooprBorder` hairline between each, the first one under the
+header — and a run's text sits flush with the court's name. **Join and Join
+waitlist stay compact filled buttons; Leave and Cancel run are quiet red text**
+(`hooprRed`, `body` semibold, on `.hooprPress`) in a 44pt target, on the same
+line as the facts until `ViewThatFits` has to drop the action below them. The
+title is still `LocalRunsViewModel.Action.title` and Cancel still asks first.
+The row lives in `MapTab.runRow(_:)`; `CourtGameRow` is the **Now** list's row
+and was not touched.
 
 **There is no address row, deliberately.** In this dataset `address` is the city
 and state — "Durham, NC" — which the metadata line above it already says. It's
@@ -562,11 +682,27 @@ The old invariant still holds in the direction that mattered: the card is never
 the *poorer* of the two.
 
 `amenities(for:limit:)` is where the narrowing lives, and it has one rule worth
-knowing before touching it: **a caution is never the badge that gets dropped.**
-"Restricted" is emitted last for display, so a plain `prefix` would shed exactly
-the chip a player most needs. Cautions are kept first and the leftover slots
-filled with features, then re-emitted in display order. `CourtBadgesTests` pins
-this.
+knowing before touching it: **a warning is never the badge that gets dropped.**
+Each chip is an `Amenity` with a kind — *feature* (hoops, lit, surface),
+*notice* ("School": a school court is normally playable after hours, so it is
+an outlined chip in secondary text, not red) or *caution* ("Restricted": red
+outline, you may not get on). The warning is emitted last for display, so a
+plain `prefix` would shed exactly the chip a player most needs. Warnings are
+kept first and the leftover slots filled with features, then re-emitted in
+display order. A school court's chip is spoken with its caveat ("School court,
+may be closed during school hours") and the court card adds a plain sentence
+under its chips (`Court.Access.caveat`) — 32 of the 214 courts were drawing no
+chip at all before, and read as ordinary public courts. `CourtBadgesTests` pins
+all of this.
+
+### The data's licence notice
+
+The court data is derived from OpenStreetMap under the ODbL, and **the notice is
+shown at the foot of every court list and in the empty state** — the dataset's
+own string, `CourtService.attribution`, linked to OpenStreetMap's copyright
+page. At the end of the list rather than pinned, because it must be findable
+without taking the room a court row would at `.medium`. Until 2026-09-22 the
+string was decoded and discarded (`gaps/ASSETS_AND_DATA.md`).
 
 ## `CourtRow` — one height for every court
 
@@ -609,7 +745,7 @@ figure — a map pin never had a `NearbyCourt` — so it calls
 `distanceText(for:)`, one `CLLocation.distance(from:)` against the same origin.
 That's safe per render; the whole-dataset sort is not.
 
-**Distances follow the device.** `FindAMatchViewModel.homeLocation` forwards to
+**Distances follow the device.** `MapViewModel.homeLocation` forwards to
 `LocationService.homeLocation`, which returns the last accepted fix and falls
 back to Durham (35.9940, −78.8986) until one lands or if permission is denied.
 A new fix replaces the anchor only once it is `significantMove` (100m) from the
@@ -637,7 +773,7 @@ map exists cannot reach it that way. `initialFix` is the one-shot that does:
 is real, a user outside it sees an empty map rather than a Durham one. That is
 correct behaviour exposing a data-coverage gap, not a location bug.
 
-`FindAMatchViewModel.select(_:)` records the court as recently viewed; the
+`MapViewModel.select(_:)` records the court as recently viewed; the
 sheet's own `select(_:recenter:)` does the visible work.
 
 The court detail card carries the **"Start Run"** button, which presents
@@ -655,6 +791,16 @@ nearby-list row — already open this card, so one button serves both. See
 - Annotations are diffed by `court.id`. Never `removeAnnotations(mapView.annotations)`.
 - Every `setRegion` goes through `biasedNorth(_:)`. Centring on the raw region
   puts the target under the sheet.
+- The court card's `.medium` is **fitted, not a fraction** — don't hard-code a
+  height budget for the card again; the ~155pt the card's comments once assumed
+  went stale the moment the container shrank. The lead is measured as the first
+  run's (or "No runs here today"'s) bottom edge in the rows' own coordinate
+  space (`CardLeadEdge`), so anything above it in the card's `DividedRows` is
+  inside the lead; something that must be seen without scrolling goes there.
+- The band is **one height in every state**. Nothing about the sheet — a
+  court open, a search, a detent — changes it; only the text size could, and
+  its field is fixed. A band that resized with the sheet moved the map's top
+  edge under the reader and was removed (2026-10-10).
 - A `.detail` state never renders `.collapsed` — that is the bug `displayDetent`
   exists for. It otherwise keeps the detent it will restore to, so tapping a
   court from a full-height list doesn't shrink the sheet under the reader's
@@ -670,17 +816,16 @@ nearby-list row — already open this card, so one button serves both. See
 - **The keyboard lands in the bottom safe area, which means it feeds
   `tabBarInset` and shrinks every detent.** That is load-bearing and correct —
   the sheet lifts above the keyboard for free — so do **not** add
-  `.ignoresSafeArea(.keyboard)`. Two consequences are handled deliberately: the
-  chip row is dropped while the search field is focused (at ~95pt of chrome room
-  two rows do not fit), and a downward fling cannot settle to `.collapsed` while
+  `.ignoresSafeArea(.keyboard)`. One consequence is handled deliberately: a
+  downward fling cannot settle to `.collapsed` while the search field is
   focused, which would otherwise hide the sheet behind a live keyboard.
 - The recenter button is hidden at `.expanded` and while searching. Its inset
-  would place it on top of the filter chips, and at that detent the visible map
-  is a sliver.
+  would place it over the band's edge, and at that detent the visible map is a
+  sliver.
 - Distances are computed on `rebuild()`, not during scroll. The radius comes
   from the profile's `preferredRadius`, via `preferredRadiusMiles`.
 - The initial region, list distances, and the recenter target all read
-  `FindAMatchViewModel.homeLocation`, which forwards to
+  `MapViewModel.homeLocation`, which forwards to
   `LocationService.homeLocation`. Keep the single anchor. It follows the device
   now; `initialFix` is the one-shot that moves the map to the first fix, and it
   must never fire over an active selection.
@@ -714,6 +859,6 @@ nearby-list row — already open this card, so one button serves both. See
 - `COURT_DATASET.md` — where the annotations' data comes from.
 - `DATA_MODEL.md` — `Court` fields, and the `displayName` derivation every
   court label on this screen goes through.
-- `ARCHITECTURE.md` — `FindAMatchViewModel`'s dependencies and the
+- `ARCHITECTURE.md` — `MapViewModel`'s dependencies and the
   cross-collection joins, including `gameCountsByFacility`.
 - `PRODUCT_OVERVIEW.md` — the heat map described in product terms.

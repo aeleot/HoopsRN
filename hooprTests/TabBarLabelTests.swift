@@ -6,11 +6,12 @@ import XCTest
 /// Renders the app's tab bar at large Dynamic Type and fails if a label is too
 /// wide for the space it gets.
 ///
-/// Four tabs is the practical ceiling before labels start clipping, and Seasons
-/// took the fourth slot — so "Seasons" over the shorter "Squad" was a decision
-/// that needed evidence rather than taste. This is that evidence, kept as a
-/// test so a fifth tab, a longer label, or an iOS layout change fails here
-/// instead of on somebody's phone.
+/// "Seasons" over the shorter "Squad" was a decision that needed evidence
+/// rather than taste, and so was a fifth tab: Profile joined the bar on
+/// 2026-09-25, when its corner button went to the inbox, and that narrowed
+/// every slot from 80pt to 64pt on the narrowest screen. This is the evidence
+/// for both, kept as a test so a sixth tab, a longer label, or an iOS layout
+/// change fails here instead of on somebody's phone.
 ///
 /// **What the measurement actually showed, because it's not what you'd guess:**
 /// `UITabBar` *clamps* its own content size category. With the hosting
@@ -25,9 +26,9 @@ import XCTest
 /// fits its share of the narrowest screen — rather than the clamp itself. If a
 /// future iOS stops clamping, the labels grow, and this fails.
 ///
-/// It builds a bare `TabView` with the same four titles rather than hosting
+/// It builds a bare `TabView` with the same five titles rather than hosting
 /// `MainTabView`, which would need Firebase configured and a signed-in session.
-/// What's being measured is the tab bar's layout of four labels, which is
+/// What's being measured is the tab bar's layout of five labels, which is
 /// identical either way.
 @MainActor
 final class TabBarLabelTests: XCTestCase {
@@ -36,8 +37,8 @@ final class TabBarLabelTests: XCTestCase {
     /// everywhere.
     private let narrowestWidth: CGFloat = 320
 
-    /// `MainTabView`'s four, in order. Change one there, change it here.
-    private let titles = ["Home", "Map", "Runs", "Seasons"]
+    /// `MainTabView`'s five, in order. Change one there, change it here.
+    private let titles = ["Home", "Map", "Runs", "Seasons", "Profile"]
 
     func testTabLabelsFitTheNarrowestBarAtAccessibility3() throws {
         try assertLabelsFit(at: .accessibilityExtraLarge)
@@ -50,7 +51,7 @@ final class TabBarLabelTests: XCTestCase {
     }
 
     /// The margin, stated as a number so the next label has something to be
-    /// judged against. "Seasons" is the longest of the four and is the reason
+    /// judged against. "Seasons" is the longest of the five and is the reason
     /// this file exists.
     func testSeasonsIsTheTightestLabelAndStillHasRoom() throws {
         let widths = try labelWidths(at: .accessibilityExtraLarge)
@@ -62,7 +63,7 @@ final class TabBarLabelTests: XCTestCase {
         )
         XCTAssertLessThan(
             seasons, share * 0.8,
-            "Seasons now fills more than 80% of its \(Int(share))pt slot. A fifth tab or a longer label won't fit — shorten it rather than adding minimumScaleFactor."
+            "Seasons now fills more than 80% of its \(Int(share))pt slot. A sixth tab or a longer label won't fit — shorten it rather than adding minimumScaleFactor."
         )
     }
 
@@ -87,7 +88,7 @@ final class TabBarLabelTests: XCTestCase {
         }
     }
 
-    /// Lays out a four-tab `TabView` at `category` and returns the rendered
+    /// Lays out a five-tab `TabView` at `category` and returns the rendered
     /// width of each label, widest copy per title.
     ///
     /// The bar lays out more than one label per title — a visible one and a

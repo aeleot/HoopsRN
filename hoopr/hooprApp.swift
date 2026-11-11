@@ -33,11 +33,19 @@ struct hooprApp: App {
     @StateObject private var squadService: SquadService
     @StateObject private var matchmakingService: MatchmakingService
     @StateObject private var seasonGameService: SeasonGameService
-    @StateObject private var notificationService = NotificationService()
+    /// Built in `init()` too, though it doesn't depend on `authService`: it
+    /// is `UNUserNotificationCenter`'s delegate, and a delegate assigned after
+    /// launch finishes never hears about the tap that launched the app.
+    @StateObject private var notificationService: NotificationService
+    /// Holds an opened invite link until there's a signed-in tab shell to show
+    /// it in. A property initializer is fine here, unlike the services above:
+    /// nothing reads it before `body`, which is where `.onOpenURL` feeds it.
+    @StateObject private var inviteRouter = InviteRouter()
 
-    /// Applied at the window root so it reaches every screen *and* every sheet
-    /// presented from one — a `preferredColorScheme` set further down would
-    /// leave modals resolving against the device appearance instead.
+    /// Applied to the window itself (`windowAppearance`), so it reaches every
+    /// screen *and* every sheet presented from one — including a sheet that is
+    /// already up when it changes, which `preferredColorScheme` left in the old
+    /// palette.
     @AppStorage(AppearancePreference.storageKey)
     private var appearance: AppearancePreference = .system
 
@@ -57,6 +65,12 @@ struct hooprApp: App {
         _squadService = StateObject(wrappedValue: SquadService(authService: authService))
         _matchmakingService = StateObject(wrappedValue: MatchmakingService(authService: authService))
         _seasonGameService = StateObject(wrappedValue: SeasonGameService(authService: authService))
+
+        // Bound to a local first for the same reason as `authService`: handed
+        // straight to `StateObject(wrappedValue:)` it would be deferred to the
+        // first body evaluation, which is after launch has finished.
+        let notificationService = NotificationService()
+        _notificationService = StateObject(wrappedValue: notificationService)
     }
 
     var body: some Scene {
@@ -72,9 +86,18 @@ struct hooprApp: App {
                 matchmakingService: matchmakingService,
                 seasonGameService: seasonGameService,
                 notificationService: notificationService,
+                inviteRouter: inviteRouter,
                 recentCourtsStore: recentCourtsStore
             )
-            .preferredColorScheme(appearance.colorScheme)
+            .windowAppearance(appearance)
+            // `hoopsrn://game/{id}` — the scheme registered in `Info.plist`.
+            // On the root, so a link that *launches* the app is delivered too:
+            // `RootView` is on screen from the first frame, long before the tab
+            // shell that will present the invite exists. `InviteRouter` holds
+            // it until then, across a login screen if need be.
+            .onOpenURL { url in
+                inviteRouter.open(url)
+            }
         }
     }
 }

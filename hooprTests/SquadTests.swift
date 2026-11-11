@@ -390,4 +390,82 @@ final class SquadTests: XCTestCase {
         XCTAssertTrue(team.canLeave("member_2"))
         XCTAssertFalse(team.canLeave("stranger"))
     }
+
+    // MARK: - One squad per person
+
+    private func block(
+        among squads: [Squad],
+        loaded: Bool = true,
+        as uid: String = "me",
+        joining squadId: String? = nil
+    ) -> SquadError? {
+        Squad.membershipBlock(among: squads, haveLoaded: loaded, viewedBy: uid, joining: squadId)
+    }
+
+    func testAPersonOnNoSquadMayJoinOrCreateOne() {
+        XCTAssertNil(block(among: []))
+        XCTAssertNil(block(among: [], joining: "sq_9"))
+    }
+
+    /// A member is refused, and told by name which squad is in the way.
+    func testAMemberOfASquadMayNotJoinAnother() {
+        let current = squad(id: "sq_1", leaderId: "someone", memberIds: ["someone", "me"])
+
+        XCTAssertEqual(
+            block(among: [current], joining: "sq_2"),
+            .alreadyOnASquad(name: "Rim Reapers", isLeader: false)
+        )
+    }
+
+    /// Creating is the same check with no squad being joined — this is the path
+    /// `createSquad` takes, and it has to refuse for the same reason.
+    func testAMemberOfASquadMayNotCreateAnother() {
+        let current = squad(id: "sq_1", leaderId: "someone", memberIds: ["someone", "me"])
+
+        XCTAssertEqual(
+            block(among: [current]),
+            .alreadyOnASquad(name: "Rim Reapers", isLeader: false)
+        )
+    }
+
+    /// A leader can't leave, so the way out they're told about has to be
+    /// disbanding — `isLeader` is what picks the sentence.
+    func testALeaderIsToldTheyLeadItRatherThanThatTheyMayLeave() {
+        let led = squad(id: "sq_1", leaderId: "me", memberIds: ["me"])
+
+        XCTAssertEqual(
+            block(among: [led]),
+            .alreadyOnASquad(name: "Rim Reapers", isLeader: true)
+        )
+    }
+
+    /// **Unknown is not "none".** Before the squads listener answers, the list
+    /// is empty whether or not the person is on a squad, so letting a join
+    /// through on it would be the second squad the rule exists to stop.
+    func testAnUnansweredListIsRefusedRatherThanReadAsEmpty() {
+        XCTAssertEqual(block(among: [], loaded: false), .squadsNotLoaded)
+        XCTAssertEqual(block(among: [], loaded: false, joining: "sq_2"), .squadsNotLoaded)
+    }
+
+    /// A stale invite to the squad they're already on is the quiet no-op
+    /// `SquadService.acceptInvite` documents (a join whose cleanup failed) — it
+    /// must not turn into a refusal, or the invite could never be cleared by
+    /// accepting it.
+    func testAnInviteToTheSquadYouAreAlreadyOnIsNotBlocked() {
+        let current = squad(id: "sq_1", leaderId: "someone", memberIds: ["someone", "me"])
+
+        XCTAssertNil(block(among: [current], joining: "sq_1"))
+    }
+
+    /// Someone who joined two squads before the rule existed is still refused a
+    /// third, and one of their own two doesn't count as cover: the check is
+    /// "any squad that isn't this one".
+    func testTwoOldSquadsStillBlockAThirdAndEachOther() {
+        let first = squad(id: "sq_1", leaderId: "a", memberIds: ["a", "me"])
+        let second = squad(id: "sq_2", leaderId: "b", memberIds: ["b", "me"])
+
+        XCTAssertNotNil(block(among: [first, second], joining: "sq_3"))
+        XCTAssertNotNil(block(among: [first, second], joining: "sq_1"))
+        XCTAssertNotNil(block(among: [first, second]))
+    }
 }

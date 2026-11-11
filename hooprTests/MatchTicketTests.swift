@@ -194,24 +194,23 @@ final class MatchTicketTests: XCTestCase {
 
     // MARK: - Records
 
-    func testWinPercentageIsTheShareOfGamesWon() throws {
+    /// How a record *compares* is `MatchRules.recordRating`'s, and tested in
+    /// `MatchRulesTests`. What stays here is decoding the counts.
+    func testARecordDecodesAsPlayed() throws {
         let ticket = try decoder.decode(
             MatchTicket.self, from: document(overrides: ["wins": 3, "losses": 1])
         )
 
-        XCTAssertEqual(ticket.winPercentage, 0.75, accuracy: 0.0001)
+        XCTAssertEqual(ticket.wins, 3)
+        XCTAssertEqual(ticket.losses, 1)
         XCTAssertFalse(ticket.isUnplayed)
     }
 
-    /// An unplayed squad sits at the midpoint, not at zero. Treating "no
-    /// record" as "loses everything" would rank every new squad against the
-    /// worst opponents in the pool — the opposite of what a fresh squad needs.
-    func testAnUnplayedSquadSitsAtTheMidpoint() throws {
+    func testANoGameRecordIsUnplayed() throws {
         let ticket = try decoder.decode(
             MatchTicket.self, from: document(overrides: ["wins": 0, "losses": 0])
         )
 
-        XCTAssertEqual(ticket.winPercentage, 0.5)
         XCTAssertTrue(ticket.isUnplayed)
     }
 

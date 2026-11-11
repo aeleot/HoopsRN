@@ -33,7 +33,7 @@ nonisolated struct MatchCandidate: Identifiable, Sendable, Equatable {
 /// no service, no main actor, and the single source of truth that both the
 /// scan and the tests read.
 ///
-/// The design it implements is the plan's §2.1. Two categories:
+/// Two categories of rule:
 ///
 /// - **Hard rules** reject outright. A hard rule is one where the match is
 ///   impossible or illegal, not merely worse: the squads share a player, the
@@ -76,7 +76,7 @@ nonisolated enum MatchRules {
 
     /// How far apart two win percentages may be.
     ///
-    /// A note on where this comes from, because the plan reads two ways: §2.1
+    /// A note on where this comes from, because the design read two ways: it
     /// lists record proximity only under *soft* rules, but its relaxation
     /// paragraph names "the record-proximity tolerance" as something relaxation
     /// widens — and a tolerance nothing enforces isn't a tolerance. It is
@@ -85,6 +85,31 @@ nonisolated enum MatchRules {
     /// relaxation 1. So it changes *when* an uneven match happens, never
     /// *whether* — which is the reading that leaves both sentences true.
     static let recordTolerance: ClosedRange<Double> = 0.35...1.0
+
+    /// Imagined games added to every record before it is compared — half won,
+    /// half lost — so a short record reads as the little evidence it is.
+    ///
+    /// **A raw win percentage treats one game as a verdict.** A squad's first
+    /// loss took it from .500 to .000, the widest gap there is, and held it
+    /// out of the pool for minutes behind every unplayed squad — on the
+    /// strength of one result. With four imagined games 0–1 reads as .400,
+    /// one game off an unplayed squad, and it matches at once. A long record
+    /// barely moves (10–0 reads as .857), so a real mismatch is still held
+    /// back by `recordTolerance`.
+    ///
+    /// Comparison only. The record a squad sees is still its real W–L.
+    static let recordPriorGames = 4
+
+    /// A squad's win percentage for comparison, shrunk toward .500 by
+    /// `recordPriorGames`.
+    ///
+    /// An unplayed squad reads as exactly `0.5`, as `SeasonGame.Record` does,
+    /// rather than zero: treating "no record" as "loses everything" would rank
+    /// every new squad against the worst opponents in the pool.
+    static func recordRating(for ticket: MatchTicket) -> Double {
+        let prior = Double(recordPriorGames)
+        return (Double(ticket.wins) + prior / 2) / (Double(ticket.wins + ticket.losses) + prior)
+    }
 
     /// Slack the window must carry *beyond* the game itself, so two squads
     /// aren't scheduled into the exact minute they both stop being free.
@@ -157,6 +182,46 @@ nonisolated enum MatchRules {
         return comfortMargin.upperBound + (comfortMargin.lowerBound - comfortMargin.upperBound) * t
     }
 
+    // MARK: - Re-scanning as relaxation widens
+
+    /// How often a scan that found nothing looks again while my criteria are
+    /// still widening.
+    ///
+    /// **Relaxation only helps if somebody re-ranks the pool.** It is derived
+    /// from my ticket's age, and ageing is not a Firestore event — no snapshot
+    /// fires because a minute passed. A scan that came up empty used to be the
+    /// last scan until the pool itself changed, so two squads queued a few
+    /// seconds apart with no court in common (or a window too tight for the
+    /// unrelaxed comfort margin) sat in each other's pool forever, under a card
+    /// that read "Widening the search" and "1 other squad queued nearby".
+    ///
+    /// Fifteen seconds: the radius grows 2.5 miles a minute, so a finer poll
+    /// would re-rank against criteria that have barely moved. The re-scan is
+    /// pure arithmetic over the pool already in memory — no read — so this is
+    /// latency tuning, not cost tuning.
+    static let relaxationRescanInterval: TimeInterval = 15
+
+    /// How long to wait before re-ranking a pool that just produced no
+    /// candidate, or `nil` when waiting cannot change the answer.
+    ///
+    /// Waiting helps only while both of these hold:
+    /// - **someone else is in the pool.** An empty pool changes by a snapshot,
+    ///   and the listener already re-scans on every one.
+    /// - **my criteria can still widen.** Past `fullRelaxation` every relaxed
+    ///   bound is at its limit, and the rules that stay — expiry, lead time, the
+    ///   game fitting before the overlap closes — only get *harder* to meet as
+    ///   time passes. A pool rejected at full relaxation is rejected for good
+    ///   until it changes, and the listener covers that.
+    static func rescanDelay(
+        for mine: MatchTicket,
+        pool: [MatchTicket],
+        now: Date
+    ) -> TimeInterval? {
+        guard pool.contains(where: { $0.squadId != mine.squadId }) else { return nil }
+        guard relaxation(for: mine, now: now) < 1 else { return nil }
+        return relaxationRescanInterval
+    }
+
     // MARK: - The rule set
 
     /// Whether `theirs` is a match for `mine`, and if so where, when, and how
@@ -213,8 +278,9 @@ nonisolated enum MatchRules {
         let required = duration + comfortMargin(at: relaxation)
         guard overlap.duration >= required else { return nil }
 
-        // Record proximity — see `recordTolerance` for why this is a gate.
-        let recordGap = abs(mine.winPercentage - theirs.winPercentage)
+        // Record proximity — see `recordTolerance` for why this is a gate, and
+        // `recordPriorGames` for why it isn't the raw win percentage.
+        let recordGap = abs(recordRating(for: mine) - recordRating(for: theirs))
         guard recordGap <= recordTolerance(at: relaxation) else { return nil }
 
         guard let court = court(

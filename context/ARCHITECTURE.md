@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr/hooprApp.swift`, `hoopr/Services/`, `hoopr/ViewModels/`,
 `hoopr/Support/FailureText.swift`, `hoopr/Support/PreferredRadiusPublisher.swift`
-**Verified:** 2026-09-20 @ e6968e0
+**Verified:** 2026-10-08 @ 976d2cf
 
 How the app is assembled: who owns what, what gets injected where, and the two
 orderings/boundaries that break the design if violated. Read this before
@@ -22,21 +22,24 @@ can be built with a stub.
 |---|---|---|
 | `AuthService` | `currentUser: AuthenticatedUser?`, `hasLoadedInitialState: Bool` | `hasLoadedInitialState` exists because Firebase restores a cached session asynchronously — session state is genuinely unknown until the first listener callback. |
 | `UserProfileService` | `currentProfile: UserProfile?`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns a `ListenerSupervisor`. |
-| `CourtService` | `courts: [Court]`, `loadError: String?` | Loads the bundled dataset synchronously in `init()`, sorted by `name`. A missing or undecodable `courts.json` leaves `courts` empty **and sets `loadError`** — `FindAMatchViewModel` mirrors it as `datasetError` so the map's empty state can say why rather than reading as "no courts near you". No retry: the dataset is in the app bundle, so a failure is a build problem. |
+| `CourtService` | `courts: [Court]`, `loadError: String?`, `attribution: String?` | Loads the bundled dataset synchronously in `init()`, sorted by `name`. `attribution` is the dataset's own ODbL notice (with `attributionURL` beside it), which the map sheet shows. A missing or undecodable `courts.json` leaves `courts` empty **and sets `loadError`** — `MapViewModel` mirrors it as `datasetError` so the map's empty state can say why rather than reading as "no courts near you". No retry: the dataset is in the app bundle, so a failure is a build problem. |
 | `LocationService` | `authorizationStatus`, `coordinate: CLLocationCoordinate2D?` | `CLLocationManagerDelegate` wrapper. Also owns `homeLocation`, the single anchor every distance in the app measures from — **and since 2026-08-27 it follows the device**: `didUpdateLocations` feeds `adopt(_:)`, which takes the first fix and then only fixes ≥ 100m (`significantMove`) from the last one, and `homeLocation` reads that. Without a fix (denied, or not yet arrived) it stays at `defaultLocation`, downtown Durham. `coordinate` is published separately so a view model can react to a fix *arriving* — the map moves to it once — rather than only reading wherever the anchor points. The `userLocation` property removed 2026-08-22 was a different, unread one. |
-| `GameService` | `queuedGames: [Game]`, `publicGames: [Game]`, `completedGames: [Game]`, `hasLoadedGames: Bool`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns **three** session-scoped query listeners and a `ListenerSupervisor` that keys their health separately. The third, `completedGames`, is the only one **not** windowed to the future: it filters `status == completed` and orders by `completedAt` descending, capped rather than time-bounded, because `completedGameCount` is a lifetime total. |
+| `GameService` | `queuedGames: [Game]`, `publicGames: [Game]`, `completedGames: [Game]`, `hasLoadedGames: Bool`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Owns **three** session-scoped query listeners and a `ListenerSupervisor` that keys their health separately. The third, `completedGames`, is the only one **not** windowed to the future: it filters `status == completed` and orders by `completedAt` descending, capped rather than time-bounded, because `completedGameCount` is a lifetime total. Alongside them is one **one-shot read**, `runs(in:)` (2026-10-06): every run the user is on in a month, past or future, as a `getDocuments` — no listener, no supervisor, `errorMessage` untouched, throws `GameError`. It backs Home's run calendar, which the future-windowed `queuedGames` can't serve; it reuses the `queued` listener's index. A second, `fetchGame(id:)` (2026-10-08), reads **one run by ID** — what an invite link opens, and the only read in the app that reaches a private run the caller isn't on (the `get` half of the split read rule; `database/DATABASE_SCHEMA.md`). Same shape: no listener, `errorMessage` untouched, `nil` for a missing or undecodable run, throws `GameError`. |
 | `FriendService` | `friends: [Friendship]`, `incomingRequests: [Friendship]`, `outgoingRequests: [Friendship]`, `errorMessage: String?`, `isRecovering: Bool` | `@MainActor`. Subscribes to `AuthService` itself. Two session-scoped query listeners (`uidA == me`, `uidB == me`) merged client-side, and a `ListenerSupervisor` keying their health separately. |
 | `RecentCourtsStore` | `recentCourtIds: [String]` | `UserDefaults`-backed; deliberately on-device. |
+| `InboxDismissalsStore` | `keys: Set<String>` | The inbox cards this device has cleared (an "accepted your request" card asks nothing of you, so it can be swiped away). `UserDefaults`-backed, on-device, capped at 100 keys; a second device showing a card once more is correct. Injectable into `FriendsViewModel`. |
+| `CelebratedWinsStore` | — | The same idea for the result screen's confetti: which wins this device has already celebrated, so it fires once. `UserDefaults`-backed, on-device, and **not** owned by `hooprApp` — `ResultViewModel` builds its own by default and takes it as an injectable `init` parameter, so tests pass a scratch suite. |
 | `SquadService` | `squads: [Squad]`, `incomingInvites`/`sentInvites: [SquadInvite]`, `errorMessage`, `isRecovering`, `hasLoadedSquads` | `@MainActor`. Subscribes to `AuthService` itself. **Owns two collections** — `squads` and `squadInvites` — justified because a `squadInvite` has no independent existence: it is created against a squad, consumed by a write to that same squad, and deleted in the same breath. |
 | `MatchmakingService` | `myTicket: MatchTicket?`, `pool: [MatchTicket]`, `isBackingOff: Bool` | `@MainActor`. Owns `matchTickets`, the pool listener and the scan. It no longer performs the contested write — that spans two collections and lives in `SeasonGameService.commitMatch`, reached through an injected `MatchCommitting`. Its retry is about contention, not network health, and is deliberately separate from the supervisor's. |
 | `SeasonGameService` | `games: [SeasonGame]`, `errorMessage`, `isRecovering`, `hasLoadedGames` | `@MainActor`. Owns `seasonGames`, and holds **the one contested write in the app** — `commitMatch`, which creates a match and spends both `matchTickets` atomically. A `seasonGame` earns its own service where a `squadInvite` didn't: it outlives both tickets, has its own listener, and is what a squad's record is derived from. |
 | `NotificationService` | `authorizationStatus: UNAuthorizationStatus?` | The only file in the app importing `UserNotifications`. **Executes a plan and decides nothing** — see the vendor boundary below. |
+| `InviteRouter` | `pending: InviteRouter.Request?` | `@MainActor`, no Firebase, no `AuthService`. `hooprApp`'s `.onOpenURL` hands it every incoming URL; it parses with `InviteLink.gameId(from:)` and **holds** the request until `MainTabView` consumes it — `NotificationService.inboxRequest`'s shape, so a link that launches the app, or lands on the login screen, is shown once the signed-in shell appears. In memory only, deliberately. |
 
-Twelve view models are built from them, each `@StateObject` inside the view it
+The view models are built from them, each `@StateObject` inside the view it
 backs: `RootViewModel` (from `AuthService`), `LoginViewModel` (`AuthService`),
-`FindAMatchViewModel` (`CourtService` + `LocationService` + `GameService` +
-`UserProfileService`), `HomeViewModel` (`AuthService` + `CourtService` +
-`GameService` + `UserProfileService` + `FriendService`), `ProfileViewModel`
+`MapViewModel` (`CourtService` + `LocationService` + `GameService` +
+`UserProfileService` + `RecentCourtsStore`), `HomeViewModel` (`AuthService` + `CourtService` +
+`GameService` + `UserProfileService` + `FriendService`), `RunCalendarViewModel` (`GameService` + `SeasonGameService` + `SquadService` + `UserProfileService`; Home's month popup, built in `HomeTab`), `ProfileViewModel`
 (`AuthService` + `UserProfileService` + `CourtService`), `LocalRunsViewModel`
 (`GameService` + `CourtService` + `UserProfileService` + `FriendService`),
 `FriendsViewModel`
@@ -47,11 +50,17 @@ built per-presentation rather than per-screen, inside `CreateGameSheet`),
 `SquadViewModel` (`SquadService` + `FriendService` + `UserProfileService` +
 `CourtService`), `MatchmakingViewModel` (`MatchmakingService` +
 `SeasonGameService` + `CourtService` + `SquadService` + `NotificationService`),
-`GameDayViewModel` and `ResultViewModel` (both `SeasonGameService` +
-`SquadService`, the latter two built per-presentation from the value being
-pushed).
+`GameDayViewModel` (`SeasonGameService` + `SquadService` + `UserProfileService` +
+`NotificationService` + `CourtService`) and `ResultViewModel`
+(`SeasonGameService` + `SquadService`, plus the celebration store above), the
+latter two built per-presentation from the value being pushed;
+`InboxMatchesViewModel` (`SeasonGameService` + `SquadService` + `CourtService`,
+inside `InboxSheet`); and `InviteJoinViewModel` (`GameService` +
+`CourtService`, plus the `gameId` from the link — built per-presentation inside
+`InviteJoinSheet`, and joining through `GameService.joinGame(id:)`, the board's
+own write).
 
-`LocalRunsViewModel`, `FriendsViewModel`, `FindAMatchViewModel`,
+`LocalRunsViewModel`, `FriendsViewModel`, `MapViewModel`,
 `SquadViewModel`, `GameDayViewModel` and `ResultViewModel` are where
 **cross-collection joins live**. A service owns one collection and never
 learns about another's: `LocalRunsViewModel` joins runs to the bundled court
@@ -59,9 +68,9 @@ dataset for its distance filter **and to `friendships` for the "friends here"
 count on each card** — `games` holds the rosters, `friendships` holds the
 edges, and neither service learns the other exists — `FriendsViewModel` joins
 friendship uids to
-profiles for their names, and `FindAMatchViewModel` joins `GameService`'s
+profiles for their names, and `MapViewModel` joins `GameService`'s
 `queuedGames` + `publicGames` to the court dataset to colour the map's pins by
-how busy each court is today — see `MAP_LAYER.md`'s `CourtHeat` section, and
+how busy each court is today (runs still on the board — `isVisible(at:)`) — see `MAP_LAYER.md`'s `CourtHeat` section, and
 `gameCountsByFacility`'s doc comment for why summing those two arrays needs a
 dedup. On the Seasons side, `SquadViewModel` joins `squadInvites` to
 `friendships` for the invite picker (the join that makes it a view model at
@@ -122,9 +131,18 @@ init() {
 ```
 
 Every service that subscribes to `AuthService` is built here, in `init()`, for
-the same reason the first three were. `CourtService`, `LocationService`,
-`RecentCourtsStore` and `NotificationService` don't, so they stay property
-initializers.
+the same reason the first three were. `CourtService`, `LocationService` and
+`RecentCourtsStore` don't, so they stay property initializers.
+`NotificationService` doesn't subscribe either, but is built in `init()` anyway
+(2026-09-25): it is `UNUserNotificationCenter`'s delegate, and a delegate
+assigned after launch finishes never hears about the tap that launched the app
+— a property initializer on a `StateObject` is deferred to the first body
+evaluation, which is too late.
+
+`InviteRouter` *is* a property initializer, and the contrast is the point: a
+URL reaches the app through `.onOpenURL`, a modifier in `body`, so nothing can
+deliver one before the first body evaluation has built the router. A
+notification delegate is called by the system, whenever it likes.
 
 Three things are load-bearing here:
 
@@ -174,6 +192,35 @@ identifiers and their copy are all decided by
 which is the whole reason the split exists — a notification that fires at the
 wrong hour is not something a screen can show you.
 
+**Every tapped notification opens the inbox** (2026-09-25, the user's rule).
+`NotificationService` is the center's delegate; `didReceive` on the default
+action (a tap, not a dismissal) sets `inboxRequest` to a fresh `UUID`, and
+`MainTabView` consumes it and presents `InboxSheet`. A held value rather than a
+fire-and-forget event because a launching tap lands before there is a tab
+interface — `@Published` replays it to `MainTabView`'s `onReceive` the moment
+the shell appears. Not keyed on the notification's identifier, so a kind added
+later routes the same way. It implements the **completion-handler** form of
+`didReceive`, not the `async` one: the `async` form crashed on the first tap
+(UIKit asserts the handler is called on the main thread, and Swift called it
+from the cooperative pool). Verified on the simulator with `simctl push`, both
+backgrounded and cold-launched.
+
+**A notification that fires while the app is open is shown** — `willPresent`
+answers `[.banner, .list, .sound]`; before it existed the system dropped them.
+Tapping that banner comes back through `didReceive`, so it opens the inbox too.
+
+**The inbox opens over a sheet that's already up.** A notification tap can land
+while a tab has a sheet presented, where `MainTabView`'s `.sheet` can't present
+(its presenter is busy) and the tap used to be lost. `openInboxForNotification()`
+presents a `UIHostingController<InboxSheet>` on top of the topmost presented
+controller instead, so Done returns to the half-finished form underneath. An
+alert on top is dismissed first (it can't present). A match row tapped in that
+stacked inbox dismisses the whole stack, since going to the match means
+leaving the sheet under it too. Checked on the simulator (2026-09-25) that
+SwiftUI survives that: a profile edit sheet closed by the UIKit
+`root.dismiss` reopened normally afterwards, so its `sheet(item:)` binding
+was reset rather than left stuck.
+
 `hooprApp.swift` imports `FirebaseCore` for the one `configure()` call.
 `hooprTests/UserProfileTests.swift` imports `FirebaseFirestore` deliberately —
 it decodes through the real `Firestore.Decoder`.
@@ -201,7 +248,7 @@ its own call site:
   invalid email.
 - **`Support/PreferredRadiusPublisher.swift`** — `preferredRadiusMiles`, the
   `UserProfile?` → miles pipeline (`effectivePreferredRadius`, the default while
-  signed out, `removeDuplicates`, `receive(on:)`) that `FindAMatchViewModel` and
+  signed out, `removeDuplicates`, `receive(on:)`) that `MapViewModel` and
   `LocalRunsViewModel` both need. It shares the *operator chain*, not the
   subscription — each view model still subscribes to
   `userProfileService.$currentProfile` itself, so isolation is unchanged and the
@@ -256,15 +303,21 @@ uid is unchanged.
 difference is worth naming. `SeasonGameService.observe(squadIds:)` and
 `MatchmakingService.startSearching(...)` both need to know *which squads are
 mine*, which is `squads`' business — and a service here never learns about
-another's collection. So they are pointed by a view: `SeasonsTab` calls
-`observe(squadIds:)` with every squad the user is on, and `MatchmakingViewModel`
-starts the pool listener for the squad its card is showing.
+another's collection. So they are pointed by a view: `MainTabView` calls
+`observe(squadIds:)` with every squad the user is on, off `squadService.$squads`,
+for the whole signed-in session, and `MatchmakingViewModel` starts the pool
+listener for the squad its card is showing. (`SeasonsTab` pointed `seasonGames`
+until 2026-09-25, which left it idle until that tab was first opened; the inbox
+lists matches, and a notification tap can open it before any tab has been.)
 
 `seasonGames` uses `array-contains-any` rather than `array-contains` precisely
-because the tab passes *all* of them — a person on two squads gets both from one
-query, and screen 9's history works for a squad that isn't the primary one. The
-ceiling is Firestore's ten, named in `SeasonGameService.Limit.observedSquads`
-rather than left as a silent truncation.
+because the shell passes *all* of them. A person is now on one squad at a time
+(app-enforced — `gaps/SEASONS.md`), so that is normally a list of one; it stays
+a list because someone who joined a second squad before the rule existed still
+has both, and squad detail's history has to work for the one that isn't the
+primary. The ceiling is Firestore's ten, named in
+`SeasonGameService.Limit.observedSquads` rather than left as a silent
+truncation — and no longer reachable through the app.
 
 `ProfileViewModel` mirrors `userProfileService.$errorMessage` as well as
 handling its own throws, so failures the service raises on its own (profile

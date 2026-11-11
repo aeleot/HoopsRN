@@ -9,7 +9,7 @@ fileprivate let logger = Logger(subsystem: "com.hoopsrn", category: "Matchmaking
 /// Owns the `matchTickets` collection — the matchmaking pool, and the search
 /// loop that runs against it.
 ///
-/// **There is no server.** `context/plans/SEASONS.md` §0.1: nothing can wake up,
+/// **There is no server** (the Spark plan; no Cloud Functions): nothing can wake up,
 /// look at a pool of waiting squads and pair them. So matchmaking is *pull with
 /// a lock* — every queued client watches the same pool, and the winner of a
 /// contested transaction gets the match. This service is the pull: the pool
@@ -135,6 +135,15 @@ final class MatchmakingService: ObservableObject {
     /// avoid doing to other people.
     private var scanTask: Task<Void, Never>?
 
+    /// A pending re-scan for when relaxation has widened my criteria. Ageing
+    /// fires no snapshot, so without this an empty scan was the last one until
+    /// the pool changed — see `MatchRules.relaxationRescanInterval`.
+    ///
+    /// Cancelled by any scan that starts sooner: a snapshot re-ranks the pool
+    /// at the current relaxation anyway, and re-arms this if it still finds
+    /// nothing.
+    private var relaxationTask: Task<Void, Never>?
+
     /// Consecutive claim attempts since the last back-off or success. Reset
     /// when the back-off elapses, so a poll that finds a quieter pool starts
     /// from a clean count.
@@ -218,8 +227,19 @@ final class MatchmakingService: ObservableObject {
         guard observedUID != nil else { return }
 
         // A restart for the same squad would tear down a healthy listener and
-        // re-run the scan for a candidate already being claimed.
+        // re-run the scan for a candidate already being claimed. The courts and
+        // the anchor are still taken, though: the first call can land before
+        // the dataset has reached the caller, and `homeLocation` follows the
+        // device. Keeping the first call's values froze an empty dataset into
+        // the search for good, which quietly disables every relaxed court.
         if let search, search.squadId == squadId, search.region == region, search.format == format {
+            self.search = Search(
+                squadId: squadId,
+                region: region,
+                format: format,
+                courts: courts.isEmpty ? search.courts : courts,
+                anchor: anchor
+            )
             return
         }
 
@@ -240,6 +260,7 @@ final class MatchmakingService: ObservableObject {
         supervisor.cancel()
         scanTask?.cancel()
         scanTask = nil
+        cancelRelaxationRescan()
         poolListener?.remove()
         poolListener = nil
         myTicketListener?.remove()
@@ -269,6 +290,7 @@ final class MatchmakingService: ObservableObject {
     private func concludeSearch() {
         scanTask?.cancel()
         scanTask = nil
+        cancelRelaxationRescan()
         poolListener?.remove()
         poolListener = nil
         supervisor.recordSuccess(for: ListenerKey.pool)
@@ -432,6 +454,10 @@ final class MatchmakingService: ObservableObject {
     private func scheduleScan() {
         guard search != nil, scanTask == nil else { return }
 
+        // This scan ranks at the current relaxation, so a wait for a wider one
+        // is moot; the scan re-arms it if it still finds nothing.
+        cancelRelaxationRescan()
+
         scanTask = Task { [weak self] in
             await self?.scan()
             self?.scanTask = nil
@@ -459,14 +485,15 @@ final class MatchmakingService: ObservableObject {
 
         guard let candidate = candidates.first else {
             // An empty pool isn't a failure and isn't a back-off. The listener
-            // will say when that changes, and relaxation widens the criteria on
-            // its own as my ticket ages.
+            // will say when the pool changes — but nothing says when my ticket
+            // has aged into wider criteria, so that re-scan is scheduled here.
             isBackingOff = false
+            scheduleRelaxationRescan(for: mine)
             return
         }
 
         // Jitter before the claim, not after: six clients seeing the same new
-        // ticket in the same instant is exactly the thundering herd §2.5
+        // ticket in the same instant is exactly the thundering herd the jitter
         // describes, and spreading the transactions is the only mitigation that
         // works *before* the race rather than after it.
         var generator = SystemRandomNumberGenerator()
@@ -510,6 +537,30 @@ final class MatchmakingService: ObservableObject {
             attempt = 0
             await scan()
         }
+    }
+
+    /// Re-ranks the pool once `MatchRules.rescanDelay` has passed, if waiting
+    /// can change the answer at all.
+    ///
+    /// Goes through `scheduleScan` rather than calling `scan` directly, so the
+    /// at-most-one-scan rule holds: if a snapshot has already started a scan by
+    /// then, this one simply defers to it.
+    private func scheduleRelaxationRescan(for mine: MatchTicket) {
+        cancelRelaxationRescan()
+
+        guard let delay = MatchRules.rescanDelay(for: mine, pool: pool, now: Date()) else { return }
+
+        relaxationTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled, let self else { return }
+            self.relaxationTask = nil
+            self.scheduleScan()
+        }
+    }
+
+    private func cancelRelaxationRescan() {
+        relaxationTask?.cancel()
+        relaxationTask = nil
     }
 
     // MARK: - The commit
@@ -574,7 +625,7 @@ final class MatchmakingService: ObservableObject {
     ///
     /// - Parameters:
     ///   - wins/losses: the squad's record, **derived by the caller** from
-    ///     confirmed `seasonGames` (plan §1.1) rather than stored on the squad.
+    ///     confirmed `seasonGames` rather than stored on the squad.
     ///     Zero until Phase 6 confirms anything, which is correct rather than
     ///     merely tolerable — `MatchTicket.winPercentage` reads an unplayed
     ///     squad as 0.5, not as a squad that loses everything.

@@ -31,13 +31,14 @@ struct CourtGameRow: View {
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(court.displayName)
-                    .hooprFont(16, weight: .semibold)
+                // Sheds "Park", then the court number, before it is cut —
+                // the map's rule (`CourtName`), shared with `CourtRow`.
+                CourtName(name: court.displayName)
+                    .hooprType(.subhead)
                     .foregroundStyle(Color.hooprPrimaryText)
-                    .lineLimit(1)
 
                 Text(metaText)
-                    .hooprFont(13)
+                    .hooprType(.caption)
                     .foregroundStyle(Color.hooprSecondaryText)
                     .lineLimit(1)
             }
@@ -59,8 +60,7 @@ struct CourtGameRow: View {
             }
             .frame(minHeight: statusLineHeight, alignment: .trailing)
         }
-        .padding(.leading, 20)
-        .padding(.trailing, 16)
+        .padding(.horizontal, Spacing.pageMargin)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
@@ -81,17 +81,16 @@ struct CourtGameRow: View {
         return "\(base) · \(more)"
     }
 
-    @ViewBuilder
+    /// `HooprBadge`'s filled style (UI revamp Phase 6). It was the one pill
+    /// drawn at its own size — the same 11pt bold, capped at 15 where every
+    /// other badge caps at 14.
     private var statusPill: some View {
         let status = Self.status(openSlots: game.openSlots)
 
-        Text(status.text)
-            .hooprFont(11, weight: .bold, maximumSize: 15)
-            .lineLimit(1)
-            .foregroundStyle(status.foreground)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Capsule().fill(status.background))
+        return HooprBadge(
+            text: status.text,
+            style: .filled(foreground: status.foreground, fill: status.background)
+        )
     }
 
     /// Room first, because that's the decision the reader is making.

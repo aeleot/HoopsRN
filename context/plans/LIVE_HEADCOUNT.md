@@ -3,7 +3,7 @@
 **Status:** proposed, not started
 **Drafted:** 2026-08-08 @ ae6d436
 **Touches:** `firestore.rules`, `firestore.indexes.json`, `hoopr/Models/`,
-`hoopr/Services/`, `hoopr/ViewModels/FindAMatchViewModel.swift`,
+`hoopr/Services/`, `hoopr/ViewModels/MapViewModel.swift`,
 `hoopr/Views/Tabs/`, `hooprApp.swift` → `RootView` → `MainTabView` injection chain
 
 > `plans/` is not a dictionary entry and carries no `Scope`/`Verified` stamp. A
@@ -225,20 +225,13 @@ already in hand.
 
 ### Injection
 
-`MapTab` and `FindAMatchViewModel` currently take `courtService` +
-`locationService` only. `CheckInService` has to be threaded through the same
-chain the location work also needs to extend:
+`CheckInService` has to be threaded through the view models that draw a court
+— at least `MapViewModel`, through `MapTab` and `MainTabView` from
+`hooprApp.swift`, the same explicit-injection chain every service follows (no
+`@EnvironmentObject`). Check the current initializers when this is picked up;
+they have grown since this plan was drafted.
 
-```
-hooprApp.swift  →  RootView  →  MainTabView  →  MapTab  →  FindAMatchViewModel
-```
-
-`MainTabView.swift:114` constructs `MapTab(courtService:locationService:)`
-today. **If the `homeLocation` work (which needs `UserProfileService` on the
-same chain) is done around the same time, do both init-signature changes in one
-pass** rather than editing four files' initializers twice.
-
-`FindAMatchViewModel.select(_:)` — the empty hook at line 92 — is the natural
+`MapViewModel.select(_:)` is the natural
 place to start/stop the per-court headcount listener.
 
 ---
@@ -263,7 +256,7 @@ Ship-check: nothing in the app changes visually, and nothing regresses.
 
 ### Phase 2 — Detail sheet: count + check in/out
 
-The court detail card (`courtCard`, `MapTab.swift:300`) grows a count
+The court detail card (`courtCard` in `MapTab.swift`) grows a count
 line and a primary action button. One listener, scoped to the selected court,
 started from `select(_:)` and torn down on `dismissDetail()`.
 
@@ -287,7 +280,7 @@ query over all 213.
 
 Recommend scoping to `nearbyCourts` (the 5-mile list) rather than the map
 viewport, at least initially — it's a bounded, already-computed set, and it
-reuses the pipeline in `FindAMatchViewModel` instead of adding viewport
+reuses the pipeline in `MapViewModel` instead of adding viewport
 tracking.
 
 Marker tint by occupancy is tempting here; note that the map's `UIColor` tint is
@@ -317,7 +310,7 @@ silently blanking the UI.
 
 That last one argues for keeping the "is this check-in live" predicate as a pure
 static function on the model — testable without Firestore, the way
-`FindAMatchViewModel.nearby(courts:to:)` is.
+`MapViewModel.nearby(courts:to:)` is.
 
 **Manual** — two accounts is the only way to see a count that isn't your own.
 Two simulators, or one simulator plus the console. Confirm in the console that

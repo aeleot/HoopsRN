@@ -39,8 +39,8 @@ squads' leaders — the one place in the app where correctness depends on
 Firestore's concurrency guarantees rather than on anybody's code.
 
 `claim-race.test.mjs` races two clients for one ticket fifteen times and
-asserts exactly one wins. `context/plans/SEASONS.md` §2.2 is built entirely on
-that being true.
+asserts exactly one wins. The whole matchmaker is built on that being true
+(`context/database/DATABASE_SCHEMA.md`, `matchTickets`).
 
 ## Coverage
 

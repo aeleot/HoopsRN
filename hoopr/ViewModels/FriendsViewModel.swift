@@ -148,7 +148,11 @@ final class FriendsViewModel: ObservableObject {
 
     @Published private(set) var friends: [Row] = []
     @Published private(set) var incomingRequests: [Row] = []
-    @Published private(set) var outgoingRequests: [Row] = []
+
+    /// People who said yes to a request *you* sent, lately — the inbox's
+    /// "accepted your request" cards. Newest first. A subset of `friends`, so
+    /// their names resolve with everyone else's.
+    @Published private(set) var recentlyAccepted: [Row] = []
 
     @Published private(set) var errorMessage: String?
 
@@ -177,6 +181,7 @@ final class FriendsViewModel: ObservableObject {
 
     private let friendService: FriendService
     private let userProfileService: UserProfileService
+    private let inboxDismissals: InboxDismissalsStore
     private var cancellables = Set<AnyCancellable>()
 
     private var incoming: [Friendship] = []
@@ -216,10 +221,12 @@ final class FriendsViewModel: ObservableObject {
     init(
         friendService: FriendService,
         userProfileService: UserProfileService,
-        courtService: CourtService
+        courtService: CourtService,
+        inboxDismissals: InboxDismissalsStore = InboxDismissalsStore()
     ) {
         self.friendService = friendService
         self.userProfileService = userProfileService
+        self.inboxDismissals = inboxDismissals
 
         // `sink` with a weak capture rather than `assign(to:on: self)`, which
         // would retain self through self's own cancellable set.
@@ -307,8 +314,8 @@ final class FriendsViewModel: ObservableObject {
         guard let uid = friendService.currentUserId else {
             edgesByUid = [:]
             incomingRequests = []
-            outgoingRequests = []
             friends = []
+            recentlyAccepted = []
             return
         }
 
@@ -330,8 +337,51 @@ final class FriendsViewModel: ObservableObject {
         guard let uid = friendService.currentUserId else { return }
 
         incomingRequests = incoming.map { row(for: $0.otherUid(than: uid)) }
-        outgoingRequests = outgoing.map { row(for: $0.otherUid(than: uid)) }
         friends = accepted.map { row(for: $0.otherUid(than: uid)) }
+        recentlyAccepted = Self.recentlyAccepted(
+            accepted,
+            by: uid,
+            dismissed: Set(inboxDismissals.keys),
+            now: Date()
+        ).map { row(for: $0.otherUid(than: uid)) }
+    }
+
+    // MARK: - Accepted requests
+
+    /// How long an "accepted your request" card stays in the inbox. **An inbox
+    /// choice**, the same week `InboxMatchesViewModel.reportWindow` gives an
+    /// unreported match — long enough to be seen by someone who opens the app
+    /// weekly, short enough that the inbox doesn't become a friends list.
+    nonisolated static let acceptanceWindow: TimeInterval = 7 * 24 * 60 * 60
+
+    /// The accepted edges worth a card: ones `uid` asked for (so the *other*
+    /// person did the accepting), accepted within `acceptanceWindow`, and not
+    /// dismissed on this device. Newest first.
+    ///
+    /// `updatedAt` is the acceptance — it's stamped on the one legal
+    /// transition, pending → accepted. `nil` is a write not yet acknowledged,
+    /// so it counts as now, as `FriendService.sortDate` treats it.
+    nonisolated static func recentlyAccepted(
+        _ accepted: [Friendship],
+        by uid: String,
+        dismissed: Set<String>,
+        now: Date
+    ) -> [Friendship] {
+        accepted
+            .filter { edge in
+                edge.status == .accepted
+                    && edge.requestedBy == uid
+                    && !dismissed.contains(edge.id)
+                    && now.timeIntervalSince(edge.updatedAt ?? now) < acceptanceWindow
+            }
+            .sorted { ($0.updatedAt ?? now) > ($1.updatedAt ?? now) }
+    }
+
+    /// Clears `uid`'s "accepted your request" card for good on this device.
+    func dismissAcceptance(from uid: String) {
+        guard let ownUid = friendService.currentUserId else { return }
+        inboxDismissals.record(Friendship.id(for: ownUid, uid))
+        recentlyAccepted.removeAll { $0.uid == uid }
     }
 
     /// One person's row, built from the live caches. Also the profile sheet's
@@ -364,15 +414,18 @@ final class FriendsViewModel: ObservableObject {
 
     /// Fetches the names this screen doesn't have yet.
     ///
-    /// One batch across all three lists, and only for uids missing from the
-    /// cache, so a new request costs one lookup rather than a re-fetch of
-    /// everyone. A failure is deliberately silent: the rows are already usable
-    /// without a name, and the uid stays missing from the cache, so the next
-    /// snapshot retries it on its own. Putting a transient name failure in the
-    /// error banner would push the friendship's own errors off the screen.
+    /// One batch across every edge — incoming, outgoing and accepted, so the
+    /// profile sheet for someone you've asked has their name too — and only
+    /// for uids missing from the cache, so a new request costs one lookup
+    /// rather than a re-fetch of everyone. A failure is deliberately silent:
+    /// the rows are already usable without a name, and the uid stays missing
+    /// from the cache, so the next snapshot retries it on its own. Putting a
+    /// transient name failure in the error banner would push the friendship's
+    /// own errors off the screen.
     private func resolveMissingProfiles() {
-        let shown = incomingRequests + outgoingRequests + friends
-        let missing = Set(shown.map(\.uid)).subtracting(profilesByUid.keys)
+        guard let uid = friendService.currentUserId else { return }
+        let shown = (incoming + outgoing + accepted).map { $0.otherUid(than: uid) }
+        let missing = Set(shown).subtracting(profilesByUid.keys)
         guard !missing.isEmpty else { return }
 
         let service = userProfileService
@@ -691,19 +744,6 @@ final class FriendsViewModel: ObservableObject {
 
     // MARK: - Presentation helpers
 
-    /// Drives the profile's inbox badge. Only *incoming* requests count — a
-    /// request you sent isn't waiting on you.
-    ///
-    /// The count is the whole signal; there was a `hasUnanswered` companion for
-    /// the callers that only wanted a yes/no, and both of those (the Friends
-    /// tab pill, the pane selector's dot) are gone.
-    var unansweredCount: Int { incomingRequests.count }
-
-    /// Kept to two glyphs so it fits the badge at every Dynamic Type size.
-    var badgeText: String {
-        unansweredCount > 9 ? "9+" : "\(unansweredCount)"
-    }
-
     var friendsCountText: String {
         friends.count == 1 ? "1 friend" : "\(friends.count) friends"
     }
@@ -712,16 +752,8 @@ final class FriendsViewModel: ObservableObject {
         "No friends yet. Search above by name or user ID to find people you play with."
     }
 
-    var requestsEmptyText: String {
-        "No requests waiting on you."
-    }
-
-    var sentEmptyText: String {
-        "You haven't asked anyone yet."
-    }
-
     var inboxEmptyText: String {
-        "Nothing here yet. Friend requests land in your inbox."
+        "You're all caught up. Friend requests, squad invites and your matches land here."
     }
 
     func searchEmptyText(for query: String) -> String {

@@ -15,6 +15,7 @@ struct RootView: View {
     private let matchmakingService: MatchmakingService
     private let seasonGameService: SeasonGameService
     private let notificationService: NotificationService
+    private let inviteRouter: InviteRouter
     private let recentCourtsStore: RecentCourtsStore
 
     init(
@@ -28,6 +29,7 @@ struct RootView: View {
         matchmakingService: MatchmakingService,
         seasonGameService: SeasonGameService,
         notificationService: NotificationService,
+        inviteRouter: InviteRouter,
         recentCourtsStore: RecentCourtsStore
     ) {
         self.authService = authService
@@ -40,6 +42,7 @@ struct RootView: View {
         self.matchmakingService = matchmakingService
         self.seasonGameService = seasonGameService
         self.notificationService = notificationService
+        self.inviteRouter = inviteRouter
         self.recentCourtsStore = recentCourtsStore
         _viewModel = StateObject(wrappedValue: RootViewModel(authService: authService))
     }
@@ -64,12 +67,13 @@ struct RootView: View {
                     matchmakingService: matchmakingService,
                     seasonGameService: seasonGameService,
                     notificationService: notificationService,
+                    inviteRouter: inviteRouter,
                     recentCourtsStore: recentCourtsStore
                 )
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: viewModel.destination)
+        .animation(.hooprSwap, value: viewModel.destination)
     }
 }
 
@@ -101,6 +105,7 @@ private struct LaunchScreen: View {
         matchmakingService: MatchmakingService(authService: authService),
         seasonGameService: SeasonGameService(authService: authService),
         notificationService: NotificationService(),
+        inviteRouter: InviteRouter(),
         recentCourtsStore: RecentCourtsStore()
     )
 }

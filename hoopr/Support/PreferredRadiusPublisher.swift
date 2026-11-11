@@ -4,7 +4,7 @@ import Foundation
 extension Publisher where Output == UserProfile?, Failure == Never {
     /// The radius the nearby lists should search with, in miles.
     ///
-    /// `FindAMatchViewModel` and `LocalRunsViewModel` both need exactly this —
+    /// `MapViewModel` and `LocalRunsViewModel` both need exactly this —
     /// the stored preference coerced through `effectivePreferredRadius`, with
     /// the default standing in while signed out or before the first snapshot
     /// lands — and each carried a byte-identical copy of the pipeline,

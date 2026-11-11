@@ -23,8 +23,8 @@ import SwiftUI
 /// *court* first and a quiet one second. The cost is real: "nothing today" and
 /// "one game" are one step apart in darkness.
 ///
-/// `MapTab` / `FindAMatchViewModel` compute *what* to feed this — the count of
-/// games scheduled at a court today, from the same `queuedGames` + `publicGames`
+/// `MapTab` / `MapViewModel` compute *what* to feed this — the count of
+/// runs still on the board at a court today, from the same `queuedGames` + `publicGames`
 /// the app already holds, so this needs no new read and no rules change.
 /// `MapView` and Home's hot list are the callers, and since clustering was
 /// dropped there is exactly one kind of lookup: a single court's own count.
@@ -33,6 +33,17 @@ enum CourtHeat {
     /// same deep red. Exposed so callers can explain the scale rather than
     /// re-deriving the stop count.
     static let maxTier = Color.hooprHeatMaxTier
+
+    /// How many runs today make a court **busy** enough to glow (UI revamp
+    /// Phase 5). The top two tiers, not every court with a run: on Home's list
+    /// every row has at least one, and a glow on all of them would say nothing
+    /// about any. One number for the map and Home, so a court that glows on one
+    /// glows on the other.
+    static let glowsFrom = 3
+
+    static func glows(forGameCount gameCount: Int) -> Bool {
+        gameCount >= glowsFrom
+    }
 
     /// Negative counts clamp to the quietest tier rather than trapping — nothing
     /// produces one today, but a lookup should never crash on a bad index.

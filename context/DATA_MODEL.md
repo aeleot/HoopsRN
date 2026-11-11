@@ -2,7 +2,7 @@
 
 **Scope:** `hoopr/Models/`, `hoopr/Support/Distance.swift`,
 `hoopr/Support/InviteLink.swift`
-**Verified:** 2026-09-20 @ e6968e0
+**Verified:** 2026-10-08 @ 976d2cf
 
 `Support/CourtSearch.swift` moved to `MAP_LAYER.md`'s scope — it was listed in
 both entries, which `INDEX.md` says scopes must never do. It's a search
@@ -57,19 +57,14 @@ placeholder is the right call given the type; the gap is that `Bool?` can't
 distinguish unknown from no, which is what a player-correctable overlay would
 need to fix.
 
-**`CourtFilter` no longer reads any of them except `access`.** It filtered on
-`isLit` and `hoops` until 2026-08-27, and that sparsity made the filters
-destructive rather than merely weak: `isLit` is `null` for 193 of 214 courts and
-an absent tag is excluded, so one tap hid 95% of the map. The chips are now
-activity predicates — "Games today", "Open spots", and "Open to all" (`access`,
-the one attribute field the dataset populates well at 172/214). They take a
-`CourtActivity`, because whether anyone is playing is a join between bundled
-geography and Firestore that `Court` cannot answer alone.
-
-`CourtActivity` is that joined half: today's runs at one court, with `.quiet`
-for a court with nothing on. Having a total value rather than an optional is
-what keeps every filter predicate total — the absent-tag third state that made
-the amenity filters dangerous has no equivalent here.
+**Nothing filters on them.** The map's filters went on 2026-10-10 — the
+user's call, with the band's chip row: three of the four ("Games today",
+"Starting soon", "Open spots") were refinements of the Now segment, and the
+amenity filters before them (`isLit`, `hoops`, until 2026-08-27) hid 95% of the
+map, because `isLit` is `null` for 193 of 214 courts and an absent tag was
+excluded. `CourtFilter` and the `CourtActivity` join it took went with them.
+The attributes are read only by `CourtBadges`, which shows what is known and
+nothing for what isn't.
 
 `displayName` is `name` with the words "basketball court" stripped and the
 leftover whitespace collapsed. **Every one of the 214 courts in the dataset is
@@ -86,9 +81,11 @@ quietly starts mangling names when the dataset's naming changes.
 The versioned envelope around the bundled file: `version`, `generated`,
 `attribution`, `cities`, `courts`. `version` exists so a future CDN-hosted copy
 can be compared against the bundled one without parsing the court array.
-`CourtService` reads `version` and `attribution` into stored properties;
-neither is displayed anywhere yet, and the ODbL attribution string in
-particular is a licence obligation currently unmet in the UI.
+`CourtService` reads `version` and `attribution` into stored properties. The
+attribution is the notice the map sheet shows at the foot of every court list
+(and in its empty state), linked to OpenStreetMap's copyright page — read from
+the dataset rather than restated, so a rebuilt dataset carries its own.
+`version` is still unused.
 
 `version` is **2** as of 2026-09-22 — the bump that added `Court.facilityId`.
 
@@ -141,6 +138,7 @@ invariants.
 | `network`, `tooManyRequests` | Transport and throttling. |
 | `notConfigured` | **Authentication was never enabled on the Firebase project at all.** The SDK has no error code for this — it arrives as a generic internal error whose `userInfo` contains `CONFIGURATION_NOT_FOUND`, which is why `mapped(_:)` string-matches for it *before* looking at `AuthErrorCode`. |
 | `providerDisabled` | Maps `.operationNotAllowed` — the project exists but email/password sign-in is switched off. |
+| `keychainUnavailable` | Maps `.keychainError`. Firebase touches the keychain only **after** the server has accepted the credentials, so this never shows for a wrong password — which is what makes it look like one when a password was right. Almost always a build with no `application-identifier` entitlement (`securityd` denies every access group, `-34018`); see `BUILD_AND_CONFIG.md` on why `CODE_SIGNING_ALLOWED=NO` builds do this. `LoginViewModel` says the session couldn't be stored, not that the password is wrong. |
 | `unknown(String)` | Carries `localizedDescription`; `LoginViewModel` shows it verbatim. |
 
 ## `UserProfile` and `UserProfileError`
@@ -257,6 +255,18 @@ the rest; `GameService` owns all encoding.
   model, because the create sheet builds one from a bare document ID before any
   `Game` exists. `GameTests` pins the exact string; see below.
 
+- **`waitlistCaveat` is the one sentence for a waitlist that never promotes**
+  — "Waitlist spots don't move up yet — ask the host if someone drops." Shared
+  by `GameCard`'s waitlist note and both waitlist states of the invite sheet,
+  so one limitation is never described two ways.
+
+**Its display text lives on the model, in one place** — `timeText`, `dayText`
+("Tonight" from `eveningStartHour`, 17:00, otherwise "Today", "Tomorrow", or the
+date) and `spotsText` ("Full", "1 spot left", "N spots left"), each with a static
+form taking a bare `Date` for callers with no `Game` yet (the create sheet). Home,
+the Runs card, the map's court card and the create sheet all read them, so a run's
+time and spots read identically everywhere.
+
 `GameError` mirrors `UserProfileError` case-for-case where the meanings match
 (`notSignedIn`, `permissionDenied`, `network`, `unknown`), and adds
 `invalidSchedule`, `gameNotFound`, and `gameClosed`.
@@ -319,12 +329,24 @@ all encoding.
 - **`leaderId` is always in `memberIds`.** The leader can never be removed,
   themselves included — disbanding is their exit, the same shape a `games`
   host's cancel takes.
+- **A person is on one squad at a time — enforced by the app, not the schema.**
+  `Squad.membershipBlock(among:haveLoaded:viewedBy:joining:)` is the one place
+  the rule lives; `SquadService` asks it before `createSquad` and
+  `acceptInvite`, and `SquadViewModel.joinBlockedReason(for:)` asks it so the
+  inbox stops offering a Join that would be refused. Two details worth knowing:
+  it **excludes the squad being joined** (a stale invite to a squad you're
+  already on is still consumed quietly), and it treats a squads list that
+  hasn't loaded as **unknown, not empty**. Nothing in `firestore.rules` backs
+  it — rules can't query — so see `gaps/SEASONS.md` for what that leaves open.
 
 `SquadError` mirrors the others where the meanings match, and adds
 `missingRegion` — returned when no court is near enough to name a region from,
 because a *guessed* region is worse than none: it partitions the matchmaking
 pool into groups that can never see each other, with no error anywhere to
-explain why nobody ever matches.
+explain why nobody ever matches. It also adds the two cases of the one-squad
+rule: `alreadyOnASquad(name:isLeader:)`, which carries what its sentence needs
+because the way out differs (a member leaves, a leader can only disband), and
+`squadsNotLoaded`.
 
 ## `SquadInvite`
 
@@ -355,10 +377,20 @@ is no duplicate-entry logic because there is nowhere to put a second row.
   radius, the record-proximity tolerance and the window slack. It never widens
   the hard rules. The searching UI reads it directly rather than a timer that
   happens to agree, so "Widening the search" is true *because* the standards
-  really are.
+  really are. Ageing fires no snapshot, so a scan that finds nothing re-arms
+  itself every `relaxationRescanInterval` (15s) while `MatchRules.rescanDelay`
+  says waiting can still help — someone else is queued and relaxation is below
+  1. Without that, two squads that rejected each other at t=0 never re-ranked.
 - **Record proximity is a gate, not only a score** — 0.35 apart at relaxation 0,
   fully open at 1 — so it changes *when* an uneven match happens, never
   *whether*. This is the hook a skill rating would plug into.
+- **Records are compared through `MatchRules.recordRating`, not the raw win
+  percentage.** It adds `recordPriorGames` (4) imagined games, half won, so a
+  short record reads as the little evidence it is. Raw, a squad's first loss
+  read as .000 against an unplayed .500 — the widest gap there is — and held
+  the pair apart for ~2.3 minutes of relaxation on the strength of one game.
+  Rated, 0–1 is .400 and matches at once; 5–0 against 0–5 (.778 vs .222) is
+  still held back.
 - **`Status` has exactly two cases**, `open` and `matched`, and the second is
   terminal. There was a third, `claimed`, naming the gap between claiming a
   ticket and writing the match — and a gap is a state two clients can disagree
@@ -374,9 +406,9 @@ is no duplicate-entry logic because there is nowhere to put a second row.
   spent ticket outlives its match by up to a day, and reading one as a live
   search is what showed a squad a spinner after their match had been played.
 - **`wins`/`losses` are denormalized at queue time for ranking only** — display
-  and scoring, never the record of truth. `winPercentage` reads an unplayed
-  squad as `0.5`, not as one that loses everything, which is what stops every
-  new squad being ranked against the worst opponents in the pool.
+  and scoring, never the record of truth. `MatchRules.recordRating` reads an
+  unplayed squad as `0.5`, not as one that loses everything, which is what
+  stops every new squad being ranked against the worst opponents in the pool.
 
 ## `SeasonGame` and `SeasonGameError`
 
@@ -429,7 +461,8 @@ something a screen can show you.
 ## `InviteLink`
 
 One definition of `hoopsrn://game/{id}`, the URL a host sends to reach an
-invite-only run. Two call sites need it from different starting points — the
+invite-only run — **minted and parsed in the same file**, so the two halves
+can't drift. Two call sites mint it from different starting points — the
 create sheet has the document ID `GameService.createGame` returns, the queued
 card has a whole `Game` — so the format is a static function with a thin
 `Game.inviteLink` convenience over it.
@@ -439,15 +472,28 @@ The ID is percent-encoded against unreserved characters only, narrower than
 into two path components. Firestore's own IDs are alphanumeric, so this never
 fires in practice.
 
-**Only the sending half exists.** `hoopsrn://` is not a registered URL scheme,
-nothing implements `.onOpenURL`, and the `games` read rule still refuses a
-non-member — so a recipient tapping the link today gets nothing. `GAPS.md` §4
-holds the design for the rest, which is a real authorization decision rather
-than more UI.
+**`gameId(from:)` is the parser, and it treats the URL as hostile input.** Its
+result goes to `Firestore.document(_:)`, which *traps* on an ID containing `/`
+or an empty one, so a malformed link must stop here rather than crash the app
+it was sent to. It splits the *encoded* path before decoding — a `%2F` inside
+an ID stays inside it and is then refused, rather than decoding into a
+separator — and checks `isWellFormed(gameId:)`, Firestore's own document-ID
+rules (non-empty, no `/`, not `.`/`..`, not `__x__`, ≤1,500 bytes). Scheme and
+host match case-insensitively and one trailing slash is forgiven.
+`GameService.fetchGame(id:)` re-checks `isWellFormed` as a backstop.
+`InviteJoinTests` round-trips every minted form through the parser and asserts
+the built app's `Info.plist` registers `InviteLink.scheme`.
+
+`nonisolated`, since 2026-10-08 — it is pure string work, and the project's
+default `MainActor` isolation would otherwise keep it from the nonisolated
+rules that call it.
 
 ## `Distance`
 
-Miles conversion and the `"1.2 mi"` / `"12 mi"` format rule, in one place.
+Miles conversion and the `"1.2 mi"` / `"12 mi"` format rule, in one place. The
+number and its unit are separately available (`valueText`, `unit`) for the
+screens that set the number in a heavier weight than its unit (Home's detail
+line); `text` joins them.
 Extracted because the nearby-courts list and the Local Runs list measure from
 the same origin and render the same string — before this each carried its own
 copy of the conversion factor.

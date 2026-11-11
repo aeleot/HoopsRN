@@ -18,8 +18,17 @@ fileprivate let logger = Logger(subsystem: "com.hoopsrn", category: "Notificatio
 /// Firestore session, and `UNUserNotificationCenter.current()` is already a
 /// process-wide singleton, so this class holds no state worth per-user
 /// teardown.
+///
+/// **It is also the center's delegate, and every tap opens the inbox**
+/// (2026-09-25, at the user's request: "all app notifications should go
+/// directly to the inbox"). Before this there was no delegate at all, so a
+/// tapped notification opened the app on whatever screen it was last left on.
+/// The delegate has to be in place before launch finishes or a tap that
+/// *launches* the app is never delivered — which is why `hooprApp.init()`
+/// builds this eagerly rather than leaving it to `StateObject`'s deferred
+/// initializer.
 @MainActor
-final class NotificationService: ObservableObject {
+final class NotificationService: NSObject, ObservableObject {
     /// The OS's permission decision, translated out of `UNAuthorizationStatus`
     /// so that type stays inside this file — the same treatment a Firestore
     /// type gets everywhere else in `Services/`. `.provisional` and
@@ -37,10 +46,28 @@ final class NotificationService: ObservableObject {
     /// arrive. Never written to prompt a second time — see `requestIfNeeded()`.
     @Published private(set) var authorizationStatus: Status?
 
+    /// Set when a notification is tapped; `MainTabView` presents the inbox
+    /// and hands it back through `consumeInboxRequest()`.
+    ///
+    /// A value held until consumed rather than an event fired and forgotten,
+    /// because a tap that launches the app arrives before there is a tab
+    /// interface to present anything — the app is still restoring its session.
+    /// Whenever `MainTabView` appears, the request is waiting for it. A `UUID`
+    /// rather than a `Bool`, so two taps in a row are two requests (the map's
+    /// trigger pattern — see `MAP_LAYER.md`).
+    @Published private(set) var inboxRequest: UUID?
+
     private let center = UNUserNotificationCenter.current()
 
-    init() {
+    override init() {
+        super.init()
+        center.delegate = self
         Task { await refreshAuthorizationStatus() }
+    }
+
+    /// Clears a request the shell has acted on, so it isn't presented twice.
+    func consumeInboxRequest() {
+        inboxRequest = nil
     }
 
     /// Asks the OS for permission, **once**.
@@ -144,5 +171,61 @@ final class NotificationService: ObservableObject {
         center.removePendingNotificationRequests(
             withIdentifiers: SeasonGameNotifications.allIdentifiers(for: gameId)
         )
+    }
+}
+
+// MARK: - UNUserNotificationCenterDelegate
+
+extension NotificationService: UNUserNotificationCenterDelegate {
+    /// Any notification the app posted, tapped — or opened from Notification
+    /// Center, or used to launch the app — routes to the inbox. Deliberately
+    /// not keyed on the request's identifier: "every notification goes to the
+    /// inbox" is the rule, so a kind added later gets it without a branch here.
+    ///
+    /// Only the default action (a tap) counts. Swiping a notification away
+    /// reports `UNNotificationDismissActionIdentifier` — and only to a
+    /// category that opts in, which none here do — and that is someone saying
+    /// "not now", not "take me there".
+    ///
+    /// **The completion-handler form, not the `async` one — and that is
+    /// load-bearing.** The `async` form crashed the app on the first tap
+    /// (seen on the simulator, 2026-09-25): Swift runs the method off the main
+    /// thread and then calls UIKit's completion handler from there, and UIKit
+    /// asserts it is called on the main thread (`SIGABRT` in
+    /// `_performBlockAfterCATransactionCommitSynchronizes:`). So the handler is
+    /// called here, on the main actor, after the request is recorded.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let isTap = response.actionIdentifier == UNNotificationDefaultActionIdentifier
+        Task { @MainActor in
+            if isTap {
+                self.requestInbox()
+            }
+            completionHandler()
+        }
+    }
+
+    /// A notification that fires while the app is open is shown as a banner
+    /// (and kept in Notification Center) rather than dropped. Without this
+    /// the system discards it: a tip-off reminder that fired while you had
+    /// the app open to check the court simply never appeared. Tapping the
+    /// banner comes back through `didReceive`, so it opens the inbox like any
+    /// other tap.
+    ///
+    /// No `.badge`: the app never sets an icon badge, so there is nothing to
+    /// update.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list, .sound])
+    }
+
+    private func requestInbox() {
+        inboxRequest = UUID()
     }
 }

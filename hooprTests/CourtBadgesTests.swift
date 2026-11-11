@@ -36,7 +36,7 @@ final class CourtBadgesTests: XCTestCase {
         )
     }
 
-    private func texts(_ amenities: [(text: String, isCaution: Bool)]) -> [String] {
+    private func texts(_ amenities: [CourtBadges.Amenity]) -> [String] {
         amenities.map(\.text)
     }
 
@@ -104,5 +104,58 @@ final class CourtBadgesTests: XCTestCase {
         let bare = court()
         XCTAssertTrue(CourtBadges.amenities(for: bare, limit: nil).isEmpty)
         XCTAssertTrue(CourtBadges.amenities(for: bare, limit: 3).isEmpty)
+    }
+
+    // MARK: - School courts
+
+    /// **A school court used to draw no chip at all**, so it read as an
+    /// ordinary public court — 32 of the dataset's 214 courts.
+    func testASchoolCourtSaysSo() {
+        let school = court(hoops: 2, surface: "asphalt", access: .school)
+
+        XCTAssertEqual(
+            texts(CourtBadges.amenities(for: school, limit: nil)),
+            ["2 hoops", "Asphalt", "School"]
+        )
+    }
+
+    /// A notice is not a caution: a school court is normally playable after
+    /// hours, so it must not draw in the red that means "you may not get on".
+    func testASchoolNoticeIsNotACaution() {
+        let chips = CourtBadges.amenities(for: court(access: .school), limit: nil)
+
+        XCTAssertEqual(chips.map(\.kind), [.notice])
+        XCTAssertFalse(chips[0].isCaution)
+        XCTAssertTrue(chips[0].isWarning)
+    }
+
+    /// Like the restricted caution, it is never the chip a short row sheds.
+    func testTheSchoolNoticeSurvivesEvenAtALimitOfOne() {
+        let school = court(hoops: 2, surface: "asphalt", isLit: true, access: .school)
+
+        XCTAssertEqual(texts(CourtBadges.amenities(for: school, limit: 1)), ["School"])
+        XCTAssertEqual(texts(CourtBadges.amenities(for: school, limit: 2)), ["2 hoops", "School"])
+    }
+
+    /// The chip's one word can't carry the caveat, so VoiceOver reads it.
+    func testTheSpokenChipCarriesTheCaveat() {
+        let school = CourtBadges.amenities(for: court(access: .school), limit: nil)[0]
+        let restricted = CourtBadges.amenities(for: court(access: .restricted), limit: nil)[0]
+
+        XCTAssertTrue(school.spoken.lowercased().contains("school hours"))
+        XCTAssertTrue(restricted.spoken.lowercased().contains("may not"))
+        XCTAssertEqual(CourtBadges.amenities(for: court(hoops: 1), limit: nil)[0].spoken, "1 hoop")
+    }
+
+    /// The card explains what the chip abbreviates — for a school court only.
+    func testOnlyASchoolCourtHasACaveatLine() {
+        XCTAssertNotNil(Court.Access.school.caveat)
+        XCTAssertNil(Court.Access.public.caveat)
+        XCTAssertNil(Court.Access.restricted.caveat, "the Restricted chip already says it")
+    }
+
+    /// A public court is unchanged — no chip for the ordinary case.
+    func testAPublicCourtHasNoAccessChip() {
+        XCTAssertTrue(CourtBadges.amenities(for: court(access: .public), limit: nil).isEmpty)
     }
 }

@@ -1,7 +1,7 @@
 # hoopsRN — Database Schema
 
 **Scope:** `firestore.rules`, `firestore.indexes.json`, `firebase.json`, `.firebaserc`, `firestore-tests/`
-**Verified:** 2026-09-20 @ e6968e0
+**Verified:** 2026-10-08 @ 976d2cf
 
 What's stored server-side and what a client may write. Seven collections are
 live:
@@ -125,8 +125,7 @@ being absent:
 ### Nothing private lives here
 
 The read rule grants **any signed-in user**, and covers `list` as well as `get` —
-that's load-bearing (name resolution on rosters, and the player search in
-`plans/FRIENDS.md`), but it means any signed-in account can enumerate every
+that's load-bearing (name resolution on rosters, and player search), but it means any signed-in account can enumerate every
 profile in the app. Firestore has no field-level read ACLs: a document is
 readable whole or not at all.
 
@@ -199,7 +198,7 @@ drag a Firebase type across the vendor boundary into `Models/`.
 | `hostId` | string | yes | no | Organizer's uid. Always present in `playerIds` — enforced server-side, so a run can't outlive its host leaving it. |
 | `courtId` | string | yes | no | A `Court.id` from the bundled dataset. Courts aren't in Firestore, so there's nothing to validate against — same caveat as `homeCourtId`. A stale ID renders "Unknown court". |
 | `scheduledTime` | timestamp | yes | no | Client-supplied, bounded server-side to `(now, now + 30d)`. |
-| `isPublic` | bool | yes | no | `true` = discoverable. `false` = visible only to people already on a roster. |
+| `isPublic` | bool | yes | no | `true` = discoverable. `false` = invite-only: never returned by a query to anyone off its rosters, and opened by its ID — which is what an invite link carries. See *Invites* below. |
 | `maxPlayers` | int | yes | no | 2–30, bounded by the rules. |
 | `status` | string | yes | yes | `open` \| `full` \| `in_progress` \| `completed`. **Derived, never chosen** — see below. |
 | `playerIds` | array\<string\> | yes | yes | Confirmed players, host included. Never longer than `maxPlayers`. |
@@ -258,17 +257,23 @@ Two consequences worth stating plainly:
 - **A freed slot is not handed to the first waitlisted player.** Promotion means
   writing *someone else's* uid, which this rejects by design. It needs a host
   action or a Cloud Function; neither exists yet.
-- **Invite-only runs currently hold only their host.** Nobody else can read
-  them, so nobody else can join. Invites are the missing half of that feature.
+- **The diff never consults `isPublic`.** Anyone who can name a run may move
+  themselves onto it — which is why an invite-only run's ID is its credential
+  for writing, and why the invite design below made it the credential for
+  reading too, rather than inventing a second one.
 
 Everything describing the run itself — court, time, visibility, size, host — is
 immutable, so there is no "edit a run" path to secure.
 
 ### Access
 
-- **Read:** any signed-in user, for a run that is `isPublic` **or** one they're
-  already on. The two client queries are constrained to exactly those shapes, so
-  each returns only documents the rule already admits.
+- **Get** (one document, by ID): any signed-in user, whatever its visibility.
+  This is the invite — see below.
+- **List** (any query): any signed-in user, for a run that is `isPublic`
+  **or** one they're already on. The client's queries are constrained to
+  exactly those shapes, so each returns only documents the rule already
+  admits — the two listeners, and the one-shot month read below, which is the
+  `playerIds` shape again.
 - **Create:** the host only, as the sole player, with both timestamps pinned to
   `request.time` and the schedule inside its window.
 - **Update:** any signed-in user, restricted to
@@ -278,16 +283,73 @@ immutable, so there is no "edit a run" path to secure.
   denied outright — cancelling a run is a first-class action, whereas account
   deletion is an unsupported flow.
 
+### Invites: the ID is the credential (decided 2026-10-08)
+
+An invite link is `hoopsrn://game/{id}` (`Support/InviteLink.swift`), and
+`GameService.fetchGame(id:)` opens it with a `get`. Until 2026-10-08 the read
+rule was one `allow read` clause covering queries and gets alike, and it
+refused anyone off the rosters — so the person the link was for was exactly
+the person it locked out. Two designs were on the table
+(`plans/BACKLOG.md` C6, now shipped and struck):
+
+- **Split `read` into `get` and `list` — chosen.** `get` admits any signed-in
+  account; `list` keeps the old clause unchanged. The document ID becomes the
+  invite's credential.
+- **An `inviteToken` field — rejected.** A `get` request carries no
+  parameters, so a rule can't be shown a token directly; it would have needed
+  a redemption document per invitee holding the token, a `get` clause that
+  checked it, the roster update rule gated on it for private runs (or the
+  read check is theatre — see the diff above), a host-only rotation path, a
+  "reset link" control, and a new link format. Real revocation, at roughly
+  twice the work and a new collection.
+
+Why the ID is enough, and where it isn't:
+
+- **It is unguessable.** Firestore's generated IDs are 20 characters over a
+  62-symbol alphabet, ~119 bits.
+- **It is unenumerable.** `list` is unchanged, so no query — not "all games",
+  not `isPublic == false`, not `hostId == x` — returns a private run to
+  someone off it. `firestore-tests/games.test.mjs` asserts all three refusals
+  and that the discoverable query still returns only the public run.
+- **It was already the write credential.** The roster update rule never read
+  `isPublic`; anyone holding an ID could always join blind. The split makes
+  reading agree with writing rather than widening what a leaked ID can do.
+- **Revocation is cancelling the run.** There is no token to rotate. A link
+  pasted somewhere public lets anyone signed in read the run (court, time,
+  host and roster uids — the uids are already readable through `users`) and
+  join it, until the host cancels. That's the cost, accepted deliberately.
+- **A missing run reads as missing, not refused.** The old clause dereferenced
+  `resource.data` and refused a non-existent document; `get` returns it as
+  absent, which is how a cancelled run's link lands on "called off".
+
+**Deployed 2026-10-09.** Against any ruleset before the split, a stranger's
+`get` is refused, and the invite sheet reports it as the rules not being
+deployed — which is then the truth, so that message is the first thing to
+check if an invite stops opening.
+
 ### Indexes
 
 Two composite indexes, the first entries `firestore.indexes.json` has ever
-held. Each backs one listener, and each is an equality-or-array-contains plus a
-range on `scheduledTime`:
+held. Each backs a query that is an equality-or-array-contains plus a range on
+`scheduledTime`:
 
 | Query | Index |
 |---|---|
-| `playerIds array-contains uid`, `scheduledTime > cutoff`, ordered | `(playerIds CONTAINS, scheduledTime ASC)` |
+| `playerIds array-contains uid`, `scheduledTime > cutoff`, ordered (the live listener) | `(playerIds CONTAINS, scheduledTime ASC)` |
+| `playerIds array-contains uid`, `scheduledTime >= monthStart`, `< nextMonthStart`, ordered, `limit(200)` (the month read) | `(playerIds CONTAINS, scheduledTime ASC)` — **the same one** |
 | `isPublic == true`, `scheduledTime > cutoff`, ordered | `(isPublic ASC, scheduledTime ASC)` |
+
+**The month read** is `GameService.runs(in:)`, behind Home's run calendar: a
+one-shot `getDocuments` (no listener, no `ListenerSupervisor`) for the runs the
+caller is **on** — `playerIds`, so a waitlisted run is not in it — in one
+calendar month, past or future, whatever its `status`. A bounded range on the
+same field, over the same equality, is served by the index the live listener
+already needs, so it added no index and no rules change; only the comment above
+the read rule changed, to name it. Forward months can only ever hold runs in
+this month and the next, because the create rule books at most 30 days ahead,
+and a cancelled run is deleted, so neither is a case the query handles.
+`firestore-tests/games.test.mjs` evaluates it: a member's month on a private
+run succeeds, a stranger's is denied, signed out is denied.
 
 **Radius is not in either query.** Courts live in the bundled dataset, not in
 Firestore, so there are no coordinates server-side to filter on — the distance
@@ -302,8 +364,9 @@ firebase deploy --only firestore:rules,firestore:indexes
 
 ### Deliberately excluded from v1
 
-Invites (the other half of invite-only), waitlist promotion, host-run controls
-for `in_progress`/`completed`, recurring runs, and any per-run chat.
+Waitlist promotion, any control for `in_progress`, recurring runs, and any
+per-run chat. (Invites shipped 2026-10-08, above; host-triggered completion
+2026-09-18.)
 
 ---
 
@@ -439,8 +502,10 @@ Blocking and reporting, push notifications on request/acceptance, mutual-friend
 counts or anything else needing a fan-out, and **letting friends see each
 other's private runs** — that last one needs a real authorization design (a
 `get()` cross-check into `friendships` from the `games` rule, or something
-denormalized onto the game document) and overlaps with the still-unbuilt
-invite-only-games work in `../GAPS.md`. Surfacing which *public* runs a friend
+denormalized onto the game document). Invites (2026-10-08) don't answer it: the
+`games` `get` admits anyone *holding* a run's ID, and a friend the host never
+sent the link to holds nothing — while `list`, the only way to *find* a run,
+still ignores friendship. Surfacing which *public* runs a friend
 is already on needs none of that: it's a client-side intersection of two lists
 the app already holds.
 
@@ -458,7 +523,7 @@ membership," and a match commits three people to a game. It doesn't violate the
 rule, because **a match names squad IDs, not player uids**: a leader commits their
 squad by writing one identifier they already own, and the rules verify leadership
 with a single `get()`. Nobody's uid is written by anybody else anywhere in
-Seasons. See `../plans/SEASONS.md` §0.3.
+Seasons.
 
 **Document ID is Firestore-generated**, with `id` mirroring it, following `games`.
 
@@ -608,8 +673,8 @@ friend requests themselves (`../GAPS.md`), deliberately not repeated here. A
 
 ### Where an invite is answered
 
-**In the profile's `InboxSheet`**, alongside friend requests — not on any of
-`../plans/SEASONS.md` §5's numbered screens, and not on the Seasons tab either,
+**In `InboxSheet`**, the inbox every tab opens, alongside friend requests — not on any of
+the Seasons screens, and not on the Seasons tab either,
 which is why it is worth stating. It rendered inline on Squad home at first,
 then moved once the inbox existed: both a friend request and a squad invite
 are "something waiting on you," and one inbox is where that belongs rather
@@ -657,8 +722,17 @@ This is the one collection here **written by somebody who doesn't own the
 document**: the *claim* is another squad's leader taking a ticket out of the
 pool. Firestore serializing contested single-document transactions is what makes
 exactly one of them win, and that guarantee is the entire matchmaker — there is
-no server to pair squads (`../plans/SEASONS.md` §0.1), so matchmaking is pull
-with a lock rather than push.
+no server to pair squads (the project is on the Spark plan, with no Cloud
+Functions), so matchmaking is **pull with a lock** rather than push: every
+queued client watches the same pool, and the one that wins the race creates
+the match.
+
+**Not Game Center matchmaking**, which was considered and rejected: it needs a
+second identity system beside Firebase Auth, produces an ephemeral
+peer-to-peer session rather than a durable document two squads see hours apart,
+knows nothing about courts or real-world times, and can't write to Firestore.
+Its *model* was kept — a ticket per squad, a pure rule set
+(`MatchRules`), criteria that relax as a ticket waits.
 
 | field | type | required | mutable | notes |
 |---|---|---|---|---|
@@ -680,20 +754,15 @@ with a lock rather than push.
 
 ### There is deliberately no `updatedAt`
 
-**A resolved conflict between two halves of the plan, recorded as a resolution
-rather than just an outcome.** `../plans/SEASONS.md` §1.3's field table omits
-`updatedAt`; §2.2's rules snippet lists it inside the claim's `affectedKeys()`.
-Both cannot be right.
-
-**The field table won.** `claimedAt` already *is* this document's "when did this
+**Deliberate, and recorded because the design once listed it both ways.**
+`claimedAt` already *is* this document's "when did this
 change" stamp, and the commit is the ticket's only mutation — so an `updatedAt`
 would be a second name for the same instant, and adding it would mean widening
 the commit's `affectedKeys()` allowlist, which is the one place it should stay
 narrow. A ticket is ephemeral; it has no edit history worth keeping.
 
-If a later phase makes an `updatedAt` genuinely useful, **reopen that
-deliberately** — change the field table, the allowlist and this paragraph
-together. Do not let it drift back in as an incidental field on some other write.
+If an `updatedAt` ever becomes genuinely useful, **reopen that deliberately**
+— change the field table, the allowlist and this paragraph together. Do not let it drift back in as an incidental field on some other write.
 
 ### The commit: one transaction, two tickets, one match
 
@@ -819,14 +888,15 @@ relaxation paragraph names "the record-proximity tolerance" as something
 relaxation widens, and a tolerance nothing enforces is not a tolerance.
 
 **It is implemented as a gate**, deliberately generous: win percentages may be
-0.35 apart at relaxation 0, and fully open at relaxation 1. So it changes *when*
+0.35 apart at relaxation 0, and fully open at relaxation 1. The percentages are
+`MatchRules.recordRating` — each record plus four imagined games, half won — so
+one result can't open the widest gap there is. So it changes *when*
 an uneven match happens, never *whether* — the reading that leaves both sentences
 true. It is also weighted into the score, at 0.35, so among legal matches the
 closer record still ranks higher.
 
-This is the hook a real skill rating (Elo / TrueSkill) plugs into later —
-`../plans/SEASONS.md` §7 names it as a Phase 8 once there is a corpus of
-confirmed games.
+This is the hook a real skill rating (Elo / TrueSkill) plugs into once there
+is a corpus of confirmed games — see `../gaps/SEASONS.md` "Not built".
 
 ### Not part of `presence/{uid}`
 
@@ -995,7 +1065,7 @@ Both squads read the same array off the same listener — the moment a squad
 sees they're first to the court.
 
 **Local notifications, not push.** `NotificationService` schedules the T-60,
-T-0 and T+90 reminders (plan §4) the moment a client's own listener sees a
+T-0 and T+90 reminders the moment a client's own listener sees a
 match land; there is no server to fire them for a client that never opens
 between the match being made and tip-off. Named in `../GAPS.md`, not fixed —
 real push needs FCM and a Cloud Function, the same Blaze-plan requirement the
@@ -1074,7 +1144,7 @@ subject is two different people agreeing or disagreeing.
 `seasonGames where squadIds array-contains {squadId} and status == 'confirmed'`,
 counted client-side by `result`. See `squads` above for why it is not a stored
 field. An unplayed squad reads as 0.5 rather than as a squad that loses
-everything — `SeasonGame.record(for:in:)` and `MatchTicket.winPercentage` agree
+everything — `SeasonGame.record(for:in:)` and `MatchRules.recordRating` agree
 on that.
 
 Disputed and cancelled matches are **structurally excluded** because they never
@@ -1101,8 +1171,9 @@ reach `confirmed`, which is also why the reporting rule may never write
 Two composites:
 
 - `(squadIds CONTAINS, scheduledTime ASC)` — the listener, which uses
-  `array-contains-any` so a person on more than one squad gets all their matches
-  from one query. The same index serves `array-contains`.
+  `array-contains-any` so a person still on more than one squad (the app stops a
+  second one now, but doesn't remove existing ones) gets all their matches from
+  one query. The same index serves `array-contains`.
 - `(squadIds CONTAINS, status ASC)` — `SeasonGameService.fetchRecord(for:)`, the
   one-off read of **another** squad's record. An `array-contains` combined with
   an equality on a second field needs its own composite; without it the read
@@ -1175,9 +1246,7 @@ Two composites:
 - `USER_PROFILE_WORKFLOW.md` — the runtime behaviour on top of this schema.
 - `../DATA_MODEL.md` — the Swift side of the contract.
 - `../BUILD_AND_CONFIG.md` — the Firebase CLI surface and deploy command.
-- `../plans/FRIENDS.md` — why `friendships` is shaped this way, and the UI
-  phases still unbuilt on top of it.
-- `../plans/SEASONS.md` — why `squads`, `squadInvites` and `matchTickets` are
-  shaped this way, the matchmaker's design, and the phases still unbuilt.
+- `../gaps/FRIENDS.md`, `../gaps/SEASONS.md` — what's still unbuilt on top of
+  `friendships` and the Seasons collections.
 - `../../firestore-tests/README.md` — the emulator suite that evaluates these
   rules, and why a dry-run isn't one.

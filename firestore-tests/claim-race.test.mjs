@@ -1,6 +1,7 @@
 // **The match race** — the one guarantee the entire matchmaker rests on.
 //
-// `context/plans/SEASONS.md` §2.2: there is no server, so matchmaking is pull
+// There is no server (`context/database/DATABASE_SCHEMA.md`, `matchTickets`),
+// so matchmaking is pull
 // with a lock. Every queued client watches the same pool and the winner of a
 // contested transaction gets to make the match. That inversion only works if
 // Firestore really does serialize contested transactions such that **exactly

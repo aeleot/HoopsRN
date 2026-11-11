@@ -71,7 +71,7 @@ exists to fix.
 
 `facilityId` is **derived, and carries no durability obligation.** Games still
 store `courtId`; the facility is applied when games are *read*
-(`FindAMatchViewModel.gamesByFacility`). Nothing in Firestore references a
+(`MapViewModel.gamesByFacility`). Nothing in Firestore references a
 facility, so unlike a court ID — which `courts_common.NAMESPACE` keeps stable
 because stored documents point at it — a facility ID can be re-minted whenever
 the grouping improves. That is what makes `assign_facilities.py` safe to re-run.

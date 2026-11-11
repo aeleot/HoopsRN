@@ -6,7 +6,7 @@ import SwiftUI
 /// card for every run, so a run reads identically whether you're in it or
 /// looking at it — only the primary action differs.
 ///
-/// **Redesigned in UI revamp Phase 2b** (`UI_REDESIGN_BRIEF.md` §5.2). The
+/// **Redesigned in UI revamp Phase 2b**. The
 /// board is now one list ordered by tip-off rather than two collapsible
 /// sections, which changes what this card has to do:
 ///
@@ -22,7 +22,7 @@ import SwiftUI
 /// - **A waitlisted card says the waitlist doesn't move.** See `waitlistNote`.
 ///
 /// It keeps `cardChrome()`, which is the one container on the screen that
-/// earns its edges under §2c: a run is a single tappable unit carrying its own
+/// earns its edges under the revamp's layer rule: a run is a single tappable unit carrying its own
 /// controls.
 struct GameCard: View {
     let listing: LocalRunsViewModel.Listing
@@ -49,6 +49,8 @@ struct GameCard: View {
     /// border it runs down.
     private static let cornerRadius: CGFloat = 16
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     @State private var isConfirmingCancel = false
     @State private var isConfirmingComplete = false
 
@@ -61,7 +63,12 @@ struct GameCard: View {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 header
                 courtLine
-                details
+
+                // Nothing left to say for a public run with no distance —
+                // and an empty row would still take the stack's spacing.
+                if listing.distanceText != nil || !game.isPublic {
+                    details
+                }
 
                 if let friendsHereText = listing.friendsHereText {
                     friendsHere(friendsHereText)
@@ -72,18 +79,26 @@ struct GameCard: View {
                 }
 
                 // Host-only, matching the invite design: an invite-only run is
-                // the host's to hand out, and every private run in this list is
-                // one they created until the receiving half of the link ships.
+                // the host's to hand out. A player who joined through the link
+                // is on the run but doesn't get to re-share it from here.
                 if isHost && !game.isPublic {
                     InviteLinkCard(link: game.inviteLink)
                 }
 
-                if action != .none {
-                    primaryButton
-                }
+                // One group, so the two buttons sit closer to each other than to
+                // the rows above them. Each compact button draws 36pt inside a
+                // 44pt target, so the drawn gap is this spacing plus 8: it was
+                // 20pt at `md` and read as two unrelated rows (the user, 2026-09-25).
+                if action != .none || canComplete {
+                    VStack(spacing: Spacing.xs) {
+                        if action != .none {
+                            primaryButton
+                        }
 
-                if canComplete {
-                    completeButton
+                        if canComplete {
+                            completeButton
+                        }
+                    }
                 }
             }
             .padding(Spacing.cardPadding)
@@ -185,13 +200,8 @@ struct GameCard: View {
 
     @ViewBuilder
     private var badgeLabel: some View {
-        if let badge {
-            Text(badge.text)
-                .hooprType(.badge)
-                .foregroundStyle(badge.foreground)
-                .padding(.horizontal, Spacing.Pill.horizontal)
-                .padding(.vertical, Spacing.Pill.vertical)
-                .background(Capsule().fill(badge.wash.opacity(0.12)))
+        if let status {
+            HooprBadge(status, on: .surface)
         }
     }
 
@@ -215,6 +225,9 @@ struct GameCard: View {
                     .monospacedDigit()
                     .lineLimit(1)
                     .foregroundStyle(Color.hooprPrimaryText)
+                    // Someone joining rolls the number down in place: a live
+                    // count, animated on change only.
+                    .hooprNumericTransition(game.openSlots)
 
                 Text(game.openSlots == 1 ? "spot" : "spots")
                     .hooprType(.caption)
@@ -228,20 +241,33 @@ struct GameCard: View {
 
     /// Where. Second, because the board is ordered by time — you already know
     /// roughly when, and the court is what you weigh against it.
+    ///
+    /// Led by the court glyph (2026-09-23), the mark Home's band and the map
+    /// card set a court's name with — so a run's *where* reads the same
+    /// everywhere. Shed at the accessibility sizes, as `CourtTitle` sheds it.
     private var courtLine: some View {
-        Text(listing.courtName)
-            .hooprType(.subhead)
-            .foregroundStyle(Color.hooprPrimaryText)
-            .fixedSize(horizontal: false, vertical: true)
-            .multilineTextAlignment(.leading)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            if CourtTitle.showsGlyph(at: dynamicTypeSize) {
+                Image.court
+                    .hooprType(.caption)
+                    .foregroundStyle(Color.hooprBrandAccent)
+            }
+
+            Text(listing.courtName)
+                .hooprType(.subhead)
+                .foregroundStyle(Color.hooprPrimaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .multilineTextAlignment(.leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// The day, the distance, and whether it's invite-only.
+    /// The distance, and whether it's invite-only.
     ///
-    /// The day survives here rather than in the rank line because the board
-    /// runs past midnight: two runs at "6:45 PM" on different days sort
-    /// correctly but read identically without it.
+    /// **The day left this line on 2026-09-23**: the board is grouped under a
+    /// heading per day now (`LocalRunsTab.sectionHeader`), which is what used
+    /// to need it here — two runs at "6:45 PM" on different days sort
+    /// correctly but read identically without one.
     ///
     /// A `ViewThatFits` ladder rather than a plain `HStack` — the old row was
     /// flat, which is what let it break mid-word at `.accessibility3`
@@ -257,8 +283,6 @@ struct GameCard: View {
 
     @ViewBuilder
     private var detailPieces: some View {
-        detail(symbol: "calendar", text: dayText)
-
         if let distanceText = listing.distanceText {
             detail(symbol: "location.fill", text: distanceText)
         }
@@ -286,7 +310,7 @@ struct GameCard: View {
             Image(systemName: "info.circle")
                 .hooprType(.caption)
 
-            Text("Waitlist spots don't move up yet — ask the host if someone drops.")
+            Text(Game.waitlistCaveat)
                 .hooprType(.caption)
                 .fixedSize(horizontal: false, vertical: true)
                 .multilineTextAlignment(.leading)
@@ -300,11 +324,9 @@ struct GameCard: View {
     /// what time the same run is at.
     private var timeText: String { game.timeText }
 
-    private var dayText: String { game.dayText() }
-
     /// Who you know is already on this run — the one piece of social proof on
-    /// the card, and the reason `plans/FRIENDS.md` §4 calls it "you can now see
-    /// it's worth joining."
+    /// the card, and what makes a run look worth joining before you've
+    /// changed anything.
     ///
     /// **Its own line, not a fourth `detail`:** that row is a plain `HStack`
     /// with no `ViewThatFits` ladder, so a fourth entry overflows at
@@ -348,22 +370,17 @@ struct GameCard: View {
                 onAction()
             }
         } label: {
-            Group {
-                if isPending {
-                    ProgressView()
-                        .tint(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
-                } else {
-                    Text(action.title)
-                        .hooprFont(15, weight: .semibold)
-                }
+            if isPending {
+                ProgressView()
+            } else {
+                Text(action.title)
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 42)
-            .foregroundStyle(action.isDestructive ? Color.hooprRed : Color.hooprOnBrand)
-            .background(action.isDestructive ? Color.hooprFill : Color.hooprOrange)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.hooprFilled(
+            .compact,
+            role: action.isDestructive ? .destructive : .primary,
+            fillsWidth: true
+        ))
         .disabled(isPending || isDisabled)
         .opacity(isDisabled && !isPending ? 0.5 : 1)
     }
@@ -384,47 +401,45 @@ struct GameCard: View {
         Button {
             isConfirmingComplete = true
         } label: {
-            Group {
-                if isPending {
-                    ProgressView()
-                        .tint(Color.hooprPrimaryText)
-                } else {
-                    HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle")
-                            .hooprFont(13, weight: .semibold, maximumSize: 17)
-                        Text("Mark complete")
-                            .hooprFont(15, weight: .semibold)
-                    }
+            if isPending {
+                ProgressView()
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle")
+                    Text("Mark complete")
                 }
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 42)
-            .foregroundStyle(Color.hooprPrimaryText)
-            .background(Color.hooprFill)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.hooprBorder, lineWidth: 1)
-            )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.hooprFilled(.compact, role: .secondary, fillsWidth: true))
         .disabled(isPending || isDisabled)
         .opacity(isDisabled && !isPending ? 0.5 : 1)
     }
 
-    /// At most one badge, in priority order — your own relationship to the run
-    /// says more than its status does.
+    /// At most one badge. The priority order and the colours are `RunStatus`'s
+    /// (Phase 6) — the same ladder Home and the map's card draw, written once.
+    /// Why the label and the wash are separate colours is recorded there.
+    private var status: RunStatus? {
+        RunStatus.of(isHost: isHost, isWaitlisted: isWaitlisted, isFull: game.isFull)
+    }
+}
+
+extension LocalRunsViewModel.ConfirmationKind {
+    /// What a confirmed write on a run feels like (UI revamp Phase 3), on the
+    /// Runs board and the map's court card alike. Getting on a run, or
+    /// finishing one, is a success; leaving and cancelling take something away
+    /// and are a light tap — deliberate, not celebrated.
     ///
-    /// **`foreground` and `wash` are separate colours**, because the text has
-    /// to be *read* and the ground behind it is a fill. HOSTING's text is
-    /// `hooprBrandAccent` (4.87:1 on its own 12% wash in light, 4.90:1 in
-    /// dark) over a wash of the vivid `hooprOrange`; drawn as orange on that
-    /// wash it measured 2.78:1 in light mode. The other two are secondary text
-    /// on a wash of itself, unchanged.
-    private var badge: (text: String, foreground: Color, wash: Color)? {
-        if isHost { return ("Hosting", Color.hooprBrandAccent, Color.hooprOrange) }
-        if isWaitlisted { return ("Waitlist", Color.hooprSecondaryText, Color.hooprSecondaryText) }
-        if game.isFull { return ("Full", Color.hooprSecondaryText, Color.hooprSecondaryText) }
-        return nil
+    /// Fired off a view model's `lastConfirmation`, which only a write the user
+    /// made and the server accepted sets — a roster changing under the
+    /// listener never buzzes.
+    var feedback: SensoryFeedback? {
+        switch self {
+        case .action(.join), .action(.joinWaitlist), .completed:
+            return .success
+        case .action(.leave), .action(.cancel):
+            return .impact(weight: .light)
+        case .action(.none):
+            return nil
+        }
     }
 }

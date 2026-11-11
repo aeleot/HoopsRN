@@ -366,6 +366,53 @@ final class GameTests: XCTestCase {
         )
     }
 
+    // MARK: - Completed this week (Home's scoreboard)
+
+    /// Every completion in the current ISO week counts — unlike the streak,
+    /// which collapses a week to one — and nothing from last week does.
+    func testThisWeekCountsEveryCompletionInTheCurrentWeekOnly() throws {
+        let now = Date(timeIntervalSince1970: 1_780_000_000)
+        let games = try [
+            completedGame(at: now),
+            completedGame(at: now.addingTimeInterval(-60)),
+            completedGame(at: weeksAgo(1, from: now)),
+        ]
+
+        XCTAssertEqual(Game.completedThisWeek(in: games, now: now), 2)
+    }
+
+    /// **The streak's week, not the device's.** Sunday 23:00 UTC and Monday
+    /// 01:00 UTC are two ISO weeks, though a US calendar puts them in one —
+    /// and the scoreboard shows "This week" beside the streak, so the two must
+    /// cut weeks in the same place.
+    func testThisWeekSplitsAtMondayInUTCLikeTheStreak() throws {
+        var components = DateComponents()
+        components.calendar = streakCalendar()
+        components.timeZone = TimeZone(identifier: "UTC")
+        components.year = 2026
+        components.month = 10
+        components.day = 4   // a Sunday
+        components.hour = 23
+        let sunday = try XCTUnwrap(components.date)
+        let monday = sunday.addingTimeInterval(2 * 60 * 60)
+
+        let games = try [completedGame(at: sunday)]
+
+        XCTAssertEqual(Game.completedThisWeek(in: games, now: sunday), 1)
+        XCTAssertEqual(Game.completedThisWeek(in: games, now: monday), 0)
+        XCTAssertEqual(
+            Game.calculateStreak(from: games, now: monday), 0,
+            "the streak cuts the week in the same place"
+        )
+    }
+
+    func testThisWeekIgnoresGamesWithoutACompletionTimestamp() throws {
+        let now = Date(timeIntervalSince1970: 1_780_000_000)
+        let game = try decoder.decode(Game.self, from: storedDocument())
+
+        XCTAssertEqual(Game.completedThisWeek(in: [game], now: now), 0)
+    }
+
     // MARK: - Presentation
 
     func testScheduledTextIsRelativeForTodayAndTomorrow() throws {
@@ -401,8 +448,9 @@ final class GameTests: XCTestCase {
 
     // MARK: - Invite link
 
-    /// The format the (unbuilt) deep-link handler will have to parse. Pinning
-    /// it here means the scheme can't be changed on one side alone.
+    /// The format `InviteLink.gameId(from:)` parses back — `InviteJoinTests`
+    /// round-trips the two. Pinning it here means the scheme can't be changed
+    /// on one side alone.
     func testInviteLinkFormat() throws {
         let game = try decoder.decode(Game.self, from: storedDocument())
 
@@ -427,6 +475,22 @@ final class GameTests: XCTestCase {
         XCTAssertEqual(Distance.text(Distance.meters(miles: 1.24)), "1.2 mi")
         XCTAssertEqual(Distance.text(Distance.meters(miles: 12.4)), "12 mi")
         XCTAssertEqual(Distance.miles(Distance.meters(miles: 5)), 5, accuracy: 0.0001)
+    }
+
+    /// Home's band and the map's court card set the number and the unit at
+    /// different weights, so they read the two halves separately. The joined
+    /// form must still be exactly the halves put back together — the rounding
+    /// rule lives in one place, and the split can't round differently from the
+    /// string every other surface shows.
+    func testTheSplitDistanceRejoinsToTheSameString() {
+        for miles in [0.04, 0.7, 1.24, 9.94, 9.96, 12.4, 104.6] {
+            let meters = Distance.meters(miles: miles)
+            XCTAssertEqual(
+                "\(Distance.valueText(meters)) \(Distance.unit)", Distance.text(meters),
+                "the split and joined forms disagree at \(miles) mi"
+            )
+        }
+        XCTAssertEqual(Distance.valueText(Distance.meters(miles: 0.7)), "0.7")
     }
 
     // MARK: - Presentation strings the redesigned surfaces read
@@ -463,9 +527,23 @@ final class GameTests: XCTestCase {
     /// Both derive from `scheduledTime`, and this is what pins that they stay
     /// consistent — a run reading "Tonight" in the band and "Tomorrow" on its
     /// card would be worse than either being wrong.
-    func testTodayReadsAsTonight() {
-        let now = Date()
-        XCTAssertEqual(run(at: now).dayText(relativeTo: now), "Tonight")
+    func testAnEveningRunTodayReadsAsTonight() {
+        let calendar = Calendar.current
+        let morning = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: Date())!
+        let evening = calendar.date(bySettingHour: 19, minute: 30, second: 0, of: morning)!
+        XCTAssertEqual(run(at: evening).dayText(relativeTo: morning), "Tonight")
+    }
+
+    /// "Tonight · 11:15 AM" was on the device (2026-09-23). Before 5 PM a
+    /// same-day run is "Today" — the word `scheduledText()` already used.
+    func testAMorningRunTodayReadsAsToday() {
+        let calendar = Calendar.current
+        let early = calendar.date(bySettingHour: 8, minute: 0, second: 0, of: Date())!
+        let lateMorning = calendar.date(bySettingHour: 11, minute: 15, second: 0, of: early)!
+        let fiveOClock = calendar.date(bySettingHour: Game.eveningStartHour, minute: 0, second: 0, of: early)!
+
+        XCTAssertEqual(run(at: lateMorning).dayText(relativeTo: early), "Today")
+        XCTAssertEqual(run(at: fiveOClock).dayText(relativeTo: early), "Tonight")
     }
 
     func testTomorrowReadsAsTomorrow() {
