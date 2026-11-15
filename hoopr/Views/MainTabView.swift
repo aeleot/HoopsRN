@@ -267,6 +267,9 @@ struct MainTabView: View {
                     courtService: courtService,
                     friendService: friendService,
                     squadService: squadService,
+                    gameService: gameService,
+                    matchmakingService: matchmakingService,
+                    seasonGameService: seasonGameService,
                     onOpenInbox: openInbox
                 )
             }

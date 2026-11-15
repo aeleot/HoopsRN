@@ -270,7 +270,8 @@ doesn't:
   location one.
 - **Friends can't see each other's private runs**, and there are no in-app run
   details beyond a card — no player names on a roster, no per-run screen.
-- **No account deletion** and no social sign-in. A host can mark their run
+- **No social sign-in.** (Account deletion shipped 2026-11-14: Profile → Delete
+  Account.) A host can mark their run
   complete, but nothing marks one in progress, and a run nobody marks just ages
   out.
 

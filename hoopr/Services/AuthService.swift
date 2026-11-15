@@ -60,6 +60,44 @@ final class AuthService: ObservableObject {
         }
     }
 
+    /// Proves the person holding the phone is the account's owner, by password.
+    ///
+    /// Required before `deleteAccount()`: Firebase refuses to delete on a
+    /// session older than a few minutes (`requiresRecentLogin`), and the
+    /// deletion flow removes the account's data *first* — so finding that out
+    /// at the end would leave an account with no data and no way to finish.
+    /// Asking up front also means an unlocked phone isn't enough to delete
+    /// someone's account.
+    func reauthenticate(password: String) async throws {
+        guard let user = Auth.auth().currentUser, let email = user.email else {
+            throw AuthError.userNotFound
+        }
+
+        do {
+            let credential = EmailAuthProvider.credential(withEmail: email, password: password)
+            try await user.reauthenticate(with: credential)
+        } catch {
+            throw Self.mapped(error)
+        }
+    }
+
+    /// Deletes the Auth account itself — the last step of account deletion,
+    /// after every document the account appears on has been dealt with
+    /// (`DeleteAccountViewModel`). The state listener then publishes `nil`,
+    /// which is what returns the app to the login screen.
+    ///
+    /// A missing current user is treated as done, not as a failure: it is what
+    /// a retry sees when the previous attempt got this far.
+    func deleteAccount() async throws {
+        guard let user = Auth.auth().currentUser else { return }
+
+        do {
+            try await user.delete()
+        } catch {
+            throw Self.mapped(error)
+        }
+    }
+
     func signOut() throws {
         do {
             try Auth.auth().signOut()
@@ -93,6 +131,7 @@ final class AuthService: ObservableObject {
         case .tooManyRequests:                return .tooManyRequests
         case .operationNotAllowed:            return .providerDisabled
         case .keychainError:                  return .keychainUnavailable
+        case .requiresRecentLogin:            return .requiresRecentLogin
         default:                              return .unknown(error.localizedDescription)
         }
     }

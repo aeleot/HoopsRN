@@ -65,6 +65,19 @@ final class NotificationService: NSObject, ObservableObject {
         Task { await refreshAuthorizationStatus() }
     }
 
+    /// Removes every reminder this install has scheduled or delivered.
+    ///
+    /// For when the account on the device changes (`SessionCleanup`): the
+    /// reminders are for the last account's season matches, and without this
+    /// the next person to sign in is told about them at T−60, T−0 and T+90.
+    /// Nothing is lost for an account that signs back in — `MatchmakingViewModel`
+    /// re-applies the plan for every scheduled match it loads.
+    func clearAll() {
+        center.removeAllPendingNotificationRequests()
+        center.removeAllDeliveredNotifications()
+        inboxRequest = nil
+    }
+
     /// Clears a request the shell has acted on, so it isn't presented twice.
     func consumeInboxRequest() {
         inboxRequest = nil

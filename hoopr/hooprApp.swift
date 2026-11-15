@@ -95,6 +95,15 @@ struct hooprApp: App {
             // `RootView` is on screen from the first frame, long before the tab
             // shell that will present the invite exists. `InviteRouter` holds
             // it until then, across a login screen if need be.
+            // One account's reminders and on-device history don't belong to
+            // the next one — see `SessionCleanup` for why this watches the
+            // account rather than the Sign Out button.
+            .onChange(of: authService.currentUser?.id) { previous, current in
+                guard SessionCleanup.shouldClear(previous: previous, current: current) else { return }
+                notificationService.clearAll()
+                recentCourtsStore.clear()
+                SessionCleanup.clearDismissalsAndCelebrations()
+            }
             .onOpenURL { url in
                 inviteRouter.open(url)
             }

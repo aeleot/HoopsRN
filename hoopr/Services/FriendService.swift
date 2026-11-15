@@ -354,6 +354,32 @@ final class FriendService: ObservableObject {
         try await deleteEdge(friendshipId, whileDoing: "removing that friend")
     }
 
+    /// Deletes every edge the signed-in account is on — friends, and requests
+    /// in both directions. The friends step of account deletion.
+    ///
+    /// Reads the two query shapes the listeners use rather than the published
+    /// lists, so it doesn't depend on a listener having delivered yet. Either
+    /// participant may delete an edge, so every one of these is a write the
+    /// rules already allow. Safe to run twice. Doesn't touch `errorMessage`:
+    /// a failed deletion is the delete sheet's to report.
+    ///
+    /// - Throws: `FriendError`, never a Firestore type.
+    func deleteEveryEdge() async throws {
+        guard let uid = observedUID else { throw FriendError.notSignedIn }
+
+        let friendships = database.collection(Collection.friendships)
+        do {
+            let asFirst = try await friendships.whereField(Field.uidA, isEqualTo: uid).getDocuments()
+            let asSecond = try await friendships.whereField(Field.uidB, isEqualTo: uid).getDocuments()
+
+            for document in asFirst.documents + asSecond.documents {
+                try await document.reference.delete()
+            }
+        } catch {
+            throw Self.mapped(error)
+        }
+    }
+
     /// The single delete path behind decline, cancel, and unfriend.
     ///
     /// All three are one operation server-side — either participant may remove

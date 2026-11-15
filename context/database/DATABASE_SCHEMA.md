@@ -160,7 +160,9 @@ readable by any signed-in stranger.
   1–50 character `userName` — and *only* keys on the allowlist, so a client
   can't seed a field nobody vetted into a world-readable document.
 - **Update:** owner only, under the mutability contract above.
-- **Delete:** denied outright. Account deletion isn't a supported flow yet.
+- **Delete:** the owner only (2026-11-14) — the last Firestore write of account
+  deletion, after the client has cancelled or left everything the uid appears
+  on. See `AccountDeletionPlan` for the order and for what deliberately stays.
 
 ### Indexes
 

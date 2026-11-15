@@ -164,14 +164,15 @@ User signs in
    re-runs on a retry deliberately: if the first attempt was refused because the
    ruleset wasn't deployed, re-attaching the listener alone would leave the
    account permanently without a profile document. That's why the service holds
-   the whole `AuthenticatedUser` rather than just the uid — the fallback name is
-   seeded from the email, which a retry still needs.
+   the whole `AuthenticatedUser` rather than just the uid (a holdover from when
+   the fallback name was seeded from the email; since 2026-11-14 it isn't).
 4. **Provisioning** reads the document once. If it exists, it does nothing —
    idempotent, so it's safe on every sign-in. If missing, it writes `id`,
-   `userName` (seeded from the email local part, `aeleot11@gmail.com` →
-   `aeleot11`, or `"Hooper"` if Auth has no email), `userNameLower` derived from
-   it, and `createdAt`/`updatedAt` as `FieldValue.serverTimestamp()`. The email
-   is *read* from Auth to seed that name and then deliberately not stored.
+   `userName` (`"Hooper"` and four random digits — `defaultUserName`; **not**
+   the email local part, which until 2026-11-14 put most of a new user's
+   address on a document every signed-in account can read and search),
+   `userNameLower` derived from it, and `createdAt`/`updatedAt` as
+   `FieldValue.serverTimestamp()`. The email is never read or stored here.
 5. The write triggers the listener, which decodes into `UserProfile` and
    publishes it. The UI updates reactively — no manual refresh.
 6. **The search-key backfill runs on that same snapshot.** If the decoded

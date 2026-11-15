@@ -55,6 +55,12 @@ struct ProfileView: View {
     private let friendService: FriendService
     private let squadService: SquadService
 
+    /// Builds the deletion flow's view model when its sheet opens, and not
+    /// before: it joins six services, and nearly nobody ever opens it. A
+    /// closure rather than the services themselves, so this view holds
+    /// nothing it doesn't otherwise use.
+    private let makeDeleteAccountViewModel: () -> DeleteAccountViewModel
+
     private let onOpenInbox: () -> Void
 
     @State private var pane: Pane = .profile
@@ -94,6 +100,7 @@ struct ProfileView: View {
     private enum SettingsSheet: String, Identifiable {
         case appearance
         case password
+        case deleteAccount
 
         var id: String { rawValue }
     }
@@ -119,10 +126,24 @@ struct ProfileView: View {
         courtService: CourtService,
         friendService: FriendService,
         squadService: SquadService,
+        gameService: GameService,
+        matchmakingService: MatchmakingService,
+        seasonGameService: SeasonGameService,
         onOpenInbox: @escaping () -> Void
     ) {
         self.friendService = friendService
         self.squadService = squadService
+        self.makeDeleteAccountViewModel = {
+            DeleteAccountViewModel(
+                authService: authService,
+                userProfileService: userProfileService,
+                gameService: gameService,
+                friendService: friendService,
+                squadService: squadService,
+                matchmakingService: matchmakingService,
+                seasonGameService: seasonGameService
+            )
+        }
         self.onOpenInbox = onOpenInbox
         _viewModel = StateObject(wrappedValue: ProfileViewModel(
             authService: authService,
@@ -162,6 +183,10 @@ struct ProfileView: View {
                         },
                         onDone: { settingsSheet = nil }
                     )
+                case .deleteAccount:
+                    DeleteAccountSheet(viewModel: makeDeleteAccountViewModel()) {
+                        settingsSheet = nil
+                    }
                 }
             }
             .sheet(item: $presentedPlayer) { route in
@@ -527,6 +552,18 @@ struct ProfileView: View {
                 ) {
                     viewModel.signOut()
                 }
+
+                // Below Sign Out, and the last thing on the screen: required
+                // to exist (App Review 5.1.1(v)) and to be findable, but the
+                // rarest action here. It only opens a sheet — the password and
+                // a typed word stand between this row and anything happening.
+                ProfileActionRow(
+                    symbol: "trash",
+                    title: "Delete Account",
+                    tint: .destructive
+                ) {
+                    settingsSheet = .deleteAccount
+                }
             }
 
             #if DEBUG
@@ -631,6 +668,9 @@ struct ProfileView: View {
         courtService: CourtService(),
         friendService: FriendService(authService: authService),
         squadService: SquadService(authService: authService),
+        gameService: GameService(authService: authService),
+        matchmakingService: MatchmakingService(authService: authService),
+        seasonGameService: SeasonGameService(authService: authService),
         onOpenInbox: {}
     )
 }

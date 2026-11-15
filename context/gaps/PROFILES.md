@@ -52,10 +52,26 @@ subcollection, which is a reason to build that before reaching for the stamp.
 
 ## What sign-in still can't do
 
-- **No account deletion.** `firestore.rules` denies profile deletes outright
-  (`allow delete: if false`), so this needs a rules change as well as a flow.
-  Deleting an account also has no answer yet for the documents it leaves behind
-  — squads it leads, games it hosts, friendships it is half of.
+- **Account deletion leaves two kinds of document behind, on purpose**
+  (shipped 2026-11-14 — `AccountDeletionPlan`, `DeleteAccountViewModel`). The
+  deleted uid stays in `seasonGames` (undeletable by design) and on the roster
+  of **completed** runs (the roster rule only admits changes to a live run, and
+  deleting a completed run the account hosted would take it out of everyone
+  else's history). It is an opaque ID that no longer resolves to a profile.
+  A run the account was on that is `in_progress` is also left as it was.
+- **Account deletion is client-driven, so it can stop halfway.** Spark has no
+  Cloud Functions; the phone makes every write. Each step is safe to repeat and
+  the sheet says "tap Delete to pick up where it stopped", but someone who
+  quits mid-way and never returns keeps an account with some of its data gone.
+  The *Delete User Data* extension would close this on Blaze.
+- **Deletion re-authenticates by password only.** Correct today — email and
+  password is the only provider — and wrong the day Google sign-in lands: that
+  account has no password to type. `AuthService.reauthenticate` needs a
+  per-provider path before then.
+- **The deletion flow has never run end to end.** Its plan and wording are
+  unit-tested and the `users` delete rule passes its emulator tests (150/150,
+  2026-11-14, deployed the same day), but no account has actually been deleted
+  with it.
 - **No social login.** Email and password only.
 - **The password reset uses Firebase's default hosted page.** No
   `ActionCodeSettings`, so the link doesn't come back into the app, and the

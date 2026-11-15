@@ -81,12 +81,19 @@ final class UserProfileService: ObservableObject {
     private lazy var database = Firestore.firestore()
 
     private var profileListener: ListenerRegistration?
-    /// The whole user rather than just the uid, because provisioning seeds a
-    /// fallback name from the email and now runs on every re-attach, not only
-    /// on the sign-in that first supplied it.
+    /// The whole user rather than just the uid: provisioning runs on every
+    /// re-attach and takes the user it is provisioning for. (It once needed
+    /// the email to seed a name; `defaultUserName` no longer reads it.)
     private var observedUser: AuthenticatedUser?
 
     private var observedUID: String? { observedUser?.id }
+
+    /// Set once `deleteProfile()` starts, and cleared only when a different
+    /// session begins. Provisioning re-runs whenever the listener re-attaches
+    /// (see `attachListener`), and without this a network blip between "profile
+    /// deleted" and "account deleted" would write a brand-new profile for an
+    /// account that is about to stop existing — an orphan nobody could remove.
+    private var isDeletingProfile = false
     private var cancellables = Set<AnyCancellable>()
 
     /// Whether this session has already tried to write a missing
@@ -137,6 +144,7 @@ final class UserProfileService: ObservableObject {
     }
 
     private func startObserving(_ user: AuthenticatedUser) {
+        isDeletingProfile = false
         observedUser = user
         currentProfile = nil
         errorMessage = nil
@@ -264,21 +272,26 @@ final class UserProfileService: ObservableObject {
     /// Creates the profile document only if it's missing. Idempotent, so it's
     /// safe to run on every sign-in.
     private func provisionProfileIfNeeded(for user: AuthenticatedUser) async {
+        // An account being deleted has just had its profile removed on
+        // purpose; a listener re-attach must not put a fresh one back.
+        guard !isDeletingProfile else { return }
+
         let reference = database.collection(Collection.users).document(user.id)
 
         do {
             let snapshot = try await reference.getDocument()
             guard !snapshot.exists else { return }
 
-            // The email is deliberately **not** stored, only read from Auth to
-            // seed a first name. `users` documents are readable by any
+            // The email is deliberately **not** stored — and, since 2026-11-14,
+            // not used to seed the name either (`defaultUserName`). `users`
+            // documents are readable by any
             // signed-in user — that's what makes name resolution and player
             // search work — and Firestore has no field-level read ACLs, so
             // anything kept here is effectively visible to every other player.
             // Auth already owns the address, and nothing in the app ever needed
             // the copy: the profile screen's Email row reads
             // `AuthService.currentUser`.
-            let name = Self.fallbackUserName(for: user)
+            let name = Self.defaultUserName()
             let fields: [String: Any] = [
                 Field.id: user.id,
                 Field.userName: name,
@@ -298,6 +311,29 @@ final class UserProfileService: ObservableObject {
     /// Updates only `userName`, its search mirror, and `updatedAt`, leaving
     /// `id` and `createdAt` untouched — the mutability contract the security
     /// rules enforce server-side.
+    /// Deletes the signed-in account's profile document — the last Firestore
+    /// write of account deletion, after everything that names this uid has
+    /// been dealt with. Owner-only, enforced server-side.
+    ///
+    /// Safe to run twice: deleting a document that is already gone succeeds.
+    /// Doesn't touch `errorMessage`: a failed deletion is the delete sheet's
+    /// to report.
+    ///
+    /// - Throws: `UserProfileError`, never a Firestore type.
+    func deleteProfile() async throws {
+        guard let uid = observedUID else { throw UserProfileError.notSignedIn }
+
+        isDeletingProfile = true
+        do {
+            try await database.collection(Collection.users).document(uid).delete()
+        } catch {
+            // Not deleted, so the account is still whole: let provisioning
+            // behave normally again if the user backs out.
+            isDeletingProfile = false
+            throw Self.mapped(error)
+        }
+    }
+
     func updateUserName(_ rawName: String) async throws {
         // Rejected here rather than reshaped, matching `GameService.createGame`
         // — and checked at all because the rules cap the length too, so an
@@ -549,15 +585,24 @@ final class UserProfileService: ObservableObject {
 
     // MARK: - Helpers
 
-    /// Seed name for a brand-new profile. Same email local-part heuristic the
-    /// greeting used to apply inline, now applied once at provisioning time so
-    /// the value is stored rather than re-derived on every render.
-    private static func fallbackUserName(for user: AuthenticatedUser) -> String {
-        guard let localPart = user.email?.split(separator: "@").first,
-              !localPart.isEmpty else {
-            return "Hooper"
-        }
-        return String(localPart)
+    /// Seed name for a brand-new profile: "Hooper" and four digits.
+    ///
+    /// **Not the email.** This used to be the part of the address before the
+    /// `@`, which put most of `jane.doe.1990@gmail.com` on a document any
+    /// signed-in account can read and search by name — the address the comment
+    /// in `provisionProfileIfNeeded` says is deliberately never stored. It
+    /// also failed outright for a local part of 51–64 characters, which the
+    /// create rule's 50-character cap refused, leaving the account with no
+    /// profile at all.
+    ///
+    /// The suffix is there so that a search for "Hooper" isn't a wall of
+    /// identical rows before anyone has picked a name; it isn't an identifier
+    /// and nothing depends on it being unique. The owner renames themselves
+    /// from Profile.
+    nonisolated static func defaultUserName(
+        suffix: Int = Int.random(in: 1000...9999)
+    ) -> String {
+        String("Hooper \(suffix)".prefix(UserProfile.maxUserNameLength))
     }
 
     private func report(

@@ -113,8 +113,12 @@ service cloud.firestore {
         && (!('lastCompletedAt' in request.resource.data)
             || request.resource.data.lastCompletedAt is timestamp);
 
-      // Account deletion isn't a supported flow yet.
-      allow delete: if false;
+      // Account deletion (App Review Guideline 5.1.1(v)). The owner's alone,
+      // and the last Firestore write of that flow: the client first cancels or
+      // leaves everything this uid appears on, then removes its own profile,
+      // then deletes the Auth account. Nobody else can remove a profile — there
+      // is no moderation path here, deliberately; that is the console's.
+      allow delete: if isOwner();
     }
 
     // A scheduled run at a court. Unlike `users`, these documents are written

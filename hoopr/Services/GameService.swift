@@ -573,6 +573,59 @@ final class GameService: ObservableObject {
         try await mutateRoster(gameId: gameId, joining: false)
     }
 
+    /// Takes the signed-in account off every run it can still be taken off —
+    /// the runs step of account deletion (`AccountDeletionPlan`).
+    ///
+    /// One-shot reads rather than `queuedGames`: that listener is windowed to
+    /// the future and capped, and it never sees a run the account is only
+    /// **waitlisted** for. Both queries are single-field `array-contains`, so
+    /// they need no composite index, and the `list` rule admits each by its
+    /// own clause.
+    ///
+    /// Safe to run twice: a run already cancelled or left simply isn't in the
+    /// second read. Doesn't touch `errorMessage` for the reads or the cancels —
+    /// a failed deletion is the delete sheet's to report, not a banner on the
+    /// Runs tab.
+    ///
+    /// - Throws: `GameError`, never a Firestore type.
+    func leaveEveryRun() async throws {
+        guard let uid = observedUID else { throw GameError.notSignedIn }
+
+        let games = database.collection(Collection.games)
+        let documents: [QueryDocumentSnapshot]
+        do {
+            let onRoster = try await games.whereField(Field.playerIds, arrayContains: uid).getDocuments()
+            let waitlisted = try await games.whereField(Field.queuedPlayerIds, arrayContains: uid).getDocuments()
+            documents = onRoster.documents + waitlisted.documents
+        } catch {
+            throw Self.mapped(error)
+        }
+
+        for document in documents {
+            let data = document.data()
+            guard let hostId = data[Field.hostId] as? String,
+                  let status = data[Field.status] as? String else { continue }
+
+            switch AccountDeletionPlan.runAction(hostId: hostId, status: status, uid: uid) {
+            case .keep:
+                continue
+            case .cancel:
+                do {
+                    try await document.reference.delete()
+                } catch {
+                    throw Self.mapped(error)
+                }
+            case .leave:
+                do {
+                    _ = try await mutateRoster(gameId: document.documentID, joining: false)
+                } catch GameError.gameNotFound {
+                    // Cancelled by its host between the read and the write.
+                    continue
+                }
+            }
+        }
+    }
+
     /// Deletes a run. Host only, enforced server-side.
     func cancelGame(id gameId: String) async throws {
         guard observedUID != nil else { throw GameError.notSignedIn }

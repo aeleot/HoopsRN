@@ -2,6 +2,7 @@
 
 **Status:** proposed. Every unchecked box below is open work.
 **Audited:** 2026-10-18 @ `ff9bbe2` (branch `queue-system`, working tree clean)
+**Progress:** 2026-11-14 — §2.2 (manifest; the App Store Connect label is still open), §3.1, §3.3, §3.4, the default-name half of §3.6, the export-compliance flag in §4.4 and the last-day bound in §5.2 shipped on `court-data-accuracy`, guarded by `LaunchFixesTests`. Sign-out cleanup lives in `SessionCleanup`, keyed on the account changing rather than the Sign Out button, so account deletion (§2.1) gets it for free.
 **Supersedes:** [`LAUNCH_READINESS.md`](LAUNCH_READINESS.md). Its five items are folded in below (§4.1–4.2, §5.2, §5.6). Its summary says "every submission blocker has since shipped", and that's wrong: four App Store blockers are still open (§2).
 **Touches:** the whole app, `firestore.rules`, `hoopr.xcodeproj`, the Firebase console, App Store Connect
 
@@ -49,6 +50,14 @@ Each of these is either a written App Review rule or an upload-time check. Expec
 
 ### 2.1 No in-app account deletion (Guideline 5.1.1(v))
 
+> **Built and deployed 2026-11-14.** Profile → Delete Account
+> (`DeleteAccountSheet`, `DeleteAccountViewModel`, `AccountDeletionPlan`,
+> guarded by `AccountDeletionPlanTests`). The `users` delete rule is live and
+> `npm run test:rules` is 150/150. **One thing left before this closes:**
+> delete a real throwaway account end to end on a device — it has never been
+> run against a live account. What it leaves behind and why is in
+> [`gaps/PROFILES.md`](../gaps/PROFILES.md).
+
 Any app that lets people create an account must also let them delete it from
 inside the app. hoopsRN has no delete path at all. `firestore.rules:117` is
 `allow delete: if false` on `users`, and there's no UI for it.
@@ -89,9 +98,9 @@ directly through `RecentCourtsStore`, `InboxDismissalsStore`,
 `CelebratedWinsStore` and `@AppStorage`. That's a *required-reason API*, and
 App Store Connect flags an upload that doesn't declare it (ITMS-91053).
 
-- [ ] Add `hoopr/PrivacyInfo.xcprivacy` to the app target with
+- [x] *(shipped 2026-11-14)* Add `hoopr/PrivacyInfo.xcprivacy` to the app target with
       `NSPrivacyAccessedAPICategoryUserDefaults` → reason `CA92.1`.
-- [ ] Declare the collected data types: email address, user ID, name, and
+- [x] *(shipped 2026-11-14)* Declare the collected data types: email address, user ID, name, and
       other user content (squad names, runs). Set `NSPrivacyTracking` to
       `false`. Firebase's SDKs ship their own manifests, so the app only
       declares its own use.
@@ -164,11 +173,11 @@ is `ProfileViewModel.swift:284`, which only runs when you're *signed in*.
 `PRODUCT_OVERVIEW.md` lists "Password reset by emailed link" without that
 caveat.
 
-- [ ] Add **"Forgot password?"** under the password field, prefilled from
+- [x] *(shipped 2026-11-14)* Add **"Forgot password?"** under the password field, prefilled from
       the email field. Say "If an account exists for that email, we've sent a
       link" either way, so the screen doesn't reveal which emails have
       accounts.
-- [ ] Trim with `.whitespacesAndNewlines`, not `.whitespaces`
+- [x] *(shipped 2026-11-14)* Trim with `.whitespacesAndNewlines`, not `.whitespaces`
       (`LoginViewModel.swift`). An email pasted with a trailing newline is
       currently rejected as invalid.
 
@@ -208,7 +217,7 @@ scoreboard and every band lay out in a shape nobody has checked.
 "iPhone-portrait throughout, and the project says so". The first half is
 true, the second isn't.
 
-- [ ] Set both lines to `UIInterfaceOrientationPortrait` only.
+- [x] *(shipped 2026-11-14)* Set both lines to `UIInterfaceOrientationPortrait` only.
 
 ### 3.4 Sign-out leaves the last user's notifications and on-device history
 
@@ -220,10 +229,10 @@ sign-out hook. `RecentCourtsStore`, `InboxDismissalsStore` and
 `CelebratedWinsStore` are shared by every account on the device too, so B
 sees A's recent courts.
 
-- [ ] On sign-out, and on account deletion: call
+- [x] *(shipped 2026-11-14)* On sign-out, and on account deletion: call
       `removeAllPendingNotificationRequests()` and
       `removeAllDeliveredNotifications()`.
-- [ ] Either clear the three stores on sign-out, or key them by uid.
+- [x] *(shipped 2026-11-14)* Either clear the three stores on sign-out, or key them by uid.
 
 ### 3.5 Being waitlisted for a run can make it disappear
 
@@ -264,10 +273,10 @@ There are two more defects on the same path:
   document" without an error, and `currentProfile` stays `nil` until the next
   cold launch. *Likely, not reproduced.*
 
-- [ ] Ask for a display name at sign-up (onboarding, §7.1). Until that
+- [ ] *(default shipped 2026-11-14: `"Hooper 4821"`, never the email; asking at sign-up is still open)* Ask for a display name at sign-up (onboarding, §7.1). Until that
       exists, default to `"Hooper"` plus a short random suffix, not the
       email.
-- [ ] Truncate whatever default is used to `UserProfile.maxUserNameLength`.
+- [x] *(shipped 2026-11-14)* Truncate whatever default is used to `UserProfile.maxUserNameLength`.
 - [ ] When a snapshot says the profile doesn't exist and no setup is in
       progress, run the setup again.
 - [ ] For existing accounts: think about a one-time prompt for anyone whose
@@ -355,7 +364,7 @@ growth.
 
 ### 4.3 Firebase console checklist
 
-- [ ] Confirm the live rules and indexes match the repo (Firestore →
+- [ ] *(They did **not** match on 2026-11-13: creating a run was refused until the repo's rules and indexes were redeployed that day. One index exists in the project that isn't in `firestore.indexes.json`.)* Confirm the live rules and indexes match the repo (Firestore →
       Rules → version history). Re-run `npm run test:rules` before every
       future deploy.
 - [ ] In Auth settings, check **email enumeration protection** is on.
@@ -377,7 +386,7 @@ growth.
 - [ ] Merge `queue-system` → `main`. `main` is from 2026-08-22, 70 commits
       behind this branch, and 7 of the local commits haven't been pushed.
       Release from `main` and tag the commit.
-- [ ] Add `ITSAppUsesNonExemptEncryption = NO` (the app only uses HTTPS), so
+- [x] *(shipped 2026-11-14)* Add `ITSAppUsesNonExemptEncryption = NO` (the app only uses HTTPS), so
       uploads stop asking the export-compliance question.
 - [ ] Bump `CURRENT_PROJECT_VERSION` on every upload. It's `1` now.
 - [ ] **Support iOS 18 or not.** The deployment target is iOS 18.0, but no
@@ -441,7 +450,7 @@ mode, but each becomes an error in Swift 6.
       a few emoji can pass the client check and get `permission-denied` from
       the server, which reads like an undeployed ruleset. Add a rules test
       with an emoji name and align the client's count to whatever it shows.
-- [ ] **A run on the last allowed day can be refused.** The date picker's
+- [x] *(shipped 2026-11-14)* **A run on the last allowed day can be refused.** The date picker's
       upper bound (`CreateGameViewModel.scheduleRange`) is exactly now + 30
       days, but the rule is a strict `< request.time + 30d`. On a phone whose
       clock runs fast, the last selectable minute is rejected. Pull the bound

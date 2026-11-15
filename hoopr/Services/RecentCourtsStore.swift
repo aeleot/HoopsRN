@@ -27,6 +27,13 @@ final class RecentCourtsStore: ObservableObject {
     }
 
     /// Moves a court to the front, whether or not it was already present.
+    /// Forgets the list, on disk and in what's published. Called when the
+    /// account on this device changes — see `SessionCleanup`.
+    func clear() {
+        store.clear()
+        recentCourtIds = []
+    }
+
     func record(courtId: String) {
         recentCourtIds = store.record(courtId)
     }

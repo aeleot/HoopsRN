@@ -591,6 +591,29 @@ final class SquadService: ObservableObject {
         try await mutateRoster(squadId: squadId, joining: false)
     }
 
+    /// Deletes every squad invite the signed-in account sent or was sent — part
+    /// of account deletion. Unlimited one-shot reads, not the published lists:
+    /// those are capped, and a leftover invite would name an account that no
+    /// longer exists. Safe to run twice. Doesn't touch `errorMessage`: a failed
+    /// deletion is the delete sheet's to report.
+    ///
+    /// - Throws: `SquadError`, never a Firestore type.
+    func deleteEveryInvite() async throws {
+        guard let uid = observedUID else { throw SquadError.notSignedIn }
+
+        let invites = database.collection(Collection.squadInvites)
+        do {
+            let received = try await invites.whereField(Field.uid, isEqualTo: uid).getDocuments()
+            let sent = try await invites.whereField(Field.invitedBy, isEqualTo: uid).getDocuments()
+
+            for document in received.documents + sent.documents {
+                try await document.reference.delete()
+            }
+        } catch {
+            throw Self.mapped(error)
+        }
+    }
+
     /// The single delete path behind revoke and decline.
     ///
     /// Both are one operation server-side — either participant may remove the

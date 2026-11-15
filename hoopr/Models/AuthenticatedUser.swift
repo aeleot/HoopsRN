@@ -28,5 +28,8 @@ enum AuthError: Error, Equatable {
     /// password. Almost always a build that carries no `application-identifier`
     /// entitlement, so `securityd` denies every access group (`-34018`).
     case keychainUnavailable
+    /// The session is too old for a sensitive action (deleting the account).
+    /// Firebase wants the password again first — `AuthService.reauthenticate`.
+    case requiresRecentLogin
     case unknown(String)
 }
