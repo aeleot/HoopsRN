@@ -31,6 +31,9 @@ struct GameDayView: View {
 
     @State private var confirmingCancel = false
 
+    /// The report sheet for the other squad, presented with `sheet(item:)`.
+    @State private var report: ReportViewModel?
+
     /// Your squad's crest colour, for the band's wash (UI revamp Phase 4) —
     /// which of your squads is playing. Handed in by `SeasonsTab`, which holds
     /// the squad already; `nil` leaves the band plain.
@@ -45,6 +48,7 @@ struct GameDayView: View {
         userProfileService: UserProfileService,
         notificationService: NotificationService,
         courtService: CourtService,
+        safetyService: SafetyService,
         onOpenResult: @escaping (SeasonGame) -> Void
     ) {
         self.onOpenResult = onOpenResult
@@ -56,7 +60,8 @@ struct GameDayView: View {
             squadService: squadService,
             userProfileService: userProfileService,
             notificationService: notificationService,
-            courtService: courtService
+            courtService: courtService,
+            safetyService: safetyService
         ))
     }
 
@@ -101,6 +106,8 @@ struct GameDayView: View {
                     if viewModel.canCancel {
                         cancelButton
                     }
+
+                    reportButton
                 }
                 .padding(.horizontal, Spacing.pageMargin)
                 .padding(.top, Spacing.xxl)
@@ -114,7 +121,26 @@ struct GameDayView: View {
         // `BandBackButton`. The title stays for VoiceOver.
         .navigationTitle("Game day")
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(item: $report) { reportViewModel in
+            ReportSheet(viewModel: reportViewModel) { report = nil }
+        }
         .accessibilityAction(.escape) { dismiss() }
+    }
+
+    /// Last and quiet: it has to be here — a squad's name is typed by one
+    /// person and shown to another (App Review Guideline 1.2) — and it should
+    /// never compete with the buttons the screen is for.
+    private var reportButton: some View {
+        Button {
+            report = viewModel.makeOpponentReportViewModel()
+        } label: {
+            Label("Report \(viewModel.opponentName)", systemImage: "flag")
+                .hooprType(.caption)
+                .foregroundStyle(Color.hooprSecondaryText)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var arrivalBoard: some View {

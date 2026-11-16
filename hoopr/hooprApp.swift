@@ -33,6 +33,7 @@ struct hooprApp: App {
     @StateObject private var squadService: SquadService
     @StateObject private var matchmakingService: MatchmakingService
     @StateObject private var seasonGameService: SeasonGameService
+    @StateObject private var safetyService: SafetyService
     /// Built in `init()` too, though it doesn't depend on `authService`: it
     /// is `UNUserNotificationCenter`'s delegate, and a delegate assigned after
     /// launch finishes never hears about the tap that launched the app.
@@ -65,6 +66,7 @@ struct hooprApp: App {
         _squadService = StateObject(wrappedValue: SquadService(authService: authService))
         _matchmakingService = StateObject(wrappedValue: MatchmakingService(authService: authService))
         _seasonGameService = StateObject(wrappedValue: SeasonGameService(authService: authService))
+        _safetyService = StateObject(wrappedValue: SafetyService(authService: authService))
 
         // Bound to a local first for the same reason as `authService`: handed
         // straight to `StateObject(wrappedValue:)` it would be deferred to the
@@ -85,6 +87,7 @@ struct hooprApp: App {
                 squadService: squadService,
                 matchmakingService: matchmakingService,
                 seasonGameService: seasonGameService,
+                safetyService: safetyService,
                 notificationService: notificationService,
                 inviteRouter: inviteRouter,
                 recentCourtsStore: recentCourtsStore

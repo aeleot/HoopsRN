@@ -818,6 +818,8 @@ final class SquadService: ObservableObject {
             return "Squad names need at least \(Squad.nameLengthRange.lowerBound) characters."
         case .nameTooLong:
             return "Squad names can be at most \(Squad.nameLengthRange.upperBound) characters."
+        case .nameNotAllowed:
+            return "That squad name isn't allowed. Try a different one."
         case .unsupportedFormat:
             return "That format isn't playable yet."
         case .unknownIcon, .unknownColor:

@@ -14,6 +14,7 @@ struct RootView: View {
     private let squadService: SquadService
     private let matchmakingService: MatchmakingService
     private let seasonGameService: SeasonGameService
+    private let safetyService: SafetyService
     private let notificationService: NotificationService
     private let inviteRouter: InviteRouter
     private let recentCourtsStore: RecentCourtsStore
@@ -28,6 +29,7 @@ struct RootView: View {
         squadService: SquadService,
         matchmakingService: MatchmakingService,
         seasonGameService: SeasonGameService,
+        safetyService: SafetyService,
         notificationService: NotificationService,
         inviteRouter: InviteRouter,
         recentCourtsStore: RecentCourtsStore
@@ -41,6 +43,7 @@ struct RootView: View {
         self.squadService = squadService
         self.matchmakingService = matchmakingService
         self.seasonGameService = seasonGameService
+        self.safetyService = safetyService
         self.notificationService = notificationService
         self.inviteRouter = inviteRouter
         self.recentCourtsStore = recentCourtsStore
@@ -66,6 +69,7 @@ struct RootView: View {
                     squadService: squadService,
                     matchmakingService: matchmakingService,
                     seasonGameService: seasonGameService,
+                    safetyService: safetyService,
                     notificationService: notificationService,
                     inviteRouter: inviteRouter,
                     recentCourtsStore: recentCourtsStore
@@ -104,6 +108,7 @@ private struct LaunchScreen: View {
         squadService: SquadService(authService: authService),
         matchmakingService: MatchmakingService(authService: authService),
         seasonGameService: SeasonGameService(authService: authService),
+        safetyService: SafetyService(authService: authService),
         notificationService: NotificationService(),
         inviteRouter: InviteRouter(),
         recentCourtsStore: RecentCourtsStore()

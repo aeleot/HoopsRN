@@ -2,7 +2,7 @@
 
 **Status:** proposed. Every unchecked box below is open work.
 **Audited:** 2026-10-18 @ `ff9bbe2` (branch `queue-system`, working tree clean)
-**Progress:** 2026-11-14 — §2.2 (manifest; the App Store Connect label is still open), §3.1, §3.3, §3.4, the default-name half of §3.6, the export-compliance flag in §4.4 and the last-day bound in §5.2 shipped on `court-data-accuracy`, guarded by `LaunchFixesTests`. Sign-out cleanup lives in `SessionCleanup`, keyed on the account changing rather than the Sign Out button, so account deletion (§2.1) gets it for free.
+**Progress:** 2026-11-16 — §2.4's report, block and name filter built and its rules deployed. 2026-11-14 — §2.2 (manifest; the App Store Connect label is still open), §3.1, §3.3, §3.4, the default-name half of §3.6, the export-compliance flag in §4.4 and the last-day bound in §5.2 shipped on `court-data-accuracy`, guarded by `LaunchFixesTests`. Sign-out cleanup lives in `SessionCleanup`, keyed on the account changing rather than the Sign Out button, so account deletion (§2.1) gets it for free.
 **Supersedes:** [`LAUNCH_READINESS.md`](LAUNCH_READINESS.md). Its five items are folded in below (§4.1–4.2, §5.2, §5.6). Its summary says "every submission blocker has since shipped", and that's wrong: four App Store blockers are still open (§2).
 **Touches:** the whole app, `firestore.rules`, `hoopr.xcodeproj`, the Firebase console, App Store Connect
 
@@ -126,6 +126,15 @@ either: Profile's rows run Home Court → … → Joined → Sign Out
 
 ### 2.4 User-generated content has no safeguards (Guideline 1.2)
 
+> **Built and deployed 2026-11-16.** Report and Block on
+> `PlayerProfileSheet`, Report on the opponent squad from game day, Blocked
+> Players in Profile, and `NameFilter` in both validators. `blocks` and
+> `reports` are in `firestore.rules` with 22 new rules tests (172/172), three
+> clauses mutation-checked. **Left before this closes:**
+> try FRD-05 to FRD-08 between two accounts, decide who reads `reports` and
+> how often, and publish contact info (§2.3). What a block doesn't cover is in
+> [`gaps/FRIENDS.md`](../gaps/FRIENDS.md).
+
 Display names and squad names are typed by users and shown to strangers
 through player search, squad crests and opponent cards. Anyone signed in can
 send anyone a friend request. Guideline 1.2 asks for four things in an app
@@ -140,19 +149,19 @@ like this:
 
 Minimum set that works on Spark:
 
-- [ ] **Report:** a "Report" action on `PlayerProfileSheet` and on an
+- [x] *(built 2026-11-16)* **Report:** a "Report" action on `PlayerProfileSheet` and on an
       opponent's squad. It writes `reports/{autoId}`, with a create-only rule
       (`reporterId == request.auth.uid`, a field allowlist, no reads), and you
       review reports in the Firestore console. Apple expects "timely
       responses", so someone has to actually read them.
-- [ ] **Block, enforced by the server, on Spark.** `gaps/FRIENDS.md` and
+- [x] *(built 2026-11-16)* **Block, enforced by the server, on Spark.** `gaps/FRIENDS.md` and
       `BACKLOG.md` B3 say blocking needs Cloud Functions. That's true for
       hiding someone from search, but not for stopping their requests. Store
       `blocks/{blockerUid}_{blockedUid}`. Because that ID can be computed,
       the `friendships` and `squadInvites` create rules can refuse the write
       with `exists(/databases/$(database)/documents/blocks/$(target)_$(request.auth.uid))`.
       Search results get filtered on the client.
-- [ ] **Filter:** a word-list check on display names and squad names, on the
+- [x] *(built 2026-11-16)* **Filter:** a word-list check on display names and squad names, on the
       client, at both validation sites. It doesn't need to be clever, it needs
       to exist.
 - [ ] Contact info, as in §2.3.

@@ -3,8 +3,10 @@
 **Scope:** `firestore.rules`, `firestore.indexes.json`, `firebase.json`, `.firebaserc`, `firestore-tests/`
 **Verified:** 2026-10-08 @ 976d2cf
 
-What's stored server-side and what a client may write. Seven collections are
-live:
+What's stored server-side and what a client may write. Nine collections are
+in the ruleset — the seven below, plus the two safety collections added
+2026-11-16, [`blocks`](#blocks) and [`reports`](#reports), which sit apart from
+the progression and are described after `squadInvites`. The seven:
 `users` (one owner per document), `games` (the first shared, multi-user state),
 `friendships` (one document per *pair* of people, written by either of them),
 `squads` (a team, written by its leader and by each member for their own
@@ -37,7 +39,10 @@ claim race is run. `hooprTests/FirestoreRulesParityTests` is the third leg: it
 parses the rules as *text* and fails when a bound mirrored into Swift drifts from
 its copy here.
 
-**All seven collections have emulator coverage** as of 2026-09-20 — 141 tests.
+**All nine collections have emulator coverage** — 172 tests as of 2026-11-16,
+when `blocks.test.mjs` and `reports.test.mjs` were added (and three clauses
+mutation-checked: each weakened, exactly its own tests failed). The original
+seven have been covered since 2026-09-20.
 The suite was Seasons-only until then; `games.test.mjs`, `friendships.test.mjs`
 and `users.test.mjs` backfilled the three original collections, and were
 mutation-tested on the way in (three rules deliberately weakened, exactly three
@@ -709,6 +714,107 @@ failure.
 
 **None.** Two single-field equality listeners (`uid ==`, `invitedBy ==`), no
 ordering.
+
+---
+
+## `blocks`
+
+One person refusing to hear from another (App Review Guideline 1.2). Added
+2026-11-16 and deployed the same day.
+
+| Field | Type | Notes |
+|---|---|---|
+| `blockerId` | string | `== request.auth.uid` at create. |
+| `blockedId` | string | Non-empty, and never the blocker. |
+| `createdAt` | timestamp | Pinned to `request.time`. |
+
+**Document ID is `{blockerId}_{blockedId}` — ordered by role, not sorted.** A
+block is directional, so A blocking B and B blocking A are two documents. This
+is the `squadInvites` ID shape, not the `friendships` one.
+
+### The ID is what makes blocking enforceable on Spark
+
+`../plans/BACKLOG.md` B3 said blocking needed Cloud Functions. Hiding someone
+from *search* does; refusing their *writes* doesn't. Because the ID is
+computable from the pair, two create rules each spend one `exists()` on it:
+
+- `friendships` create refuses when `blocks/{other}_{me}` exists — the person
+  being asked has blocked the asker.
+- `squadInvites` create refuses when `blocks/{invitee}_{me}` exists. Redundant
+  in the ordinary case (the app deletes the friendship when it blocks, and an
+  invite needs an accepted friendship) and kept so a block holds even when that
+  delete never happened.
+
+A block is **one-way on the server**: nothing stops the blocker sending the
+blocked person a request. The app hides the button; the rules have no reason
+to refuse.
+
+### What blocking does not do
+
+- It doesn't hide the blocker's profile, squads or public runs from the blocked
+  person. `users`, `squads` and public `games` are readable by any signed-in
+  account and rules can't filter a query by a second collection.
+- It doesn't stop the two of them joining the same public run, or their squads
+  being matched.
+- It doesn't remove what already existed. That is the client's job —
+  `FriendsViewModel.block` deletes the friendship and any squad invites either
+  way, best-effort, after the block itself lands.
+
+### Access
+
+- **Read:** the blocker only. The blocked person can't read it or query for it,
+  so the app never tells them.
+- **Create:** the blocker, for someone else, at the derived ID.
+- **Update:** `if false`.
+- **Delete:** the blocker — unblocking, and the blocks step of account
+  deletion. Blocks *aimed at* a deleted account stay; they aren't that
+  account's to delete.
+
+### Indexes
+
+**None.** One single-field equality listener (`blockerId ==`).
+
+---
+
+## `reports`
+
+A player flagging another player or a squad (App Review Guideline 1.2). Added
+2026-11-16 and deployed the same day.
+
+| Field | Type | Notes |
+|---|---|---|
+| `reporterId` | string | `== request.auth.uid`. |
+| `targetType` | string | `player` or `squad`. Mirrored by `Report.TargetType`. |
+| `targetId` | string | A uid or a squad ID; 1–128 characters; never the reporter. |
+| `reason` | string | `offensiveName`, `harassment`, `spam`, `impersonation`, `other`. Mirrored by `Report.Reason`. |
+| `details` | string, optional | 1–500 characters. **Absent, never empty.** |
+| `createdAt` | timestamp | Pinned to `request.time`. |
+
+Document ID is Firestore-generated.
+
+### Write-only from the app
+
+There is no backend, so **reports are read in the Firebase console** by whoever
+moderates. `allow read: if false` — not even the author can read one back,
+which is also what keeps a report from reaching its subject. No update, no
+delete: a report is the moderation record, and it survives its author's
+account deletion.
+
+**Someone has to actually read them.** Apple expects timely responses to
+reports; nothing in the app or the project notifies anyone when one arrives.
+See `../gaps/FRIENDS.md`.
+
+Nothing bounds how many reports one account files — the same ceiling
+`../gaps/RATE_LIMITING.md` describes for every create here.
+
+### Access
+
+- **Create:** any signed-in account, in its own name, in exactly this shape.
+- **Read / update / delete:** nobody.
+
+### Indexes
+
+**None.** Never queried by a client.
 
 ---
 

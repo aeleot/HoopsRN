@@ -55,7 +55,7 @@ path in the repo.
 |---|---|
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the app is wired: service ownership, startup order, the Firebase vendor boundary, listener recovery, and the one write that spans two collections. |
 | [`DATA_MODEL.md`](DATA_MODEL.md) | The domain types and their contracts — stable court IDs, the profile's write rules, derived game status, what each error case means. |
-| [`database/DATABASE_SCHEMA.md`](database/DATABASE_SCHEMA.md) | What's stored in Firestore and what a client may write, across all **seven** collections — plus the rate-limit floors and why they're cooldowns rather than quotas. |
+| [`database/DATABASE_SCHEMA.md`](database/DATABASE_SCHEMA.md) | What's stored in Firestore and what a client may write, across all **nine** collections (the seven of the product, plus `blocks` and `reports`) — plus the rate-limit floors and why they're cooldowns rather than quotas. |
 | [`MAP_LAYER.md`](MAP_LAYER.md) | The map, its UUID trigger pattern, the north bias, and the pins' heat-map colouring. |
 | [`COURT_DATASET.md`](COURT_DATASET.md) | Where courts come from and how to regenerate or extend them. |
 | [`UI_SHELL.md`](UI_SHELL.md) | Navigation structure, the tabs, run creation, the Seasons card's four states, and the visual conventions. |

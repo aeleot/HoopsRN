@@ -223,9 +223,10 @@ struct FriendsPaneContent: View {
         case .friends:
             FriendStateChip(title: "Friends", symbol: "checkmark")
 
-        case .you:
-            // Filtered out of results before they get here; rendering nothing
-            // is the safe answer rather than an action that can't succeed.
+        case .you, .blocked:
+            // Both filtered out of results before they get here; rendering
+            // nothing is the safe answer rather than an action that can't
+            // succeed. Unblocking lives in Profile's Blocked Players list.
             EmptyView()
         }
     }

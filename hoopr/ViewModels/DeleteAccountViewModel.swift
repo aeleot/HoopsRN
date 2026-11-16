@@ -20,7 +20,7 @@ import Foundation
 ///    ticket **while it still exists** — only its leader may do either — and is
 ///    then disbanded (led) or left (joined). Then invites, both directions.
 /// 3. *Runs.* Cancel the ones hosted, leave the rest.
-/// 4. *Friends.* Every edge and request.
+/// 4. *Friends.* Every edge and request, then the account's own block list.
 /// 5. *Profile.* Last of the Firestore writes, because everything above is
 ///    authorised by rules that only need the uid, not the profile.
 /// 6. *The Auth account.* `AuthService` then publishes `nil`, which returns
@@ -52,6 +52,7 @@ final class DeleteAccountViewModel: ObservableObject {
     private let squadService: SquadService
     private let matchmakingService: MatchmakingService
     private let seasonGameService: SeasonGameService
+    private let safetyService: SafetyService
 
     init(
         authService: AuthService,
@@ -60,7 +61,8 @@ final class DeleteAccountViewModel: ObservableObject {
         friendService: FriendService,
         squadService: SquadService,
         matchmakingService: MatchmakingService,
-        seasonGameService: SeasonGameService
+        seasonGameService: SeasonGameService,
+        safetyService: SafetyService
     ) {
         self.authService = authService
         self.userProfileService = userProfileService
@@ -69,6 +71,7 @@ final class DeleteAccountViewModel: ObservableObject {
         self.squadService = squadService
         self.matchmakingService = matchmakingService
         self.seasonGameService = seasonGameService
+        self.safetyService = safetyService
         self.email = authService.currentUser?.email
     }
 
@@ -119,6 +122,9 @@ final class DeleteAccountViewModel: ObservableObject {
 
             progress = "Removing your friends list…"
             try await friendService.deleteEveryEdge()
+            // The account's own block list. Reports it filed stay: no client
+            // may delete one, and they are the moderation record.
+            try await safetyService.deleteEveryBlock()
 
             progress = "Deleting your account…"
             try await userProfileService.deleteProfile()
@@ -171,6 +177,7 @@ final class DeleteAccountViewModel: ObservableObject {
         case let error as MatchTicketError: isNetwork = error == .network
         case let error as SeasonGameError:  isNetwork = error == .network
         case let error as UserProfileError: isNetwork = error == .network
+        case let error as SafetyError:      isNetwork = error == .network
         default:                            isNetwork = false
         }
 

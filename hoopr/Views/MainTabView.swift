@@ -55,6 +55,7 @@ struct MainTabView: View {
     private let squadService: SquadService
     private let matchmakingService: MatchmakingService
     private let seasonGameService: SeasonGameService
+    private let safetyService: SafetyService
     private let notificationService: NotificationService
     private let inviteRouter: InviteRouter
     private let recentCourtsStore: RecentCourtsStore
@@ -69,6 +70,7 @@ struct MainTabView: View {
         squadService: SquadService,
         matchmakingService: MatchmakingService,
         seasonGameService: SeasonGameService,
+        safetyService: SafetyService,
         notificationService: NotificationService,
         inviteRouter: InviteRouter,
         recentCourtsStore: RecentCourtsStore
@@ -82,6 +84,7 @@ struct MainTabView: View {
         self.squadService = squadService
         self.matchmakingService = matchmakingService
         self.seasonGameService = seasonGameService
+        self.safetyService = safetyService
         self.notificationService = notificationService
         self.inviteRouter = inviteRouter
         self.recentCourtsStore = recentCourtsStore
@@ -163,6 +166,7 @@ struct MainTabView: View {
             userProfileService: userProfileService,
             courtService: courtService,
             seasonGameService: seasonGameService,
+            safetyService: safetyService,
             onOpenMatch: openMatch,
             onDismiss: onDismiss
         )
@@ -252,6 +256,7 @@ struct MainTabView: View {
                     userProfileService: userProfileService,
                     courtService: courtService,
                     notificationService: notificationService,
+                    safetyService: safetyService,
                     matchToOpen: $matchToOpen,
                     onOpenInbox: openInbox
                 )
@@ -270,6 +275,7 @@ struct MainTabView: View {
                     gameService: gameService,
                     matchmakingService: matchmakingService,
                     seasonGameService: seasonGameService,
+                    safetyService: safetyService,
                     onOpenInbox: openInbox
                 )
             }
@@ -463,6 +469,7 @@ private enum ModalStack {
         squadService: SquadService(authService: authService),
         matchmakingService: MatchmakingService(authService: authService),
         seasonGameService: SeasonGameService(authService: authService),
+        safetyService: SafetyService(authService: authService),
         notificationService: NotificationService(),
         inviteRouter: InviteRouter(),
         recentCourtsStore: RecentCourtsStore()

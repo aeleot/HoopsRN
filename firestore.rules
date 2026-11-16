@@ -2,7 +2,10 @@ rules_version = '2';
 
 // hoopsRN Firestore security rules.
 //
-// Seven collections, in increasing order of who may write them:
+// Nine collections. Two are safety tooling and sit apart from the rest:
+// `blocks` (private to the blocker, and consulted by the `friendships` and
+// `squadInvites` create rules) and `reports` (create-only; read in the
+// console). The other seven, in increasing order of who may write them:
 // `users` (one owner per document), `games` (the first shared, multi-user
 // state in the app), `friendships` (one document per pair of people, written
 // by either of them), `squads` (a team, written by its leader and by each
@@ -312,8 +315,23 @@ service cloud.firestore {
         && incoming().requestedBy == request.auth.uid
         && isParticipant(incoming())
         && incoming().status == 'pending'
+        // Blocking, enforced here rather than in the client (App Review
+        // Guideline 1.2). `blocks/{blocker}_{blocked}` has a computable ID,
+        // so "has the person I'm asking blocked me" is one exists() — the
+        // same trick `squadInvites` plays on the squad join.
+        && !isBlockedBy(otherParticipant())
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time;
+
+      // Whoever in the pair isn't the caller. Only meaningful once
+      // isParticipant(incoming()) has held, which the create rule checks first.
+      function otherParticipant() {
+        return incoming().uidA == request.auth.uid ? incoming().uidB : incoming().uidA;
+      }
+
+      function isBlockedBy(uid) {
+        return exists(/databases/$(database)/documents/blocks/$(uid + '_' + request.auth.uid));
+      }
 
       allow update: if isSignedIn()
         && isParticipant(resource.data)
@@ -580,6 +598,10 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/squads/$(incoming().squadId))
              .data.leaderId == request.auth.uid
         && isAcceptedFriend()
+        // Redundant in the ordinary case — blocking someone removes the
+        // friendship isAcceptedFriend() needs — and kept anyway, so a block
+        // holds even if that edge's delete failed or was never attempted.
+        && !exists(/databases/$(database)/documents/blocks/$(incoming().uid + '_' + request.auth.uid))
         && incoming().createdAt == request.time;
 
       // Immutable. There is nothing here to change: accepting is a write to
@@ -589,6 +611,90 @@ service cloud.firestore {
       allow delete: if isSignedIn()
         && (resource.data.uid == request.auth.uid
             || resource.data.invitedBy == request.auth.uid);
+    }
+
+    // One person refusing to hear from another (App Review Guideline 1.2).
+    //
+    // **The document ID is `{blockerId}_{blockedId}`, in that order** — not
+    // sorted, unlike `friendships`, because a block is directional: A blocking
+    // B and B blocking A are two different facts and two different documents.
+    // Deriving the ID from the pair is what lets the `friendships` and
+    // `squadInvites` create rules refuse a blocked sender with one exists().
+    //
+    // Private to the blocker. The blocked person can't read it, list it or
+    // remove it; all they ever see is a request that isn't accepted.
+    match /blocks/{blockId} {
+      function isSignedIn() { return request.auth != null; }
+      function incoming() { return request.resource.data; }
+
+      allow read: if isSignedIn() && resource.data.blockerId == request.auth.uid;
+
+      allow create: if isSignedIn()
+        && incoming().keys().hasOnly(['blockerId', 'blockedId', 'createdAt'])
+        && incoming().keys().hasAll(['blockerId', 'blockedId', 'createdAt'])
+        && incoming().blockerId == request.auth.uid
+        && incoming().blockedId is string
+        && incoming().blockedId.size() > 0
+        && incoming().blockedId != request.auth.uid
+        && blockId == incoming().blockerId + '_' + incoming().blockedId
+        && incoming().createdAt == request.time;
+
+      // Immutable: a block is there or it isn't.
+      allow update: if false;
+
+      // Unblocking, and the blocks step of account deletion.
+      allow delete: if isSignedIn() && resource.data.blockerId == request.auth.uid;
+    }
+
+    // A player flagging another player or a squad for review (App Review
+    // Guideline 1.2).
+    //
+    // **Write-only from the app.** There is no backend here, so reports are
+    // read in the Firebase console by whoever moderates; no client may read
+    // one back, not even its author — which is also what keeps a report from
+    // ever reaching the person it is about.
+    //
+    // MIRRORED IN SWIFT — the target types, the reasons and the details
+    // length (`Report`). `hooprTests/FirestoreRulesParityTests` fails if
+    // either copy moves without the other.
+    match /reports/{reportId} {
+      function incoming() { return request.resource.data; }
+
+      // MIRRORED IN SWIFT — `Report.TargetType`.
+      function isAllowedTargetType(type) {
+        return type in ['player', 'squad'];
+      }
+
+      // MIRRORED IN SWIFT — `Report.Reason`.
+      function isAllowedReason(reason) {
+        return reason in ['offensiveName', 'harassment', 'spam',
+                          'impersonation', 'other'];
+      }
+
+      allow read: if false;
+
+      allow create: if request.auth != null
+        && incoming().keys().hasOnly(['reporterId', 'targetType', 'targetId',
+                                      'reason', 'details', 'createdAt'])
+        && incoming().keys().hasAll(['reporterId', 'targetType', 'targetId',
+                                     'reason', 'createdAt'])
+        // Nobody can file a report in someone else's name.
+        && incoming().reporterId == request.auth.uid
+        && isAllowedTargetType(incoming().targetType)
+        && incoming().targetId is string
+        && incoming().targetId.size() > 0
+        && incoming().targetId.size() <= 128
+        && incoming().targetId != request.auth.uid
+        && isAllowedReason(incoming().reason)
+        // MIRRORED IN SWIFT — `Report.maxDetailsLength`. Optional, and absent
+        // rather than empty when the reporter adds nothing.
+        && (!('details' in incoming())
+            || (incoming().details is string
+                && incoming().details.size() > 0
+                && incoming().details.size() <= 500))
+        && incoming().createdAt == request.time;
+
+      allow update, delete: if false;
     }
 
     // A squad's standing offer to play — the matchmaking pool.

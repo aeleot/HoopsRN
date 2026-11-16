@@ -16,6 +16,9 @@ enum UserProfileError: Error, Equatable {
     /// `permission-denied` — a message that would send you looking for an
     /// undeployed ruleset rather than a long name.
     case userNameTooLong
+    /// Contains a word `NameFilter` refuses. Client-side only — the rules
+    /// can't hold a word list.
+    case userNameNotAllowed
     /// Security rules rejected the operation. Whether that means "the ruleset
     /// isn't deployed" or "you genuinely may not do this" depends on which side
     /// it came from — see `message(for:whileDoing:context:)`.
@@ -629,6 +632,8 @@ final class UserProfileService: ObservableObject {
         case .emptyUserName:      return "Your name can't be blank."
         case .userNameTooLong:
             return "Your name can't be longer than \(UserProfile.maxUserNameLength) characters."
+        case .userNameNotAllowed:
+            return "That name isn't allowed. Try a different one."
         case .permissionDenied:
             switch context {
             case .load:

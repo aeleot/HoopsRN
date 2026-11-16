@@ -39,6 +39,11 @@ struct PlayerProfileSheet: View {
     let onDismiss: () -> Void
 
     @State private var isConfirmingRemove = false
+    @State private var isConfirmingBlock = false
+
+    /// The report sheet, presented with `sheet(item:)` like the house's other
+    /// sheets. The view model is its own identity: one per presentation.
+    @State private var report: ReportViewModel?
 
     private var row: FriendsViewModel.Row { viewModel.row(for: uid) }
 
@@ -48,6 +53,18 @@ struct PlayerProfileSheet: View {
                 identityHeader
 
                 ScrollView {
+                    // A block or an unblock that failed has nowhere else to
+                    // say so: this sheet covers the screen that owns the
+                    // banner.
+                    if let errorMessage = viewModel.errorMessage {
+                        ErrorBanner(
+                            message: errorMessage,
+                            onRetry: nil,
+                            onDismiss: { viewModel.dismissError() }
+                        )
+                        .padding(.horizontal, Spacing.pageMargin)
+                    }
+
                     DividedRows(leadingInset: ProfileRow.textInset) {
                         rows
                     }
@@ -77,7 +94,32 @@ struct PlayerProfileSheet: View {
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.hooprBrandAccent)
                 }
+
+                // Report and Block (App Review Guideline 1.2). In a menu, not
+                // the action bar: they have to be findable on every profile,
+                // and they should never be the thing a thumb lands on by
+                // accident next to "Add Friend".
+                if row.relationship != .you {
+                    ToolbarItem(placement: .cancellationAction) {
+                        safetyMenu
+                    }
+                }
             }
+        }
+        .sheet(item: $report) { reportViewModel in
+            ReportSheet(viewModel: reportViewModel) { report = nil }
+        }
+        .confirmationDialog(
+            "Block \(row.nameForProse)?",
+            isPresented: $isConfirmingBlock,
+            titleVisibility: .visible
+        ) {
+            Button("Block", role: .destructive) {
+                Task { await viewModel.block(uid) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(Self.blockConsequences(isFriend: row.relationship == .friends))
         }
         // Heals a row whose name never resolved — a batch lookup that failed, or
         // a profile fetched after this sheet was already opening.
@@ -94,6 +136,48 @@ struct PlayerProfileSheet: View {
         } message: {
             Text("You'll both drop off each other's friends list. You can add them again later.")
         }
+    }
+
+    // MARK: - Safety
+
+    private var safetyMenu: some View {
+        Menu {
+            Button {
+                report = viewModel.makeReportViewModel(for: uid)
+            } label: {
+                Label("Report", systemImage: "flag")
+            }
+
+            if row.relationship == .blocked {
+                Button {
+                    Task { await viewModel.perform(.unblock, on: uid) }
+                } label: {
+                    Label("Unblock", systemImage: "hand.raised.slash")
+                }
+            } else {
+                Button(role: .destructive) {
+                    isConfirmingBlock = true
+                } label: {
+                    Label("Block", systemImage: "hand.raised")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .foregroundStyle(Color.hooprSecondaryText)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel("More")
+        .accessibilityHint("Report or block \(row.nameForProse)")
+    }
+
+    /// What the confirmation promises. Says nothing about the other person
+    /// being told, because they aren't.
+    nonisolated static func blockConsequences(isFriend: Bool) -> String {
+        let core = "They won't be able to send you friend requests or squad invites, and they won't be told."
+        return isFriend
+            ? "You'll be removed from each other's friends lists. \(core)"
+            : core
     }
 
     // MARK: - Header
@@ -252,6 +336,7 @@ struct PlayerProfileSheet: View {
         case .incoming: ("Sent you a request", "envelope.fill")
         case .outgoing: ("Request sent", "clock.fill")
         case .none:     ("Not friends yet", "person.fill.questionmark")
+        case .blocked:  ("You blocked this player", "hand.raised.fill")
         case .you:      nil
         }
     }

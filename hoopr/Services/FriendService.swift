@@ -317,10 +317,18 @@ final class FriendService: ObservableObject {
             // Only a rules refusal can be the collision — a create against an
             // existing document falls through to the tighter update allowlist,
             // which rejects it. Anything else is a real failure.
-            if friendError == .permissionDenied,
-               let existing = await existingEdge(at: reference),
-               try await resolve(existing, requestedFrom: otherUid) {
-                return
+            if friendError == .permissionDenied {
+                if let existing = await existingEdge(at: reference) {
+                    if try await resolve(existing, requestedFrom: otherUid) { return }
+                } else {
+                    // Refused with no edge in the way. Every other condition
+                    // of the create rule is something this method just built
+                    // correctly, so what's left is the one the client can't
+                    // see: the other person has blocked this account. Said
+                    // without saying so — a block is the blocker's business.
+                    report(.requestRefused, whileDoing: "sending that request", context: .write)
+                    throw FriendError.requestRefused
+                }
             }
 
             report(friendError, whileDoing: "sending that request", context: .write)
@@ -502,6 +510,8 @@ final class FriendService: ObservableObject {
         case .notSignedIn:       return FailureText.signedOut
         case .cannotFriendSelf:  return "You can't add yourself."
         case .requestNotFound:   return "That request is no longer there."
+        case .requestRefused:
+            return "Couldn't send that request. This player isn't accepting requests right now."
         case .permissionDenied:
             switch context {
             case .load:

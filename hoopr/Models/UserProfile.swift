@@ -114,6 +114,7 @@ nonisolated extension UserProfile {
 
         guard !name.isEmpty else { return .emptyUserName }
         guard name.count <= maxUserNameLength else { return .userNameTooLong }
+        guard NameFilter.bundled.isAllowed(name) else { return .userNameNotAllowed }
         return nil
     }
 

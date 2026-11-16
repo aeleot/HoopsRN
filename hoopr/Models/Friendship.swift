@@ -96,6 +96,10 @@ nonisolated enum FriendError: Error, Equatable {
     /// The edge was deleted between reading it and acting on it — the other
     /// person cancelled or declined while the row was on screen.
     case requestNotFound
+    /// A new request was refused by the rules with no existing edge to explain
+    /// it — in practice, the other person has blocked this account. The rules
+    /// keep the block itself unreadable, so this is as much as can be known.
+    case requestRefused
     /// Security rules rejected the operation. Whether that means "the ruleset
     /// isn't deployed" or "you genuinely may not do this" depends on which side
     /// it came from — see `FriendService.message(for:whileDoing:context:)`.
