@@ -116,13 +116,25 @@ easy to find in the app. There's none, and there's no Terms or Support link
 either: Profile's rows run Home Court → … → Joined → Sign Out
 (`ProfileView.swift:432–538`).
 
-- [ ] Write a privacy policy and terms of use, and host both. **Firebase
-      Hosting is available on the Spark plan**, so
-      `hoopsrn-4f1e9.web.app/privacy` costs nothing and is the same host §7.1
-      wants for invite links.
-- [ ] Add Privacy Policy, Terms, and Contact Support rows to Profile.
-- [ ] Link the terms on the sign-up form ("By creating an account you agree
-      to…").
+- [x] *(written and deployed 2026-11-16)* Write a privacy policy and
+      terms of use, and host both. **Firebase Hosting is available on the Spark
+      plan**, so `hoopsrn-4f1e9.web.app/privacy` costs nothing and is the same
+      host §7.1 wants for invite links. The pages are `public/privacy.html`,
+      `terms.html` and `support.html`, with a `hosting` block in
+      `firebase.json`. Live since 2026-11-16: `/privacy`, `/terms` and
+      `/support` each returned 200 that day. A change to `public/` is not live
+      until `firebase deploy --only hosting` runs again.
+- [x] *(built 2026-11-16)* Add Privacy Policy, Terms, and Contact Support rows
+      to Profile — a "Help & legal" section above Account (`ProfileLinkRow`).
+- [x] *(built 2026-11-16)* Link the terms on the sign-up form ("By creating an
+      account you agree to…"), shown in sign-up mode only.
+
+The URLs and the support address have one source, `LegalLinks`
+(`hoopr/Models/LegalLinks.swift`), and `LegalLinksTests` holds each link to a
+file in `public/`. Still open: the pages name the operator as "hoopsRN" with no
+legal entity, the contact is a personal Gmail address, and nobody with legal
+training has read either document. Neither the rows nor the sign-up line has
+been looked at in the simulator.
 
 ### 2.4 User-generated content has no safeguards (Guideline 1.2)
 
@@ -145,7 +157,7 @@ like this:
 | A way to filter objectionable content | None. Names are length-checked only (`Squad.validate(name:)`, `UserProfile.validate(userName:)`). |
 | A way to report content | None |
 | A way to block abusive users | None ([`gaps/FRIENDS.md`](../gaps/FRIENDS.md)) |
-| Published contact information | None (§2.3) |
+| Published contact information | Written 2026-11-16: the support page and Profile → Contact Support (§2.3), live since 2026-11-16. |
 
 Minimum set that works on Spark:
 
@@ -164,7 +176,7 @@ Minimum set that works on Spark:
 - [x] *(built 2026-11-16)* **Filter:** a word-list check on display names and squad names, on the
       client, at both validation sites. It doesn't need to be clever, it needs
       to exist.
-- [ ] Contact info, as in §2.3.
+- [x] *(built and live 2026-11-16)* Contact info, as in §2.3.
 
 ---
 

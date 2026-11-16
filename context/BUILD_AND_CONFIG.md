@@ -237,7 +237,9 @@ Firebase console is not:
 
 ```
 .firebaserc              → default project: hoopsrn-4f1e9
-firebase.json            → rules, indexes, and the Firestore emulator on 8080
+firebase.json            → rules, indexes, Hosting (public/), and the Firestore emulator on 8080
+public/                  → privacy, terms and support pages, served by Firebase Hosting at
+                           hoopsrn-4f1e9.web.app (cleanUrls: /privacy, not /privacy.html)
 firestore.rules          → security rules (source of truth)
 firestore.indexes.json   → composite indexes: six, across three collections
 ```
@@ -337,6 +339,7 @@ dependency at all, so there is nothing to stub — and reads the built app's
 | `MatchRulesTests` | 50 | The pure matchmaker: every hard rule rejecting in isolation, `recordRating`'s prior (one loss doesn't gate, a long lopsided record still does), soft-rule ordering, relaxation over time and the re-scan it needs, window arithmetic across midnight and DST, empty pool, self-match. Lost the stale-claim cases when the atomic commit deleted the window they pinned. |
 | `SquadTests` | 38 | Decoding, name and roster bounds, leadership, the icon/colour allowlists. |
 | `GameTests` | 43 | Decoding, derived status, form validation, roster membership, visibility, presentation, the invite-link string, distance. |
+| `LegalLinksTests` | 6 | The in-app legal links (`LegalLinks`): each is HTTPS on the Hosting domain and has a file of that name in `public/`; the pages publish the same support address the app mails; the sign-up line links both documents; the terms keep their zero-tolerance sentence (Guideline 1.2). |
 | `InviteJoinTests` | 21 | The receiving half of an invite: `InviteLink.gameId(from:)` round-tripping every minted form and refusing any URL that would make `Firestore.document(_:)` trap; that the built app's `Info.plist` registers `InviteLink.scheme`; `InviteRouter` holding a request until consumed; every `InviteJoinViewModel.Landing` (over outranks hosting, and the join agrees with the board's `Action`); and the sheet's copy — the waitlist never promoting, the host told the link lets anyone in. |
 | `MatchTicketTests` | 22 | Ticket validation, claimability, `isSearching` vs. `isClaimable`, record decoding and `isUnplayed`. |
 | `FirestoreRulesParityTests` | 21 | Every bound mirrored between Swift and `firestore.rules`, parsed out of the rules file as text — including the `open` -> `matched` transition and the two burst-rate floors. |

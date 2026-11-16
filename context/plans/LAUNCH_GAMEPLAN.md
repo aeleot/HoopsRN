@@ -269,9 +269,9 @@ changes into **one** tested deploy.
 - [ ] 🛠👤 **Rules deploy #1**, following the protocol in §6.
 
 **👤 Hosting:**
-- [ ] Run `firebase init hosting` and publish `/privacy`, `/terms` and
-      `/support` to `hoopsrn-4f1e9.web.app`. Commit the `public/` folder and
-      the `firebase.json` change.
+- [x] *(deployed 2026-11-16)* Publish `/privacy`, `/terms` and `/support` to
+      `hoopsrn-4f1e9.web.app` with `firebase deploy --only hosting`. Still to
+      do: commit `public/` and the `firebase.json` change.
 - [ ] Customize the password-reset email: sender name and template (A§4.3).
 
 **G2 — end of Tuesday:**

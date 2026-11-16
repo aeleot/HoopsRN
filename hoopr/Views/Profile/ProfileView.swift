@@ -496,6 +496,28 @@ struct ProfileView: View {
                 )
             }
 
+            // Required to be reachable from inside the app, not only from the
+            // store listing (App Review 5.1.1(i)); and a published contact is
+            // part of the user-generated-content rules (1.2). Above Account so
+            // Sign Out and Delete Account stay the end of the screen.
+            section("Help & legal") {
+                ProfileLinkRow(
+                    symbol: "envelope.fill",
+                    title: "Contact Support",
+                    destination: LegalLinks.supportMail
+                )
+                ProfileLinkRow(
+                    symbol: "hand.raised.square.fill",
+                    title: "Privacy Policy",
+                    destination: LegalLinks.privacyPolicy
+                )
+                ProfileLinkRow(
+                    symbol: "doc.text.fill",
+                    title: "Terms of Use",
+                    destination: LegalLinks.termsOfUse
+                )
+            }
+
             section("Account") {
                 ProfileRow(
                     symbol: "person.fill",

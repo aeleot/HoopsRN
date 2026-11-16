@@ -1110,6 +1110,15 @@ that link's page. Being signed in is the authorisation, so no current password
 is asked for. The row falls back to read-only when there's no address to send
 to, via the same `onTap: nil` mechanism.
 
+**"Help & legal" sits above Account, and its rows leave the app.** Contact
+Support, Privacy Policy and Terms of Use are `ProfileLinkRow`s — a `Link`, not a
+button, with an up-right arrow where an editing row has a chevron. The first
+opens a Mail draft; the other two open the pages Firebase Hosting serves from
+`public/`. All three destinations come from `LegalLinks`, which also supplies
+the "By creating an account you agree to…" line `LoginView` shows in sign-up
+mode only (App Review 5.1.1(i), 1.2). The section is above Account so Sign Out
+and Delete Account stay the end of the screen.
+
 **Sign Out is the last row, not a bar.** It was a `safeAreaInset` with a rule
 along its top; a pinned bar over a page that already scrolls to the bottom is a
 permanent reminder of the one action nobody comes here for — and it made no

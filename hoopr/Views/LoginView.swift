@@ -92,6 +92,19 @@ struct LoginView: View {
             submitButton
                 .padding(.top, Spacing.sm)
 
+            // Only when creating an account: that is the moment of agreeing,
+            // and someone signing back in already has (App Review 1.2 asks
+            // for terms a user accepts; 5.1.1(i) for the policy in the app).
+            if viewModel.mode == .signUp {
+                Text(.init(LegalLinks.signUpAgreementMarkdown))
+                    .hooprType(.caption)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .tint(Color.hooprBrandAccent)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
+            }
+
             modeSwitch
                 .frame(maxWidth: .infinity)
         }

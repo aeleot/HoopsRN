@@ -162,6 +162,39 @@ struct ProfileActionRow: View {
     }
 }
 
+/// A row that leaves the app — a legal page in Safari, a draft in Mail. A
+/// `Link`, so the system opens it and VoiceOver announces it as one, with an
+/// arrow where an editing row has a chevron: this one doesn't push a screen.
+struct ProfileLinkRow: View {
+    let symbol: String
+    let title: String
+    let destination: URL
+
+    var body: some View {
+        Link(destination: destination) {
+            HStack(spacing: 14) {
+                ProfileRowSymbol(symbol: symbol)
+
+                Text(title)
+                    .hooprType(.subhead)
+                    .foregroundStyle(Color.hooprPrimaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 8)
+
+                Image(systemName: "arrow.up.right")
+                    .hooprFont(13, weight: .semibold, maximumSize: 17)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .accessibilityHidden(true)
+            }
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 /// The mark every row leads with, in a fixed-width column so the labels line
 /// up. It scales with the reader's text size up to a cap that still fits the
 /// column; the tinted tile it used to sit in is gone.
