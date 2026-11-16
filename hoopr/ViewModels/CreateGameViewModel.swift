@@ -40,10 +40,22 @@ final class CreateGameViewModel: ObservableObject {
 
     /// The window `firestore.rules` enforces, so the picker can't offer a date
     /// the server will reject.
-    var scheduleRange: ClosedRange<Date> {
-        let now = Date()
-        return now.addingTimeInterval(Game.minimumLeadTime)
-            ... now.addingTimeInterval(Game.schedulingWindow)
+    var scheduleRange: ClosedRange<Date> { Self.scheduleRange(from: Date()) }
+
+    /// How far inside the 30-day window the picker stops.
+    ///
+    /// The create rule is a strict `scheduledTime < request.time + 30d`,
+    /// measured on the **server's** clock. A picker that ran to exactly
+    /// now + 30 days offered a last minute the server refused on any phone
+    /// whose clock ran fast — and the refusal reads "The server wouldn't
+    /// accept that change", which names nothing the user can fix. An hour is
+    /// far more drift than a phone on network time has, and nobody misses the
+    /// last hour of a month.
+    nonisolated static let scheduleUpperMargin: TimeInterval = 60 * 60
+
+    nonisolated static func scheduleRange(from now: Date) -> ClosedRange<Date> {
+        now.addingTimeInterval(Game.minimumLeadTime)
+            ... now.addingTimeInterval(Game.schedulingWindow - scheduleUpperMargin)
     }
 
     var canDecreasePlayers: Bool {

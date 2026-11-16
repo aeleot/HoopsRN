@@ -33,6 +33,7 @@ struct hooprApp: App {
     @StateObject private var squadService: SquadService
     @StateObject private var matchmakingService: MatchmakingService
     @StateObject private var seasonGameService: SeasonGameService
+    @StateObject private var safetyService: SafetyService
     /// Built in `init()` too, though it doesn't depend on `authService`: it
     /// is `UNUserNotificationCenter`'s delegate, and a delegate assigned after
     /// launch finishes never hears about the tap that launched the app.
@@ -65,6 +66,7 @@ struct hooprApp: App {
         _squadService = StateObject(wrappedValue: SquadService(authService: authService))
         _matchmakingService = StateObject(wrappedValue: MatchmakingService(authService: authService))
         _seasonGameService = StateObject(wrappedValue: SeasonGameService(authService: authService))
+        _safetyService = StateObject(wrappedValue: SafetyService(authService: authService))
 
         // Bound to a local first for the same reason as `authService`: handed
         // straight to `StateObject(wrappedValue:)` it would be deferred to the
@@ -85,6 +87,7 @@ struct hooprApp: App {
                 squadService: squadService,
                 matchmakingService: matchmakingService,
                 seasonGameService: seasonGameService,
+                safetyService: safetyService,
                 notificationService: notificationService,
                 inviteRouter: inviteRouter,
                 recentCourtsStore: recentCourtsStore
@@ -95,6 +98,15 @@ struct hooprApp: App {
             // `RootView` is on screen from the first frame, long before the tab
             // shell that will present the invite exists. `InviteRouter` holds
             // it until then, across a login screen if need be.
+            // One account's reminders and on-device history don't belong to
+            // the next one — see `SessionCleanup` for why this watches the
+            // account rather than the Sign Out button.
+            .onChange(of: authService.currentUser?.id) { previous, current in
+                guard SessionCleanup.shouldClear(previous: previous, current: current) else { return }
+                notificationService.clearAll()
+                recentCourtsStore.clear()
+                SessionCleanup.clearDismissalsAndCelebrations()
+            }
             .onOpenURL { url in
                 inviteRouter.open(url)
             }

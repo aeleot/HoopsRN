@@ -77,6 +77,10 @@ final class FriendsViewModel: ObservableObject {
         /// The signed-in user asked, and is waiting on them.
         case outgoing
         case friends
+        /// The signed-in user has blocked them. Wins over any edge: the block
+        /// removes the friendship, and if that delete is still in flight the
+        /// row should already read as blocked.
+        case blocked
         /// The signed-in user themselves. Filtered out of search, so this is a
         /// guard rather than a state the UI is expected to render.
         case you
@@ -91,6 +95,9 @@ final class FriendsViewModel: ObservableObject {
         case decline
         case cancel
         case remove
+        /// Lifts a block. Blocking itself isn't here: it is offered from the
+        /// profile sheet's menu, behind a confirmation, never as a row button.
+        case unblock
 
         /// Beside a name in a list row, where the surrounding context says who
         /// and what.
@@ -101,6 +108,7 @@ final class FriendsViewModel: ObservableObject {
             case .decline: "Decline"
             case .cancel:  "Cancel"
             case .remove:  "Remove"
+            case .unblock: "Unblock"
             }
         }
 
@@ -113,13 +121,17 @@ final class FriendsViewModel: ObservableObject {
             case .decline: "Decline"
             case .cancel:  "Cancel Request"
             case .remove:  "Remove Friend"
+            case .unblock: "Unblock"
             }
         }
 
         /// Everything that takes something away reads in the app's error
         /// colour, matching `LocalRunsViewModel.Action.isDestructive`.
         var isDestructive: Bool {
-            self != .add && self != .accept
+            switch self {
+            case .add, .accept, .unblock:    false
+            case .decline, .cancel, .remove: true
+            }
         }
     }
 
@@ -154,6 +166,11 @@ final class FriendsViewModel: ObservableObject {
     /// their names resolve with everyone else's.
     @Published private(set) var recentlyAccepted: [Row] = []
 
+    /// Everyone the signed-in user has blocked, newest first — the Blocked
+    /// Players list in Profile, which is the way back from a block now that
+    /// search and the inbox no longer show these people.
+    @Published private(set) var blockedPlayers: [Row] = []
+
     @Published private(set) var errorMessage: String?
 
     /// A listener died and `FriendService` is re-attaching it. Distinguishes a
@@ -181,8 +198,14 @@ final class FriendsViewModel: ObservableObject {
 
     private let friendService: FriendService
     private let userProfileService: UserProfileService
+    private let safetyService: SafetyService
+    private let squadService: SquadService
     private let inboxDismissals: InboxDismissalsStore
     private var cancellables = Set<AnyCancellable>()
+
+    /// Mirrored from `SafetyService`, newest first.
+    private var blocks: [Block] = []
+    private var blockedUids: Set<String> = []
 
     private var incoming: [Friendship] = []
     private var outgoing: [Friendship] = []
@@ -222,11 +245,24 @@ final class FriendsViewModel: ObservableObject {
         friendService: FriendService,
         userProfileService: UserProfileService,
         courtService: CourtService,
+        safetyService: SafetyService,
+        squadService: SquadService,
         inboxDismissals: InboxDismissalsStore = InboxDismissalsStore()
     ) {
         self.friendService = friendService
         self.userProfileService = userProfileService
+        self.safetyService = safetyService
+        self.squadService = squadService
         self.inboxDismissals = inboxDismissals
+
+        safetyService.$blocks
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] blocks in
+                self?.blocks = blocks
+                self?.blockedUids = Set(blocks.map(\.blockedId))
+                self?.rebuild()
+            }
+            .store(in: &cancellables)
 
         // `sink` with a weak capture rather than `assign(to:on: self)`, which
         // would retain self through self's own cancellable set.
@@ -316,6 +352,7 @@ final class FriendsViewModel: ObservableObject {
             incomingRequests = []
             friends = []
             recentlyAccepted = []
+            blockedPlayers = []
             return
         }
 
@@ -336,14 +373,30 @@ final class FriendsViewModel: ObservableObject {
     private func rebuildRows() {
         guard let uid = friendService.currentUserId else { return }
 
-        incomingRequests = incoming.map { row(for: $0.otherUid(than: uid)) }
-        friends = accepted.map { row(for: $0.otherUid(than: uid)) }
-        recentlyAccepted = Self.recentlyAccepted(
-            accepted,
-            by: uid,
-            dismissed: Set(inboxDismissals.keys),
-            now: Date()
-        ).map { row(for: $0.otherUid(than: uid)) }
+        // Blocking removes the edge, so these three filters normally have
+        // nothing to do. They are for the moment in between — and for a
+        // delete that failed — so a blocked person never reappears as a
+        // request to answer or a friend to invite.
+        incomingRequests = Self.visible(incoming.map { $0.otherUid(than: uid) }, hiding: blockedUids)
+            .map { row(for: $0) }
+        friends = Self.visible(accepted.map { $0.otherUid(than: uid) }, hiding: blockedUids)
+            .map { row(for: $0) }
+        recentlyAccepted = Self.visible(
+            Self.recentlyAccepted(
+                accepted,
+                by: uid,
+                dismissed: Set(inboxDismissals.keys),
+                now: Date()
+            ).map { $0.otherUid(than: uid) },
+            hiding: blockedUids
+        ).map { row(for: $0) }
+        blockedPlayers = blocks.map { row(for: $0.blockedId) }
+    }
+
+    /// `uids` without anyone blocked, order kept. What search, the inbox and
+    /// the friends list all show.
+    nonisolated static func visible(_ uids: [String], hiding blocked: Set<String>) -> [String] {
+        blocked.isEmpty ? uids : uids.filter { !blocked.contains($0) }
     }
 
     // MARK: - Accepted requests
@@ -399,7 +452,7 @@ final class FriendsViewModel: ObservableObject {
     /// Where the signed-in user stands with `uid`, against the live edge map.
     func relationship(with uid: String) -> Relationship {
         guard let ownUid = friendService.currentUserId else { return .none }
-        return Self.relationship(with: uid, in: edgesByUid, viewedBy: ownUid)
+        return Self.relationship(with: uid, in: edgesByUid, viewedBy: ownUid, blocked: blockedUids)
     }
 
     /// The rows for the current search results, re-derived on read.
@@ -409,7 +462,9 @@ final class FriendsViewModel: ObservableObject {
     /// "Requested" without re-running the query.
     var searchRows: [Row] {
         guard case .results(let uids) = searchState else { return [] }
-        return uids.map { row(for: $0) }
+        // Filtered on read, like the relationship: blocking someone from a
+        // result's profile takes them out of the list without a new query.
+        return Self.visible(uids, hiding: blockedUids).map { row(for: $0) }
     }
 
     /// Fetches the names this screen doesn't have yet.
@@ -425,6 +480,8 @@ final class FriendsViewModel: ObservableObject {
     private func resolveMissingProfiles() {
         guard let uid = friendService.currentUserId else { return }
         let shown = (incoming + outgoing + accepted).map { $0.otherUid(than: uid) }
+            // The Blocked Players list needs names too.
+            + blocks.map(\.blockedId)
         let missing = Set(shown).subtracting(profilesByUid.keys)
         guard !missing.isEmpty else { return }
 
@@ -653,9 +710,11 @@ final class FriendsViewModel: ObservableObject {
     nonisolated static func relationship(
         with uid: String,
         in edges: [String: Friendship],
-        viewedBy ownUid: String
+        viewedBy ownUid: String,
+        blocked: Set<String> = []
     ) -> Relationship {
         guard uid != ownUid else { return .you }
+        guard !blocked.contains(uid) else { return .blocked }
         guard let edge = edges[uid] else { return .none }
 
         switch edge.direction(for: ownUid) {
@@ -674,6 +733,7 @@ final class FriendsViewModel: ObservableObject {
         case .incoming: [.accept, .decline]
         case .outgoing: [.cancel]
         case .friends:  [.remove]
+        case .blocked:  [.unblock]
         case .you:      []
         }
     }
@@ -699,12 +759,77 @@ final class FriendsViewModel: ObservableObject {
             case .decline: try await friendService.declineRequest(friendshipId)
             case .cancel:  try await friendService.cancelRequest(friendshipId)
             case .remove:  try await friendService.removeFriend(friendshipId)
+            case .unblock: try await safetyService.unblock(uid)
             }
             // The listeners re-emit what the server actually stored, so there's
             // nothing to apply optimistically here.
+        } catch let error as SafetyError {
+            errorMessage = SafetyService.message(for: error, whileDoing: "unblocking that player")
         } catch {
             // `FriendService` already reported it; `errorMessage` is mirrored.
         }
+    }
+
+    // MARK: - Blocking and reporting
+
+    /// Blocks `uid`, then clears away what was already between the two of you.
+    ///
+    /// **The block is the one write that matters, and it goes first.** Once it
+    /// lands the rules refuse anything new from that person, whatever happens
+    /// to the rest. The cleanup after it — the friendship or pending request,
+    /// and squad invites either way — is best-effort: each is a write the
+    /// rules already allow, a failure leaves something the lists above hide
+    /// anyway, and none of them is worth un-blocking someone over.
+    ///
+    /// A cross-collection job (`blocks`, `friendships`, `squadInvites`), which
+    /// is why it is here and not in a service.
+    func block(_ uid: String) async {
+        guard pendingUid == nil else { return }
+        guard let ownUid = friendService.currentUserId else { return }
+
+        pendingUid = uid
+        defer { pendingUid = nil }
+
+        do {
+            try await safetyService.block(uid)
+        } catch let error as SafetyError {
+            errorMessage = SafetyService.message(for: error, whileDoing: "blocking that player")
+            return
+        } catch {
+            errorMessage = SafetyService.message(for: .unknown(""), whileDoing: "blocking that player")
+            return
+        }
+
+        if edgesByUid[uid] != nil {
+            try? await friendService.removeFriend(Friendship.id(for: ownUid, uid))
+        }
+
+        let invites = BlockCleanup.invites(
+            blocking: uid,
+            incoming: squadService.incomingInvites,
+            sent: squadService.sentInvites
+        )
+        for inviteId in invites.toDecline {
+            try? await squadService.declineInvite(inviteId)
+        }
+        for inviteId in invites.toRevoke {
+            try? await squadService.revokeInvite(inviteId)
+        }
+    }
+
+    /// The report sheet's view model for a player. Built here so the sheet
+    /// doesn't need a service handed to it through three views.
+    func makeReportViewModel(for uid: String) -> ReportViewModel {
+        ReportViewModel(
+            targetType: .player,
+            targetId: uid,
+            targetName: row(for: uid).nameForProse,
+            safetyService: safetyService
+        )
+    }
+
+    var blockedEmptyText: String {
+        "You haven't blocked anyone. Blocking a player stops their friend requests and squad invites."
     }
 
     /// Whether `uid`'s controls should be inert because someone else's write is

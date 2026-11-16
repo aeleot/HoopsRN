@@ -1,0 +1,430 @@
+{
+ "attribution": "Town of Chapel Hill",
+ "fetched": "2026-09-22",
+ "grain": "park",
+ "records": [
+  {
+   "attributes": {
+    "Facility_Address": "501 Weaver Dairy Road, Chapel Hill NC",
+    "Facility_Name": "Cedar Falls Park",
+    "Facility_Type": "Park",
+    "Main_Feature": "Playground",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": "Trails",
+    "Tertiary_Feature": "Athletic fields/courts",
+    "Zipcode": 27514
+   },
+   "lat": 35.96114353100006,
+   "lon": -79.03267623199997
+  },
+  {
+   "attributes": {
+    "Facility_Address": "501 Kildaire Road, Chapel Hill NC",
+    "Facility_Name": "Scroggs School",
+    "Facility_Type": "Park",
+    "Main_Feature": "Athletic fields/courts",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": null,
+    "Tertiary_Feature": null,
+    "Zipcode": 27516
+   },
+   "lat": 35.87940354500005,
+   "lon": -79.06752489799999
+  },
+  {
+   "attributes": {
+    "Facility_Address": "140 W Franklin St, Chapel Hill NC",
+    "Facility_Name": "140 West Franklin Plaza",
+    "Facility_Type": "Park",
+    "Main_Feature": "Art/music exhibits",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": null,
+    "Tertiary_Feature": null,
+    "Zipcode": 27516
+   },
+   "lat": 35.91247825800007,
+   "lon": -79.05760320399997
+  },
+  {
+   "attributes": {
+    "Facility_Address": "121 Collums Road, Chapel Hill NC",
+    "Facility_Name": "North Forest Hills Park",
+    "Facility_Type": "Park",
+    "Main_Feature": "Playground",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": "Dog Park",
+    "Tertiary_Feature": "Picnic Area",
+    "Zipcode": 27514
+   },
+   "lat": 35.95099110100005,
+   "lon": -79.05106884299994
+  },
+  {
+   "attributes": {
+    "Facility_Address": "120 South Estes Drive, Chapel Hill, NC",
+    "Facility_Name": "Gene Strowd Community Rose Garden",
+    "Facility_Type": "Garden",
+    "Main_Feature": "Community Garden",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": null,
+    "Tertiary_Feature": null,
+    "Zipcode": 27514
+   },
+   "lat": 35.927721660000024,
+   "lon": -79.03139635199996
+  },
+  {
+   "attributes": {
+    "Facility_Address": "1501 Ephesus Church Road, Chapel Hill NC",
+    "Facility_Name": "Ephesus Park",
+    "Facility_Type": "Park",
+    "Main_Feature": "Tennis Courts",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": null,
+    "Tertiary_Feature": null,
+    "Zipcode": 27517
+   },
+   "lat": 35.93247351200006,
+   "lon": -79.01580205499994
+  },
+  {
+   "attributes": {
+    "Facility_Address": "150 E Rosemary St, Chapel Hill NC",
+    "Facility_Name": "Wallace Plaza",
+    "Facility_Type": "Park",
+    "Main_Feature": "Amphitheather",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": null,
+    "Tertiary_Feature": null,
+    "Zipcode": 27514
+   },
+   "lat": 35.914833746000056,
+   "lon": -79.05422332799998
+  },
+  {
+   "attributes": {
+    "Facility_Address": "1000 Dogwood Acres Drive, Chapel Hill NC",
+    "Facility_Name": "Southern Community Park",
+    "Facility_Type": "Park",
+    "Main_Feature": "Playground",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": "Dog Park",
+    "Tertiary_Feature": "Trails",
+    "Zipcode": 27516
+   },
+   "lat": 35.87967547600004,
+   "lon": -79.07241756999998
+  },
+  {
+   "attributes": {
+    "Facility_Address": "1701 Ephesus Church Road, Chapel Hill NC",
+    "Facility_Name": "Burlington Park",
+    "Facility_Type": "Park",
+    "Main_Feature": "Playground",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": "Picnic Area",
+    "Tertiary_Feature": null,
+    "Zipcode": 27517
+   },
+   "lat": 35.93272434500004,
+   "lon": -79.00731056699993
+  },
+  {
+   "attributes": {
+    "Facility_Address": "100 Library Drive, Chapel Hill NC",
+    "Facility_Name": "Pritchard Park",
+    "Facility_Type": "Park",
+    "Main_Feature": "Trails",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": null,
+    "Tertiary_Feature": null,
+    "Zipcode": 27514
+   },
+   "lat": 35.93232999200007,
+   "lon": -79.03561002899994
+  },
+  {
+   "attributes": {
+    "Facility_Address": "216 N Roberson St, Chapel Hill NC",
+    "Facility_Name": "Hargraves Community Center",
+    "Facility_Type": "Park",
+    "Main_Feature": "Playground",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": "Athletic fields/courts",
+    "Tertiary_Feature": "Picnic Area",
+    "Zipcode": 27516
+   },
+   "lat": 35.91290562800003,
+   "lon": -79.06423917299998
+  },
+  {
+   "attributes": {
+    "Facility_Address": "20 Oakwood Drive, Chapel Hill NC",
+    "Facility_Name": "Oakwood Park",
+    "Facility_Type": "Park",
+    "Main_Feature": "Playground",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": "Tennis Courts",
+    "Tertiary_Feature": "Picnic Area",
+    "Zipcode": 27517
+   },
+   "lat": 35.91110671700004,
+   "lon": -79.02171010699999
+  },
+  {
+   "attributes": {
+    "Facility_Address": "100 Northern Park Drive, Chapel Hill NC",
+    "Facility_Name": "Chapel Hill Skate Park & Batting Cage",
+    "Facility_Type": "Batting Cage/Skate Park",
+    "Main_Feature": "Batting Cage",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": "Skate Park",
+    "Tertiary_Feature": null,
+    "Zipcode": 27516
+   },
+   "lat": 35.95504536400006,
+   "lon": -79.06373160799997
+  },
+  {
+   "attributes": {
+    "Facility_Address": "601 Meadowmont Lane",
+    "Facility_Name": "Rashkis Gymnasium",
+    "Facility_Type": "Gym",
+    "Main_Feature": "Gymnasium",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": null,
+    "Tertiary_Feature": null,
+    "Zipcode": 27517
+   },
+   "lat": 35.91345665400007,
+   "lon": -79.007219842
+  },
+  {
+   "attributes": {
+    "Facility_Address": "216 North Roberson Street, Chapel Hill, NC",
+    "Facility_Name": "AD Clark Outdoor Pool",
+    "Facility_Type": "Pool",
+    "Main_Feature": "25m outdoor pool",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Summer (Memorial Day-Labor Day)",
+    "Secondary_Feature": "Changing areas/locker rooms",
+    "Tertiary_Feature": null,
+    "Zipcode": 27516
+   },
+   "lat": 35.91290562800003,
+   "lon": -79.06423917299998
+  },
+  {
+   "attributes": {
+    "Facility_Address": "300 Northern Park Drive, Chapel Hill, NC",
+    "Facility_Name": "Homestead Aquatic Center",
+    "Facility_Type": "Pool",
+    "Main_Feature": "25m by 25yd lap pool",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": "Warm water pool",
+    "Tertiary_Feature": "Changing areas/locker rooms",
+    "Zipcode": 27516
+   },
+   "lat": 35.95126870100005,
+   "lon": -79.06097912799999
+  },
+  {
+   "attributes": {
+    "Facility_Address": "530 Dogwood Drive, Chapel Hill NC",
+    "Facility_Name": "Westwood Park",
+    "Facility_Type": "Park",
+    "Main_Feature": "Playground",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": null,
+    "Tertiary_Feature": null,
+    "Zipcode": 27516
+   },
+   "lat": 35.90018387200006,
+   "lon": -79.06102762199997
+  },
+  {
+   "attributes": {
+    "Facility_Address": "120 S Estes Drive, Chapel Hill NC",
+    "Facility_Name": "Chapel Hill Community Center",
+    "Facility_Type": "Park",
+    "Main_Feature": "Playground",
+    "Quaternary_Feature": "Rock Climbing Wall",
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": "Trails",
+    "Tertiary_Feature": "Athletic fields/courts",
+    "Zipcode": 27514
+   },
+   "lat": 35.927721660000024,
+   "lon": -79.03139635199996
+  },
+  {
+   "attributes": {
+    "Facility_Address": "621 Meadowmont Lane, Chapel Hill NC",
+    "Facility_Name": "Meadowmont Park",
+    "Facility_Type": "Park",
+    "Main_Feature": "Trails",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": "Athletic fields/courts",
+    "Tertiary_Feature": "Picnic Area",
+    "Zipcode": 27517
+   },
+   "lat": 35.91386044200005,
+   "lon": -79.00584131199997
+  },
+  {
+   "attributes": {
+    "Facility_Address": "399 Umstead Drive, Chapel Hill NC",
+    "Facility_Name": "Umstead Park",
+    "Facility_Type": "Park",
+    "Main_Feature": "Trails",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": "Athletic fields/courts",
+    "Tertiary_Feature": "Picnic Area",
+    "Zipcode": 27516
+   },
+   "lat": 35.922538563000046,
+   "lon": -79.06578349699998
+  },
+  {
+   "attributes": {
+    "Facility_Address": "100 Northern Park Drive, Chapel Hill NC",
+    "Facility_Name": "Homestead Park",
+    "Facility_Type": "Park",
+    "Main_Feature": "Playground",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": null,
+    "Tertiary_Feature": null,
+    "Zipcode": 27516
+   },
+   "lat": 35.95504536400006,
+   "lon": -79.06373160799997
+  },
+  {
+   "attributes": {
+    "Facility_Address": "216 North Roberson Street, Chapel Hill, NC",
+    "Facility_Name": "Northside Gymnasium",
+    "Facility_Type": "Gym",
+    "Main_Feature": "Gymnasium",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": "Fee/pass for entry",
+    "Tertiary_Feature": null,
+    "Zipcode": 27516
+   },
+   "lat": 35.91290562800003,
+   "lon": -79.06423917299998
+  },
+  {
+   "attributes": {
+    "Facility_Address": "200 Plant Road, Chapel Hill, NC",
+    "Facility_Name": "Chapel Hill Parks & Recreation Administrative Offices",
+    "Facility_Type": "Administrative Office",
+    "Main_Feature": "Administrative Office",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": null,
+    "Tertiary_Feature": null,
+    "Zipcode": 27514
+   },
+   "lat": 35.92606143300003,
+   "lon": -79.03382545899996
+  },
+  {
+   "attributes": {
+    "Facility_Address": "1000 Dogwood Acres Drive, Chapel Hill NC",
+    "Facility_Name": "Southern Community Dog Park",
+    "Facility_Type": "Dog Park",
+    "Main_Feature": "Dog Park (2 Acres)",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": null,
+    "Tertiary_Feature": null,
+    "Zipcode": 27516
+   },
+   "lat": 35.87967547600004,
+   "lon": -79.07241756999998
+  },
+  {
+   "attributes": {
+    "Facility_Address": "100 Northern Park Drive, Chapel Hill NC",
+    "Facility_Name": "Homestead Dog Park",
+    "Facility_Type": "Dog Park",
+    "Main_Feature": "Dog Park (20,000 Sq Ft)",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": "Separate small and large dog areas",
+    "Tertiary_Feature": null,
+    "Zipcode": 27516
+   },
+   "lat": 35.95504536400006,
+   "lon": -79.06373160799997
+  },
+  {
+   "attributes": {
+    "Facility_Address": "120 South Estes Drive, Chapel Hill, NC",
+    "Facility_Name": "Chapel Hill Community Center Gymnasium",
+    "Facility_Type": "Gym",
+    "Main_Feature": "Gymnasium",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": null,
+    "Tertiary_Feature": null,
+    "Zipcode": 27514
+   },
+   "lat": 35.927721660000024,
+   "lon": -79.03139635199996
+  },
+  {
+   "attributes": {
+    "Facility_Address": "120 South Estes Drive, Chapel Hill, NC",
+    "Facility_Name": "Chapel Hill Community Center Indoor Pool",
+    "Facility_Type": "Pool",
+    "Main_Feature": "25m indoor pool",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": "Changing areas/locker rooms",
+    "Tertiary_Feature": null,
+    "Zipcode": 27514
+   },
+   "lat": 35.927721660000024,
+   "lon": -79.03139635199996
+  },
+  {
+   "attributes": {
+    "Facility_Address": "750 Merritt Mill Road",
+    "Facility_Name": "Lincoln Gymnasium",
+    "Facility_Type": "Gym",
+    "Main_Feature": "Gymnasium",
+    "Quaternary_Feature": null,
+    "Season_of_Operation": "Year-round",
+    "Secondary_Feature": null,
+    "Tertiary_Feature": null,
+    "Zipcode": 27516
+   },
+   "lat": 35.90129661700007,
+   "lon": -79.07034692899998
+  }
+ ],
+ "source": "chapelhill_facilities",
+ "url": "https://services2.arcgis.com/7KRXAKALbBGlCW77/arcgis/rest/services/Parks_and_Recreation_Facilities/FeatureServer/0",
+ "where": "1=1"
+}

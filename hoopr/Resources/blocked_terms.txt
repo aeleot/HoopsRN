@@ -1,0 +1,129 @@
+# Words refused in display names and squad names (App Review Guideline 1.2).
+#
+# One term per line, lowercase, letters only. Matched as WHOLE WORDS by
+# `NameFilter`, ignoring case, accents and common digit-for-letter swaps — so
+# a place name or surname that merely contains one of these is not refused.
+# That is also why common plurals are listed separately. Lines starting with
+# `#` and blank lines are ignored.
+#
+# Left out on purpose: words that are also ordinary names (Dick, Lynch, Coon,
+# Isis, Jihad). A filter that refuses real names gets switched off.
+#
+# Add to this list freely; `NameFilterTests` only fails if the file stops
+# loading or goes empty.
+
+# Profanity
+fuck
+fucks
+fucker
+fuckers
+fucking
+fuk
+fuq
+motherfucker
+motherfuckers
+shit
+shits
+shitty
+bullshit
+bitch
+bitches
+bastard
+bastards
+asshole
+assholes
+dickhead
+cock
+cocks
+cocksucker
+pussy
+pussies
+cunt
+cunts
+twat
+twats
+wanker
+wankers
+prick
+pricks
+douche
+douchebag
+jackass
+piss
+pissed
+
+# Sexual
+porn
+porno
+blowjob
+handjob
+dildo
+jizz
+cumshot
+boner
+tits
+titties
+boobs
+anal
+rape
+rapist
+raping
+molest
+molester
+pedo
+pedophile
+slut
+sluts
+whore
+whores
+hoes
+skank
+skanks
+thot
+
+# Slurs
+nigger
+niggers
+nigga
+niggas
+nigg
+chink
+chinks
+gook
+gooks
+spic
+spics
+wetback
+wetbacks
+beaner
+beaners
+kike
+kikes
+jigaboo
+towelhead
+raghead
+sandnigger
+paki
+pakis
+tranny
+trannies
+faggot
+faggots
+fag
+fags
+dyke
+dykes
+retard
+retards
+retarded
+
+# Hate and violence
+nazi
+nazis
+hitler
+kkk
+klan
+lynching
+genocide
+killyourself
+kys

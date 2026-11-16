@@ -224,6 +224,7 @@ nonisolated extension Squad {
         let name = normalizedName(raw)
         guard name.count >= nameLengthRange.lowerBound else { return .nameTooShort }
         guard name.count <= nameLengthRange.upperBound else { return .nameTooLong }
+        guard NameFilter.bundled.isAllowed(name) else { return .nameNotAllowed }
         return nil
     }
 
@@ -311,6 +312,9 @@ nonisolated enum SquadError: Error, Equatable {
     /// trimming.
     case nameTooShort
     case nameTooLong
+    /// Contains a word `NameFilter` refuses. Client-side only — the rules
+    /// can't hold a word list.
+    case nameNotAllowed
     /// A format the schema declares but the rules don't yet allow — 1v1 and
     /// 5v5 today.
     case unsupportedFormat

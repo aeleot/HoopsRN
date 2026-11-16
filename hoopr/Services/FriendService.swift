@@ -317,10 +317,18 @@ final class FriendService: ObservableObject {
             // Only a rules refusal can be the collision — a create against an
             // existing document falls through to the tighter update allowlist,
             // which rejects it. Anything else is a real failure.
-            if friendError == .permissionDenied,
-               let existing = await existingEdge(at: reference),
-               try await resolve(existing, requestedFrom: otherUid) {
-                return
+            if friendError == .permissionDenied {
+                if let existing = await existingEdge(at: reference) {
+                    if try await resolve(existing, requestedFrom: otherUid) { return }
+                } else {
+                    // Refused with no edge in the way. Every other condition
+                    // of the create rule is something this method just built
+                    // correctly, so what's left is the one the client can't
+                    // see: the other person has blocked this account. Said
+                    // without saying so — a block is the blocker's business.
+                    report(.requestRefused, whileDoing: "sending that request", context: .write)
+                    throw FriendError.requestRefused
+                }
             }
 
             report(friendError, whileDoing: "sending that request", context: .write)
@@ -352,6 +360,32 @@ final class FriendService: ObservableObject {
     /// Ends an accepted friendship. Deletes the edge.
     func removeFriend(_ friendshipId: String) async throws {
         try await deleteEdge(friendshipId, whileDoing: "removing that friend")
+    }
+
+    /// Deletes every edge the signed-in account is on — friends, and requests
+    /// in both directions. The friends step of account deletion.
+    ///
+    /// Reads the two query shapes the listeners use rather than the published
+    /// lists, so it doesn't depend on a listener having delivered yet. Either
+    /// participant may delete an edge, so every one of these is a write the
+    /// rules already allow. Safe to run twice. Doesn't touch `errorMessage`:
+    /// a failed deletion is the delete sheet's to report.
+    ///
+    /// - Throws: `FriendError`, never a Firestore type.
+    func deleteEveryEdge() async throws {
+        guard let uid = observedUID else { throw FriendError.notSignedIn }
+
+        let friendships = database.collection(Collection.friendships)
+        do {
+            let asFirst = try await friendships.whereField(Field.uidA, isEqualTo: uid).getDocuments()
+            let asSecond = try await friendships.whereField(Field.uidB, isEqualTo: uid).getDocuments()
+
+            for document in asFirst.documents + asSecond.documents {
+                try await document.reference.delete()
+            }
+        } catch {
+            throw Self.mapped(error)
+        }
     }
 
     /// The single delete path behind decline, cancel, and unfriend.
@@ -476,6 +510,8 @@ final class FriendService: ObservableObject {
         case .notSignedIn:       return FailureText.signedOut
         case .cannotFriendSelf:  return "You can't add yourself."
         case .requestNotFound:   return "That request is no longer there."
+        case .requestRefused:
+            return "Couldn't send that request. This player isn't accepting requests right now."
         case .permissionDenied:
             switch context {
             case .load:

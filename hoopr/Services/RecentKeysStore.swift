@@ -35,6 +35,12 @@ class RecentKeysStore {
 
     /// Moves `key` to the front, whether or not it was already present, and
     /// drops whatever is past `capacity`. Returns the list as stored.
+    /// Forgets everything. Called when the account on this device changes —
+    /// see `SessionCleanup`.
+    func clear() {
+        defaults.removeObject(forKey: storageKey)
+    }
+
     @discardableResult
     func record(_ key: String) -> [String] {
         var updated = keys

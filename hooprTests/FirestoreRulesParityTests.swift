@@ -613,6 +613,49 @@ final class FirestoreRulesParityTests: XCTestCase {
         )
     }
 
+    // MARK: - reports and blocks
+
+    /// `isAllowedTargetType()` / `isAllowedReason()` in the rules, against
+    /// `Report.TargetType` and `Report.Reason`. A reason offered in the sheet
+    /// and missing from the rules is a report that can be written and never
+    /// sent — refused as `permission-denied`, with nothing saying which word
+    /// was the problem.
+    func testReportAllowlistsMatchSwift() throws {
+        let targetTypes = quotedStrings(in: try functionBody("isAllowedTargetType"))
+        let reasons = quotedStrings(in: try functionBody("isAllowedReason"))
+
+        XCTAssertEqual(Set(targetTypes), Set(Report.TargetType.allCases.map(\.rawValue)))
+        XCTAssertEqual(Set(reasons), Set(Report.Reason.allCases.map(\.rawValue)))
+        XCTAssertEqual(reasons.count, Set(reasons).count, "isAllowedReason() repeats a reason")
+    }
+
+    func testReportDetailsLengthMatchesSwift() throws {
+        let block = try matchBlock("reports")
+        let limits = numbers(#"details\.size\(\)\s*<=\s*(\d+)"#, in: block)
+
+        XCTAssertEqual(limits, [Double(Report.maxDetailsLength)])
+    }
+
+    /// The two create rules look a block up at `{target}_{sender}`, which has
+    /// to be the ID `Block.id(blocker:blocked:)` builds — the target is the
+    /// blocker. If these disagree, blocking silently stops doing anything.
+    func testBlockedSendersAreLookedUpAtTheIdSwiftWouldBuild() throws {
+        XCTAssertEqual(Block.id(blocker: "target", blocked: "sender"), "target_sender")
+
+        XCTAssertTrue(
+            try matchBlock("blocks").contains("blockId == incoming().blockerId + '_' + incoming().blockedId"),
+            "The blocks create rule no longer ties the document ID to blocker_blocked."
+        )
+        XCTAssertTrue(
+            try matchBlock("friendships").contains("blocks/$(uid + '_' + request.auth.uid)"),
+            "The friendships create rule no longer looks up the other person's block of the sender."
+        )
+        XCTAssertTrue(
+            try matchBlock("squadInvites").contains("blocks/$(incoming().uid + '_' + request.auth.uid)"),
+            "The squadInvites create rule no longer looks up the invitee's block of the sender."
+        )
+    }
+
     // MARK: - Parsing helpers
 
     private func firstMatch(_ pattern: String) -> [String]? {

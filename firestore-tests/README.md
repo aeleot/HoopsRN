@@ -44,7 +44,8 @@ asserts exactly one wins. The whole matchmaker is built on that being true
 
 ## Coverage
 
-All seven collections, 141 tests. The suite was Seasons-only until 2026-09-20,
+All nine collections, 172 tests (2026-11-16, when `blocks.test.mjs` and
+`reports.test.mjs` were added). The suite was Seasons-only until 2026-09-20,
 when `games.test.mjs`, `friendships.test.mjs` and `users.test.mjs` backfilled
 the three original collections.
 

@@ -55,6 +55,12 @@ struct ProfileView: View {
     private let friendService: FriendService
     private let squadService: SquadService
 
+    /// Builds the deletion flow's view model when its sheet opens, and not
+    /// before: it joins six services, and nearly nobody ever opens it. A
+    /// closure rather than the services themselves, so this view holds
+    /// nothing it doesn't otherwise use.
+    private let makeDeleteAccountViewModel: () -> DeleteAccountViewModel
+
     private let onOpenInbox: () -> Void
 
     @State private var pane: Pane = .profile
@@ -94,6 +100,8 @@ struct ProfileView: View {
     private enum SettingsSheet: String, Identifiable {
         case appearance
         case password
+        case blockedPlayers
+        case deleteAccount
 
         var id: String { rawValue }
     }
@@ -119,10 +127,26 @@ struct ProfileView: View {
         courtService: CourtService,
         friendService: FriendService,
         squadService: SquadService,
+        gameService: GameService,
+        matchmakingService: MatchmakingService,
+        seasonGameService: SeasonGameService,
+        safetyService: SafetyService,
         onOpenInbox: @escaping () -> Void
     ) {
         self.friendService = friendService
         self.squadService = squadService
+        self.makeDeleteAccountViewModel = {
+            DeleteAccountViewModel(
+                authService: authService,
+                userProfileService: userProfileService,
+                gameService: gameService,
+                friendService: friendService,
+                squadService: squadService,
+                matchmakingService: matchmakingService,
+                seasonGameService: seasonGameService,
+                safetyService: safetyService
+            )
+        }
         self.onOpenInbox = onOpenInbox
         _viewModel = StateObject(wrappedValue: ProfileViewModel(
             authService: authService,
@@ -132,7 +156,9 @@ struct ProfileView: View {
         _friendsViewModel = StateObject(wrappedValue: FriendsViewModel(
             friendService: friendService,
             userProfileService: userProfileService,
-            courtService: courtService
+            courtService: courtService,
+            safetyService: safetyService,
+            squadService: squadService
         ))
     }
 
@@ -162,6 +188,14 @@ struct ProfileView: View {
                         },
                         onDone: { settingsSheet = nil }
                     )
+                case .blockedPlayers:
+                    BlockedPlayersSheet(viewModel: friendsViewModel) {
+                        settingsSheet = nil
+                    }
+                case .deleteAccount:
+                    DeleteAccountSheet(viewModel: makeDeleteAccountViewModel()) {
+                        settingsSheet = nil
+                    }
                 }
             }
             .sheet(item: $presentedPlayer) { route in
@@ -462,6 +496,28 @@ struct ProfileView: View {
                 )
             }
 
+            // Required to be reachable from inside the app, not only from the
+            // store listing (App Review 5.1.1(i)); and a published contact is
+            // part of the user-generated-content rules (1.2). Above Account so
+            // Sign Out and Delete Account stay the end of the screen.
+            section("Help & legal") {
+                ProfileLinkRow(
+                    symbol: "envelope.fill",
+                    title: "Contact Support",
+                    destination: LegalLinks.supportMail
+                )
+                ProfileLinkRow(
+                    symbol: "hand.raised.square.fill",
+                    title: "Privacy Policy",
+                    destination: LegalLinks.privacyPolicy
+                )
+                ProfileLinkRow(
+                    symbol: "doc.text.fill",
+                    title: "Terms of Use",
+                    destination: LegalLinks.termsOfUse
+                )
+            }
+
             section("Account") {
                 ProfileRow(
                     symbol: "person.fill",
@@ -516,6 +572,17 @@ struct ProfileView: View {
                     placeholder: "—"
                 )
 
+                // The way back from a block (App Review Guideline 1.2): search
+                // and the inbox stop showing a blocked player, so this list is
+                // the only place left to unblock one.
+                ProfileRow(
+                    symbol: "hand.raised.fill",
+                    label: "Blocked Players",
+                    value: blockedPlayersText,
+                    placeholder: "None",
+                    onTap: { settingsSheet = .blockedPlayers }
+                )
+
                 // The end of the list, not a bar of its own: the rows already
                 // run to the bottom of the screen, and a pinned bar over them
                 // would be a permanent reminder of the one action nobody comes
@@ -526,6 +593,18 @@ struct ProfileView: View {
                     tint: .destructive
                 ) {
                     viewModel.signOut()
+                }
+
+                // Below Sign Out, and the last thing on the screen: required
+                // to exist (App Review 5.1.1(v)) and to be findable, but the
+                // rarest action here. It only opens a sheet — the password and
+                // a typed word stand between this row and anything happening.
+                ProfileActionRow(
+                    symbol: "trash",
+                    title: "Delete Account",
+                    tint: .destructive
+                ) {
+                    settingsSheet = .deleteAccount
                 }
             }
 
@@ -558,6 +637,12 @@ struct ProfileView: View {
         return "\(version) (\(build))"
     }
     #endif
+
+    /// `nil` at zero, which renders the placeholder.
+    private var blockedPlayersText: String? {
+        let count = friendsViewModel.blockedPlayers.count
+        return count == 0 ? nil : "\(count)"
+    }
 
     /// Count and unit as one value — "12 courts" — rather than a value with a
     /// unit hung off it. `nil` at zero, which renders the placeholder.
@@ -631,6 +716,10 @@ struct ProfileView: View {
         courtService: CourtService(),
         friendService: FriendService(authService: authService),
         squadService: SquadService(authService: authService),
+        gameService: GameService(authService: authService),
+        matchmakingService: MatchmakingService(authService: authService),
+        seasonGameService: SeasonGameService(authService: authService),
+        safetyService: SafetyService(authService: authService),
         onOpenInbox: {}
     )
 }

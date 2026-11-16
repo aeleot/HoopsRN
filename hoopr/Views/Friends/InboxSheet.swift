@@ -44,6 +44,7 @@ struct InboxSheet: View {
         userProfileService: UserProfileService,
         courtService: CourtService,
         seasonGameService: SeasonGameService,
+        safetyService: SafetyService,
         onOpenMatch: @escaping (InboxMatchesViewModel.Row) -> Void,
         onDismiss: @escaping () -> Void
     ) {
@@ -52,7 +53,9 @@ struct InboxSheet: View {
         _viewModel = StateObject(wrappedValue: FriendsViewModel(
             friendService: friendService,
             userProfileService: userProfileService,
-            courtService: courtService
+            courtService: courtService,
+            safetyService: safetyService,
+            squadService: squadService
         ))
         _squadViewModel = StateObject(wrappedValue: SquadViewModel(
             squadService: squadService,

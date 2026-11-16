@@ -55,7 +55,7 @@ path in the repo.
 |---|---|
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | How the app is wired: service ownership, startup order, the Firebase vendor boundary, listener recovery, and the one write that spans two collections. |
 | [`DATA_MODEL.md`](DATA_MODEL.md) | The domain types and their contracts — stable court IDs, the profile's write rules, derived game status, what each error case means. |
-| [`database/DATABASE_SCHEMA.md`](database/DATABASE_SCHEMA.md) | What's stored in Firestore and what a client may write, across all **seven** collections — plus the rate-limit floors and why they're cooldowns rather than quotas. |
+| [`database/DATABASE_SCHEMA.md`](database/DATABASE_SCHEMA.md) | What's stored in Firestore and what a client may write, across all **nine** collections (the seven of the product, plus `blocks` and `reports`) — plus the rate-limit floors and why they're cooldowns rather than quotas. |
 | [`MAP_LAYER.md`](MAP_LAYER.md) | The map, its UUID trigger pattern, the north bias, and the pins' heat-map colouring. |
 | [`COURT_DATASET.md`](COURT_DATASET.md) | Where courts come from and how to regenerate or extend them. |
 | [`UI_SHELL.md`](UI_SHELL.md) | Navigation structure, the tabs, run creation, the Seasons card's four states, and the visual conventions. |
@@ -98,6 +98,8 @@ exist; the dictionary describes code that does.
 |---|---|
 | [`plans/LIVE_HEADCOUNT.md`](plans/LIVE_HEADCOUNT.md) | Proposed — live court occupancy via a `checkins` collection. |
 | [`plans/SCALE_UP.md`](plans/SCALE_UP.md) | Proposed — multi-city scaling: the global public-games query fix, court-dataset delivery, and the sequencing around them. |
+| [`plans/COURT_DATA_PLATFORM.md`](plans/COURT_DATA_PLATFORM.md) | Proposed — statewide NC coverage. Its API question is **closed (no API, decided 2026-09-22)**; §4 is kept as the record of why. Owns **ingest** (Geofabrik extract, boundary-based city assignment) where `SCALE_UP.md` §2 owns delivery. Leads with the measurement that reframes both: all of NC is ~1,764 courts / ~795KB, so bundling survives statewide and size was never the blocker. |
+| [`plans/COURT_DATA_SOURCES.md`](plans/COURT_DATA_SOURCES.md) | Proposed — **how to make the Triangle data actually accurate.** A completed 2026-09-22 survey of four official sources (Raleigh PRCR court-level, Wake County all-jurisdiction, Durham, Chapel Hill) with endpoints and field names, what each would measurably fix, and the honest negatives (Cary publishes no basketball field; no hoop-count source exists). Its §4 is the load-bearing part: official *court-level* and *park-level* claims are different kinds of fact and must not be merged. |
 | [`plans/BACKLOG.md`](plans/BACKLOG.md) | Proposed — unbuilt enhancement stories: solo Queue Up, Friends safety, run detail, and the Blaze-gated waitlist story. |
 | [`plans/LAUNCH_GAMEPLAN.md`](plans/LAUNCH_GAMEPLAN.md) | **Active, week of 2026-10-19.** Day-by-day schedule closing every audit item, with gates, the rules-deploy protocol, the full manual test plan (two phones), triage, cut list, and the launch runbook. COMPLETE target Sun 2026-10-25; launch target Thu 2026-11-05. |
 | [`plans/PRE_LAUNCH_AUDIT.md`](plans/PRE_LAUNCH_AUDIT.md) | **Read first before shipping.** 2026-10-18 audit: four App Store blockers, eight user-facing bugs, ops/release checklist, doc drift, and UX touch-ups. Supersedes `LAUNCH_READINESS.md`. |

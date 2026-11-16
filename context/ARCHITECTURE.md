@@ -30,6 +30,7 @@ can be built with a stub.
 | `InboxDismissalsStore` | `keys: Set<String>` | The inbox cards this device has cleared (an "accepted your request" card asks nothing of you, so it can be swiped away). `UserDefaults`-backed, on-device, capped at 100 keys; a second device showing a card once more is correct. Injectable into `FriendsViewModel`. |
 | `CelebratedWinsStore` | — | The same idea for the result screen's confetti: which wins this device has already celebrated, so it fires once. `UserDefaults`-backed, on-device, and **not** owned by `hooprApp` — `ResultViewModel` builds its own by default and takes it as an injectable `init` parameter, so tests pass a scratch suite. |
 | `SquadService` | `squads: [Squad]`, `incomingInvites`/`sentInvites: [SquadInvite]`, `errorMessage`, `isRecovering`, `hasLoadedSquads` | `@MainActor`. Subscribes to `AuthService` itself. **Owns two collections** — `squads` and `squadInvites` — justified because a `squadInvite` has no independent existence: it is created against a squad, consumed by a write to that same squad, and deleted in the same breath. |
+| `SafetyService` | `blocks: [Block]`, `blockedUids: Set<String>`, `isRecovering` | `@MainActor`. Subscribes to `AuthService` itself. **Owns two collections** — `blocks` and `reports` — for `SquadService`'s reason: a report is one write with no listener and no state. Publishes no `errorMessage`; its writes throw `SafetyError` and the calling view model words it. The *effect* of a block is mostly elsewhere: the refusal is in `firestore.rules`, and removing the existing friendship and invites is `FriendsViewModel.block`, because that crosses collections. |
 | `MatchmakingService` | `myTicket: MatchTicket?`, `pool: [MatchTicket]`, `isBackingOff: Bool` | `@MainActor`. Owns `matchTickets`, the pool listener and the scan. It no longer performs the contested write — that spans two collections and lives in `SeasonGameService.commitMatch`, reached through an injected `MatchCommitting`. Its retry is about contention, not network health, and is deliberately separate from the supervisor's. |
 | `SeasonGameService` | `games: [SeasonGame]`, `errorMessage`, `isRecovering`, `hasLoadedGames` | `@MainActor`. Owns `seasonGames`, and holds **the one contested write in the app** — `commitMatch`, which creates a match and spends both `matchTickets` atomically. A `seasonGame` earns its own service where a `squadInvite` didn't: it outlives both tickets, has its own listener, and is what a squad's record is derived from. |
 | `NotificationService` | `authorizationStatus: UNAuthorizationStatus?` | The only file in the app importing `UserNotifications`. **Executes a plan and decides nothing** — see the vendor boundary below. |
@@ -71,7 +72,7 @@ friendship uids to
 profiles for their names, and `MapViewModel` joins `GameService`'s
 `queuedGames` + `publicGames` to the court dataset to colour the map's pins by
 how busy each court is today (runs still on the board — `isVisible(at:)`) — see `MAP_LAYER.md`'s `CourtHeat` section, and
-`gameCountsByCourt`'s doc comment for why summing those two arrays needs a
+`gameCountsByFacility`'s doc comment for why summing those two arrays needs a
 dedup. On the Seasons side, `SquadViewModel` joins `squadInvites` to
 `friendships` for the invite picker (the join that makes it a view model at
 all), and `GameDayViewModel`/`ResultViewModel` join a match to both squads'
@@ -177,6 +178,7 @@ the service layer", which still holds.)*
 | `Services/GameService.swift` | `FirebaseFirestore` | `games` | `Game`, `GameError` |
 | `Services/FriendService.swift` | `FirebaseFirestore` | `friendships` | `Friendship`, `FriendError` |
 | `Services/SquadService.swift` | `FirebaseFirestore` | `squads`, `squadInvites` | `Squad`, `SquadInvite`, `SquadError` |
+| `Services/SafetyService.swift` | `FirebaseFirestore` | `blocks`, `reports` | `Block`, `Report`, `SafetyError` |
 | `Services/MatchmakingService.swift` | `FirebaseFirestore` | `matchTickets` | `MatchTicket`, `MatchCandidate`, `MatchTicketError` |
 | `Services/SeasonGameService.swift` | `FirebaseFirestore` | `seasonGames`, and `matchTickets` in `commitMatch` alone | `SeasonGame`, `SeasonGameError`, `ClaimOutcome` |
 | `Services/NotificationService.swift` | `UserNotifications` | scheduled local notifications | `UNAuthorizationStatus` only |

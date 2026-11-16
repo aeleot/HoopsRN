@@ -70,6 +70,11 @@ struct LoginView: View {
             field(placeholder: "Email", text: $viewModel.email, field: .email, isSecure: false)
             field(placeholder: "Password", text: $viewModel.password, field: .password, isSecure: true)
 
+            if viewModel.offersPasswordReset {
+                forgotPasswordButton
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+
             if let errorMessage = viewModel.errorMessage {
                 Text(errorMessage)
                     .hooprType(.caption)
@@ -77,8 +82,28 @@ struct LoginView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            if let noticeMessage = viewModel.noticeMessage {
+                Text(noticeMessage)
+                    .hooprType(.caption)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             submitButton
                 .padding(.top, Spacing.sm)
+
+            // Only when creating an account: that is the moment of agreeing,
+            // and someone signing back in already has (App Review 1.2 asks
+            // for terms a user accepts; 5.1.1(i) for the policy in the app).
+            if viewModel.mode == .signUp {
+                Text(.init(LegalLinks.signUpAgreementMarkdown))
+                    .hooprType(.caption)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                    .tint(Color.hooprBrandAccent)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
+            }
 
             modeSwitch
                 .frame(maxWidth: .infinity)
@@ -111,6 +136,25 @@ struct LoginView: View {
             shape: .form
         ))
         .disabled(!viewModel.canSubmit)
+    }
+
+    /// The only way back in for someone signed out who has forgotten their
+    /// password. It sends the link to whatever is in the email field, so
+    /// there is no second screen to fill in.
+    private var forgotPasswordButton: some View {
+        Button {
+            focusedField = nil
+            Task { await viewModel.sendPasswordReset() }
+        } label: {
+            Text("Forgot password?")
+                .hooprType(.body)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.hooprBrandAccent)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(viewModel.isBusy)
     }
 
     private var modeSwitch: some View {

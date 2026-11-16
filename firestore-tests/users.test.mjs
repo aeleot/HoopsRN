@@ -264,9 +264,26 @@ test('a negative stat is refused', async () => {
 
 // MARK: - Delete
 
-test('account deletion is not a supported flow, even for the owner', async () => {
+test('an owner can delete their own profile — the last write of account deletion', async () => {
   const db = testEnv.authenticatedContext('owner').firestore();
-  await assertFails(deleteDoc(doc(db, 'users', 'owner')));
+  await assertSucceeds(deleteDoc(doc(db, 'users', 'owner')));
+
+  assert.equal(await readRaw(testEnv, 'users/owner'), null);
+});
+
+test('nobody else can delete a profile, signed in or not', async () => {
+  const stranger = testEnv.authenticatedContext('stranger').firestore();
+  await assertFails(deleteDoc(doc(stranger, 'users', 'owner')));
+
+  const signedOut = testEnv.unauthenticatedContext().firestore();
+  await assertFails(deleteDoc(doc(signedOut, 'users', 'owner')));
 
   assert.notEqual(await readRaw(testEnv, 'users/owner'), null);
+});
+
+// A retry of a deletion that got as far as the profile must not fail on it:
+// the flow is resumable, and this is the step it would resume past.
+test('deleting a profile that is already gone still succeeds for its owner', async () => {
+  const db = testEnv.authenticatedContext('newcomer').firestore();
+  await assertSucceeds(deleteDoc(doc(db, 'users', 'newcomer')));
 });

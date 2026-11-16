@@ -19,6 +19,11 @@ something ships.
 > committed, so the live ruleset is the repo's once it lands. **Indexes last
 > deployed 2026-09-16**; nothing in `firestore.indexes.json` has needed a
 > redeploy since.
+>
+> **Rules redeployed 2026-11-16** with the `blocks` and `reports` collections
+> and the two block clauses on `friendships` / `squadInvites` create — from the
+> working tree, before that change was committed, so the live ruleset is the
+> repo's once it lands. No index change.
 
 **What's actually next:** §1 (verify on a device, now including an invite
 between two phones) costs nothing but time and de-risks everything else; §0

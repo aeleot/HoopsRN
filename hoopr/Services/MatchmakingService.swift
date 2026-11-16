@@ -742,6 +742,29 @@ final class MatchmakingService: ObservableObject {
         }
     }
 
+    /// Takes a squad's ticket out of the pool **if it has one** — the step
+    /// before a squad is disbanded (`AccountDeletionPlan`).
+    ///
+    /// Reads first, because `leaveQueue` on a squad with no ticket isn't a
+    /// no-op: the delete rule reads `resource.data.leaderId`, so deleting
+    /// nothing is *refused*, and a refusal here would stop a deletion that had
+    /// nothing to do. Doesn't touch `errorMessage`.
+    ///
+    /// - Throws: `MatchTicketError`. A ticket younger than the rules' 5-second
+    ///   floor is refused as `permissionDenied`; trying again clears it.
+    func withdrawTicketIfPresent(squadId: String) async throws {
+        guard observedUID != nil else { throw MatchTicketError.notSignedIn }
+
+        let reference = database.collection(Collection.matchTickets).document(squadId)
+        do {
+            guard try await reference.getDocument().exists else { return }
+            try await reference.delete()
+        } catch {
+            throw Self.mapped(error)
+        }
+        stopSearching()
+    }
+
     // MARK: - Helpers
 
     private func clearError() {

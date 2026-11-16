@@ -29,6 +29,7 @@ final class GameDayViewModel: ObservableObject {
     private let userProfileService: UserProfileService
     private let notificationService: NotificationService
     private let courtService: CourtService
+    private let safetyService: SafetyService
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -39,7 +40,8 @@ final class GameDayViewModel: ObservableObject {
         squadService: SquadService,
         userProfileService: UserProfileService,
         notificationService: NotificationService,
-        courtService: CourtService
+        courtService: CourtService,
+        safetyService: SafetyService
     ) {
         self.game = game
         self.mySquadId = mySquadId
@@ -48,6 +50,7 @@ final class GameDayViewModel: ObservableObject {
         self.userProfileService = userProfileService
         self.notificationService = notificationService
         self.courtService = courtService
+        self.safetyService = safetyService
 
         seasonGameService.$games
             .receive(on: DispatchQueue.main)
@@ -68,6 +71,18 @@ final class GameDayViewModel: ObservableObject {
     var myRoster: [SquadViewModel.MemberRow] { isHome ? homeRoster : awayRoster }
     var opponentRoster: [SquadViewModel.MemberRow] { isHome ? awayRoster : homeRoster }
     var opponentName: String { game.opponentName(of: mySquadId) ?? "Opponent" }
+    var opponentSquadId: String { isHome ? game.awaySquadId : game.homeSquadId }
+
+    /// The report sheet's view model for the other squad (App Review
+    /// Guideline 1.2) — its name is typed by its leader and shown to you.
+    func makeOpponentReportViewModel() -> ReportViewModel {
+        ReportViewModel(
+            targetType: .squad,
+            targetId: opponentSquadId,
+            targetName: opponentName,
+            safetyService: safetyService
+        )
+    }
 
     var courtName: String {
         courtService.courts.first { $0.id == game.courtId }?.displayName ?? "Unknown court"

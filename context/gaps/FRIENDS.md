@@ -12,32 +12,47 @@ and `UI_SHELL.md` own. It can't be diffed, so it's re-read by hand every pass.
 **Built and deployed:** the `friendships` collection and its rules, answering
 and viewing requests, discovery (search by name prefix or exact ID,
 `PlayerProfileSheet`, `InboxSheet` and its badge), and the friends'-public-runs
-badge. Only the safety tooling is left, deferred on purpose.
+badge, and — since 2026-11-16 — blocking, reporting and a name filter.
 
 ---
 
-## Anyone can ask anyone, as often as they like
+## Blocking and reporting exist; what they don't cover
 
-**There is no blocking, no reporting, and no rate limiting on friend
-requests.** Anyone signed in can search for anyone and send them a request;
-declining (which deletes the edge) is the only recourse, and nothing stops the
-same person asking again immediately.
+**Built 2026-11-16, on Spark** (App Review Guideline 1.2): Report and Block on
+`PlayerProfileSheet`, Report on an opponent squad from game day, a Blocked
+Players list in Profile, and a word filter on display names and squad names.
+The schema and what a block does on the server are in
+`../database/DATABASE_SCHEMA.md` (`blocks`, `reports`). The rules were
+deployed 2026-11-16.
 
-The client bounds the *accidental* case — a 300ms search debounce, a 20-result
-cap, one write in flight — but **a modified client isn't bound by any of
-that**, and the document-ID-per-pair structure only caps duplicates against the
-*same* person. Requests to thousands of *different* uids are uncapped.
+What's still open:
 
-This is the longest-standing instance of the pattern in
-[`RATE_LIMITING.md`](RATE_LIMITING.md), and the one that matters most, because
-its blast radius is a person rather than a query budget. The burst-rate floors
-added to `matchTickets` and `seasonGames` on 2026-09-16 were **not** extended
-here: a cooldown needs a timestamp on a document the write already touches, and
-a first-ever request to a new person has no prior document to compare against.
-A per-account stamp would work and needs the private subcollection first — see
-[`PROFILES.md`](PROFILES.md).
-
-Blocking is `../plans/BACKLOG.md` B3; it needs Cloud Functions.
+- **Nobody is told when a report arrives.** Reports are documents in the
+  console and nothing else. Apple expects timely responses, so someone has to
+  open `reports` on a schedule. A Cloud Function that emails on create is the
+  fix, and needs Blaze (`../ROADMAP.md` §0).
+- **A block is narrow.** It refuses friend requests and squad invites. It does
+  not hide the blocker's profile, squads or public runs, and the two can still
+  land on the same run or be matched as squads.
+- **The name filter is client-side and by whole word.** A modified client can
+  store any name; so can anyone creative with spelling. Rules can't hold a word
+  list. Existing names were never checked — the filter only runs on a save.
+- **A blocked sender's inbox badge can be stale.** `InboxButton` counts
+  `FriendService.incomingRequests` directly. Blocking deletes the request, so
+  the two normally agree; if that delete fails, the badge counts a request the
+  inbox hides.
+- **No rate limiting on requests or reports.** A modified client can still send
+  requests to thousands of *different* uids, or file reports in a loop. The
+  client bounds the accidental case — a 300ms search debounce, a 20-result cap,
+  one write in flight. This is the longest-standing instance of the pattern in
+  [`RATE_LIMITING.md`](RATE_LIMITING.md): a cooldown needs a timestamp on a
+  document the write already touches, and a first-ever request to a new person
+  has none. A per-account stamp would work and needs the private subcollection
+  first — see [`PROFILES.md`](PROFILES.md).
+- **Never run between two accounts.** The rules are raced in the emulator
+  (`firestore-tests/blocks.test.mjs`); a blocked person's client showing "isn't
+  accepting requests" has not been seen on a device. `LAUNCH_GAMEPLAN.md`
+  FRD-05 to FRD-08.
 
 ---
 
@@ -62,8 +77,7 @@ and no emulator test can get to it.
   overlapping half and deliberately not this one: a private run opens for
   anyone holding its ID, but nothing lets a friend *find* one they weren't
   sent — `list` still ignores friendship.
-- **Deferred on purpose:** blocking and reporting, push notifications on
-  request and acceptance, unique handles, typo-tolerant search, and mutual-friend
+- **Deferred on purpose:** push notifications on request and acceptance, unique handles, typo-tolerant search, and mutual-friend
   counts — each needs a Cloud Function or a real search index. Tracked in
   `../plans/BACKLOG.md` Track B.
 

@@ -47,6 +47,7 @@ struct SeasonsTab: View {
     private let userProfileService: UserProfileService
     private let courtService: CourtService
     private let notificationService: NotificationService
+    private let safetyService: SafetyService
 
     private let onOpenInbox: () -> Void
 
@@ -114,6 +115,7 @@ struct SeasonsTab: View {
         userProfileService: UserProfileService,
         courtService: CourtService,
         notificationService: NotificationService,
+        safetyService: SafetyService,
         matchToOpen: Binding<MatchDestination?>,
         onOpenInbox: @escaping () -> Void
     ) {
@@ -124,6 +126,7 @@ struct SeasonsTab: View {
         self.userProfileService = userProfileService
         self.courtService = courtService
         self.notificationService = notificationService
+        self.safetyService = safetyService
         self.onOpenInbox = onOpenInbox
         _viewModel = StateObject(wrappedValue: SquadViewModel(
             squadService: squadService,
@@ -204,6 +207,7 @@ struct SeasonsTab: View {
                         userProfileService: userProfileService,
                         notificationService: notificationService,
                         courtService: courtService,
+                        safetyService: safetyService,
                         onOpenResult: { played in
                             path.append(.result(mySquadId: mySquadId, game: played))
                         }

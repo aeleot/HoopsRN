@@ -2,6 +2,7 @@
 
 **Status:** proposed. Every unchecked box below is open work.
 **Audited:** 2026-10-18 @ `ff9bbe2` (branch `queue-system`, working tree clean)
+**Progress:** 2026-11-16 — §2.4's report, block and name filter built and its rules deployed. 2026-11-14 — §2.2 (manifest; the App Store Connect label is still open), §3.1, §3.3, §3.4, the default-name half of §3.6, the export-compliance flag in §4.4 and the last-day bound in §5.2 shipped on `court-data-accuracy`, guarded by `LaunchFixesTests`. Sign-out cleanup lives in `SessionCleanup`, keyed on the account changing rather than the Sign Out button, so account deletion (§2.1) gets it for free.
 **Supersedes:** [`LAUNCH_READINESS.md`](LAUNCH_READINESS.md). Its five items are folded in below (§4.1–4.2, §5.2, §5.6). Its summary says "every submission blocker has since shipped", and that's wrong: four App Store blockers are still open (§2).
 **Touches:** the whole app, `firestore.rules`, `hoopr.xcodeproj`, the Firebase console, App Store Connect
 
@@ -49,6 +50,14 @@ Each of these is either a written App Review rule or an upload-time check. Expec
 
 ### 2.1 No in-app account deletion (Guideline 5.1.1(v))
 
+> **Built and deployed 2026-11-14.** Profile → Delete Account
+> (`DeleteAccountSheet`, `DeleteAccountViewModel`, `AccountDeletionPlan`,
+> guarded by `AccountDeletionPlanTests`). The `users` delete rule is live and
+> `npm run test:rules` is 150/150. **One thing left before this closes:**
+> delete a real throwaway account end to end on a device — it has never been
+> run against a live account. What it leaves behind and why is in
+> [`gaps/PROFILES.md`](../gaps/PROFILES.md).
+
 Any app that lets people create an account must also let them delete it from
 inside the app. hoopsRN has no delete path at all. `firestore.rules:117` is
 `allow delete: if false` on `users`, and there's no UI for it.
@@ -89,9 +98,9 @@ directly through `RecentCourtsStore`, `InboxDismissalsStore`,
 `CelebratedWinsStore` and `@AppStorage`. That's a *required-reason API*, and
 App Store Connect flags an upload that doesn't declare it (ITMS-91053).
 
-- [ ] Add `hoopr/PrivacyInfo.xcprivacy` to the app target with
+- [x] *(shipped 2026-11-14)* Add `hoopr/PrivacyInfo.xcprivacy` to the app target with
       `NSPrivacyAccessedAPICategoryUserDefaults` → reason `CA92.1`.
-- [ ] Declare the collected data types: email address, user ID, name, and
+- [x] *(shipped 2026-11-14)* Declare the collected data types: email address, user ID, name, and
       other user content (squad names, runs). Set `NSPrivacyTracking` to
       `false`. Firebase's SDKs ship their own manifests, so the app only
       declares its own use.
@@ -107,15 +116,36 @@ easy to find in the app. There's none, and there's no Terms or Support link
 either: Profile's rows run Home Court → … → Joined → Sign Out
 (`ProfileView.swift:432–538`).
 
-- [ ] Write a privacy policy and terms of use, and host both. **Firebase
-      Hosting is available on the Spark plan**, so
-      `hoopsrn-4f1e9.web.app/privacy` costs nothing and is the same host §7.1
-      wants for invite links.
-- [ ] Add Privacy Policy, Terms, and Contact Support rows to Profile.
-- [ ] Link the terms on the sign-up form ("By creating an account you agree
-      to…").
+- [x] *(written and deployed 2026-11-16)* Write a privacy policy and
+      terms of use, and host both. **Firebase Hosting is available on the Spark
+      plan**, so `hoopsrn-4f1e9.web.app/privacy` costs nothing and is the same
+      host §7.1 wants for invite links. The pages are `public/privacy.html`,
+      `terms.html` and `support.html`, with a `hosting` block in
+      `firebase.json`. Live since 2026-11-16: `/privacy`, `/terms` and
+      `/support` each returned 200 that day. A change to `public/` is not live
+      until `firebase deploy --only hosting` runs again.
+- [x] *(built 2026-11-16)* Add Privacy Policy, Terms, and Contact Support rows
+      to Profile — a "Help & legal" section above Account (`ProfileLinkRow`).
+- [x] *(built 2026-11-16)* Link the terms on the sign-up form ("By creating an
+      account you agree to…"), shown in sign-up mode only.
+
+The URLs and the support address have one source, `LegalLinks`
+(`hoopr/Models/LegalLinks.swift`), and `LegalLinksTests` holds each link to a
+file in `public/`. Still open: the pages name the operator as "hoopsRN" with no
+legal entity, the contact is a personal Gmail address, and nobody with legal
+training has read either document. Neither the rows nor the sign-up line has
+been looked at in the simulator.
 
 ### 2.4 User-generated content has no safeguards (Guideline 1.2)
+
+> **Built and deployed 2026-11-16.** Report and Block on
+> `PlayerProfileSheet`, Report on the opponent squad from game day, Blocked
+> Players in Profile, and `NameFilter` in both validators. `blocks` and
+> `reports` are in `firestore.rules` with 22 new rules tests (172/172), three
+> clauses mutation-checked. **Left before this closes:**
+> try FRD-05 to FRD-08 between two accounts, decide who reads `reports` and
+> how often, and publish contact info (§2.3). What a block doesn't cover is in
+> [`gaps/FRIENDS.md`](../gaps/FRIENDS.md).
 
 Display names and squad names are typed by users and shown to strangers
 through player search, squad crests and opponent cards. Anyone signed in can
@@ -127,26 +157,26 @@ like this:
 | A way to filter objectionable content | None. Names are length-checked only (`Squad.validate(name:)`, `UserProfile.validate(userName:)`). |
 | A way to report content | None |
 | A way to block abusive users | None ([`gaps/FRIENDS.md`](../gaps/FRIENDS.md)) |
-| Published contact information | None (§2.3) |
+| Published contact information | Written 2026-11-16: the support page and Profile → Contact Support (§2.3), live since 2026-11-16. |
 
 Minimum set that works on Spark:
 
-- [ ] **Report:** a "Report" action on `PlayerProfileSheet` and on an
+- [x] *(built 2026-11-16)* **Report:** a "Report" action on `PlayerProfileSheet` and on an
       opponent's squad. It writes `reports/{autoId}`, with a create-only rule
       (`reporterId == request.auth.uid`, a field allowlist, no reads), and you
       review reports in the Firestore console. Apple expects "timely
       responses", so someone has to actually read them.
-- [ ] **Block, enforced by the server, on Spark.** `gaps/FRIENDS.md` and
+- [x] *(built 2026-11-16)* **Block, enforced by the server, on Spark.** `gaps/FRIENDS.md` and
       `BACKLOG.md` B3 say blocking needs Cloud Functions. That's true for
       hiding someone from search, but not for stopping their requests. Store
       `blocks/{blockerUid}_{blockedUid}`. Because that ID can be computed,
       the `friendships` and `squadInvites` create rules can refuse the write
       with `exists(/databases/$(database)/documents/blocks/$(target)_$(request.auth.uid))`.
       Search results get filtered on the client.
-- [ ] **Filter:** a word-list check on display names and squad names, on the
+- [x] *(built 2026-11-16)* **Filter:** a word-list check on display names and squad names, on the
       client, at both validation sites. It doesn't need to be clever, it needs
       to exist.
-- [ ] Contact info, as in §2.3.
+- [x] *(built and live 2026-11-16)* Contact info, as in §2.3.
 
 ---
 
@@ -164,11 +194,11 @@ is `ProfileViewModel.swift:284`, which only runs when you're *signed in*.
 `PRODUCT_OVERVIEW.md` lists "Password reset by emailed link" without that
 caveat.
 
-- [ ] Add **"Forgot password?"** under the password field, prefilled from
+- [x] *(shipped 2026-11-14)* Add **"Forgot password?"** under the password field, prefilled from
       the email field. Say "If an account exists for that email, we've sent a
       link" either way, so the screen doesn't reveal which emails have
       accounts.
-- [ ] Trim with `.whitespacesAndNewlines`, not `.whitespaces`
+- [x] *(shipped 2026-11-14)* Trim with `.whitespacesAndNewlines`, not `.whitespaces`
       (`LoginViewModel.swift`). An email pasted with a trailing newline is
       currently rejected as invalid.
 
@@ -208,7 +238,7 @@ scoreboard and every band lay out in a shape nobody has checked.
 "iPhone-portrait throughout, and the project says so". The first half is
 true, the second isn't.
 
-- [ ] Set both lines to `UIInterfaceOrientationPortrait` only.
+- [x] *(shipped 2026-11-14)* Set both lines to `UIInterfaceOrientationPortrait` only.
 
 ### 3.4 Sign-out leaves the last user's notifications and on-device history
 
@@ -220,10 +250,10 @@ sign-out hook. `RecentCourtsStore`, `InboxDismissalsStore` and
 `CelebratedWinsStore` are shared by every account on the device too, so B
 sees A's recent courts.
 
-- [ ] On sign-out, and on account deletion: call
+- [x] *(shipped 2026-11-14)* On sign-out, and on account deletion: call
       `removeAllPendingNotificationRequests()` and
       `removeAllDeliveredNotifications()`.
-- [ ] Either clear the three stores on sign-out, or key them by uid.
+- [x] *(shipped 2026-11-14)* Either clear the three stores on sign-out, or key them by uid.
 
 ### 3.5 Being waitlisted for a run can make it disappear
 
@@ -264,10 +294,10 @@ There are two more defects on the same path:
   document" without an error, and `currentProfile` stays `nil` until the next
   cold launch. *Likely, not reproduced.*
 
-- [ ] Ask for a display name at sign-up (onboarding, §7.1). Until that
+- [ ] *(default shipped 2026-11-14: `"Hooper 4821"`, never the email; asking at sign-up is still open)* Ask for a display name at sign-up (onboarding, §7.1). Until that
       exists, default to `"Hooper"` plus a short random suffix, not the
       email.
-- [ ] Truncate whatever default is used to `UserProfile.maxUserNameLength`.
+- [x] *(shipped 2026-11-14)* Truncate whatever default is used to `UserProfile.maxUserNameLength`.
 - [ ] When a snapshot says the profile doesn't exist and no setup is in
       progress, run the setup again.
 - [ ] For existing accounts: think about a one-time prompt for anyone whose
@@ -355,7 +385,7 @@ growth.
 
 ### 4.3 Firebase console checklist
 
-- [ ] Confirm the live rules and indexes match the repo (Firestore →
+- [ ] *(They did **not** match on 2026-11-13: creating a run was refused until the repo's rules and indexes were redeployed that day. One index exists in the project that isn't in `firestore.indexes.json`.)* Confirm the live rules and indexes match the repo (Firestore →
       Rules → version history). Re-run `npm run test:rules` before every
       future deploy.
 - [ ] In Auth settings, check **email enumeration protection** is on.
@@ -377,7 +407,7 @@ growth.
 - [ ] Merge `queue-system` → `main`. `main` is from 2026-08-22, 70 commits
       behind this branch, and 7 of the local commits haven't been pushed.
       Release from `main` and tag the commit.
-- [ ] Add `ITSAppUsesNonExemptEncryption = NO` (the app only uses HTTPS), so
+- [x] *(shipped 2026-11-14)* Add `ITSAppUsesNonExemptEncryption = NO` (the app only uses HTTPS), so
       uploads stop asking the export-compliance question.
 - [ ] Bump `CURRENT_PROJECT_VERSION` on every upload. It's `1` now.
 - [ ] **Support iOS 18 or not.** The deployment target is iOS 18.0, but no
@@ -441,7 +471,7 @@ mode, but each becomes an error in Swift 6.
       a few emoji can pass the client check and get `permission-denied` from
       the server, which reads like an undeployed ruleset. Add a rules test
       with an emoji name and align the client's count to whatever it shows.
-- [ ] **A run on the last allowed day can be refused.** The date picker's
+- [x] *(shipped 2026-11-14)* **A run on the last allowed day can be refused.** The date picker's
       upper bound (`CreateGameViewModel.scheduleRange`) is exactly now + 30
       days, but the rule is a strict `< request.time + 30d`. On a phone whose
       clock runs fast, the last selectable minute is rejected. Pull the bound

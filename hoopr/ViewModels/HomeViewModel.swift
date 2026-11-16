@@ -31,7 +31,55 @@ final class HomeViewModel: ObservableObject {
         let court: Court
         let gameCount: Int
 
+        /// Who is in and how much room is left, across the court's public
+        /// runs today. `nil` when none of today's runs here is public — see
+        /// `Headcount`.
+        var headcount: Headcount? = nil
+
         var id: String { court.id }
+    }
+
+    /// How many players are signed up, and how many spots are still open,
+    /// across the **public** runs at one court today — the line that answers
+    /// "is it worth going?" before the row is tapped (the user's request,
+    /// 2026-11-15).
+    ///
+    /// **Public runs only.** A private run reaches this account only because
+    /// the account is on it, so it isn't something to join, and its roster
+    /// isn't Home's to advertise. A court whose only run today is private has
+    /// no headcount, and its row reads as it did before.
+    ///
+    /// Summed over the court's runs rather than quoted for one: the row is a
+    /// court (a facility), and its count beside this already says how many
+    /// runs the total is spread over.
+    nonisolated struct Headcount: Equatable, Sendable {
+        let signedUp: Int
+        let openSpots: Int
+
+        /// `nil` when there's no public run to count.
+        init?(games: [Game]) {
+            let joinable = games.filter(\.isPublic)
+            guard !joinable.isEmpty else { return nil }
+
+            signedUp = joinable.reduce(0) { $0 + $1.playerIds.count }
+            openSpots = joinable.reduce(0) { $0 + $1.openSlots }
+        }
+
+        /// "4 signed up".
+        var signedUpText: String { "\(signedUp) signed up" }
+
+        /// "6 spots open" / "1 spot open" / "Full" — singular at one, and a
+        /// word rather than "0 spots open" when there's no room.
+        var openSpotsText: String {
+            switch openSpots {
+            case 0:  return "Full"
+            case 1:  return "1 spot open"
+            default: return "\(openSpots) spots open"
+            }
+        }
+
+        /// Both halves, for VoiceOver.
+        var spokenText: String { "\(signedUpText), \(openSpotsText)" }
     }
 
     /// A squad with its record — what the scoreboard's squad panel shows.
@@ -440,24 +488,37 @@ final class HomeViewModel: ObservableObject {
     ///
     /// `nonisolated static` and pure so the ranking can be tested without
     /// constructing a service or touching Firebase — the same shape
-    /// `MapViewModel.gameCountsByCourt` and `Game.validate` already use.
+    /// `MapViewModel.gameCountsByFacility` and `Game.validate` already use.
     ///
     /// Ties break on `displayName`, not on dictionary order: a `[String: Int]`
     /// has no stable iteration order, so without a second key the list would
     /// reshuffle itself between rebuilds while showing identical numbers.
     /// Courts absent from `counts` have nothing scheduled and are dropped
     /// rather than rendered as a zero — a hot list of cold courts is noise.
+    ///
+    /// **`counts` is keyed by `facilityId`** and a facility appears at most once.
+    /// Both matter: the counts come from `gameCountsByFacility`, and a park whose
+    /// surfaces OSM split in three would otherwise fill the whole list with one
+    /// destination repeated, each row showing the same tally. The first court of
+    /// a facility wins, and `courts` arrives name-sorted, so that's the same
+    /// representative every rebuild.
+    ///
+    /// `headcounts` is keyed the same way and only decorates a row: it never
+    /// decides whether a court is listed or where.
     nonisolated static func rankHotCourts(
         counts: [String: Int],
         courts: [Court],
-        limit: Int
+        limit: Int,
+        headcounts: [String: Headcount] = [:]
     ) -> [HotCourt] {
         guard limit > 0 else { return [] }
 
+        var claimed = Set<String>()
         return courts
-            .compactMap { court in
-                guard let count = counts[court.id], count > 0 else { return nil }
-                return HotCourt(court: court, gameCount: count)
+            .compactMap { court -> HotCourt? in
+                guard let count = counts[court.facilityId], count > 0 else { return nil }
+                guard claimed.insert(court.facilityId).inserted else { return nil }
+                return HotCourt(court: court, gameCount: count, headcount: headcounts[court.facilityId])
             }
             .sorted { lhs, rhs in
                 lhs.gameCount == rhs.gameCount
@@ -477,7 +538,7 @@ final class HomeViewModel: ObservableObject {
     /// dropped. A court with other runs today stays: those are news.
     ///
     /// - **Its count is what says "only".** `gameCount` is today's visible runs
-    ///   at the court (`MapViewModel.gamesByCourt`), read from the same
+    ///   at the court (`MapViewModel.gamesByFacility`), read from the same
     ///   `queuedGames` the hero is chosen from, with the same `isVisible(at:)`
     ///   rule — so a booked run that is today is always one of them, and a
     ///   count of 1 is the booked run alone.
@@ -491,10 +552,16 @@ final class HomeViewModel: ObservableObject {
     /// `ranked` comes from `rankHotCourts` with room for one more than `limit`,
     /// so a dropped court is backfilled by the next busiest rather than leaving
     /// the list a row short. `nonisolated static` and pure, like the ranking.
+    ///
+    /// Matched by **facility**, not court: a hot row stands for every surface
+    /// at one park, so a run booked on Long Meadow's court 2 is the row headed
+    /// by court 1. `facilityIdsByCourtId` is `CourtService`'s; a court missing
+    /// from it is its own facility, as everywhere else.
     nonisolated static func excludingBookedCourt(
         from ranked: [HotCourt],
         bookedRun: Game?,
         limit: Int,
+        facilityIdsByCourtId: [String: String] = [:],
         now: Date = Date()
     ) -> [HotCourt] {
         guard limit > 0 else { return [] }
@@ -504,8 +571,9 @@ final class HomeViewModel: ObservableObject {
             return Array(ranked.prefix(limit))
         }
 
+        let bookedFacilityId = facilityIdsByCourtId[bookedRun.courtId] ?? bookedRun.courtId
         let others = ranked.filter { hot in
-            !(hot.court.id == bookedRun.courtId && hot.gameCount == 1)
+            !(hot.court.facilityId == bookedFacilityId && hot.gameCount == 1)
         }
         return Array((others.isEmpty ? ranked : others).prefix(limit))
     }
@@ -682,10 +750,15 @@ final class HomeViewModel: ObservableObject {
         queued: [Game]? = nil,
         published: [Game]? = nil
     ) {
-        let counts = MapViewModel.gameCountsByCourt(
+        // The join itself rather than `gameCountsByFacility`, so the count
+        // and the headcount are read off the same runs and can't disagree.
+        let gamesByFacility = MapViewModel.gamesByFacility(
             queued: queued ?? gameService.queuedGames,
-            published: published ?? gameService.publicGames
+            published: published ?? gameService.publicGames,
+            facilityIdsByCourtId: courtService.facilityIdsByCourtId
         )
+        let counts = gamesByFacility.mapValues(\.count)
+        let headcounts = gamesByFacility.compactMapValues { Headcount(games: $0) }
 
         // One spare, for the booked court to be dropped from without leaving
         // the list a row short. Reads `nextRun`, so every caller rebuilds that
@@ -693,12 +766,14 @@ final class HomeViewModel: ObservableObject {
         let ranked = Self.rankHotCourts(
             counts: counts,
             courts: courtService.courts,
-            limit: Self.hotCourtLimit + 1
+            limit: Self.hotCourtLimit + 1,
+            headcounts: headcounts
         )
         hotCourts = Self.excludingBookedCourt(
             from: ranked,
             bookedRun: nextRun?.game,
-            limit: Self.hotCourtLimit
+            limit: Self.hotCourtLimit,
+            facilityIdsByCourtId: courtService.facilityIdsByCourtId
         )
     }
 

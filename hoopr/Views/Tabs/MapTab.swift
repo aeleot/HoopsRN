@@ -183,10 +183,10 @@ struct MapTab: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             MapView(
-                courts: viewModel.courts,
+                courts: viewModel.mapCourts,
                 initialRegion: viewModel.initialRegion,
                 recenterTrigger: $recenterTrigger,
-                gameCountByCourtID: viewModel.gameCountByCourtID,
+                gameCountByFacilityID: viewModel.gameCountByFacilityID,
                 selectedCourtID: sheetState.selectedCourt?.id,
                 onMarkerTap: { court in
                     select(court)
@@ -1009,6 +1009,19 @@ struct MapTab: View {
                     .hooprType(.body)
             }
             .foregroundStyle(Color.hooprSecondaryText)
+
+            // Only for a multi-surface facility: the map draws one pin per
+            // facility, so "3 courts" is the only thing distinguishing a park
+            // from a single court, and on a single court it would be noise.
+            if let surfaceCount = viewModel.surfaceCountText(for: court) {
+                HStack(spacing: 6) {
+                    Image(systemName: "square.grid.2x2.fill")
+                        .hooprType(.caption)
+                    Text(surfaceCount)
+                        .hooprType(.body)
+                }
+                .foregroundStyle(Color.hooprSecondaryText)
+            }
 
             HStack(spacing: 6) {
                 Image(systemName: "location.fill")

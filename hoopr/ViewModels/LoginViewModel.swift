@@ -50,6 +50,11 @@ final class LoginViewModel: ObservableObject {
     @Published private(set) var isBusy = false
     @Published private(set) var errorMessage: String?
 
+    /// Something to tell the reader that isn't a failure — today, only that a
+    /// reset link went out. Separate from `errorMessage` so the view can draw
+    /// it without the red.
+    @Published private(set) var noticeMessage: String?
+
     private let authService: AuthService
 
     init(authService: AuthService) {
@@ -57,14 +62,84 @@ final class LoginViewModel: ObservableObject {
     }
 
     var canSubmit: Bool {
-        !email.trimmingCharacters(in: .whitespaces).isEmpty
+        !Self.normalizedEmail(email).isEmpty
             && !password.isEmpty
             && !isBusy
     }
 
+    /// "Forgot password?" belongs to signing in: someone creating an account
+    /// has no password to have forgotten.
+    var offersPasswordReset: Bool { mode == .signIn }
+
     func toggleMode() {
         mode = mode.toggled
         errorMessage = nil
+        noticeMessage = nil
+    }
+
+    /// The address as it is sent. `.whitespacesAndNewlines`, not
+    /// `.whitespaces`: an email pasted from a message often carries a trailing
+    /// newline, which Firebase rejects as an invalid address.
+    nonisolated static func normalizedEmail(_ raw: String) -> String {
+        raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// What the reset link's confirmation says. **The same sentence whether or
+    /// not the account exists**, so this screen can't be used to find out
+    /// which addresses have accounts.
+    nonisolated static let passwordResetNotice =
+        "If an account exists for that email, we've sent a link to reset your password."
+
+    nonisolated static let passwordResetNeedsEmail =
+        "Enter your email above, then tap Forgot password."
+
+    /// Emails a reset link to the address in the email field — the only way
+    /// back in for someone who is signed out and has forgotten their password.
+    /// (Profile has its own, for a signed-in account changing one.)
+    func sendPasswordReset() async {
+        guard !isBusy else { return }
+
+        let trimmedEmail = Self.normalizedEmail(email)
+        guard !trimmedEmail.isEmpty else {
+            noticeMessage = nil
+            errorMessage = Self.passwordResetNeedsEmail
+            return
+        }
+
+        isBusy = true
+        errorMessage = nil
+        noticeMessage = nil
+
+        do {
+            try await authService.sendPasswordResetEmail(to: trimmedEmail)
+            noticeMessage = Self.passwordResetNotice
+        } catch {
+            let outcome = Self.passwordResetOutcome(for: error)
+            noticeMessage = outcome.notice
+            errorMessage = outcome.error
+        }
+
+        isBusy = false
+    }
+
+    /// How a failed reset request is reported. `userNotFound` is reported as
+    /// the *success* notice: projects without email-enumeration protection
+    /// return it, and repeating it would confirm who has no account.
+    nonisolated static func passwordResetOutcome(for error: Error) -> (notice: String?, error: String?) {
+        guard let authError = error as? AuthError else {
+            return (nil, "Couldn't send the reset link. Try again.")
+        }
+
+        switch authError {
+        case .userNotFound:     return (passwordResetNotice, nil)
+        case .invalidEmail:     return (nil, "That email address doesn't look right.")
+        case .userDisabled:     return (nil, FailureText.accountDisabled)
+        case .network:          return (nil, FailureText.network)
+        case .tooManyRequests:  return (nil, "Too many attempts. Try again in a few minutes.")
+        case .notConfigured:    return (nil, FailureText.authNotConfigured)
+        case .providerDisabled: return (nil, FailureText.providerDisabled)
+        default:                return (nil, "Couldn't send the reset link. Try again.")
+        }
     }
 
     func submit() async {
@@ -72,8 +147,9 @@ final class LoginViewModel: ObservableObject {
 
         isBusy = true
         errorMessage = nil
+        noticeMessage = nil
 
-        let trimmedEmail = email.trimmingCharacters(in: .whitespaces)
+        let trimmedEmail = Self.normalizedEmail(email)
         do {
             switch mode {
             case .signIn:
@@ -106,6 +182,8 @@ final class LoginViewModel: ObservableObject {
         case .providerDisabled:  return FailureText.providerDisabled
         case .keychainUnavailable:
             return "Signed in, but this device wouldn't store the session. Reinstall the app and try again."
+        case .requiresRecentLogin:
+            return "Sign in again to continue."
         case .unknown(let description): return description
         }
     }
