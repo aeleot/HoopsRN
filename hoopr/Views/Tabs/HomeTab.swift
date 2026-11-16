@@ -555,6 +555,11 @@ struct HomeTab: View {
                     Text(hot.court.city)
                         .hooprType(.caption)
                         .foregroundStyle(Color.hooprSecondaryText)
+
+                    if let headcount = hot.headcount {
+                        headcountLine(headcount)
+                            .padding(.top, 2)
+                    }
                 }
 
                 Spacer(minLength: Spacing.sm)
@@ -581,7 +586,49 @@ struct HomeTab: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(hot.court.displayName), \(hot.court.city), \(gameCountText(hot.gameCount)) today")
+        .accessibilityLabel(
+            [
+                hot.court.displayName,
+                hot.court.city,
+                "\(gameCountText(hot.gameCount)) today",
+                hot.headcount?.spokenText,
+            ]
+            .compactMap { $0 }
+            .joined(separator: ", ")
+        )
+    }
+
+    /// Who's in and how much room is left at a court's public runs today —
+    /// what says whether a run is worth the drive before the row is tapped.
+    ///
+    /// The numbers are set in the primary colour and the words around them in
+    /// the secondary, as the hero's "9 spots left" is, so the two figures are
+    /// what the eye lands on. Wraps rather than truncating (`FlowLayout`): at
+    /// the largest text sizes the two halves stack.
+    private func headcountLine(_ headcount: HomeViewModel.Headcount) -> some View {
+        FlowLayout(spacing: Spacing.md, lineSpacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: "person.2.fill")
+                    .hooprType(.caption)
+                    .foregroundStyle(Color.hooprSecondaryText)
+                Text("\(Text("\(headcount.signedUp)").fontWeight(.semibold).foregroundStyle(Color.hooprPrimaryText)) signed up")
+                    .hooprType(.caption)
+                    .foregroundStyle(Color.hooprSecondaryText)
+            }
+
+            if headcount.openSpots > 0 {
+                Text("\(Text("\(headcount.openSpots)").fontWeight(.semibold).foregroundStyle(Color.hooprPrimaryText)) \(headcount.openSpots == 1 ? "spot open" : "spots open")")
+                    .hooprType(.caption)
+                    .foregroundStyle(Color.hooprSecondaryText)
+            } else {
+                Text(headcount.openSpotsText)
+                    .hooprType(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.hooprPrimaryText)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(headcount.spokenText)
     }
 
     /// Whether there is a stats row at all: a scoreboard to show, or — for

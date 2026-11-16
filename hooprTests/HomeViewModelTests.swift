@@ -781,4 +781,85 @@ final class HomeViewModelTests: XCTestCase {
             ["lm-1"]
         )
     }
+
+    // MARK: - Tonight nearby's headcount
+
+    private func run(
+        _ id: String,
+        players: Int,
+        of maxPlayers: Int = 10,
+        isPublic: Bool = true
+    ) -> Game {
+        Game(
+            id: id,
+            hostId: "p0",
+            courtId: "alpha",
+            scheduledTime: noon.addingTimeInterval(3600),
+            isPublic: isPublic,
+            maxPlayers: maxPlayers,
+            status: players >= maxPlayers ? .full : .open,
+            playerIds: (0..<players).map { "p\($0)" },
+            queuedPlayerIds: [],
+            createdAt: noon,
+            updatedAt: noon,
+            completedAt: nil
+        )
+    }
+
+    /// What the row is for: who's in, and how much room is left.
+    func testAHeadcountSaysWhoIsInAndHowMuchRoomIsLeft() throws {
+        let headcount = try XCTUnwrap(HomeViewModel.Headcount(games: [run("a", players: 4)]))
+
+        XCTAssertEqual(headcount.signedUp, 4)
+        XCTAssertEqual(headcount.openSpots, 6)
+        XCTAssertEqual(headcount.spokenText, "4 signed up, 6 spots open")
+    }
+
+    /// The row is a court, so two runs there are one total — the count beside
+    /// it says how many runs it is spread over.
+    func testACourtsPublicRunsAreSummed() throws {
+        let headcount = try XCTUnwrap(
+            HomeViewModel.Headcount(games: [run("a", players: 4), run("b", players: 7, of: 8)])
+        )
+
+        XCTAssertEqual(headcount.signedUp, 11)
+        XCTAssertEqual(headcount.openSpots, 7)
+    }
+
+    /// A private run isn't one to join, and its roster isn't Home's to
+    /// advertise: it adds nothing, and alone it yields no headcount at all.
+    func testPrivateRunsAreNotCounted() throws {
+        XCTAssertNil(HomeViewModel.Headcount(games: [run("mine", players: 5, isPublic: false)]))
+        XCTAssertNil(HomeViewModel.Headcount(games: []))
+
+        let mixed = try XCTUnwrap(
+            HomeViewModel.Headcount(games: [run("a", players: 3), run("mine", players: 5, isPublic: false)])
+        )
+        XCTAssertEqual(mixed.signedUp, 3)
+        XCTAssertEqual(mixed.openSpots, 7)
+    }
+
+    func testTheOpenSpotsReadSingularAtOneAndFullAtNone() throws {
+        XCTAssertEqual(try XCTUnwrap(HomeViewModel.Headcount(games: [run("a", players: 9)])).openSpotsText, "1 spot open")
+        XCTAssertEqual(try XCTUnwrap(HomeViewModel.Headcount(games: [run("a", players: 10)])).openSpotsText, "Full")
+        XCTAssertEqual(try XCTUnwrap(HomeViewModel.Headcount(games: [run("a", players: 2)])).openSpotsText, "8 spots open")
+    }
+
+    /// The headcount rides along with a ranked court; it never decides
+    /// whether the court is listed, or where.
+    func testRankingCarriesTheHeadcountWithoutBeingMovedByIt() throws {
+        let busy = try XCTUnwrap(HomeViewModel.Headcount(games: [run("a", players: 9)]))
+        let courts = [court("alpha", name: "Alpha"), court("bravo", name: "Bravo")]
+
+        let ranked = HomeViewModel.rankHotCourts(
+            counts: ["alpha": 1, "bravo": 2],
+            courts: courts,
+            limit: 3,
+            headcounts: ["alpha": busy]
+        )
+
+        XCTAssertEqual(ranked.map(\.court.id), ["bravo", "alpha"])
+        XCTAssertNil(ranked[0].headcount)
+        XCTAssertEqual(ranked[1].headcount, busy)
+    }
 }
